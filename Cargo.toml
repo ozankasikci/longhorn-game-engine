@@ -9,9 +9,7 @@ members = [
     "crates/engine-assets",
     "crates/engine-scripting",
     "crates/engine-ui",
-    "crates/engine-ui-system",
     "crates/engine-platform",
-    "crates/engine-editor",
     "crates/engine-editor-egui",
     "crates/engine-runtime",
 ]
@@ -35,10 +33,6 @@ winit = "0.29"
 egui = "0.26"
 egui-wgpu = "0.26"
 egui-winit = "0.26"
-gtk4 = "0.7"
-glib = "0.18"
-gio = "0.18"
-libadwaita = "0.5"
 
 # Audio
 rodio = "0.17"
@@ -92,14 +86,8 @@ path = "crates/engine-scripting"
 [workspace.dependencies.engine-ui]
 path = "crates/engine-ui"
 
-[workspace.dependencies.engine-ui-system]
-path = "crates/engine-ui-system"
-
 [workspace.dependencies.engine-platform]
 path = "crates/engine-platform"
-
-[workspace.dependencies.engine-editor]
-path = "crates/engine-editor"
 
 [workspace.dependencies.engine-runtime]
 path = "crates/engine-runtime"
