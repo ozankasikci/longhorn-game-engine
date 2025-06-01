@@ -46,14 +46,29 @@ struct UnityEditor {
 
 impl UnityEditor {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        // Create initial dock layout similar to Unity
-        let dock_state = DockState::new(vec![
-            PanelType::SceneView,
-            PanelType::Hierarchy, 
-            PanelType::Inspector,
-            PanelType::Console,
-            PanelType::Project,
-        ]);
+        // Create Unity-style dock layout
+        let mut dock_state = DockState::new(vec![PanelType::SceneView]);
+        
+        // Add Hierarchy to the left
+        let [_main, _left] = dock_state.main_surface_mut().split_left(
+            NodeIndex::root(),
+            0.2,
+            vec![PanelType::Hierarchy]
+        );
+        
+        // Add Inspector to the right
+        let [_main, _right] = dock_state.main_surface_mut().split_right(
+            NodeIndex::root(),
+            0.8,
+            vec![PanelType::Inspector]
+        );
+        
+        // Add Console to the bottom
+        let [_main, _bottom] = dock_state.main_surface_mut().split_below(
+            NodeIndex::root(),
+            0.7,
+            vec![PanelType::Console]
+        );
         
         Self {
             dock_state,
@@ -241,14 +256,32 @@ impl UnityEditor {
                 }
                 ui.separator();
                 if ui.button("Reset Layout").clicked() {
-                    self.dock_state = DockState::new(vec![
-                        PanelType::SceneView,
-                        PanelType::Hierarchy, 
-                        PanelType::Inspector,
-                        PanelType::Console,
-                        PanelType::Project,
-                    ]);
-                    self.console_messages.push(ConsoleMessage::info("🔄 Layout reset to default"));
+                    // Reset to Unity-style layout
+                    let mut dock_state = DockState::new(vec![PanelType::SceneView]);
+                    
+                    // Add Hierarchy to the left
+                    let [_main, _left] = dock_state.main_surface_mut().split_left(
+                        NodeIndex::root(),
+                        0.2,
+                        vec![PanelType::Hierarchy]
+                    );
+                    
+                    // Add Inspector to the right
+                    let [_main, _right] = dock_state.main_surface_mut().split_right(
+                        NodeIndex::root(),
+                        0.8,
+                        vec![PanelType::Inspector]
+                    );
+                    
+                    // Add Console to the bottom
+                    let [_main, _bottom] = dock_state.main_surface_mut().split_below(
+                        NodeIndex::root(),
+                        0.7,
+                        vec![PanelType::Console]
+                    );
+                    
+                    self.dock_state = dock_state;
+                    self.console_messages.push(ConsoleMessage::info("🔄 Layout reset to Unity default"));
                     ui.close_menu();
                 }
             });
