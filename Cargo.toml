@@ -1,0 +1,105 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/engine-core",
+    "crates/engine-graphics", 
+    "crates/engine-audio",
+    "crates/engine-physics",
+    "crates/engine-input",
+    "crates/engine-assets",
+    "crates/engine-scripting",
+    "crates/engine-ui",
+    "crates/engine-ui-system",
+    "crates/engine-platform",
+    "crates/engine-editor",
+    "crates/engine-editor-egui",
+    "crates/engine-runtime",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourusername/mobile-game-engine"
+
+[workspace.dependencies]
+# Math and utilities
+glam = "0.24"
+bytemuck = { version = "1.14", features = ["derive"] }
+
+# Graphics
+wgpu = "0.19"
+winit = "0.29"
+
+# UI
+egui = "0.26"
+egui-wgpu = "0.26"
+egui-winit = "0.26"
+gtk4 = "0.7"
+glib = "0.18"
+gio = "0.18"
+libadwaita = "0.5"
+
+# Audio
+rodio = "0.17"
+
+# Physics
+rapier2d = "0.17"
+rapier3d = "0.17"
+
+# Async and threading
+tokio = { version = "1.0", features = ["full"] }
+pollster = "0.3"
+
+# Logging
+log = "0.4"
+env_logger = "0.10"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Image handling
+image = "0.24"
+
+# CSS and color parsing
+csscolorparser = "0.6"
+
+# File watching for hot reload
+notify = "6.0"
+
+[workspace.dependencies.engine-core]
+path = "crates/engine-core"
+
+[workspace.dependencies.engine-graphics]
+path = "crates/engine-graphics"
+
+[workspace.dependencies.engine-audio]
+path = "crates/engine-audio"
+
+[workspace.dependencies.engine-physics]
+path = "crates/engine-physics"
+
+[workspace.dependencies.engine-input]
+path = "crates/engine-input"
+
+[workspace.dependencies.engine-assets]
+path = "crates/engine-assets"
+
+[workspace.dependencies.engine-scripting]
+path = "crates/engine-scripting"
+
+[workspace.dependencies.engine-ui]
+path = "crates/engine-ui"
+
+[workspace.dependencies.engine-ui-system]
+path = "crates/engine-ui-system"
+
+[workspace.dependencies.engine-platform]
+path = "crates/engine-platform"
+
+[workspace.dependencies.engine-editor]
+path = "crates/engine-editor"
+
+[workspace.dependencies.engine-runtime]
+path = "crates/engine-runtime"

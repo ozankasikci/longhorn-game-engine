@@ -1,0 +1,21 @@
+[package]
+name = "engine-ui-system"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# GTK4 for underlying widgets
+gtk4 = { workspace = true }
+glib = { workspace = true }
+gio = { workspace = true }
+gdk4 = "0.7"
+libadwaita = { workspace = true }
+
+# Color and styling
+csscolorparser = { workspace = true }
+serde = { workspace = true }
+serde_json = "1.0"
+
+[dev-dependencies]
+tokio-test = "0.4"

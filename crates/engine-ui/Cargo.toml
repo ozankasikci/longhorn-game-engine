@@ -1,0 +1,19 @@
+[package]
+name = "engine-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engine-core = { workspace = true }
+engine-graphics = { workspace = true }
+egui = { workspace = true }
+egui-wgpu = { workspace = true }
+egui-winit = { workspace = true }
+glam = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }
+thiserror = "1.0"
+
+[dev-dependencies]
+tokio-test = "0.4"

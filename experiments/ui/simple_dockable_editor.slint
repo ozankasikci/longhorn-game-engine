@@ -1,0 +1,639 @@
+import { Button, VerticalBox, HorizontalBox, ListView, LineEdit, CheckBox, ComboBox, Slider, ScrollView, GroupBox } from "std-widgets.slint";
+
+export struct GameObject {
+    id: int,
+    name: string,
+    position_x: float,
+    position_y: float,
+    position_z: float,
+    rotation_x: float,
+    rotation_y: float,
+    rotation_z: float,
+    scale_x: float,
+    scale_y: float,
+    scale_z: float,
+    active: bool,
+}
+
+export struct ConsoleMessage {
+    message: string,
+    message_type: string,
+    timestamp: string,
+}
+
+component FloatingWindow inherits Window {
+    title: "Floating Panel";
+    width: 300px;
+    height: 400px;
+    
+    in property <string> panel-title: "Panel";
+    
+    callback panel-closed();
+    callback panel-docked();
+    
+    VerticalBox {
+        // Title bar
+        Rectangle {
+            height: 25px;
+            background: #3c3c3c;
+            
+            HorizontalBox {
+                padding: 3px;
+                
+                Text {
+                    text: panel-title;
+                    color: white;
+                    font-weight: 700;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                }
+                
+                Rectangle { /* spacer */ }
+                
+                Button {
+                    text: "⚓";
+                    max-width: 20px;
+                    max-height: 18px;
+                    clicked => { panel-docked(); }
+                }
+                
+                Button {
+                    text: "✕";
+                    max-width: 20px;
+                    max-height: 18px;
+                    clicked => { panel-closed(); }
+                }
+            }
+        }
+        
+        @children
+    }
+}
+
+component DockablePanel inherits Rectangle {
+    in property <string> panel-id: "panel";
+    in property <string> title: "Panel";
+    in property <bool> is-docked: true;
+    
+    callback panel-closed(string);
+    callback panel-undocked(string);
+    
+    background: #2d2d2d;
+    border-width: 1px;
+    border-color: #555;
+    
+    VerticalBox {
+        // Title bar
+        Rectangle {
+            height: 25px;
+            background: #3c3c3c;
+            
+            HorizontalBox {
+                padding: 3px;
+                
+                Text {
+                    text: title;
+                    color: white;
+                    font-weight: 700;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                }
+                
+                Rectangle { /* spacer */ }
+                
+                Button {
+                    text: "📌";
+                    max-width: 20px;
+                    max-height: 18px;
+                    clicked => { panel-undocked(panel-id); }
+                }
+                
+                Button {
+                    text: "✕";
+                    max-width: 20px;
+                    max-height: 18px;
+                    clicked => { panel-closed(panel-id); }
+                }
+            }
+        }
+        
+        @children
+    }
+}
+
+component HierarchyPanelContent {
+    in property <[GameObject]> objects: [];
+    in property <int> selected-object: -1;
+    callback object-selected(int);
+    callback object-create();
+    callback object-delete();
+    
+    VerticalBox {
+        padding: 5px;
+        
+        HorizontalBox {
+            height: 25px;
+            spacing: 5px;
+            
+            Button {
+                text: "+";
+                max-width: 25px;
+                clicked => { object-create(); }
+            }
+            
+            Button {
+                text: "-";
+                max-width: 25px;
+                clicked => { object-delete(); }
+            }
+        }
+        
+        ScrollView {
+            ListView {
+                for obj[index] in objects: Rectangle {
+                    height: 20px;
+                    background: selected-object == index ? #0078d4 : (touch.has-hover ? #404040 : transparent);
+                    
+                    TouchArea {
+                        touch := TouchArea {
+                            clicked => { object-selected(index); }
+                        }
+                    }
+                    
+                    HorizontalBox {
+                        padding-left: 5px;
+                        
+                        Text {
+                            text: obj.active ? "👁" : "🚫";
+                            font-size: 10px;
+                            vertical-alignment: center;
+                        }
+                        
+                        Text {
+                            text: obj.name;
+                            color: white;
+                            font-size: 11px;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component InspectorPanelContent {
+    in property <GameObject> selected-object;
+    in property <bool> has-selection: false;
+    
+    callback property-changed(string, string);
+    
+    VerticalBox {
+        padding: 5px;
+        
+        if has-selection: ScrollView {
+            VerticalBox {
+                spacing: 10px;
+                
+                // Object name
+                GroupBox {
+                    title: "GameObject";
+                    
+                    VerticalBox {
+                        spacing: 5px;
+                        
+                        HorizontalBox {
+                            Text {
+                                text: "Name:";
+                                color: white;
+                                font-size: 11px;
+                                width: 60px;
+                            }
+                            
+                            LineEdit {
+                                text: selected-object.name;
+                                font-size: 11px;
+                            }
+                        }
+                        
+                        HorizontalBox {
+                            CheckBox {
+                                text: "Active";
+                                checked: selected-object.active;
+                            }
+                        }
+                    }
+                }
+                
+                // Transform
+                GroupBox {
+                    title: "Transform";
+                    
+                    VerticalBox {
+                        spacing: 5px;
+                        
+                        // Position
+                        Text {
+                            text: "Position";
+                            color: white;
+                            font-size: 10px;
+                            font-weight: 700;
+                        }
+                        
+                        HorizontalBox {
+                            spacing: 5px;
+                            
+                            Text { text: "X:"; color: #ff6b6b; font-size: 9px; width: 15px; }
+                            LineEdit { text: selected-object.position-x; font-size: 9px; }
+                            Text { text: "Y:"; color: #51cf66; font-size: 9px; width: 15px; }
+                            LineEdit { text: selected-object.position-y; font-size: 9px; }
+                            Text { text: "Z:"; color: #339af0; font-size: 9px; width: 15px; }
+                            LineEdit { text: selected-object.position-z; font-size: 9px; }
+                        }
+                        
+                        // Rotation
+                        Text {
+                            text: "Rotation";
+                            color: white;
+                            font-size: 10px;
+                            font-weight: 700;
+                        }
+                        
+                        HorizontalBox {
+                            spacing: 5px;
+                            
+                            Text { text: "X:"; color: #ff6b6b; font-size: 9px; width: 15px; }
+                            LineEdit { text: selected-object.rotation-x; font-size: 9px; }
+                            Text { text: "Y:"; color: #51cf66; font-size: 9px; width: 15px; }
+                            LineEdit { text: selected-object.rotation-y; font-size: 9px; }
+                            Text { text: "Z:"; color: #339af0; font-size: 9px; width: 15px; }
+                            LineEdit { text: selected-object.rotation-z; font-size: 9px; }
+                        }
+                        
+                        // Scale
+                        Text {
+                            text: "Scale";
+                            color: white;
+                            font-size: 10px;
+                            font-weight: 700;
+                        }
+                        
+                        HorizontalBox {
+                            spacing: 5px;
+                            
+                            Text { text: "X:"; color: #ff6b6b; font-size: 9px; width: 15px; }
+                            LineEdit { text: selected-object.scale-x; font-size: 9px; }
+                            Text { text: "Y:"; color: #51cf66; font-size: 9px; width: 15px; }
+                            LineEdit { text: selected-object.scale-y; font-size: 9px; }
+                            Text { text: "Z:"; color: #339af0; font-size: 9px; width: 15px; }
+                            LineEdit { text: selected-object.scale-z; font-size: 9px; }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if !has-selection: Rectangle {
+            Text {
+                text: "No object selected";
+                color: #888;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 11px;
+            }
+        }
+    }
+}
+
+component ConsolePanelContent {
+    in property <[ConsoleMessage]> messages: [];
+    callback clear-console();
+    
+    VerticalBox {
+        padding: 5px;
+        
+        HorizontalBox {
+            height: 25px;
+            
+            Rectangle { /* spacer */ }
+            
+            Button {
+                text: "Clear";
+                max-width: 50px;
+                max-height: 20px;
+                clicked => { clear-console(); }
+            }
+        }
+        
+        ScrollView {
+            ListView {
+                for msg[index] in messages: Rectangle {
+                    height: 16px;
+                    background: Math.mod(index, 2) == 0 ? #333 : transparent;
+                    
+                    HorizontalBox {
+                        padding-left: 5px;
+                        
+                        Text {
+                            text: msg.message-type == "Error" ? "❌" : (msg.message-type == "Warning" ? "⚠️" : "ℹ️");
+                            font-size: 10px;
+                            vertical-alignment: center;
+                            width: 20px;
+                        }
+                        
+                        Text {
+                            text: msg.message;
+                            color: msg.message-type == "Error" ? #ff6b6b : (msg.message-type == "Warning" ? #ffd43b : white);
+                            font-size: 10px;
+                            vertical-alignment: center;
+                        }
+                        
+                        Rectangle { /* spacer */ }
+                        
+                        Text {
+                            text: msg.timestamp;
+                            color: #888;
+                            font-size: 8px;
+                            vertical-alignment: center;
+                            width: 60px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component SceneView inherits Rectangle {
+    background: #1e1e1e;
+    
+    callback scene-clicked(float, float);
+    
+    Rectangle {
+        background: #333;
+        
+        TouchArea {
+            clicked => { scene-clicked(self.mouse-x / 1px, self.mouse-y / 1px); }
+        }
+        
+        // Scene view overlay
+        Rectangle {
+            x: 10px;
+            y: 10px;
+            width: 100px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            
+            VerticalBox {
+                padding: 5px;
+                
+                Text {
+                    text: "Scene View";
+                    color: white;
+                    font-size: 10px;
+                    font-weight: 700;
+                }
+                
+                Text {
+                    text: "📹 Persp";
+                    color: #aaa;
+                    font-size: 9px;
+                }
+                
+                Text {
+                    text: "🎯 Camera";
+                    color: #aaa;
+                    font-size: 9px;
+                }
+            }
+        }
+        
+        // Grid center indicator
+        Rectangle {
+            x: parent.width / 2 - 5px;
+            y: parent.height / 2 - 5px;
+            width: 10px;
+            height: 10px;
+            background: #ff6b6b;
+            border-radius: 5px;
+        }
+    }
+}
+
+component MenuBar inherits Rectangle {
+    height: 30px;
+    background: #3c3c3c;
+    
+    callback window-hierarchy();
+    callback window-inspector();
+    callback window-console();
+    
+    HorizontalBox {
+        padding: 4px;
+        spacing: 10px;
+        
+        Rectangle {
+            width: 40px;
+            height: 22px;
+            background: file-touch.has-hover ? #5a5a5a : transparent;
+            
+            TouchArea {
+                file-touch := TouchArea {}
+            }
+            
+            Text {
+                text: "File";
+                color: white;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 12px;
+            }
+        }
+        
+        Rectangle {
+            width: 60px;
+            height: 22px;
+            background: window-touch.has-hover ? #5a5a5a : transparent;
+            
+            TouchArea {
+                window-touch := TouchArea {
+                    clicked => { window-hierarchy(); }
+                }
+            }
+            
+            Text {
+                text: "Window";
+                color: white;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 12px;
+            }
+        }
+    }
+}
+
+component ToolBar inherits Rectangle {
+    height: 40px;
+    background: #4a4a4a;
+    
+    callback tool-selected(string);
+    
+    HorizontalBox {
+        padding: 5px;
+        spacing: 5px;
+        
+        Button {
+            text: "🔍";
+            max-width: 30px;
+            clicked => { tool-selected("select"); }
+        }
+        
+        Button {
+            text: "↔";
+            max-width: 30px;
+            clicked => { tool-selected("move"); }
+        }
+        
+        Button {
+            text: "🔄";
+            max-width: 30px;
+            clicked => { tool-selected("rotate"); }
+        }
+        
+        Button {
+            text: "⚏";
+            max-width: 30px;
+            clicked => { tool-selected("scale"); }
+        }
+        
+        Rectangle { /* spacer */ }
+        
+        Button {
+            text: "▶";
+            max-width: 30px;
+        }
+        
+        Button {
+            text: "⏸";
+            max-width: 30px;
+        }
+        
+        Button {
+            text: "⏹";
+            max-width: 30px;
+        }
+    }
+}
+
+export component SimpleDockableEditor inherits Window {
+    title: "Unity Editor - Simple Docking (Slint)";
+    width: 1400px;
+    height: 900px;
+    background: #1e1e1e;
+    
+    // Properties
+    in property <[GameObject]> scene-objects: [];
+    in property <int> selected-object-index: -1;
+    in property <[ConsoleMessage]> console-messages: [];
+    
+    // Panel visibility
+    in property <bool> hierarchy-visible: true;
+    in property <bool> inspector-visible: true;
+    in property <bool> console-visible: true;
+    
+    // Callbacks
+    callback object-selected(int);
+    callback object-created();
+    callback object-deleted();
+    callback scene-clicked(float, float);
+    callback tool-selected(string);
+    callback console-cleared();
+    callback property-changed(string, string);
+    
+    // Panel management
+    callback panel-closed(string);
+    callback panel-undocked(string);
+    callback window-panel-requested(string);
+    callback floating-panel-closed(string);
+    callback floating-panel-docked(string);
+    
+    VerticalBox {
+        // Menu bar
+        MenuBar {
+            window-hierarchy => { window-panel-requested("hierarchy"); }
+            window-inspector => { window-panel-requested("inspector"); }
+            window-console => { window-panel-requested("console"); }
+        }
+        
+        // Tool bar
+        ToolBar {
+            tool-selected(tool) => { tool-selected(tool); }
+        }
+        
+        // Main content area
+        HorizontalBox {
+            // Left panel - Hierarchy
+            if hierarchy-visible: DockablePanel {
+                width: 250px;
+                panel-id: "hierarchy";
+                title: "Hierarchy";
+                
+                panel-closed(id) => { panel-closed(id); }
+                panel-undocked(id) => { panel-undocked(id); }
+                
+                HierarchyPanelContent {
+                    objects: scene-objects;
+                    selected-object: selected-object-index;
+                    object-selected(index) => { object-selected(index); }
+                    object-create => { object-created(); }
+                    object-delete => { object-deleted(); }
+                }
+            }
+            
+            // Center area
+            VerticalBox {
+                // Scene view
+                SceneView {
+                    scene-clicked(x, y) => { scene-clicked(x, y); }
+                }
+                
+                // Bottom panel - Console
+                if console-visible: DockablePanel {
+                    height: 200px;
+                    panel-id: "console";
+                    title: "Console";
+                    
+                    panel-closed(id) => { panel-closed(id); }
+                    panel-undocked(id) => { panel-undocked(id); }
+                    
+                    ConsolePanelContent {
+                        messages: console-messages;
+                        clear-console => { console-cleared(); }
+                    }
+                }
+            }
+            
+            // Right panel - Inspector
+            if inspector-visible: DockablePanel {
+                width: 300px;
+                panel-id: "inspector";
+                title: "Inspector";
+                
+                panel-closed(id) => { panel-closed(id); }
+                panel-undocked(id) => { panel-undocked(id); }
+                
+                InspectorPanelContent {
+                    selected-object: selected-object-index >= 0 && selected-object-index < scene-objects.length ? 
+                        scene-objects[selected-object-index] : {
+                            id: 0, name: "", position-x: 0, position-y: 0, position-z: 0,
+                            rotation-x: 0, rotation-y: 0, rotation-z: 0,
+                            scale-x: 1, scale-y: 1, scale-z: 1, active: true
+                        };
+                    has-selection: selected-object-index >= 0;
+                    property-changed(prop, value) => { property-changed(prop, value); }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,17 @@
+[package]
+name = "engine-platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engine-core = { workspace = true }
+winit = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true }
+thiserror = "1.0"
+num_cpus = "1.16"
+
+[dev-dependencies]
+tokio-test = "0.4"

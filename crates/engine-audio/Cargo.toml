@@ -1,0 +1,16 @@
+[package]
+name = "engine-audio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engine-core = { workspace = true }
+rodio = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true }
+thiserror = "1.0"
+
+[dev-dependencies]
+tokio-test = "0.4"
