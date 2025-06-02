@@ -17,7 +17,7 @@ use engine_components_ui::{Canvas, Name};
 use engine_camera::{CameraComponent, CameraType, Viewport, Camera, Camera2D};
 use editor_state::{EditorState, GameObject, ConsoleMessage, ConsoleMessageType};
 use scene_renderer::SceneRenderer;
-use types::{PlayState, SceneNavigation, SceneTool, GizmoSystem, GizmoAxis, GizmoPlane, GizmoComponent, GizmoInteractionState, TextureAsset, ProjectAsset};
+use types::{PlayState, SceneNavigation, SceneTool, GizmoSystem, GizmoAxis, GizmoPlane, GizmoComponent, GizmoInteractionState, TextureAsset, ProjectAsset, PanelType};
 use panels::scene_view::gizmos::{MoveGizmo, Ray};
 use std::io::Write as _IoWrite;
 
@@ -80,6 +80,8 @@ struct UnityEditor {
     console_panel: panels::console::ConsolePanel,
     project_panel: panels::project::ProjectPanel,
     toolbar: ui::toolbar::Toolbar,
+    menu_bar: ui::menu_bar::MenuBar,
+    game_view_panel: panels::game_view::GameViewPanel,
     
     // Gizmo system
     gizmo_system: GizmoSystem,
@@ -376,6 +378,8 @@ impl UnityEditor {
             console_panel: panels::console::ConsolePanel::new(),
             project_panel: panels::project::ProjectPanel::new(),
             toolbar: ui::toolbar::Toolbar::new(),
+            menu_bar: ui::menu_bar::MenuBar::new(),
+            game_view_panel: panels::game_view::GameViewPanel::new(),
             gizmo_system: GizmoSystem::new(),
             scene_navigation: SceneNavigation::default(),
             scene_renderer: SceneRenderer::new(),
@@ -484,104 +488,9 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
 
 impl UnityEditor {
     fn show_menu_bar(&mut self, ui: &mut egui::Ui) {
-        egui::menu::bar(ui, |ui| {
-            ui.menu_button("File", |ui| {
-                if ui.button("New Scene").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("📄 Created new scene"));
-                    ui.close_menu();
-                }
-                if ui.button("Open Scene").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("📂 Opening scene..."));
-                    ui.close_menu();
-                }
-                if ui.button("Save Scene").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("💾 Scene saved"));
-                    ui.close_menu();
-                }
-                ui.separator();
-                if ui.button("Exit").clicked() {
-                    std::process::exit(0);
-                }
-            });
-            
-            ui.menu_button("Edit", |ui| {
-                if ui.button("Undo").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("↶ Undo"));
-                    ui.close_menu();
-                }
-                if ui.button("Redo").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("↷ Redo"));
-                    ui.close_menu();
-                }
-            });
-            
-            ui.menu_button("Window", |ui| {
-                ui.label("Dockable Panels:");
-                ui.separator();
-                if ui.button("Add Hierarchy Panel").clicked() {
-                    self.dock_state.add_window(vec![PanelType::Hierarchy]);
-                    self.console_messages.push(ConsoleMessage::info("➕ Added Hierarchy panel"));
-                    ui.close_menu();
-                }
-                if ui.button("Add Inspector Panel").clicked() {
-                    self.dock_state.add_window(vec![PanelType::Inspector]);
-                    self.console_messages.push(ConsoleMessage::info("➕ Added Inspector panel"));
-                    ui.close_menu();
-                }
-                if ui.button("Add Console Panel").clicked() {
-                    self.dock_state.add_window(vec![PanelType::Console]);
-                    self.console_messages.push(ConsoleMessage::info("➕ Added Console panel"));
-                    ui.close_menu();
-                }
-                if ui.button("Add Project Panel").clicked() {
-                    self.dock_state.add_window(vec![PanelType::Project]);
-                    self.console_messages.push(ConsoleMessage::info("➕ Added Project panel"));
-                    ui.close_menu();
-                }
-                if ui.button("Add Game View Panel").clicked() {
-                    self.dock_state.add_window(vec![PanelType::GameView]);
-                    self.console_messages.push(ConsoleMessage::info("➕ Added Game View panel"));
-                    ui.close_menu();
-                }
-                ui.separator();
-                if ui.button("Reset Layout").clicked() {
-                    // Reset to Unity-style layout with Scene and Game views
-                    let mut dock_state = DockState::new(vec![PanelType::SceneView, PanelType::GameView]);
-                    
-                    // Add Hierarchy to the left
-                    let [_main, _left] = dock_state.main_surface_mut().split_left(
-                        NodeIndex::root(),
-                        0.2,
-                        vec![PanelType::Hierarchy]
-                    );
-                    
-                    // Add Inspector to the right
-                    let [_main, _right] = dock_state.main_surface_mut().split_right(
-                        NodeIndex::root(),
-                        0.8,
-                        vec![PanelType::Inspector]
-                    );
-                    
-                    // Add Console to the bottom
-                    let [_main, _bottom] = dock_state.main_surface_mut().split_below(
-                        NodeIndex::root(),
-                        0.7,
-                        vec![PanelType::Console]
-                    );
-                    
-                    self.dock_state = dock_state;
-                    self.console_messages.push(ConsoleMessage::info("🔄 Layout reset to Unity default"));
-                    ui.close_menu();
-                }
-            });
-            
-            ui.menu_button("Help", |ui| {
-                ui.label("💡 Drag panel tabs to rearrange");
-                ui.label("🔄 Drop tabs on different areas to dock");
-                ui.label("➕ Use Window menu to add panels");
-                ui.label("🖱️ Right-click tabs for options");
-            });
-        });
+        // Delegate to the menu bar module
+        let messages = self.menu_bar.show(ui, &mut self.dock_state);
+        self.console_messages.extend(messages);
     }
     
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
@@ -2386,52 +2295,13 @@ impl UnityEditor {
     }
 
     fn show_game_view(&mut self, ui: &mut egui::Ui) {
-        // Game View header
-        ui.horizontal(|ui| {
-            ui.label("🎮 Game View");
-            
-            ui.separator();
-            
-            // Aspect ratio selector  
-            ui.label("Aspect:");
-            egui::ComboBox::from_id_source("game_view_aspect")
-                .selected_text("16:9")
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut "", "16:9", "16:9");
-                    ui.selectable_value(&mut "", "4:3", "4:3");
-                    ui.selectable_value(&mut "", "Free", "Free Aspect");
-                });
-            
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("🔊").on_hover_text("Audio toggle").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("🔊 Game audio toggled"));
-                }
-                if ui.button("📊").on_hover_text("Stats").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("📊 Game view stats"));
-                }
-            });
-        });
+        // Delegate to the game view panel
+        let (messages, render_rect) = self.game_view_panel.show(ui, self.play_state);
+        self.console_messages.extend(messages);
         
-        ui.separator();
-        
-        // Main game view area
-        let available_size = ui.available_size();
-        let response = ui.allocate_response(available_size, egui::Sense::hover());
-        
-        if self.play_state == PlayState::Editing {
-            // Show "Press Play" message when not in play mode
-            ui.allocate_ui_at_rect(response.rect, |ui| {
-                ui.centered_and_justified(|ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.label("🎮 Game View");
-                        ui.label("Press Play button to see game from camera");
-                        ui.small("This view shows what the player will see");
-                    });
-                });
-            });
-        } else {
-            // Render from main camera perspective when playing
-            self.render_camera_perspective(ui, response.rect);
+        // If we got a rect back, render the camera perspective
+        if let Some(rect) = render_rect {
+            self.render_camera_perspective(ui, rect);
         }
     }
     
@@ -2446,16 +2316,6 @@ impl UnityEditor {
     }
 }
 
-/// Different types of dockable panels
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum PanelType {
-    Hierarchy,
-    Inspector,
-    SceneView,
-    GameView,
-    Console,
-    Project,
-}
 
 /// Hierarchy object representation
 #[derive(Clone)]

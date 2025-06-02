@@ -13,4 +13,4 @@ pub use hierarchy::HierarchyPanel;
 pub use inspector::InspectorPanel;
 pub use console::ConsolePanel;
 pub use project::ProjectPanel;
-pub use game_view::GameView;
+pub use game_view::GameViewPanel;

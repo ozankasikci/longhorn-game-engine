@@ -136,5 +136,16 @@ impl ProjectAsset {
     }
 }
 
+/// Different types of dockable panels
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PanelType {
+    Hierarchy,
+    Inspector,
+    SceneView,
+    GameView,
+    Console,
+    Project,
+}
+
 // Re-export GizmoSystem from the proper module
 pub use crate::panels::scene_view::gizmos::GizmoSystem;
