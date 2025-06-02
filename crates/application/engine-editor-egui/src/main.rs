@@ -3,6 +3,10 @@
 
 mod editor_state;
 mod scene_renderer;
+mod types;
+mod panels;
+mod ui;
+mod bridge;
 
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex, TabViewer};
@@ -13,6 +17,8 @@ use engine_components_ui::{Canvas, Name};
 use engine_camera::{CameraComponent, CameraType, Viewport, Camera, Camera2D};
 use editor_state::{EditorState, GameObject, ConsoleMessage, ConsoleMessageType};
 use scene_renderer::SceneRenderer;
+use types::{PlayState, SceneNavigation, SceneTool, GizmoSystem, GizmoAxis, GizmoPlane, GizmoComponent, GizmoInteractionState, TextureAsset};
+use panels::scene_view::gizmos::{MoveGizmo, Ray};
 use std::io::Write as _IoWrite;
 
 fn main() -> Result<(), eframe::Error> {
@@ -38,255 +44,6 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-/// Play state for editor mode management
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PlayState {
-    Editing,   // Normal editor mode - full editing capabilities
-    Playing,   // Game running - properties locked, runtime active  
-    Paused,    // Game paused - can inspect state, limited editing
-}
-
-/// Scene navigation state for Unity/Unreal style camera controls
-#[derive(Debug, Clone)]
-pub struct SceneNavigation {
-    pub enabled: bool,
-    pub is_navigating: bool,
-    pub movement_speed: f32,
-    pub rotation_sensitivity: f32,
-    pub fast_movement_multiplier: f32,
-    pub last_mouse_pos: Option<egui::Pos2>,
-    pub scene_camera_transform: Transform,
-}
-
-impl Default for SceneNavigation {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            is_navigating: false,
-            movement_speed: 5.0,                    // Units per second
-            rotation_sensitivity: 0.002,            // Radians per pixel - reduced for smoother control
-            fast_movement_multiplier: 3.0,          // Shift speed boost
-            last_mouse_pos: None,
-            scene_camera_transform: Transform {
-                position: [0.0, 2.0, 5.0],          // Default camera position
-                rotation: [0.0, 0.0, 0.0],          // Looking forward
-                scale: [1.0, 1.0, 1.0],
-            },
-        }
-    }
-}
-
-impl Default for PlayState {
-    fn default() -> Self {
-        Self::Editing
-    }
-}
-
-/// Scene manipulation tool types
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SceneTool {
-    Select,   // Q - Selection tool (default)
-    Move,     // W - Move tool with XYZ gizmo
-    Rotate,   // E - Rotation tool (future)
-    Scale,    // R - Scale tool (future)
-}
-
-impl Default for SceneTool {
-    fn default() -> Self {
-        Self::Select
-    }
-}
-
-/// Gizmo axis selection for movement constraints
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum GizmoAxis {
-    X,   // Red axis - Left/Right
-    Y,   // Green axis - Up/Down  
-    Z,   // Blue axis - Forward/Backward
-}
-
-/// Gizmo plane selection for planar movement
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum GizmoPlane {
-    XY,  // Blue square - Z locked
-    XZ,  // Green square - Y locked
-    YZ,  // Red square - X locked
-}
-
-/// Gizmo component that can be interacted with
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum GizmoComponent {
-    Axis(GizmoAxis),
-    Plane(GizmoPlane),
-    Center,  // Screen-space movement
-}
-
-/// Current gizmo interaction state
-#[derive(Debug, Clone)]
-pub enum GizmoInteractionState {
-    Idle,                                    // No interaction
-    Hovering(GizmoComponent),               // Mouse over component
-    Dragging {
-        component: GizmoComponent,
-        start_mouse_pos: egui::Pos2,
-        start_object_pos: [f32; 3],
-    },
-}
-
-impl Default for GizmoInteractionState {
-    fn default() -> Self {
-        Self::Idle
-    }
-}
-
-/// Move gizmo for 3D object manipulation
-#[derive(Debug, Clone)]
-pub struct MoveGizmo {
-    /// World position of the gizmo (object center)
-    position: [f32; 3],
-    /// Scale factor based on camera distance for consistent screen size
-    scale: f32,
-    /// Current interaction state
-    interaction_state: GizmoInteractionState,
-    /// Whether gizmo is visible and active
-    enabled: bool,
-}
-
-impl MoveGizmo {
-    pub fn new(position: [f32; 3]) -> Self {
-        Self {
-            position,
-            scale: 1.0,
-            interaction_state: GizmoInteractionState::default(),
-            enabled: true,
-        }
-    }
-    
-    pub fn set_position(&mut self, position: [f32; 3]) {
-        self.position = position;
-    }
-    
-    pub fn set_scale(&mut self, scale: f32) {
-        self.scale = scale;
-    }
-    
-    pub fn is_interacting(&self) -> bool {
-        matches!(self.interaction_state, GizmoInteractionState::Dragging { .. })
-    }
-    
-    pub fn get_hovered_component(&self) -> Option<GizmoComponent> {
-        match &self.interaction_state {
-            GizmoInteractionState::Hovering(component) => Some(*component),
-            GizmoInteractionState::Dragging { component, .. } => Some(*component),
-            _ => None,
-        }
-    }
-}
-
-/// Gizmo system for managing scene manipulation tools
-#[derive(Debug, Clone)]
-pub struct GizmoSystem {
-    /// Currently active scene tool
-    active_tool: SceneTool,
-    /// Move gizmo instance
-    move_gizmo: Option<MoveGizmo>,
-    /// Whether gizmos should be rendered
-    enabled: bool,
-    /// Grid snapping settings
-    snap_enabled: bool,
-    snap_increment: f32,
-}
-
-impl Default for GizmoSystem {
-    fn default() -> Self {
-        Self {
-            active_tool: SceneTool::default(),
-            move_gizmo: None,
-            enabled: true,
-            snap_enabled: false,
-            snap_increment: 1.0,
-        }
-    }
-}
-
-impl GizmoSystem {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    
-    pub fn set_active_tool(&mut self, tool: SceneTool) {
-        self.active_tool = tool;
-    }
-    
-    pub fn get_active_tool(&self) -> SceneTool {
-        self.active_tool
-    }
-    
-    pub fn enable_move_gizmo(&mut self, position: [f32; 3]) {
-        if self.active_tool == SceneTool::Move {
-            self.move_gizmo = Some(MoveGizmo::new(position));
-        }
-    }
-    
-    pub fn disable_move_gizmo(&mut self) {
-        self.move_gizmo = None;
-    }
-    
-    pub fn get_move_gizmo_mut(&mut self) -> Option<&mut MoveGizmo> {
-        self.move_gizmo.as_mut()
-    }
-    
-    pub fn get_move_gizmo(&self) -> Option<&MoveGizmo> {
-        self.move_gizmo.as_ref()
-    }
-    
-    pub fn toggle_snap(&mut self) {
-        self.snap_enabled = !self.snap_enabled;
-    }
-    
-    pub fn set_snap_increment(&mut self, increment: f32) {
-        self.snap_increment = increment;
-    }
-    
-    pub fn apply_snap(&self, value: f32) -> f32 {
-        if self.snap_enabled {
-            (value / self.snap_increment).round() * self.snap_increment
-        } else {
-            value
-        }
-    }
-}
-
-/// Ray for 3D intersection testing
-#[derive(Debug, Clone, Copy)]
-pub struct Ray {
-    pub origin: [f32; 3],
-    pub direction: [f32; 3],
-}
-
-impl Ray {
-    pub fn new(origin: [f32; 3], direction: [f32; 3]) -> Self {
-        Self { origin, direction }
-    }
-    
-    /// Get point along ray at distance t
-    pub fn at(&self, t: f32) -> [f32; 3] {
-        [
-            self.origin[0] + self.direction[0] * t,
-            self.origin[1] + self.direction[1] * t,
-            self.origin[2] + self.direction[2] * t,
-        ]
-    }
-}
-
-/// Basic texture asset for sprites
-#[derive(Debug, Clone)]
-struct TextureAsset {
-    handle: u64,
-    name: String,
-    color: [f32; 4], // RGBA color for simple colored textures
-    size: [u32; 2],  // Width, Height
-}
 
 /// Unity-style editor application with dockable panels
 struct UnityEditor {
@@ -349,12 +106,12 @@ impl UnityEditor {
             (1007, "Orange Square", [1.0, 0.5, 0.2, 1.0]),
         ];
         
-        for (handle, name, color) in textures_data {
+        for (handle, name, _color) in textures_data {
             textures.insert(handle, TextureAsset {
-                handle,
+                id: egui::TextureId::default(), // Placeholder for now
                 name: name.to_string(),
-                color,
-                size: [64, 64], // 64x64 pixel textures
+                size: egui::Vec2::new(64.0, 64.0),
+                path: format!("builtin:{}", name.to_lowercase().replace(' ', "_")),
             });
         }
         
@@ -1691,12 +1448,10 @@ impl UnityEditor {
         
         // If sprite has a texture, blend with texture color
         if let Some(texture_handle) = sprite.texture_handle {
-            if let Some(texture) = self.texture_assets.get(&texture_handle) {
-                // Multiply sprite tint with texture color
-                final_color[0] *= texture.color[0];
-                final_color[1] *= texture.color[1];
-                final_color[2] *= texture.color[2];
-                final_color[3] *= texture.color[3];
+            if let Some(_texture) = self.texture_assets.get(&texture_handle) {
+                // In a real implementation, we would sample the texture here
+                // For now, we'll use the sprite's tint color directly
+                // TODO: Implement proper texture sampling
             }
         }
         
@@ -2893,11 +2648,11 @@ impl UnityEditor {
                 if let Some(component) = hit_component {
                     // Start dragging
                     if let Some(gizmo) = self.gizmo_system.get_move_gizmo_mut() {
-                        gizmo.interaction_state = GizmoInteractionState::Dragging {
+                        gizmo.set_interaction_state(GizmoInteractionState::Dragging {
                             component,
                             start_mouse_pos: mouse_pos,
                             start_object_pos: transform.position,
-                        };
+                        });
                         self.console_messages.push(ConsoleMessage::info(&format!(
                             "🔗 Started dragging {:?} at mouse=({:.1}, {:.1}), object_pos=[{:.2}, {:.2}, {:.2}]", 
                             component, mouse_pos.x, mouse_pos.y,
@@ -2913,7 +2668,7 @@ impl UnityEditor {
                 // Stop dragging (fixed deprecated method)
                 if let Some(gizmo) = self.gizmo_system.get_move_gizmo_mut() {
                     if gizmo.is_interacting() {
-                        gizmo.interaction_state = GizmoInteractionState::Idle;
+                        gizmo.set_interaction_state(GizmoInteractionState::Idle);
                         self.console_messages.push(ConsoleMessage::info("🔗 Finished dragging"));
                     }
                 }
@@ -2926,12 +2681,13 @@ impl UnityEditor {
                 
                 if let Some(gizmo) = self.gizmo_system.get_move_gizmo() {
                     self.console_messages.push(ConsoleMessage::info(&format!(
-                        "🔧 Gizmo state: {:?}", gizmo.interaction_state
+                        "🔧 Gizmo state: {:?}", gizmo.get_interaction_state()
                     )));
                     
-                    if let GizmoInteractionState::Dragging { component, start_mouse_pos, start_object_pos } = &gizmo.interaction_state {
+                    if let GizmoInteractionState::Dragging { component, start_mouse_pos, start_object_pos } = gizmo.get_interaction_state() {
                         let mouse_delta = mouse_pos - *start_mouse_pos;
-                        new_position = self.calculate_new_position(*start_object_pos, mouse_delta, *component, scale);
+                        let delta_vec2 = egui::Vec2::new(mouse_delta.x, mouse_delta.y);
+                        new_position = self.calculate_new_position(*start_object_pos, delta_vec2, *component, scale);
                         should_update = true;
                         
                         // Debug output
@@ -2956,8 +2712,8 @@ impl UnityEditor {
                     )));
                     
                     // Apply snapping if enabled
-                    let snap_enabled = self.gizmo_system.snap_enabled;
-                    let snap_increment = self.gizmo_system.snap_increment;
+                    let snap_enabled = self.gizmo_system.is_snap_enabled();
+                    let snap_increment = self.gizmo_system.get_snap_increment();
                     
                     if snap_enabled {
                         let old_new_pos = new_position;
@@ -3000,11 +2756,11 @@ impl UnityEditor {
                 // Handle hovering
                 if let Some(gizmo) = self.gizmo_system.get_move_gizmo_mut() {
                     if !gizmo.is_interacting() {
-                        gizmo.interaction_state = if let Some(component) = hit_component {
+                        gizmo.set_interaction_state(if let Some(component) = hit_component {
                             GizmoInteractionState::Hovering(component)
                         } else {
                             GizmoInteractionState::Idle
-                        };
+                        });
                     }
                 }
             }
