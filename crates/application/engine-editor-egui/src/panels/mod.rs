@@ -8,7 +8,7 @@ pub mod project;
 pub mod game_view;
 
 // Re-export commonly used items
-pub use scene_view::SceneView;
+pub use scene_view::SceneViewPanel;
 pub use hierarchy::HierarchyPanel;
 pub use inspector::InspectorPanel;
 pub use console::ConsolePanel;

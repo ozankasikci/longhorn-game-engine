@@ -17,7 +17,7 @@ use engine_components_ui::{Canvas, Name};
 use engine_camera::{CameraComponent, CameraType, Viewport, Camera, Camera2D};
 use editor_state::{EditorState, GameObject, ConsoleMessage, ConsoleMessageType};
 use scene_renderer::SceneRenderer;
-use types::{PlayState, SceneNavigation, SceneTool, GizmoSystem, GizmoAxis, GizmoPlane, GizmoComponent, GizmoInteractionState, TextureAsset};
+use types::{PlayState, SceneNavigation, SceneTool, GizmoSystem, GizmoAxis, GizmoPlane, GizmoComponent, GizmoInteractionState, TextureAsset, ProjectAsset};
 use panels::scene_view::gizmos::{MoveGizmo, Ray};
 use std::io::Write as _IoWrite;
 
@@ -75,6 +75,11 @@ struct UnityEditor {
     // UI state
     scene_view_active: bool,
     show_add_component_dialog: bool,
+    inspector_panel: panels::inspector::InspectorPanel,
+    hierarchy_panel: panels::hierarchy::HierarchyPanel,
+    console_panel: panels::console::ConsolePanel,
+    project_panel: panels::project::ProjectPanel,
+    toolbar: ui::toolbar::Toolbar,
     
     // Gizmo system
     gizmo_system: GizmoSystem,
@@ -366,6 +371,11 @@ impl UnityEditor {
             delta_time: 0.0,
             scene_view_active: true,
             show_add_component_dialog: false,
+            inspector_panel: panels::inspector::InspectorPanel::new(),
+            hierarchy_panel: panels::hierarchy::HierarchyPanel::new(),
+            console_panel: panels::console::ConsolePanel::new(),
+            project_panel: panels::project::ProjectPanel::new(),
+            toolbar: ui::toolbar::Toolbar::new(),
             gizmo_system: GizmoSystem::new(),
             scene_navigation: SceneNavigation::default(),
             scene_renderer: SceneRenderer::new(),
@@ -575,228 +585,57 @@ impl UnityEditor {
     }
     
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 8.0;
-            
-            // Scene manipulation tools
-            let current_tool = self.gizmo_system.get_active_tool();
-            
-            // Selection tool (Q)
-            let select_pressed = ui.add(
-                egui::Button::new("🎯")
-                    .fill(if current_tool == SceneTool::Select { 
-                        egui::Color32::from_rgb(100, 150, 255) 
-                    } else { 
-                        egui::Color32::TRANSPARENT 
-                    })
-            ).on_hover_text("Select Tool (Q)").clicked();
-            
-            if select_pressed {
-                self.gizmo_system.set_active_tool(SceneTool::Select);
-                self.gizmo_system.disable_move_gizmo();
-                self.console_messages.push(ConsoleMessage::info("🎯 Selection tool activated"));
-            }
-            
-            // Move tool (W)
-            let move_pressed = ui.add(
-                egui::Button::new("🔗")
-                    .fill(if current_tool == SceneTool::Move { 
-                        egui::Color32::from_rgb(100, 150, 255) 
-                    } else { 
-                        egui::Color32::TRANSPARENT 
-                    })
-            ).on_hover_text("Move Tool (W)").clicked();
-            
-            if move_pressed {
-                self.gizmo_system.set_active_tool(SceneTool::Move);
-                // Enable move gizmo if an entity is selected
-                if let Some(entity) = self.selected_entity {
-                    if let Some(transform) = self.world.get_component::<Transform>(entity) {
-                        self.gizmo_system.enable_move_gizmo(transform.position);
-                    }
-                }
-                self.console_messages.push(ConsoleMessage::info("🔗 Move tool activated"));
-            }
-            
-            // Rotate tool (E) - Future implementation
-            let rotate_pressed = ui.add(
-                egui::Button::new("🔄")
-                    .fill(if current_tool == SceneTool::Rotate { 
-                        egui::Color32::from_rgb(100, 150, 255) 
-                    } else { 
-                        egui::Color32::TRANSPARENT 
-                    })
-            ).on_hover_text("Rotate Tool (E) - Coming Soon").clicked();
-            
-            if rotate_pressed {
-                self.gizmo_system.set_active_tool(SceneTool::Rotate);
-                self.console_messages.push(ConsoleMessage::info("🔄 Rotate tool - coming soon!"));
-            }
-            
-            // Scale tool (R) - Future implementation
-            let scale_pressed = ui.add(
-                egui::Button::new("📐")
-                    .fill(if current_tool == SceneTool::Scale { 
-                        egui::Color32::from_rgb(100, 150, 255) 
-                    } else { 
-                        egui::Color32::TRANSPARENT 
-                    })
-            ).on_hover_text("Scale Tool (R) - Coming Soon").clicked();
-            
-            if scale_pressed {
-                self.gizmo_system.set_active_tool(SceneTool::Scale);
-                self.console_messages.push(ConsoleMessage::info("📐 Scale tool - coming soon!"));
-            }
-            
-            ui.separator();
-            
-            // Play controls - state-aware buttons
-            match self.play_state {
-                PlayState::Editing => {
-                    if ui.button("▶️").on_hover_text("Play").clicked() {
-                        self.start_play();
-                    }
-                    // Show disabled pause/stop buttons
-                    ui.add_enabled(false, egui::Button::new("⏸️"));
-                    ui.add_enabled(false, egui::Button::new("⏹️"));
-                }
-                PlayState::Playing => {
-                    // Show highlighted play button (active state)
-                    ui.add_enabled(false, egui::Button::new("▶️").fill(egui::Color32::from_rgb(100, 200, 100)));
-                    if ui.button("⏸️").on_hover_text("Pause").clicked() {
-                        self.pause_play();
-                    }
-                    if ui.button("⏹️").on_hover_text("Stop").clicked() {
-                        self.stop_play();
-                    }
-                }
-                PlayState::Paused => {
-                    if ui.button("▶️").on_hover_text("Resume").clicked() {
-                        self.resume_play();
-                    }
-                    // Show highlighted pause button (active state)
-                    ui.add_enabled(false, egui::Button::new("⏸️").fill(egui::Color32::from_rgb(200, 200, 100)));
-                    if ui.button("⏹️").on_hover_text("Stop").clicked() {
-                        self.stop_play();
-                    }
-                }
-            }
-            
-            ui.separator();
-            
-            // DEBUG: Test transform mutation
-            if ui.button("🔧 Test Move").on_hover_text("Debug: Move selected object 1 unit in X").clicked() {
-                if let Some(selected_entity) = self.selected_entity {
-                    if let Some(transform_mut) = self.world.get_component_mut::<Transform>(selected_entity) {
-                        let old_pos = transform_mut.position;
-                        transform_mut.position[0] += 1.0; // Move 1 unit in X
-                        self.console_messages.push(ConsoleMessage::info(&format!(
-                            "🔧 TEST: Moved object from [{:.2}, {:.2}, {:.2}] to [{:.2}, {:.2}, {:.2}]",
-                            old_pos[0], old_pos[1], old_pos[2],
-                            transform_mut.position[0], transform_mut.position[1], transform_mut.position[2]
-                        )));
-                    } else {
-                        self.console_messages.push(ConsoleMessage::info("🔧 TEST: Failed to get mutable transform"));
-                    }
+        // Delegate to the toolbar module
+        let actions = self.toolbar.show(
+            ui,
+            &mut self.play_state,
+            &mut self.gizmo_system,
+            &self.world,
+            self.selected_entity,
+            &self.selected_object,
+        );
+        
+        // Handle toolbar actions
+        if actions.start_play {
+            self.start_play();
+        }
+        if actions.pause_play {
+            self.pause_play();
+        }
+        if actions.resume_play {
+            self.resume_play();
+        }
+        if actions.stop_play {
+            self.stop_play();
+        }
+        
+        // Handle test move action
+        if actions.test_move {
+            if let Some(selected_entity) = self.selected_entity {
+                if let Some(transform_mut) = self.world.get_component_mut::<Transform>(selected_entity) {
+                    let old_pos = transform_mut.position;
+                    transform_mut.position[0] += 1.0; // Move 1 unit in X
+                    self.console_messages.push(ConsoleMessage::info(&format!(
+                        "🔧 TEST: Moved object from [{:.2}, {:.2}, {:.2}] to [{:.2}, {:.2}, {:.2}]",
+                        old_pos[0], old_pos[1], old_pos[2],
+                        transform_mut.position[0], transform_mut.position[1], transform_mut.position[2]
+                    )));
                 } else {
-                    self.console_messages.push(ConsoleMessage::info("🔧 TEST: No object selected"));
+                    self.console_messages.push(ConsoleMessage::info("🔧 TEST: Failed to get mutable transform"));
                 }
+            } else {
+                self.console_messages.push(ConsoleMessage::info("🔧 TEST: No object selected"));
             }
-            
-            ui.separator();
-            
-            // View options
-            ui.label("Layers:");
-            egui::ComboBox::from_id_source("layers")
-                .selected_text("Default")
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut "", "Default", "Default");
-                    ui.selectable_value(&mut "", "UI", "UI");
-                    ui.selectable_value(&mut "", "Background", "Background");
-                });
-            
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("🎯 Focus Selected").on_hover_text("Focus camera on selected object").clicked() {
-                    if let Some(ref obj) = self.selected_object {
-                        self.console_messages.push(ConsoleMessage::info(&format!("🎯 Focused on {}", obj)));
-                    }
-                }
-                
-                ui.separator();
-                
-                ui.label("Layout:");
-                egui::ComboBox::from_id_source("layout")
-                    .selected_text("Default")
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut "", "Default", "Default");
-                        ui.selectable_value(&mut "", "2 by 3", "2 by 3");
-                        ui.selectable_value(&mut "", "4 Split", "4 Split");
-                    });
-            });
-        });
+        }
+        
+        // Add any messages from toolbar
+        self.console_messages.extend(actions.messages);
     }
     
     fn show_hierarchy_panel(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label("ECS Entities");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("➕").on_hover_text("Create new entity").clicked() {
-                    // Create new entity with ECS v2
-                    let entity = self.world.create_entity();
-                    self.world.add_component(entity, Transform::default()).unwrap();
-                    self.console_messages.push(ConsoleMessage::info(&format!("➕ Created Entity {:?}", entity)));
-                }
-            });
-        });
-        ui.separator();
-        
-        ui.label(format!("🎯 Entity Count: {}", self.world.entity_count()));
-        ui.label(format!("📦 Entities: {}", self.world.entity_count()));
-        ui.separator();
-        
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            // Show all entities with Transform components using ECS v2 query
-            for (entity, _transform) in self.world.query::<Transform>() {
-                let selected = self.selected_entity == Some(entity);
-                
-                // Build component indicator string
-                let mut components = Vec::new();
-                if self.world.get_component::<Transform>(entity).is_some() { components.push("T"); }
-                if self.world.get_component::<Name>(entity).is_some() { components.push("N"); }
-                if self.world.get_component::<Visibility>(entity).is_some() { components.push("V"); }
-                if self.world.get_component::<Camera>(entity).is_some() { components.push("C"); }
-                if self.world.get_component::<Light>(entity).is_some() { components.push("L"); }
-                if self.world.get_component::<SpriteRenderer>(entity).is_some() { components.push("Spr"); }
-                if self.world.get_component::<Canvas>(entity).is_some() { components.push("Canvas"); }
-                if self.world.get_component::<Camera2D>(entity).is_some() { components.push("C2D"); }
-                if self.world.get_component::<CameraComponent>(entity).is_some() { components.push("Cam"); }
-                if self.world.get_component::<Mesh>(entity).is_some() { components.push("M"); }
-                if self.world.get_component::<Material>(entity).is_some() { components.push("Mat"); }
-                
-                let component_str = if components.is_empty() { "-".to_string() } else { components.join("") };
-                
-                // Get entity name if available
-                let entity_name = if let Some(name) = self.world.get_component::<Name>(entity) {
-                    name.name.clone()
-                } else {
-                    format!("Entity {}", entity.id())
-                };
-                
-                let label = format!("📦 {} [{}]", entity_name, component_str);
-                
-                if ui.selectable_label(selected, &label).clicked() {
-                    self.selected_entity = Some(entity);
-                    self.console_messages.push(ConsoleMessage::info(&format!("🎯 Selected Entity {:?}", entity)));
-                    
-                    // Update gizmo position if move tool is active
-                    if self.gizmo_system.get_active_tool() == SceneTool::Move {
-                        if let Some(transform) = self.world.get_component::<Transform>(entity) {
-                            self.gizmo_system.enable_move_gizmo(transform.position);
-                        }
-                    }
-                }
-            }
-        });
+        // Delegate to the hierarchy panel module
+        let messages = self.hierarchy_panel.show(ui, &mut self.world, &mut self.selected_entity, &mut self.gizmo_system);
+        self.console_messages.extend(messages);
     }
     
     fn show_hierarchy_object(&mut self, ui: &mut egui::Ui, object: &HierarchyObject) {
@@ -821,573 +660,15 @@ impl UnityEditor {
     }
     
     fn show_inspector_panel(&mut self, ui: &mut egui::Ui) {
-        ui.label("Entity Inspector");
-        ui.separator();
-        
-        if let Some(selected_entity) = self.selected_entity {
-            ui.label(format!("Entity ID: {}", selected_entity.id()));
-            ui.separator();
-            
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                // Get Transform component from ECS v2 (clone it to avoid borrowing issues)
-                if let Some(transform) = self.world.get_component::<Transform>(selected_entity).cloned() {
-                    ui.collapsing("📐 Transform", |ui| {
-                        // Clone the transform to make it mutable for editing
-                        let mut pos = transform.position;
-                        let mut rot = transform.rotation;
-                        let mut scale = transform.scale;
-                        
-                        let mut changed = false;
-                        
-                        egui::Grid::new("transform_grid").show(ui, |ui| {
-                            // Position
-                            ui.label("Position:");
-                            ui.end_row();
-                            ui.label("X:");
-                            changed |= ui.add(egui::DragValue::new(&mut pos[0]).speed(0.1)).changed();
-                            ui.label("Y:");
-                            changed |= ui.add(egui::DragValue::new(&mut pos[1]).speed(0.1)).changed();
-                            ui.label("Z:");
-                            changed |= ui.add(egui::DragValue::new(&mut pos[2]).speed(0.1)).changed();
-                            ui.end_row();
-                            
-                            // Rotation
-                            ui.label("Rotation:");
-                            ui.end_row();
-                            ui.label("X:");
-                            changed |= ui.add(egui::DragValue::new(&mut rot[0]).speed(1.0).suffix("°")).changed();
-                            ui.label("Y:");
-                            changed |= ui.add(egui::DragValue::new(&mut rot[1]).speed(1.0).suffix("°")).changed();
-                            ui.label("Z:");
-                            changed |= ui.add(egui::DragValue::new(&mut rot[2]).speed(1.0).suffix("°")).changed();
-                            ui.end_row();
-                            
-                            // Scale
-                            ui.label("Scale:");
-                            ui.end_row();
-                            ui.label("X:");
-                            changed |= ui.add(egui::DragValue::new(&mut scale[0]).speed(0.01).range(0.01..=10.0)).changed();
-                            ui.label("Y:");
-                            changed |= ui.add(egui::DragValue::new(&mut scale[1]).speed(0.01).range(0.01..=10.0)).changed();
-                            ui.label("Z:");
-                            changed |= ui.add(egui::DragValue::new(&mut scale[2]).speed(0.01).range(0.01..=10.0)).changed();
-                            ui.end_row();
-                        });
-                        
-                        // Update the ECS component if values changed
-                        if changed {
-                            if let Some(transform_mut) = self.world.get_component_mut::<Transform>(selected_entity) {
-                                transform_mut.position = pos;
-                                transform_mut.rotation = rot;
-                                transform_mut.scale = scale;
-                            }
-                        }
-                    });
-                } else {
-                    ui.label("❌ No Transform component");
-                }
-                
-                // Name Component
-                if let Some(name) = self.world.get_component::<Name>(selected_entity) {
-                    ui.collapsing("📝 Name", |ui| {
-                        ui.label(format!("Name: {}", name.name));
-                    });
-                }
-                
-                // Visibility Component
-                if let Some(visibility) = self.world.get_component::<Visibility>(selected_entity) {
-                    ui.collapsing("👁️ Visibility", |ui| {
-                        ui.label(format!("Visible: {}", visibility.visible));
-                    });
-                }
-                
-                // Camera Component
-                if let Some(camera) = self.world.get_component::<Camera>(selected_entity) {
-                    ui.collapsing("📷 Camera", |ui| {
-                        ui.label(format!("FOV: {:.1}°", camera.fov));
-                        ui.label(format!("Near: {:.2}", camera.near));
-                        ui.label(format!("Far: {:.0}", camera.far));
-                        ui.label(format!("Main Camera: {}", camera.is_main));
-                    });
-                }
-                
-                // Light Component
-                if let Some(light) = self.world.get_component::<Light>(selected_entity) {
-                    ui.collapsing("💡 Light", |ui| {
-                        ui.label(format!("Type: {:?}", light.light_type));
-                        ui.label(format!("Color: [{:.2}, {:.2}, {:.2}]", 
-                                 light.color[0], light.color[1], light.color[2]));
-                        ui.label(format!("Intensity: {:.2}", light.intensity));
-                    });
-                }
-                
-                // Sprite Renderer Component
-                if let Some(sprite_renderer) = self.world.get_component::<SpriteRenderer>(selected_entity).cloned() {
-                    ui.collapsing("🖼️ Sprite Renderer", |ui| {
-                        let mut enabled = sprite_renderer.enabled;
-                        let mut layer = sprite_renderer.layer;
-                        let mut color = sprite_renderer.sprite.color;
-                        let mut flip_x = sprite_renderer.sprite.flip_x;
-                        let mut flip_y = sprite_renderer.sprite.flip_y;
-                        
-                        let mut changed = false;
-                        
-                        egui::Grid::new("sprite_renderer_grid").show(ui, |ui| {
-                            // Enabled checkbox
-                            ui.label("Enabled:");
-                            changed |= ui.checkbox(&mut enabled, "").changed();
-                            ui.end_row();
-                            
-                            // Layer
-                            ui.label("Layer:");
-                            changed |= ui.add(egui::DragValue::new(&mut layer).range(-32768..=32767)).changed();
-                            ui.end_row();
-                            
-                            // Color tint
-                            ui.label("Color:");
-                            ui.end_row();
-                            ui.label("R:");
-                            changed |= ui.add(egui::DragValue::new(&mut color[0]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.label("G:");
-                            changed |= ui.add(egui::DragValue::new(&mut color[1]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.label("B:");
-                            changed |= ui.add(egui::DragValue::new(&mut color[2]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.label("A:");
-                            changed |= ui.add(egui::DragValue::new(&mut color[3]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.end_row();
-                            
-                            // Flip options
-                            ui.label("Flip X:");
-                            changed |= ui.checkbox(&mut flip_x, "").changed();
-                            ui.end_row();
-                            ui.label("Flip Y:");
-                            changed |= ui.checkbox(&mut flip_y, "").changed();
-                            ui.end_row();
-                        });
-                        
-                        // Show texture handle if present
-                        if let Some(handle) = sprite_renderer.sprite.texture_handle {
-                            ui.label(format!("Texture Handle: {}", handle));
-                        } else {
-                            ui.label("No texture assigned");
-                        }
-                        
-                        // Update the component if values changed
-                        if changed {
-                            if let Some(sprite_mut) = self.world.get_component_mut::<SpriteRenderer>(selected_entity) {
-                                sprite_mut.enabled = enabled;
-                                sprite_mut.layer = layer;
-                                sprite_mut.sprite.color = color;
-                                sprite_mut.sprite.flip_x = flip_x;
-                                sprite_mut.sprite.flip_y = flip_y;
-                            }
-                        }
-                    });
-                }
-                
-                // Canvas Component
-                if let Some(canvas) = self.world.get_component::<Canvas>(selected_entity) {
-                    ui.collapsing("🎨 Canvas", |ui| {
-                        ui.label(format!("Render Mode: {:?}", canvas.render_mode));
-                        ui.label(format!("Sorting Layer: {}", canvas.sorting_layer));
-                        ui.label(format!("Order in Layer: {}", canvas.order_in_layer));
-                        ui.label(format!("Pixel Perfect: {}", canvas.pixel_perfect));
-                    });
-                }
-                
-                // Camera2D Component
-                if let Some(camera_2d) = self.world.get_component::<Camera2D>(selected_entity).cloned() {
-                    ui.collapsing("📷 Camera 2D", |ui| {
-                        let mut size = camera_2d.size;
-                        let mut aspect_ratio = camera_2d.aspect_ratio;
-                        let mut near = camera_2d.near;
-                        let mut far = camera_2d.far;
-                        let mut is_main = camera_2d.is_main;
-                        let mut bg_color = camera_2d.background_color;
-                        
-                        let mut changed = false;
-                        
-                        egui::Grid::new("camera_2d_grid").show(ui, |ui| {
-                            // Orthographic size
-                            ui.label("Size:");
-                            changed |= ui.add(egui::DragValue::new(&mut size).speed(0.1).range(0.1..=100.0)).changed();
-                            ui.end_row();
-                            
-                            // Aspect ratio
-                            ui.label("Aspect Ratio:");
-                            changed |= ui.add(egui::DragValue::new(&mut aspect_ratio).speed(0.01).range(0.0..=10.0)).changed();
-                            ui.end_row();
-                            
-                            // Near/Far clipping
-                            ui.label("Near:");
-                            changed |= ui.add(egui::DragValue::new(&mut near).speed(0.1).range(-100.0..=100.0)).changed();
-                            ui.end_row();
-                            ui.label("Far:");
-                            changed |= ui.add(egui::DragValue::new(&mut far).speed(0.1).range(-100.0..=100.0)).changed();
-                            ui.end_row();
-                            
-                            // Main camera
-                            ui.label("Main Camera:");
-                            changed |= ui.checkbox(&mut is_main, "").changed();
-                            ui.end_row();
-                            
-                            // Background color
-                            ui.label("Background Color:");
-                            ui.end_row();
-                            ui.label("R:");
-                            changed |= ui.add(egui::DragValue::new(&mut bg_color[0]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.label("G:");
-                            changed |= ui.add(egui::DragValue::new(&mut bg_color[1]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.label("B:");
-                            changed |= ui.add(egui::DragValue::new(&mut bg_color[2]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.label("A:");
-                            changed |= ui.add(egui::DragValue::new(&mut bg_color[3]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.end_row();
-                        });
-                        
-                        // Update the component if values changed
-                        if changed {
-                            if let Some(camera_mut) = self.world.get_component_mut::<Camera2D>(selected_entity) {
-                                camera_mut.size = size;
-                                camera_mut.aspect_ratio = aspect_ratio;
-                                camera_mut.near = near;
-                                camera_mut.far = far;
-                                camera_mut.is_main = is_main;
-                                camera_mut.background_color = bg_color;
-                            }
-                        }
-                    });
-                }
-                
-                // Camera Component (Advanced)
-                if let Some(camera_comp) = self.world.get_component::<CameraComponent>(selected_entity).cloned() {
-                    ui.collapsing("📷 Camera (Advanced)", |ui| {
-                        let mut is_main = camera_comp.is_main;
-                        let mut camera_type = camera_comp.camera.camera_type().clone();
-                        let mut clear_color = camera_comp.camera.clear_color();
-                        let mut render_order = camera_comp.camera.render_order();
-                        let mut enabled = camera_comp.camera.enabled();
-                        
-                        let mut changed = false;
-                        
-                        egui::Grid::new("camera_comp_grid").show(ui, |ui| {
-                            // Main camera checkbox
-                            ui.label("Main Camera:");
-                            changed |= ui.checkbox(&mut is_main, "").changed();
-                            ui.end_row();
-                            
-                            // Enabled checkbox
-                            ui.label("Enabled:");
-                            changed |= ui.checkbox(&mut enabled, "").changed();
-                            ui.end_row();
-                            
-                            // Render order
-                            ui.label("Render Order:");
-                            changed |= ui.add(egui::DragValue::new(&mut render_order).range(-100..=100)).changed();
-                            ui.end_row();
-                            
-                            // Camera type
-                            ui.label("Camera Type:");
-                            ui.end_row();
-                            
-                            // Camera type specific settings
-                            match &mut camera_type {
-                                CameraType::Orthographic2D { size, near, far } => {
-                                    ui.label("Type: Orthographic 2D");
-                                    ui.end_row();
-                                    ui.label("Size:");
-                                    changed |= ui.add(egui::DragValue::new(size).speed(0.1).range(0.1..=100.0)).changed();
-                                    ui.end_row();
-                                    ui.label("Near:");
-                                    changed |= ui.add(egui::DragValue::new(near).speed(0.1).range(-100.0..=100.0)).changed();
-                                    ui.end_row();
-                                    ui.label("Far:");
-                                    changed |= ui.add(egui::DragValue::new(far).speed(0.1).range(-100.0..=100.0)).changed();
-                                    ui.end_row();
-                                }
-                                CameraType::Perspective3D { fov_degrees, near, far } => {
-                                    ui.label("Type: Perspective 3D");
-                                    ui.end_row();
-                                    ui.label("FOV (degrees):");
-                                    changed |= ui.add(egui::DragValue::new(fov_degrees).speed(1.0).range(1.0..=179.0)).changed();
-                                    ui.end_row();
-                                    ui.label("Near:");
-                                    changed |= ui.add(egui::DragValue::new(near).speed(0.01).range(0.01..=100.0)).changed();
-                                    ui.end_row();
-                                    ui.label("Far:");
-                                    changed |= ui.add(egui::DragValue::new(far).speed(1.0).range(1.0..=10000.0)).changed();
-                                    ui.end_row();
-                                }
-                                CameraType::Custom { .. } => {
-                                    ui.label("Type: Custom Matrix");
-                                    ui.end_row();
-                                    ui.label("(Custom matrices not editable)");
-                                    ui.end_row();
-                                }
-                            }
-                            
-                            // Clear color
-                            ui.label("Clear Color:");
-                            ui.end_row();
-                            ui.label("R:");
-                            changed |= ui.add(egui::DragValue::new(&mut clear_color[0]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.label("G:");
-                            changed |= ui.add(egui::DragValue::new(&mut clear_color[1]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.label("B:");
-                            changed |= ui.add(egui::DragValue::new(&mut clear_color[2]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.label("A:");
-                            changed |= ui.add(egui::DragValue::new(&mut clear_color[3]).range(0.0..=1.0).speed(0.01)).changed();
-                            ui.end_row();
-                        });
-                        
-                        // Show viewport info (read-only)
-                        ui.separator();
-                        ui.label("Viewport Information:");
-                        let viewport = camera_comp.camera.viewport();
-                        ui.label(format!("Size: {}x{}", viewport.width, viewport.height));
-                        ui.label(format!("Aspect Ratio: {:.2}", viewport.aspect_ratio()));
-                        
-                        // Update the component if values changed
-                        if changed {
-                            if let Some(camera_mut) = self.world.get_component_mut::<CameraComponent>(selected_entity) {
-                                camera_mut.is_main = is_main;
-                                camera_mut.camera.set_camera_type(camera_type);
-                                camera_mut.camera.set_clear_color(clear_color);
-                                camera_mut.camera.set_render_order(render_order);
-                                camera_mut.camera.set_enabled(enabled);
-                                
-                                // Update projection matrix if camera type changed
-                                if let Err(e) = camera_mut.camera.update_projection_matrix() {
-                                    self.console_messages.push(ConsoleMessage::info(&format!("⚠️ Camera update error: {}", e)));
-                                }
-                            }
-                        }
-                    });
-                }
-                
-                // ECS v2 Entity Info
-                ui.separator();
-                ui.collapsing("🔧 Entity Debug", |ui| {
-                    ui.label(format!("Entity ID: {}", selected_entity.id()));
-                    ui.label(format!("ID: {}", selected_entity.id()));
-                    
-                    // Count components
-                    let mut component_count = 0;
-                    let mut component_list = Vec::new();
-                    
-                    if self.world.get_component::<Transform>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("Transform");
-                    }
-                    if self.world.get_component::<Name>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("Name");
-                    }
-                    if self.world.get_component::<Visibility>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("Visibility");
-                    }
-                    if self.world.get_component::<Camera>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("Camera");
-                    }
-                    if self.world.get_component::<Light>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("Light");
-                    }
-                    if self.world.get_component::<SpriteRenderer>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("SpriteRenderer");
-                    }
-                    if self.world.get_component::<Canvas>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("Canvas");
-                    }
-                    if self.world.get_component::<Camera2D>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("Camera2D");
-                    }
-                    if self.world.get_component::<CameraComponent>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("CameraComponent");
-                    }
-                    
-                    ui.label(format!("Component Count: {}", component_count));
-                    ui.label(format!("Components: {}", component_list.join(", ")));
-                });
-                
-                ui.separator();
-                if ui.button("➕ Add Component").clicked() {
-                    self.show_add_component_dialog = true;
-                }
-                
-                // Add Component Dialog
-                if self.show_add_component_dialog {
-                    self.show_add_component_dialog(ui, selected_entity);
-                }
-            });
-        } else {
-            ui.label("No entity selected");
-            ui.label("Select an entity in the Hierarchy to view its components.");
-        }
-    }
-    
-    fn show_add_component_dialog(&mut self, ui: &mut egui::Ui, entity: Entity) {
-        let mut dialog_open = self.show_add_component_dialog;
-        egui::Window::new("Add Component")
-            .open(&mut dialog_open)
-            .resizable(false)
-            .collapsible(false)
-            .show(ui.ctx(), |ui| {
-                ui.label("Choose a component to add:");
-                ui.separator();
-                
-                // Name Component
-                if ui.button("📝 Name Component").clicked() {
-                    match self.world.add_component(entity, Name::new("New Object")) {
-                        Ok(_) => {
-                            self.console_messages.push(ConsoleMessage::info("✅ Added Name component"));
-                            self.show_add_component_dialog = false;
-                        }
-                        Err(e) => {
-                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Name: {}", e)));
-                        }
-                    }
-                }
-                
-                // Visibility Component
-                if ui.button("👁️ Visibility Component").clicked() {
-                    match self.world.add_component(entity, Visibility::default()) {
-                        Ok(_) => {
-                            self.console_messages.push(ConsoleMessage::info("✅ Added Visibility component"));
-                            self.show_add_component_dialog = false;
-                        }
-                        Err(e) => {
-                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Visibility: {}", e)));
-                        }
-                    }
-                }
-                
-                // Camera Component
-                if ui.button("📷 Camera Component").clicked() {
-                    match self.world.add_component(entity, Camera::default()) {
-                        Ok(_) => {
-                            self.console_messages.push(ConsoleMessage::info("✅ Added Camera component"));
-                            self.show_add_component_dialog = false;
-                        }
-                        Err(e) => {
-                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Camera: {}", e)));
-                        }
-                    }
-                }
-                
-                // Light Component
-                if ui.button("💡 Light Component").clicked() {
-                    match self.world.add_component(entity, Light::default()) {
-                        Ok(_) => {
-                            self.console_messages.push(ConsoleMessage::info("✅ Added Light component"));
-                            self.show_add_component_dialog = false;
-                        }
-                        Err(e) => {
-                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Light: {}", e)));
-                        }
-                    }
-                }
-                
-                ui.separator();
-                ui.label("Camera Components:");
-                
-                // Basic 3D Camera Component
-                if ui.button("📷 3D Camera Component").clicked() {
-                    // Check if entity already has a camera component
-                    if self.world.get_component::<Camera>(entity).is_some() {
-                        self.console_messages.push(ConsoleMessage::info("⚠️ Entity already has a Camera component"));
-                    } else {
-                        let camera = Camera::new().with_fov(60.0);
-                        
-                        match self.world.add_component(entity, camera) {
-                            Ok(_) => {
-                                self.console_messages.push(ConsoleMessage::info("✅ Added 3D Camera component"));
-                                self.show_add_component_dialog = false;
-                            }
-                            Err(e) => {
-                                self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add 3D Camera: {}", e)));
-                            }
-                        }
-                    }
-                }
-                
-                // Main Camera shortcut
-                if ui.button("🎥 Main Camera Component").clicked() {
-                    // Check if entity already has a camera component
-                    if self.world.get_component::<Camera>(entity).is_some() {
-                        self.console_messages.push(ConsoleMessage::info("⚠️ Entity already has a Camera component"));
-                    } else {
-                        let camera = Camera::main_camera();
-                        
-                        match self.world.add_component(entity, camera) {
-                            Ok(_) => {
-                                self.console_messages.push(ConsoleMessage::info("✅ Added Main Camera component"));
-                                self.show_add_component_dialog = false;
-                            }
-                            Err(e) => {
-                                self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Main Camera: {}", e)));
-                            }
-                        }
-                    }
-                }
-                
-                ui.separator();
-                ui.label("2D Components:");
-                
-                // Sprite Renderer Component
-                if ui.button("🖼️ Sprite Renderer Component").clicked() {
-                    match self.world.add_component(entity, SpriteRenderer::default()) {
-                        Ok(_) => {
-                            self.console_messages.push(ConsoleMessage::info("✅ Added Sprite Renderer component"));
-                            self.show_add_component_dialog = false;
-                        }
-                        Err(e) => {
-                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Sprite Renderer: {}", e)));
-                        }
-                    }
-                }
-                
-                // Canvas Component
-                if ui.button("🎨 Canvas Component").clicked() {
-                    match self.world.add_component(entity, Canvas::default()) {
-                        Ok(_) => {
-                            self.console_messages.push(ConsoleMessage::info("✅ Added Canvas component"));
-                            self.show_add_component_dialog = false;
-                        }
-                        Err(e) => {
-                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Canvas: {}", e)));
-                        }
-                    }
-                }
-                
-                // Camera2D Component
-                if ui.button("📷 Camera 2D Component").clicked() {
-                    match self.world.add_component(entity, Camera2D::default()) {
-                        Ok(_) => {
-                            self.console_messages.push(ConsoleMessage::info("✅ Added Camera 2D component"));
-                            self.show_add_component_dialog = false;
-                        }
-                        Err(e) => {
-                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Camera 2D: {}", e)));
-                        }
-                    }
-                }
-                
-                ui.separator();
-                if ui.button("Cancel").clicked() {
-                    self.show_add_component_dialog = false;
-                }
-            });
-        self.show_add_component_dialog = dialog_open;
+        // Delegate to the inspector panel module
+        let messages = self.inspector_panel.show(ui, &mut self.world, self.selected_entity);
+        self.console_messages.extend(messages);
+        return;
     }
     
     fn show_scene_view(&mut self, ui: &mut egui::Ui) {
+        // TODO: This entire massive function (1700+ lines!) needs to be moved to panels/scene_view/
+        // For now, keeping it here to avoid breaking everything at once
         // Scene view toolbar
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.scene_view_active, true, "Scene");
@@ -3155,88 +2436,13 @@ impl UnityEditor {
     }
     
     fn show_console_panel(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Output Log");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("🧹 Clear").clicked() {
-                    self.console_messages.clear();
-                    self.console_messages.push(ConsoleMessage::info("🧹 Console cleared"));
-                }
-                
-                if ui.button("📋 Copy All").on_hover_text("Copy all logs to clipboard").clicked() {
-                    let all_logs = ConsoleMessage::get_all_logs_as_string(&self.console_messages);
-                    ui.output_mut(|o| o.copied_text = all_logs);
-                    self.console_messages.push(ConsoleMessage::info("📋 Logs copied to clipboard"));
-                }
-                
-                if ui.button("💾 Export").on_hover_text("Export logs to file").clicked() {
-                    let all_logs = ConsoleMessage::get_all_logs_as_string(&self.console_messages);
-                    match std::fs::write("console_export.log", all_logs) {
-                        Ok(_) => self.console_messages.push(ConsoleMessage::info("💾 Logs exported to console_export.log")),
-                        Err(e) => self.console_messages.push(ConsoleMessage::info(&format!("❌ Export failed: {}", e))),
-                    }
-                }
-            });
-        });
-        
-        ui.separator();
-        
-        egui::ScrollArea::vertical()
-            .auto_shrink([false; 2])
-            .stick_to_bottom(true)
-            .show(ui, |ui| {
-                for message in &self.console_messages {
-                    let color = match message.message_type {
-                        ConsoleMessageType::Info => egui::Color32::WHITE,
-                        ConsoleMessageType::Warning => egui::Color32::YELLOW,
-                        ConsoleMessageType::Error => egui::Color32::RED,
-                    };
-                    
-                    ui.colored_label(color, &message.message);
-                }
-            });
+        // Delegate to the console panel module
+        self.console_panel.show(ui, &mut self.console_messages);
     }
     
     fn show_project_panel(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Asset Browser");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("🔄").on_hover_text("Refresh assets").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("🔄 Refreshing project assets"));
-                }
-                if ui.button("➕").on_hover_text("Create new asset").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("➕ Create asset menu"));
-                }
-            });
-        });
-        
-        ui.separator();
-        
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            let assets = self.project_assets.clone();
-            for asset in &assets {
-                self.show_project_asset(ui, asset);
-            }
-        });
-    }
-    
-    fn show_project_asset(&mut self, ui: &mut egui::Ui, asset: &ProjectAsset) {
-        match &asset.children {
-            Some(children) => {
-                // Folder with children
-                ui.collapsing(&asset.name, |ui| {
-                    for child in children {
-                        self.show_project_asset(ui, child);
-                    }
-                });
-            }
-            None => {
-                // File asset
-                if ui.selectable_label(false, &asset.name).clicked() {
-                    self.console_messages.push(ConsoleMessage::info(&format!("📄 Selected asset: {}", asset.name)));
-                }
-            }
-        }
+        // Delegate to the project panel module
+        self.project_panel.show(ui, &self.project_assets, &mut self.console_messages);
     }
 }
 
@@ -3284,28 +2490,6 @@ enum ObjectType {
     Light,
 }
 
-/// Project asset representation
-#[derive(Clone)]
-struct ProjectAsset {
-    name: String,
-    children: Option<Vec<ProjectAsset>>,
-}
-
-impl ProjectAsset {
-    fn file(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            children: None,
-        }
-    }
-    
-    fn folder(name: &str, children: Vec<ProjectAsset>) -> Self {
-        Self {
-            name: name.to_string(),
-            children: Some(children),
-        }
-    }
-}
 
 /// Console message types
 

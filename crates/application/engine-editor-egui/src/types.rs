@@ -113,5 +113,28 @@ pub struct TextureAsset {
     pub path: String,
 }
 
+/// Project asset representation
+#[derive(Clone)]
+pub struct ProjectAsset {
+    pub name: String,
+    pub children: Option<Vec<ProjectAsset>>,
+}
+
+impl ProjectAsset {
+    pub fn file(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            children: None,
+        }
+    }
+    
+    pub fn folder(name: &str, children: Vec<ProjectAsset>) -> Self {
+        Self {
+            name: name.to_string(),
+            children: Some(children),
+        }
+    }
+}
+
 // Re-export GizmoSystem from the proper module
 pub use crate::panels::scene_view::gizmos::GizmoSystem;
