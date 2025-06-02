@@ -10,6 +10,7 @@ path = "src/main.rs"
 [dependencies]
 # Engine core integration
 engine-core = { path = "../engine-core" }
+engine-camera = { path = "../engine-camera" }
 
 # EGUI and platform integration
 egui = "0.28"

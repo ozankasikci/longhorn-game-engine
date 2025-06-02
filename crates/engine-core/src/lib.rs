@@ -19,6 +19,9 @@ pub use ecs_v2::{Entity as EntityV2, Component as ComponentV2, World as WorldV2,
 // Re-export common components
 pub use components::{Mesh, MeshType, Material, Name, Visibility, Camera, Light, LightType};
 
+// Re-export 2D components
+pub use components::{Sprite, SpriteRenderer, Canvas, CanvasRenderMode, Camera2D};
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Transform {
     pub position: [f32; 3],

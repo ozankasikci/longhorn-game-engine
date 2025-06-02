@@ -10,6 +10,7 @@ members = [
     "crates/engine-scripting",
     "crates/engine-ui",
     "crates/engine-platform",
+    "crates/engine-camera",
     "crates/engine-editor-egui",
     "crates/engine-runtime",
 ]
@@ -62,6 +63,13 @@ csscolorparser = "0.6"
 # File watching for hot reload
 notify = "6.0"
 
+# Bitflags for state management
+bitflags = "2.4"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
 [workspace.dependencies.engine-core]
 path = "crates/engine-core"
 
@@ -91,3 +99,6 @@ path = "crates/engine-platform"
 
 [workspace.dependencies.engine-runtime]
 path = "crates/engine-runtime"
+
+[workspace.dependencies.engine-camera]
+path = "crates/engine-camera"

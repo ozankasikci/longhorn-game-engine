@@ -3,7 +3,8 @@
 
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex, TabViewer};
-use engine_core::{Transform, WorldV2, EntityV2, Read, Write, Name, Visibility, Camera, Light};
+use engine_core::{Transform, WorldV2, EntityV2, Read, Write, Name, Visibility, Camera, Light, Sprite, SpriteRenderer, Canvas, Camera2D};
+use engine_camera::{CameraComponent, CameraType, Viewport};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -420,6 +421,10 @@ impl UnityEditor {
                 if self.world.get_component::<Visibility>(entity).is_some() { components.push("V"); }
                 if self.world.get_component::<Camera>(entity).is_some() { components.push("C"); }
                 if self.world.get_component::<Light>(entity).is_some() { components.push("L"); }
+                if self.world.get_component::<SpriteRenderer>(entity).is_some() { components.push("S"); }
+                if self.world.get_component::<Canvas>(entity).is_some() { components.push("Canvas"); }
+                if self.world.get_component::<Camera2D>(entity).is_some() { components.push("C2D"); }
+                if self.world.get_component::<CameraComponent>(entity).is_some() { components.push("Cam"); }
                 
                 let component_str = if components.is_empty() { "-".to_string() } else { components.join("") };
                 let label = format!("🎲 Entity {} [{}]", entity.id(), component_str);
@@ -554,6 +559,250 @@ impl UnityEditor {
                     });
                 }
                 
+                // Sprite Renderer Component
+                if let Some(sprite_renderer) = self.world.get_component::<SpriteRenderer>(selected_entity).cloned() {
+                    ui.collapsing("🖼️ Sprite Renderer", |ui| {
+                        let mut enabled = sprite_renderer.enabled;
+                        let mut layer = sprite_renderer.layer;
+                        let mut color = sprite_renderer.sprite.color;
+                        let mut flip_x = sprite_renderer.sprite.flip_x;
+                        let mut flip_y = sprite_renderer.sprite.flip_y;
+                        
+                        let mut changed = false;
+                        
+                        egui::Grid::new("sprite_renderer_grid").show(ui, |ui| {
+                            // Enabled checkbox
+                            ui.label("Enabled:");
+                            changed |= ui.checkbox(&mut enabled, "").changed();
+                            ui.end_row();
+                            
+                            // Layer
+                            ui.label("Layer:");
+                            changed |= ui.add(egui::DragValue::new(&mut layer).range(-32768..=32767)).changed();
+                            ui.end_row();
+                            
+                            // Color tint
+                            ui.label("Color:");
+                            ui.end_row();
+                            ui.label("R:");
+                            changed |= ui.add(egui::DragValue::new(&mut color[0]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.label("G:");
+                            changed |= ui.add(egui::DragValue::new(&mut color[1]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.label("B:");
+                            changed |= ui.add(egui::DragValue::new(&mut color[2]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.label("A:");
+                            changed |= ui.add(egui::DragValue::new(&mut color[3]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.end_row();
+                            
+                            // Flip options
+                            ui.label("Flip X:");
+                            changed |= ui.checkbox(&mut flip_x, "").changed();
+                            ui.end_row();
+                            ui.label("Flip Y:");
+                            changed |= ui.checkbox(&mut flip_y, "").changed();
+                            ui.end_row();
+                        });
+                        
+                        // Show texture handle if present
+                        if let Some(handle) = sprite_renderer.sprite.texture_handle {
+                            ui.label(format!("Texture Handle: {}", handle));
+                        } else {
+                            ui.label("No texture assigned");
+                        }
+                        
+                        // Update the component if values changed
+                        if changed {
+                            if let Some(sprite_mut) = self.world.get_component_mut::<SpriteRenderer>(selected_entity) {
+                                sprite_mut.enabled = enabled;
+                                sprite_mut.layer = layer;
+                                sprite_mut.sprite.color = color;
+                                sprite_mut.sprite.flip_x = flip_x;
+                                sprite_mut.sprite.flip_y = flip_y;
+                            }
+                        }
+                    });
+                }
+                
+                // Canvas Component
+                if let Some(canvas) = self.world.get_component::<Canvas>(selected_entity) {
+                    ui.collapsing("🎨 Canvas", |ui| {
+                        ui.label(format!("Render Mode: {:?}", canvas.render_mode));
+                        ui.label(format!("Sorting Layer: {}", canvas.sorting_layer));
+                        ui.label(format!("Order in Layer: {}", canvas.order_in_layer));
+                        ui.label(format!("Pixel Perfect: {}", canvas.pixel_perfect));
+                    });
+                }
+                
+                // Camera2D Component
+                if let Some(camera_2d) = self.world.get_component::<Camera2D>(selected_entity).cloned() {
+                    ui.collapsing("📷 Camera 2D", |ui| {
+                        let mut size = camera_2d.size;
+                        let mut aspect_ratio = camera_2d.aspect_ratio;
+                        let mut near = camera_2d.near;
+                        let mut far = camera_2d.far;
+                        let mut is_main = camera_2d.is_main;
+                        let mut bg_color = camera_2d.background_color;
+                        
+                        let mut changed = false;
+                        
+                        egui::Grid::new("camera_2d_grid").show(ui, |ui| {
+                            // Orthographic size
+                            ui.label("Size:");
+                            changed |= ui.add(egui::DragValue::new(&mut size).speed(0.1).range(0.1..=100.0)).changed();
+                            ui.end_row();
+                            
+                            // Aspect ratio
+                            ui.label("Aspect Ratio:");
+                            changed |= ui.add(egui::DragValue::new(&mut aspect_ratio).speed(0.01).range(0.0..=10.0)).changed();
+                            ui.end_row();
+                            
+                            // Near/Far clipping
+                            ui.label("Near:");
+                            changed |= ui.add(egui::DragValue::new(&mut near).speed(0.1).range(-100.0..=100.0)).changed();
+                            ui.end_row();
+                            ui.label("Far:");
+                            changed |= ui.add(egui::DragValue::new(&mut far).speed(0.1).range(-100.0..=100.0)).changed();
+                            ui.end_row();
+                            
+                            // Main camera
+                            ui.label("Main Camera:");
+                            changed |= ui.checkbox(&mut is_main, "").changed();
+                            ui.end_row();
+                            
+                            // Background color
+                            ui.label("Background Color:");
+                            ui.end_row();
+                            ui.label("R:");
+                            changed |= ui.add(egui::DragValue::new(&mut bg_color[0]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.label("G:");
+                            changed |= ui.add(egui::DragValue::new(&mut bg_color[1]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.label("B:");
+                            changed |= ui.add(egui::DragValue::new(&mut bg_color[2]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.label("A:");
+                            changed |= ui.add(egui::DragValue::new(&mut bg_color[3]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.end_row();
+                        });
+                        
+                        // Update the component if values changed
+                        if changed {
+                            if let Some(camera_mut) = self.world.get_component_mut::<Camera2D>(selected_entity) {
+                                camera_mut.size = size;
+                                camera_mut.aspect_ratio = aspect_ratio;
+                                camera_mut.near = near;
+                                camera_mut.far = far;
+                                camera_mut.is_main = is_main;
+                                camera_mut.background_color = bg_color;
+                            }
+                        }
+                    });
+                }
+                
+                // Camera Component (Advanced)
+                if let Some(camera_comp) = self.world.get_component::<CameraComponent>(selected_entity).cloned() {
+                    ui.collapsing("📷 Camera (Advanced)", |ui| {
+                        let mut is_main = camera_comp.is_main;
+                        let mut camera_type = camera_comp.camera.camera_type().clone();
+                        let mut clear_color = camera_comp.camera.clear_color();
+                        let mut render_order = camera_comp.camera.render_order();
+                        let mut enabled = camera_comp.camera.enabled();
+                        
+                        let mut changed = false;
+                        
+                        egui::Grid::new("camera_comp_grid").show(ui, |ui| {
+                            // Main camera checkbox
+                            ui.label("Main Camera:");
+                            changed |= ui.checkbox(&mut is_main, "").changed();
+                            ui.end_row();
+                            
+                            // Enabled checkbox
+                            ui.label("Enabled:");
+                            changed |= ui.checkbox(&mut enabled, "").changed();
+                            ui.end_row();
+                            
+                            // Render order
+                            ui.label("Render Order:");
+                            changed |= ui.add(egui::DragValue::new(&mut render_order).range(-100..=100)).changed();
+                            ui.end_row();
+                            
+                            // Camera type
+                            ui.label("Camera Type:");
+                            ui.end_row();
+                            
+                            // Camera type specific settings
+                            match &mut camera_type {
+                                CameraType::Orthographic2D { size, near, far } => {
+                                    ui.label("Type: Orthographic 2D");
+                                    ui.end_row();
+                                    ui.label("Size:");
+                                    changed |= ui.add(egui::DragValue::new(size).speed(0.1).range(0.1..=100.0)).changed();
+                                    ui.end_row();
+                                    ui.label("Near:");
+                                    changed |= ui.add(egui::DragValue::new(near).speed(0.1).range(-100.0..=100.0)).changed();
+                                    ui.end_row();
+                                    ui.label("Far:");
+                                    changed |= ui.add(egui::DragValue::new(far).speed(0.1).range(-100.0..=100.0)).changed();
+                                    ui.end_row();
+                                }
+                                CameraType::Perspective3D { fov_degrees, near, far } => {
+                                    ui.label("Type: Perspective 3D");
+                                    ui.end_row();
+                                    ui.label("FOV (degrees):");
+                                    changed |= ui.add(egui::DragValue::new(fov_degrees).speed(1.0).range(1.0..=179.0)).changed();
+                                    ui.end_row();
+                                    ui.label("Near:");
+                                    changed |= ui.add(egui::DragValue::new(near).speed(0.01).range(0.01..=100.0)).changed();
+                                    ui.end_row();
+                                    ui.label("Far:");
+                                    changed |= ui.add(egui::DragValue::new(far).speed(1.0).range(1.0..=10000.0)).changed();
+                                    ui.end_row();
+                                }
+                                CameraType::Custom { .. } => {
+                                    ui.label("Type: Custom Matrix");
+                                    ui.end_row();
+                                    ui.label("(Custom matrices not editable)");
+                                    ui.end_row();
+                                }
+                            }
+                            
+                            // Clear color
+                            ui.label("Clear Color:");
+                            ui.end_row();
+                            ui.label("R:");
+                            changed |= ui.add(egui::DragValue::new(&mut clear_color[0]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.label("G:");
+                            changed |= ui.add(egui::DragValue::new(&mut clear_color[1]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.label("B:");
+                            changed |= ui.add(egui::DragValue::new(&mut clear_color[2]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.label("A:");
+                            changed |= ui.add(egui::DragValue::new(&mut clear_color[3]).range(0.0..=1.0).speed(0.01)).changed();
+                            ui.end_row();
+                        });
+                        
+                        // Show viewport info (read-only)
+                        ui.separator();
+                        ui.label("Viewport Information:");
+                        let viewport = camera_comp.camera.viewport();
+                        ui.label(format!("Size: {}x{}", viewport.width, viewport.height));
+                        ui.label(format!("Aspect Ratio: {:.2}", viewport.aspect_ratio()));
+                        
+                        // Update the component if values changed
+                        if changed {
+                            if let Some(camera_mut) = self.world.get_component_mut::<CameraComponent>(selected_entity) {
+                                camera_mut.is_main = is_main;
+                                camera_mut.camera.set_camera_type(camera_type);
+                                camera_mut.camera.set_clear_color(clear_color);
+                                camera_mut.camera.set_render_order(render_order);
+                                camera_mut.camera.set_enabled(enabled);
+                                
+                                // Update projection matrix if camera type changed
+                                if let Err(e) = camera_mut.camera.update_projection_matrix() {
+                                    self.console_messages.push(ConsoleMessage::info(&format!("⚠️ Camera update error: {}", e)));
+                                }
+                            }
+                        }
+                    });
+                }
+                
                 // ECS v2 Entity Info
                 ui.separator();
                 ui.collapsing("🔧 Entity Debug", |ui| {
@@ -583,6 +832,22 @@ impl UnityEditor {
                     if self.world.get_component::<Light>(selected_entity).is_some() {
                         component_count += 1;
                         component_list.push("Light");
+                    }
+                    if self.world.get_component::<SpriteRenderer>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("SpriteRenderer");
+                    }
+                    if self.world.get_component::<Canvas>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("Canvas");
+                    }
+                    if self.world.get_component::<Camera2D>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("Camera2D");
+                    }
+                    if self.world.get_component::<CameraComponent>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("CameraComponent");
                     }
                     
                     ui.label(format!("Component Count: {}", component_count));
@@ -663,6 +928,95 @@ impl UnityEditor {
                         }
                         Err(e) => {
                             self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Light: {}", e)));
+                        }
+                    }
+                }
+                
+                ui.separator();
+                ui.label("Camera Components:");
+                
+                // Advanced Camera Component
+                if ui.button("📷 Advanced Camera Component").clicked() {
+                    // Check if entity already has a camera component
+                    if self.world.get_component::<CameraComponent>(entity).is_some() {
+                        self.console_messages.push(ConsoleMessage::info("⚠️ Entity already has a Camera component"));
+                    } else {
+                        let viewport = Viewport::new(800, 600);
+                        let camera = engine_camera::Camera::orthographic_2d(5.0, viewport);
+                        let camera_comp = CameraComponent::new(camera);
+                        
+                        match self.world.add_component(entity, camera_comp) {
+                            Ok(_) => {
+                                self.console_messages.push(ConsoleMessage::info("✅ Added Advanced Camera component"));
+                                self.show_add_component_dialog = false;
+                            }
+                            Err(e) => {
+                                self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Advanced Camera: {}", e)));
+                            }
+                        }
+                    }
+                }
+                
+                // Perspective Camera shortcut
+                if ui.button("🎥 Perspective Camera Component").clicked() {
+                    // Check if entity already has a camera component
+                    if self.world.get_component::<CameraComponent>(entity).is_some() {
+                        self.console_messages.push(ConsoleMessage::info("⚠️ Entity already has a Camera component"));
+                    } else {
+                        let viewport = Viewport::new(800, 600);
+                        let camera = engine_camera::Camera::perspective_3d(60.0, viewport);
+                        let camera_comp = CameraComponent::new(camera);
+                        
+                        match self.world.add_component(entity, camera_comp) {
+                            Ok(_) => {
+                                self.console_messages.push(ConsoleMessage::info("✅ Added Perspective Camera component"));
+                                self.show_add_component_dialog = false;
+                            }
+                            Err(e) => {
+                                self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Perspective Camera: {}", e)));
+                            }
+                        }
+                    }
+                }
+                
+                ui.separator();
+                ui.label("2D Components:");
+                
+                // Sprite Renderer Component
+                if ui.button("🖼️ Sprite Renderer Component").clicked() {
+                    match self.world.add_component(entity, SpriteRenderer::default()) {
+                        Ok(_) => {
+                            self.console_messages.push(ConsoleMessage::info("✅ Added Sprite Renderer component"));
+                            self.show_add_component_dialog = false;
+                        }
+                        Err(e) => {
+                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Sprite Renderer: {}", e)));
+                        }
+                    }
+                }
+                
+                // Canvas Component
+                if ui.button("🎨 Canvas Component").clicked() {
+                    match self.world.add_component(entity, Canvas::default()) {
+                        Ok(_) => {
+                            self.console_messages.push(ConsoleMessage::info("✅ Added Canvas component"));
+                            self.show_add_component_dialog = false;
+                        }
+                        Err(e) => {
+                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Canvas: {}", e)));
+                        }
+                    }
+                }
+                
+                // Camera2D Component
+                if ui.button("📷 Camera 2D Component").clicked() {
+                    match self.world.add_component(entity, Camera2D::default()) {
+                        Ok(_) => {
+                            self.console_messages.push(ConsoleMessage::info("✅ Added Camera 2D component"));
+                            self.show_add_component_dialog = false;
+                        }
+                        Err(e) => {
+                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Camera 2D: {}", e)));
                         }
                     }
                 }
