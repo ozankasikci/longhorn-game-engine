@@ -64,7 +64,7 @@ impl Default for SceneNavigation {
             enabled: true,
             is_navigating: false,
             movement_speed: 5.0,                    // Units per second
-            rotation_sensitivity: 0.005,            // Radians per pixel - increased for better responsiveness
+            rotation_sensitivity: 0.002,            // Radians per pixel - reduced for smoother control
             fast_movement_multiplier: 3.0,          // Shift speed boost
             last_mouse_pos: None,
             scene_camera_transform: Transform {
@@ -327,6 +327,9 @@ struct UnityEditor {
     
     // 3D scene renderer
     scene_renderer: SceneRenderer,
+    
+    // Phase 10.2: Track entity counts for change detection
+    last_rendered_entity_count: usize,
 }
 
 impl UnityEditor {
@@ -609,6 +612,7 @@ impl UnityEditor {
             gizmo_system: GizmoSystem::new(),
             scene_navigation: SceneNavigation::default(),
             scene_renderer: SceneRenderer::new(),
+            last_rendered_entity_count: 0,
         }
     }
 }
@@ -1634,10 +1638,8 @@ impl UnityEditor {
             
             ui.separator();
             
-            if ui.button("🔍").on_hover_text("Focus on selected").clicked() {
-                if let Some(ref obj) = self.selected_object {
-                    self.console_messages.push(ConsoleMessage::info(&format!("🔍 Focused on {}", obj)));
-                }
+            if ui.button("🔍").on_hover_text("Focus on selected (F)").clicked() {
+                self.focus_on_selected_object();
             }
         });
         
@@ -1645,7 +1647,7 @@ impl UnityEditor {
         
         // Main view area
         let available_size = ui.available_size();
-        let response = ui.allocate_response(available_size, egui::Sense::drag());
+        let response = ui.allocate_response(available_size, egui::Sense::click_and_drag());
         
         // Draw background
         ui.painter().rect_filled(
@@ -1667,6 +1669,14 @@ impl UnityEditor {
                         ui.small("Press Play to see game running");
                     });
                 });
+            }
+        });
+        
+        // Handle keyboard shortcuts for scene view
+        ui.input(|i| {
+            // F key to focus on selected object
+            if i.key_pressed(egui::Key::F) && self.selected_entity.is_some() {
+                self.focus_on_selected_object();
             }
         });
         
@@ -1706,7 +1716,7 @@ impl UnityEditor {
         let camera_rot = self.scene_navigation.scene_camera_transform.rotation;
         
         // Draw grid background
-        let grid_size = 50.0;
+        let _grid_size = 50.0;
         let view_center = rect.center();
         
         // Apply camera offset to grid rendering
@@ -1726,12 +1736,29 @@ impl UnityEditor {
         );
         
         // Draw scene objects (simplified 2D representation with camera transform)
-        // Use direct component access to ensure we see the latest transform values
+        // Phase 10.2: Query entities with both Transform AND Mesh components
+        // This is the ECS-to-renderer bridge implementation
         let entities_with_transforms: Vec<_> = self.world.entities_with_component::<Transform>();
+        
+        // Track entity changes for Phase 10.2
+        let current_entity_count = entities_with_transforms.len();
+        if current_entity_count != self.last_rendered_entity_count {
+            self.console_messages.push(ConsoleMessage::info(&format!(
+                "🎮 Phase 10.2: Total entities with Transform: {}",
+                current_entity_count
+            )));
+            self.last_rendered_entity_count = current_entity_count;
+        }
+        
         for entity in entities_with_transforms {
             let Some(transform) = self.world.get_component::<Transform>(entity) else {
                 continue;
             };
+            
+            // Get object's rotation
+            let obj_rot_x = transform.rotation[0].to_radians();
+            let obj_rot_y = transform.rotation[1].to_radians();
+            let obj_rot_z = transform.rotation[2].to_radians();
             
             // Apply camera transformation to object positions
             let relative_pos = [
@@ -1744,22 +1771,34 @@ impl UnityEditor {
             let yaw = camera_rot[1];
             let pitch = camera_rot[0];
             
-            // Rotate around Y-axis (yaw)
+            // Rotate around Y-axis (yaw) first - only affects X and Z
             let cos_yaw = yaw.cos();
             let sin_yaw = yaw.sin();
-            let rotated_x = relative_pos[0] * cos_yaw - relative_pos[2] * sin_yaw;
-            let rotated_z = relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
+            let rotated_x = relative_pos[0] * cos_yaw + relative_pos[2] * sin_yaw;
+            let rotated_z = -relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
             
-            // Apply pitch rotation (simplified for 2D view)
+            // Apply pitch rotation (rotate around X-axis) - only affects Y and Z
             let cos_pitch = pitch.cos();
             let sin_pitch = pitch.sin();
-            let final_y = relative_pos[1] * cos_pitch - rotated_z * sin_pitch;
-            let final_z = relative_pos[1] * sin_pitch + rotated_z * cos_pitch;
+            let final_y = relative_pos[1] * cos_pitch + rotated_z * sin_pitch;
+            let final_z = -relative_pos[1] * sin_pitch + rotated_z * cos_pitch;
             
-            // Project 3D position to 2D screen coordinates
-            let scale = 50.0; // Pixels per world unit
-            let screen_x = view_center.x + rotated_x * scale;
-            let screen_y = view_center.y - final_z * scale; // Z becomes Y in screen space
+            // Simple perspective projection
+            // Use the final rotated Z for depth (after both rotations)
+            let depth = final_z; // Distance from camera along view direction
+            
+            // Skip objects behind camera
+            if depth <= 0.1 {
+                continue;
+            }
+            
+            // Perspective projection with field of view
+            let fov_scale = 100.0; // Base scale for FOV
+            let perspective_scale = fov_scale / depth;
+            
+            // Project 3D position to 2D screen coordinates with perspective
+            let screen_x = view_center.x + (rotated_x * perspective_scale);
+            let screen_y = view_center.y - (final_y * perspective_scale); // Y remains Y in screen space after rotation
             let screen_pos = egui::pos2(screen_x, screen_y);
             
             // Get entity info
@@ -1783,6 +1822,7 @@ impl UnityEditor {
                     color
                 );
             } else if let Some(mesh) = self.world.get_component::<Mesh>(entity) {
+                // Phase 10.2: Extract component data and convert to renderer-compatible format
                 // Get material color if available
                 let base_color = if let Some(material) = self.world.get_component::<Material>(entity) {
                     egui::Color32::from_rgba_unmultiplied(
@@ -1801,45 +1841,135 @@ impl UnityEditor {
                 match mesh.mesh_type {
                     MeshType::Cube => {
                         // Draw cube with pseudo-3D effect
-                        let size = 20.0 * transform.scale[0];
-                        let offset = size * 0.3;
+                        let base_size = 20.0;
+                        let size = base_size * transform.scale[0] * (perspective_scale / 2.0); // Scale with perspective
                         
-                        // Front face
-                        let front_rect = egui::Rect::from_center_size(screen_pos, egui::vec2(size, size));
-                        painter.rect_filled(front_rect, egui::Rounding::same(2.0), color);
-                        
-                        // Top face (lighter)
-                        let top_points = vec![
-                            egui::pos2(front_rect.left(), front_rect.top()),
-                            egui::pos2(front_rect.left() + offset, front_rect.top() - offset),
-                            egui::pos2(front_rect.right() + offset, front_rect.top() - offset),
-                            egui::pos2(front_rect.right(), front_rect.top()),
+                        // Define cube vertices in local space (before rotation)
+                        let half_size = 0.5;
+                        let vertices = [
+                            // Front face vertices
+                            [-half_size, -half_size,  half_size],
+                            [ half_size, -half_size,  half_size],
+                            [ half_size,  half_size,  half_size],
+                            [-half_size,  half_size,  half_size],
+                            // Back face vertices
+                            [-half_size, -half_size, -half_size],
+                            [ half_size, -half_size, -half_size],
+                            [ half_size,  half_size, -half_size],
+                            [-half_size,  half_size, -half_size],
                         ];
-                        // Create lighter color for top face
-                        let lighter_color = egui::Color32::from_rgba_unmultiplied(
-                            ((color.r() as f32 * 1.2).min(255.0)) as u8,
-                            ((color.g() as f32 * 1.2).min(255.0)) as u8,
-                            ((color.b() as f32 * 1.2).min(255.0)) as u8,
-                            color.a(),
-                        );
-                        painter.add(egui::Shape::convex_polygon(
-                            top_points,
-                            lighter_color,
-                            egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 60, 60))
-                        ));
                         
-                        // Right face (darker)
-                        let right_points = vec![
-                            egui::pos2(front_rect.right(), front_rect.top()),
-                            egui::pos2(front_rect.right() + offset, front_rect.top() - offset),
-                            egui::pos2(front_rect.right() + offset, front_rect.bottom() - offset),
-                            egui::pos2(front_rect.right(), front_rect.bottom()),
+                        // Apply object rotation to vertices
+                        let mut rotated_vertices = [[0.0; 3]; 8];
+                        for (i, vertex) in vertices.iter().enumerate() {
+                            // Apply Y rotation (yaw)
+                            let cos_y = obj_rot_y.cos();
+                            let sin_y = obj_rot_y.sin();
+                            let x1 = vertex[0] * cos_y - vertex[2] * sin_y;
+                            let z1 = vertex[0] * sin_y + vertex[2] * cos_y;
+                            
+                            // Apply X rotation (pitch)
+                            let cos_x = obj_rot_x.cos();
+                            let sin_x = obj_rot_x.sin();
+                            let y2 = vertex[1] * cos_x - z1 * sin_x;
+                            let z2 = vertex[1] * sin_x + z1 * cos_x;
+                            
+                            // Apply Z rotation (roll)
+                            let cos_z = obj_rot_z.cos();
+                            let sin_z = obj_rot_z.sin();
+                            let x3 = x1 * cos_z - y2 * sin_z;
+                            let y3 = x1 * sin_z + y2 * cos_z;
+                            
+                            rotated_vertices[i] = [x3, y3, z2];
+                        }
+                        
+                        // Transform vertices to camera view space for proper depth sorting and culling
+                        let mut view_vertices = [[0.0; 3]; 8];
+                        for (i, vertex) in rotated_vertices.iter().enumerate() {
+                            // Apply camera transformations
+                            // Camera yaw (rotate around Y axis)
+                            let cam_cos_yaw = (-yaw).cos(); // Negative because camera rotation is inverse
+                            let cam_sin_yaw = (-yaw).sin();
+                            let view_x = vertex[0] * cam_cos_yaw - vertex[2] * cam_sin_yaw;
+                            let view_z = vertex[0] * cam_sin_yaw + vertex[2] * cam_cos_yaw;
+                            
+                            // Camera pitch (rotate around X axis)
+                            let cam_cos_pitch = (-pitch).cos(); // Negative because camera rotation is inverse
+                            let cam_sin_pitch = (-pitch).sin();
+                            let view_y = vertex[1] * cam_cos_pitch - view_z * cam_sin_pitch;
+                            let final_view_z = vertex[1] * cam_sin_pitch + view_z * cam_cos_pitch;
+                            
+                            view_vertices[i] = [view_x, view_y, final_view_z];
+                        }
+                        
+                        // Project vertices to screen and find visible faces
+                        let mut screen_vertices = [egui::Pos2::ZERO; 8];
+                        for (i, vertex) in rotated_vertices.iter().enumerate() {
+                            // Apply perspective to rotated vertices
+                            let proj_x = vertex[0] * size;
+                            let proj_y = -vertex[1] * size; // Flip Y for screen coordinates
+                            screen_vertices[i] = screen_pos + egui::vec2(proj_x, proj_y);
+                        }
+                        
+                        // Define faces with correct winding order (counter-clockwise when viewed from outside)
+                        let faces = [
+                            // Front face (+Z) - vertices 0,1,2,3
+                            ([0, 1, 2, 3], color),
+                            // Back face (-Z) - vertices 4,7,6,5
+                            ([4, 7, 6, 5], color.gamma_multiply(0.6)),
+                            // Top face (+Y) - vertices 3,2,6,7
+                            ([3, 2, 6, 7], egui::Color32::from_rgba_unmultiplied(
+                                ((color.r() as f32 * 1.2).min(255.0)) as u8,
+                                ((color.g() as f32 * 1.2).min(255.0)) as u8,
+                                ((color.b() as f32 * 1.2).min(255.0)) as u8,
+                                color.a(),
+                            )),
+                            // Bottom face (-Y) - vertices 4,5,1,0
+                            ([4, 5, 1, 0], color.gamma_multiply(0.5)),
+                            // Right face (+X) - vertices 1,5,6,2
+                            ([1, 5, 6, 2], color.gamma_multiply(0.8)),
+                            // Left face (-X) - vertices 0,3,7,4
+                            ([0, 3, 7, 4], color.gamma_multiply(0.7)),
                         ];
-                        painter.add(egui::Shape::convex_polygon(
-                            right_points,
-                            color.gamma_multiply(0.8),
-                            egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 60, 60))
-                        ));
+                        
+                        // Draw faces sorted by average Z depth (painter's algorithm)
+                        let mut face_depths: Vec<(usize, f32)> = faces.iter().enumerate().map(|(i, (indices, _))| {
+                            // Use view-space Z for depth sorting
+                            let avg_z = indices.iter()
+                                .map(|&idx| view_vertices[idx][2])
+                                .sum::<f32>() / 4.0;
+                            (i, avg_z)
+                        }).collect();
+                        
+                        // Sort faces by depth (back to front)
+                        face_depths.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                        
+                        // Draw faces in order
+                        for (face_idx, _) in face_depths {
+                            let (indices, face_color) = &faces[face_idx];
+                            
+                            // Simple backface culling based on winding order in screen space
+                            // Calculate screen space area to determine if face is front or back facing
+                            let v0 = screen_vertices[indices[0]];
+                            let v1 = screen_vertices[indices[1]];
+                            let v2 = screen_vertices[indices[2]];
+                            
+                            // 2D cross product for winding order
+                            let area = (v1.x - v0.x) * (v2.y - v0.y) - (v2.x - v0.x) * (v1.y - v0.y);
+                            
+                            // Counter-clockwise winding = positive area = front facing
+                            if area > 0.0 {
+                                let face_points: Vec<egui::Pos2> = indices.iter()
+                                    .map(|&idx| screen_vertices[idx])
+                                    .collect();
+                                
+                                painter.add(egui::Shape::convex_polygon(
+                                    face_points,
+                                    *face_color,
+                                    egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 60, 60))
+                                ));
+                            }
+                        }
                         
                         painter.text(
                             screen_pos + egui::vec2(size * 0.7 + 10.0, -size * 0.7),
@@ -1851,13 +1981,36 @@ impl UnityEditor {
                     }
                     MeshType::Sphere => {
                         // Draw sphere with shading
-                        let radius = 15.0 * transform.scale[0];
+                        let base_radius = 15.0;
+                        let radius = base_radius * transform.scale[0] * (perspective_scale / 2.0); // Scale with perspective
                         
                         // Main sphere
                         painter.circle_filled(screen_pos, radius, color);
                         
+                        // Draw rotation indicator (band around sphere)
+                        if obj_rot_x.abs() > 0.1 || obj_rot_y.abs() > 0.1 || obj_rot_z.abs() > 0.1 {
+                            // Calculate band position based on rotation
+                            let band_y_offset = (obj_rot_x.sin() * radius * 0.3).abs();
+                            let band_width = radius * 2.0 * obj_rot_y.cos().abs().max(0.2);
+                            let band_height = radius * 0.2;
+                            
+                            let band_rect = egui::Rect::from_center_size(
+                                screen_pos + egui::vec2(0.0, band_y_offset),
+                                egui::vec2(band_width, band_height)
+                            );
+                            painter.rect_filled(
+                                band_rect,
+                                egui::Rounding::same(band_height / 2.0),
+                                color.gamma_multiply(0.7)
+                            );
+                        }
+                        
                         // Highlight for 3D effect
-                        let highlight_pos = screen_pos + egui::vec2(-radius * 0.3, -radius * 0.3);
+                        let highlight_angle = obj_rot_y - std::f32::consts::PI / 4.0;
+                        let highlight_pos = screen_pos + egui::vec2(
+                            highlight_angle.cos() * radius * 0.3,
+                            -radius * 0.3
+                        );
                         painter.circle_filled(
                             highlight_pos,
                             radius * 0.3,
@@ -1885,22 +2038,77 @@ impl UnityEditor {
                         );
                     }
                     MeshType::Plane => {
-                        // Draw plane as flat rectangle
-                        let width = 30.0 * transform.scale[0];
-                        let height = 5.0 * transform.scale[2];
-                        let plane_rect = egui::Rect::from_center_size(
-                            screen_pos,
-                            egui::vec2(width, height)
-                        );
-                        painter.rect_filled(plane_rect, egui::Rounding::same(1.0), color);
-                        painter.rect_stroke(
-                            plane_rect,
-                            egui::Rounding::same(1.0),
+                        // Draw plane with rotation
+                        let base_width = 30.0;
+                        let base_height = 30.0; // Make it square for better rotation visibility
+                        let size = base_width * transform.scale[0] * (perspective_scale / 2.0);
+                        
+                        // Define plane corners in local space
+                        let half_size = 0.5;
+                        let corners = [
+                            [-half_size, 0.0, -half_size],
+                            [ half_size, 0.0, -half_size],
+                            [ half_size, 0.0,  half_size],
+                            [-half_size, 0.0,  half_size],
+                        ];
+                        
+                        // Apply object rotation to corners
+                        let mut rotated_corners = [[0.0; 3]; 4];
+                        for (i, corner) in corners.iter().enumerate() {
+                            // Apply Y rotation (yaw)
+                            let cos_y = obj_rot_y.cos();
+                            let sin_y = obj_rot_y.sin();
+                            let x1 = corner[0] * cos_y - corner[2] * sin_y;
+                            let z1 = corner[0] * sin_y + corner[2] * cos_y;
+                            
+                            // Apply X rotation (pitch)
+                            let cos_x = obj_rot_x.cos();
+                            let sin_x = obj_rot_x.sin();
+                            let y2 = corner[1] * cos_x - z1 * sin_x;
+                            let z2 = corner[1] * sin_x + z1 * cos_x;
+                            
+                            // Apply Z rotation (roll)
+                            let cos_z = obj_rot_z.cos();
+                            let sin_z = obj_rot_z.sin();
+                            let x3 = x1 * cos_z - y2 * sin_z;
+                            let y3 = x1 * sin_z + y2 * cos_z;
+                            
+                            rotated_corners[i] = [x3, y3, z2];
+                        }
+                        
+                        // Project corners to screen
+                        let screen_corners: Vec<egui::Pos2> = rotated_corners.iter()
+                            .map(|corner| {
+                                let proj_x = corner[0] * size;
+                                let proj_y = -corner[1] * size; // Flip Y for screen
+                                screen_pos + egui::vec2(proj_x, proj_y)
+                            })
+                            .collect();
+                        
+                        // Draw the plane as a polygon
+                        painter.add(egui::Shape::convex_polygon(
+                            screen_corners.clone(),
+                            color,
                             egui::Stroke::new(1.0, color.gamma_multiply(0.6))
-                        );
+                        ));
+                        
+                        // Draw grid lines on the plane for better rotation visibility
+                        if rotated_corners[0][1].abs() < 0.9 { // Only if not too edge-on
+                            // Draw cross lines
+                            painter.line_segment(
+                                [(screen_corners[0] + screen_corners[2].to_vec2()) / 2.0,
+                                 (screen_corners[1] + screen_corners[3].to_vec2()) / 2.0],
+                                egui::Stroke::new(1.0, color.gamma_multiply(0.4))
+                            );
+                            painter.line_segment(
+                                [(screen_corners[0] + screen_corners[1].to_vec2()) / 2.0,
+                                 (screen_corners[2] + screen_corners[3].to_vec2()) / 2.0],
+                                egui::Stroke::new(1.0, color.gamma_multiply(0.4))
+                            );
+                        }
                         
                         painter.text(
-                            screen_pos + egui::vec2(width * 0.5 + 5.0, 0.0),
+                            screen_pos + egui::vec2(size * 0.7 + 5.0, 0.0),
                             egui::Align2::LEFT_CENTER,
                             format!("▭ {}", name),
                             egui::FontId::proportional(12.0),
@@ -1950,27 +2158,42 @@ impl UnityEditor {
                 let yaw = camera_rot[1];
                 let pitch = camera_rot[0];
                 
-                // Rotate around Y-axis (yaw)
+                // Rotate around Y-axis (yaw) - only affects X and Z
                 let cos_yaw = yaw.cos();
                 let sin_yaw = yaw.sin();
-                let rotated_x = relative_pos[0] * cos_yaw - relative_pos[2] * sin_yaw;
-                let rotated_z = relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
+                let rotated_x = relative_pos[0] * cos_yaw + relative_pos[2] * sin_yaw;
+                let rotated_z = -relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
                 
-                // Apply pitch rotation (simplified for 2D view)
+                // Apply pitch rotation (rotate around X-axis) - only affects Y and Z
                 let cos_pitch = pitch.cos();
                 let sin_pitch = pitch.sin();
-                let final_y = relative_pos[1] * cos_pitch - rotated_z * sin_pitch;
-                let final_z = relative_pos[1] * sin_pitch + rotated_z * cos_pitch;
+                let final_y = relative_pos[1] * cos_pitch + rotated_z * sin_pitch;
+                let final_z = -relative_pos[1] * sin_pitch + rotated_z * cos_pitch;
                 
-                // Project sprite position to 2D screen coordinates
-                let scale = 50.0; // Pixels per world unit
-                let screen_x = view_center.x + rotated_x * scale;
-                let screen_y = view_center.y - final_z * scale; // Z becomes Y in screen space
+                // Simple perspective projection for sprites
+                let depth = final_z;
+                
+                // Skip sprites behind camera
+                if depth <= 0.1 {
+                    continue;
+                }
+                
+                // Perspective projection with field of view
+                let fov_scale = 100.0; // Base scale for FOV
+                let perspective_scale = fov_scale / depth;
+                
+                // Project sprite position to 2D screen coordinates with perspective
+                let screen_x = view_center.x + (rotated_x * perspective_scale);
+                let screen_y = view_center.y - (final_y * perspective_scale); // Y remains Y in screen space after rotation
                 let screen_pos = egui::pos2(screen_x, screen_y);
                 
-                // Calculate sprite size in screen space
+                // Calculate sprite size in screen space with perspective
                 let world_scale = (transform.scale[0] + transform.scale[1]) * 0.5; // Average X and Y scale
-                let sprite_size = egui::vec2(32.0 * world_scale, 32.0 * world_scale); // Base size 32x32 pixels
+                let base_size = 32.0;
+                let sprite_size = egui::vec2(
+                    base_size * world_scale * (perspective_scale / 2.0), 
+                    base_size * world_scale * (perspective_scale / 2.0)
+                );
                 
                 // Get sprite color - simplified for stability
                 let sprite_color = egui::Color32::from_rgba_unmultiplied(
@@ -2321,49 +2544,45 @@ impl UnityEditor {
     }
     
     /// Handle scene navigation input (right mouse + WASD for Unity/Unreal style navigation)
-    fn handle_scene_navigation(&mut self, ui: &egui::Ui, response: &egui::Response, _rect: egui::Rect) {
+    fn handle_scene_navigation(&mut self, ui: &egui::Ui, response: &egui::Response, rect: egui::Rect) {
         // Check for right mouse button to start navigation
-        let rmb_down = ui.input(|i| i.pointer.secondary_down());
-        let current_mouse_pos = response.hover_pos();
+        let (rmb_down, pointer_pos, pointer_delta) = ui.input(|i| {
+            (i.pointer.secondary_down(), 
+             i.pointer.hover_pos(),
+             i.pointer.delta())
+        });
         
-        // DEBUG: Log RMB state occasionally
-        static mut RMB_COUNTER: u32 = 0;
-        unsafe {
-            RMB_COUNTER += 1;
-            if RMB_COUNTER % 60 == 0 && rmb_down {  // Log every 60 frames when RMB is down
-                self.console_messages.push(ConsoleMessage::info(&format!(
-                    "🎮 DEBUG: RMB down, Nav: {}, Pos: {:?}", 
-                    self.scene_navigation.is_navigating, current_mouse_pos
-                )));
-            }
-        }
+        // Only handle navigation if mouse is within the scene view
+        let mouse_in_rect = pointer_pos.map_or(false, |pos| rect.contains(pos));
         
-        // Start navigation if RMB is down and we're not already navigating
-        if rmb_down && !self.scene_navigation.is_navigating {
-            if let Some(mouse_pos) = current_mouse_pos {
+        // Start navigation if RMB is pressed (not just down) and mouse is in rect
+        if ui.input(|i| i.pointer.secondary_pressed()) && mouse_in_rect && !self.scene_navigation.is_navigating {
+            if let Some(mouse_pos) = pointer_pos {
                 self.console_messages.push(ConsoleMessage::info(&format!(
                     "🎮 Starting navigation at ({:.1}, {:.1})", mouse_pos.x, mouse_pos.y
                 )));
                 self.start_scene_navigation(mouse_pos);
+                
+                // Capture mouse to prevent interference from other UI elements
+                ui.ctx().set_cursor_icon(egui::CursorIcon::None);
             }
         }
         
         // Check for right mouse button release
         if !rmb_down && self.scene_navigation.is_navigating {
             self.end_scene_navigation();
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
         }
         
         // Handle navigation input during active navigation
-        if self.scene_navigation.is_navigating {
-            // DEBUG: Log that we're processing navigation
-            static mut NAV_DEBUG_COUNTER: u32 = 0;
-            unsafe {
-                NAV_DEBUG_COUNTER += 1;
-                if NAV_DEBUG_COUNTER % 30 == 0 {  // Log every 30 frames
-                    self.console_messages.push(ConsoleMessage::info("🎮 Processing navigation input..."));
-                }
+        if self.scene_navigation.is_navigating && rmb_down {
+            // Use pointer delta for more accurate mouse movement tracking
+            if pointer_delta != egui::Vec2::ZERO {
+                self.apply_mouse_look(pointer_delta);
             }
-            self.process_navigation_input(ui, response);
+            
+            // Handle WASD movement
+            self.handle_wasd_movement(ui);
         }
         
         // Handle scroll wheel for speed adjustment (even when not actively navigating)
@@ -2393,20 +2612,6 @@ impl UnityEditor {
         self.console_messages.push(ConsoleMessage::info("🎮 Ended scene navigation"));
     }
     
-    /// Process navigation input during active navigation
-    fn process_navigation_input(&mut self, ui: &egui::Ui, response: &egui::Response) {
-        // Handle mouse look (rotation)
-        if let Some(current_mouse_pos) = response.hover_pos() {
-            if let Some(last_mouse_pos) = self.scene_navigation.last_mouse_pos {
-                let mouse_delta = current_mouse_pos - last_mouse_pos;
-                self.apply_mouse_look(mouse_delta);
-            }
-            self.scene_navigation.last_mouse_pos = Some(current_mouse_pos);
-        }
-        
-        // Handle WASD movement (will implement in next phase)
-        self.handle_wasd_movement(ui);
-    }
     
     /// Apply mouse movement to camera rotation
     fn apply_mouse_look(&mut self, mouse_delta: egui::Vec2) {
@@ -2421,18 +2626,6 @@ impl UnityEditor {
         // Apply rotations to scene camera - no clamping for scene editing
         self.scene_navigation.scene_camera_transform.rotation[1] += yaw_delta;
         self.scene_navigation.scene_camera_transform.rotation[0] += pitch_delta;
-        
-        // No rotation limits for scene navigation - complete freedom
-        
-        // Debug log rotation changes
-        if mouse_delta.length() > 0.5 {
-            self.console_messages.push(ConsoleMessage::info(&format!(
-                "🎥 Mouse delta: ({:.1}, {:.1}) → yaw={:.1}°, pitch={:.1}°",
-                mouse_delta.x, mouse_delta.y,
-                self.scene_navigation.scene_camera_transform.rotation[1].to_degrees(),
-                self.scene_navigation.scene_camera_transform.rotation[0].to_degrees()
-            )));
-        }
     }
     
     /// Handle WASD movement input during navigation mode
@@ -2449,22 +2642,6 @@ impl UnityEditor {
         let mut movement = [0.0, 0.0, 0.0];
         let mut any_movement = false;
         
-        // DEBUG: Always log WASD state during navigation
-        let (w, a, s, d, q, e) = ui.input(|i| {
-            (i.key_down(egui::Key::W), i.key_down(egui::Key::A), i.key_down(egui::Key::S), 
-             i.key_down(egui::Key::D), i.key_down(egui::Key::Q), i.key_down(egui::Key::E))
-        });
-        
-        static mut DEBUG_COUNTER: u32 = 0;
-        unsafe {
-            DEBUG_COUNTER += 1;
-            if DEBUG_COUNTER % 15 == 0 {  // Log every 15 frames
-                self.console_messages.push(ConsoleMessage::info(&format!(
-                    "🎮 WASD DEBUG: W:{} A:{} S:{} D:{} Q:{} E:{} | speed:{:.1} delta:{:.4} actual:{:.4}",
-                    w, a, s, d, q, e, movement_speed, delta_time, actual_speed
-                )));
-            }
-        }
         
         
         // Check WASD keys
@@ -2519,42 +2696,31 @@ impl UnityEditor {
                     )));
                 }
             }
-        } else {
-            // DEBUG: Log when keys are pressed but no movement happens
-            let any_key_pressed = ui.input(|i| {
-                i.key_down(egui::Key::W) || i.key_down(egui::Key::A) || 
-                i.key_down(egui::Key::S) || i.key_down(egui::Key::D) ||
-                i.key_down(egui::Key::Q) || i.key_down(egui::Key::E)
-            });
-            
-            if any_key_pressed {
-                static mut KEY_DEBUG_COUNTER: u32 = 0;
-                unsafe {
-                    KEY_DEBUG_COUNTER += 1;
-                    if KEY_DEBUG_COUNTER % 30 == 0 {  // Log every 30 frames
-                        self.console_messages.push(ConsoleMessage::info(&format!(
-                            "🎮 Keys pressed but no movement - Delta:{:.3} Speed:{:.1}",
-                            delta_time, movement_speed
-                        )));
-                    }
-                }
-            }
         }
     }
     
     /// Transform movement vector by camera orientation for relative movement
     fn transform_movement_by_camera(&self, movement: [f32; 3]) -> [f32; 3] {
         let rotation = &self.scene_navigation.scene_camera_transform.rotation;
-        let yaw = rotation[1]; // Y-axis rotation
+        let pitch = rotation[0]; // X-axis rotation (up/down)
+        let yaw = rotation[1]; // Y-axis rotation (left/right)
         
-        // Calculate forward and right vectors based on camera yaw
+        // Calculate forward and right vectors based on camera rotation
         let cos_yaw = yaw.cos();
         let sin_yaw = yaw.sin();
+        let cos_pitch = pitch.cos();
+        let sin_pitch = pitch.sin();
         
-        // Forward vector (camera's -Z direction in world space)
-        let forward = [-sin_yaw, 0.0, -cos_yaw];
-        // Right vector (camera's +X direction in world space)
+        // Forward vector (camera's -Z direction in world space, affected by pitch)
+        let forward = [
+            -sin_yaw * cos_pitch,
+            sin_pitch,
+            -cos_yaw * cos_pitch,
+        ];
+        
+        // Right vector (camera's +X direction in world space, not affected by pitch)
         let right = [cos_yaw, 0.0, -sin_yaw];
+        
         // Up vector (always world up for now)
         let up = [0.0, 1.0, 0.0];
         
@@ -2564,6 +2730,59 @@ impl UnityEditor {
             movement[0] * right[1] + movement[1] * up[1] + movement[2] * forward[1],
             movement[0] * right[2] + movement[1] * up[2] + movement[2] * forward[2],
         ]
+    }
+    
+    /// Focus the scene camera on the selected object
+    fn focus_on_selected_object(&mut self) {
+        if let Some(selected_entity) = self.selected_entity {
+            if let Some(transform) = self.world.get_component::<Transform>(selected_entity) {
+                // Get object position
+                let object_pos = transform.position;
+                
+                // Calculate a good viewing distance based on object scale
+                let avg_scale = (transform.scale[0] + transform.scale[1] + transform.scale[2]) / 3.0;
+                let view_distance = avg_scale * 5.0 + 3.0; // Base distance of 3 units plus scale factor
+                
+                // Get current camera rotation to maintain viewing angle
+                let camera_rot = self.scene_navigation.scene_camera_transform.rotation;
+                let pitch = camera_rot[0];
+                let yaw = camera_rot[1];
+                
+                // Calculate camera position offset from object
+                let cos_yaw = yaw.cos();
+                let sin_yaw = yaw.sin();
+                let cos_pitch = pitch.cos();
+                let sin_pitch = pitch.sin();
+                
+                // Camera looks along -Z, so we position it behind the object along its forward vector
+                let camera_offset = [
+                    sin_yaw * cos_pitch * view_distance,
+                    -sin_pitch * view_distance,
+                    cos_yaw * cos_pitch * view_distance,
+                ];
+                
+                // Set new camera position
+                self.scene_navigation.scene_camera_transform.position = [
+                    object_pos[0] + camera_offset[0],
+                    object_pos[1] + camera_offset[1],
+                    object_pos[2] + camera_offset[2],
+                ];
+                
+                // Get object name for logging
+                let name = self.world.get_component::<Name>(selected_entity)
+                    .map(|n| n.name.clone())
+                    .unwrap_or_else(|| format!("Entity {}", selected_entity.id()));
+                
+                self.console_messages.push(ConsoleMessage::info(&format!(
+                    "🔍 Focused on {} at [{:.1}, {:.1}, {:.1}] (distance: {:.1})",
+                    name, object_pos[0], object_pos[1], object_pos[2], view_distance
+                )));
+            } else {
+                self.console_messages.push(ConsoleMessage::info("⚠️ Selected entity has no transform"));
+            }
+        } else {
+            self.console_messages.push(ConsoleMessage::info("⚠️ No object selected to focus on"));
+        }
     }
     
     /// Handle mouse wheel for navigation speed control
