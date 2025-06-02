@@ -3,7 +3,9 @@ resolver = "2"
 members = [
     # Core abstractions (Tier 1)
     "crates/core/engine-math-core",
-    "crates/core/engine-components-core",
+    "crates/core/engine-components-3d",
+    "crates/core/engine-components-2d", 
+    "crates/core/engine-components-ui",
     "crates/core/engine-ecs-core",
     "crates/core/engine-renderer-core",
     "crates/core/engine-geometry-core",
@@ -139,12 +141,15 @@ path = "crates/core/engine-math-core"
 path = "crates/core/engine-camera-core"
 package = "engine-camera-core"
 
-[workspace.dependencies.engine-components-core]
-path = "crates/core/engine-components-core"
+[workspace.dependencies.engine-components-3d]
+path = "crates/core/engine-components-3d"
 
-[workspace.dependencies.engine-components]
-path = "crates/core/engine-components-core"
-package = "engine-components-core"
+[workspace.dependencies.engine-components-2d]
+path = "crates/core/engine-components-2d"
+
+[workspace.dependencies.engine-components-ui]
+path = "crates/core/engine-components-ui"
+
 
 [workspace.dependencies.engine-resource-core]
 path = "crates/core/engine-resource-core"

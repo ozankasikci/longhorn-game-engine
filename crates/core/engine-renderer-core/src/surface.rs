@@ -7,15 +7,19 @@ pub trait RenderSurface {
 }
 
 pub trait RawWindow {
-    fn raw_handle(&self) -> RawWindowHandle;
+    fn window_handle(&self) -> &dyn WindowHandle;
 }
 
-#[derive(Debug)]
-pub enum RawWindowHandle {
-    Win32 { hwnd: *mut std::ffi::c_void },
-    Cocoa { ns_window: *mut std::ffi::c_void },
-    X11 { window: u64, display: *mut std::ffi::c_void },
-    Wayland { surface: *mut std::ffi::c_void },
+/// Opaque handle for platform-specific window data
+/// 
+/// Implementation crates must provide concrete window handle types
+/// that implement this trait to bridge platform-specific APIs.
+pub trait WindowHandle: Send + Sync {
+    /// Get an opaque identifier for this window handle
+    fn id(&self) -> u64;
+    
+    /// Get platform name for debugging
+    fn platform(&self) -> &'static str;
 }
 
 #[derive(Debug, Clone)]

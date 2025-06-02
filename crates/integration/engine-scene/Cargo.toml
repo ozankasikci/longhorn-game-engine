@@ -13,7 +13,9 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 # Internal core dependencies
-engine-components-core = { workspace = true }
+engine-components-3d = { workspace = true }
+engine-components-2d = { workspace = true }
+engine-components-ui = { workspace = true }
 engine-camera-core = { workspace = true }
 engine-renderer-core = { workspace = true }
 engine-geometry-core = { workspace = true }

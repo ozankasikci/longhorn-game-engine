@@ -6,7 +6,7 @@ use crate::{
     AudioEffects, AudioManager, PlaybackSettings, Result
 };
 use glam::Vec3;
-use engine_components_core::Transform;
+use engine_components_3d::Transform;
 
 /// Audio system for processing ECS audio components
 pub trait AudioSystem {

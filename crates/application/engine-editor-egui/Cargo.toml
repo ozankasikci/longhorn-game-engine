@@ -10,7 +10,9 @@ path = "src/main.rs"
 [dependencies]
 # Engine core integration
 engine-ecs-core = { workspace = true }
-engine-components-core = { workspace = true }
+engine-components-3d = { workspace = true }
+engine-components-2d = { workspace = true }
+engine-components-ui = { workspace = true }
 engine-camera = { workspace = true }
 
 # EGUI and platform integration

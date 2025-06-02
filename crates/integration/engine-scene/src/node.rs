@@ -1,6 +1,6 @@
 //! Scene node hierarchy management
 
-use engine_components_core::{Transform, Light};
+use engine_components_3d::{Transform, Light};
 use engine_camera_core::Camera;
 use engine_geometry_core::MeshHandle;
 use engine_materials_core::MaterialHandle;

@@ -1,0 +1,9 @@
+[package]
+name = "engine-components-3d"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+engine-ecs-core = { path = "../engine-ecs-core" }
+serde = { version = "1.0", features = ["derive"] }
+glam = "0.24"

@@ -943,7 +943,7 @@ name = "engine-audio-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "engine-components-core",
+ "engine-components-3d",
  "engine-ecs-core",
  "glam",
  "log",
@@ -958,7 +958,7 @@ dependencies = [
  "anyhow",
  "bitflags 2.9.1",
  "bytemuck",
- "engine-components-core",
+ "engine-components-3d",
  "engine-ecs-core",
  "glam",
  "log",
@@ -976,11 +976,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-components-core"
+name = "engine-components-2d"
+version = "0.1.0"
+dependencies = [
+ "engine-ecs-core",
+ "serde",
+]
+
+[[package]]
+name = "engine-components-3d"
 version = "0.1.0"
 dependencies = [
  "engine-ecs-core",
  "glam",
+ "serde",
+]
+
+[[package]]
+name = "engine-components-ui"
+version = "0.1.0"
+dependencies = [
+ "engine-ecs-core",
  "serde",
 ]
 
@@ -1005,7 +1021,9 @@ dependencies = [
  "egui 0.28.1",
  "egui_dock",
  "engine-camera-core",
- "engine-components-core",
+ "engine-components-2d",
+ "engine-components-3d",
+ "engine-components-ui",
  "engine-ecs-core",
  "env_logger",
  "serde",
@@ -1078,7 +1096,8 @@ name = "engine-physics-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "engine-components-core",
+ "engine-components-2d",
+ "engine-components-3d",
  "engine-ecs-core",
  "engine-math-core",
  "glam",
@@ -1164,7 +1183,9 @@ name = "engine-scene"
 version = "0.1.0"
 dependencies = [
  "engine-camera-core",
- "engine-components-core",
+ "engine-components-2d",
+ "engine-components-3d",
+ "engine-components-ui",
  "engine-geometry-core",
  "engine-materials-core",
  "engine-renderer-core",

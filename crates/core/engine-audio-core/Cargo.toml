@@ -8,7 +8,7 @@ repository.workspace = true
 [dependencies]
 # Core engine integration
 engine-ecs-core = { workspace = true }
-engine-components-core = { workspace = true }
+engine-components-3d = { workspace = true }
 
 # Math and utilities
 glam = { workspace = true }

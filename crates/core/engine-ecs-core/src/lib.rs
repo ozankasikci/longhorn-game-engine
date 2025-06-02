@@ -15,7 +15,7 @@ pub use ecs_v2::{Entity as EntityV2, Component as ComponentV2, World as WorldV2,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_components_core::Transform;
+    use engine_components_3d::Transform;
 
     #[test]
     fn test_transform_default() {

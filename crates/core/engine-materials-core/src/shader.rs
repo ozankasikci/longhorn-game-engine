@@ -179,22 +179,12 @@ impl Shader {
     }
     
     /// Get default entry point for shader type and language
-    fn default_entry_point(shader_type: ShaderType, language: ShaderLanguage) -> String {
-        match language {
-            ShaderLanguage::Wgsl => match shader_type {
-                ShaderType::Vertex => "vs_main".to_string(),
-                ShaderType::Fragment => "fs_main".to_string(),
-                ShaderType::Compute => "cs_main".to_string(),
-                _ => "main".to_string(),
-            },
-            ShaderLanguage::Hlsl => match shader_type {
-                ShaderType::Vertex => "VSMain".to_string(),
-                ShaderType::Fragment => "PSMain".to_string(),
-                ShaderType::Compute => "CSMain".to_string(),
-                _ => "main".to_string(),
-            },
-            _ => "main".to_string(),
-        }
+    /// 
+    /// Note: This provides common defaults. Implementation crates
+    /// should override with language-specific logic if needed.
+    fn default_entry_point(_shader_type: ShaderType, _language: ShaderLanguage) -> String {
+        // Simple default - implementation crates handle language specifics
+        "main".to_string()
     }
     
     /// Get the source as text (if available)
