@@ -8,7 +8,6 @@ members = [
     "crates/core/engine-renderer-core",
     "crates/core/engine-geometry-core",
     "crates/core/engine-materials-core",
-    "crates/core/engine-scene-core",
     "crates/core/engine-camera-core",
     "crates/core/engine-resource-core",
     
@@ -21,6 +20,7 @@ members = [
     "crates/implementation/engine-renderer-wgpu",
     
     # Integration layer (Tier 3)
+    "crates/integration/engine-scene",
     "crates/integration/engine-runtime",
     
     # Application layer (Tier 4)
@@ -116,8 +116,8 @@ path = "crates/core/engine-geometry-core"
 [workspace.dependencies.engine-materials-core]
 path = "crates/core/engine-materials-core"
 
-[workspace.dependencies.engine-scene-core]
-path = "crates/core/engine-scene-core"
+[workspace.dependencies.engine-scene]
+path = "crates/integration/engine-scene"
 
 [workspace.dependencies.engine-renderer-wgpu]
 path = "crates/implementation/engine-renderer-wgpu"

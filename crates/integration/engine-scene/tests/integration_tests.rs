@@ -1,6 +1,6 @@
-//! Integration tests for engine-scene-core
+//! Integration tests for engine-scene
 
-use engine_scene_core::*;
+use engine_scene::*;
 use engine_materials_core::Color;
 use glam::{Vec3, Quat, Mat4};
 

@@ -1,11 +1,14 @@
 [package]
 name = "engine-components-core"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-glam = "0.24"
+serde = { workspace = true }
+glam = { workspace = true }
+engine-ecs-core = { workspace = true }
 
 [dev-dependencies]
 # Test dependencies if needed

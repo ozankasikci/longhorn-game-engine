@@ -208,14 +208,29 @@ impl Default for World {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Transform;
     
     #[derive(Debug, Clone, PartialEq)]
     struct TestComponent {
         value: i32,
     }
-    
     impl Component for TestComponent {}
+    
+    #[derive(Debug, Clone, PartialEq)]
+    struct MockTransform {
+        position: [f32; 3],
+        rotation: [f32; 3],
+        scale: [f32; 3],
+    }
+    impl Component for MockTransform {}
+    impl Default for MockTransform {
+        fn default() -> Self {
+            Self {
+                position: [0.0, 0.0, 0.0],
+                rotation: [0.0, 0.0, 0.0],
+                scale: [1.0, 1.0, 1.0],
+            }
+        }
+    }
     
     #[test]
     fn test_entity_creation() {
@@ -234,7 +249,7 @@ mod tests {
         let mut world = World::new();
         let entity = world.create_entity();
         
-        let transform = Transform {
+        let transform = MockTransform {
             position: [1.0, 2.0, 3.0],
             rotation: [0.0, 0.0, 0.0],
             scale: [1.0, 1.0, 1.0],
@@ -242,7 +257,7 @@ mod tests {
         
         world.add_component(entity, transform.clone()).unwrap();
         
-        let retrieved = world.get_component::<Transform>(entity);
+        let retrieved = world.get_component::<MockTransform>(entity);
         assert_eq!(retrieved, Some(&transform));
     }
     
@@ -266,13 +281,13 @@ mod tests {
         let mut world = World::new();
         let entity = world.create_entity();
         
-        let transform = Transform::default();
+        let transform = MockTransform::default();
         let test_comp = TestComponent { value: 123 };
         
         world.add_component(entity, transform.clone()).unwrap();
         world.add_component(entity, test_comp.clone()).unwrap();
         
-        assert_eq!(world.get_component::<Transform>(entity), Some(&transform));
+        assert_eq!(world.get_component::<MockTransform>(entity), Some(&transform));
         assert_eq!(world.get_component::<TestComponent>(entity), Some(&test_comp));
     }
     
@@ -303,9 +318,9 @@ mod tests {
         let entity1 = world.create_entity();
         let entity2 = world.create_entity();
         
-        world.add_component(entity1, Transform::default()).unwrap();
+        world.add_component(entity1, MockTransform::default()).unwrap();
         
-        let entities_with_transform = world.entities_with_component::<Transform>();
+        let entities_with_transform = world.entities_with_component::<MockTransform>();
         assert_eq!(entities_with_transform.len(), 1);
         assert!(entities_with_transform.contains(&entity1));
         assert!(!entities_with_transform.contains(&entity2));

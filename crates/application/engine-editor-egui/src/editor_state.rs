@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::Transform;
+use engine_components_core::Transform;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GameObject {

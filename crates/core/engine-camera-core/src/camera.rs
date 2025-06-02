@@ -1,7 +1,7 @@
 //! Core camera implementation with ECS v2 integration
 
 use crate::{Viewport, Frustum, Result, OrthographicProjection, PerspectiveProjection};
-use engine_ecs_core::Transform;
+use engine_components_core::Transform;
 use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
 use bytemuck::{Pod, Zeroable};
 use serde::{Serialize, Deserialize};

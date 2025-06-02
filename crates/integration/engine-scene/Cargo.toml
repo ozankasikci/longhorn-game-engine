@@ -1,5 +1,5 @@
 [package]
-name = "engine-scene-core"
+name = "engine-scene"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

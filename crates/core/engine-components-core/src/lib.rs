@@ -4,10 +4,10 @@
 //! Components are designed to work with both the legacy ECS (ecs.rs) and 
 //! the new data-oriented ECS (ecs_v2.rs) systems.
 //!
-//! Note: Component trait implementations are added when this crate is imported
-//! by engine-ecs-core to avoid circular dependencies.
+//! Note: Component trait implementations are provided directly in this crate.
 
 use serde::{Serialize, Deserialize};
+use engine_ecs_core::{Component, ComponentV2};
 
 // Transform component - fundamental for all spatial objects
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -66,7 +66,9 @@ impl Transform {
     }
 }
 
-// Component trait implementations will be added by engine-ecs-core
+// Component trait implementations
+impl Component for Transform {}
+impl ComponentV2 for Transform {}
 
 // Mesh component - defines what mesh to render
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -82,7 +84,9 @@ pub enum MeshType {
     Custom(String), // Asset path for custom meshes
 }
 
-// Component trait implementations will be added by engine-ecs-core
+// Component trait implementations
+impl Component for Mesh {}
+impl ComponentV2 for Mesh {}
 
 impl Default for Mesh {
     fn default() -> Self {
@@ -101,7 +105,9 @@ pub struct Material {
     pub emissive: [f32; 3], // RGB emissive color
 }
 
-// Component trait implementations will be added by engine-ecs-core
+// Component trait implementations
+impl Component for Material {}
+impl ComponentV2 for Material {}
 
 impl Default for Material {
     fn default() -> Self {
@@ -120,7 +126,9 @@ pub struct Name {
     pub name: String,
 }
 
-// Component trait implementations will be added by engine-ecs-core
+// Component trait implementations
+impl Component for Name {}
+impl ComponentV2 for Name {}
 
 impl Name {
     pub fn new(name: impl Into<String>) -> Self {
@@ -136,7 +144,9 @@ pub struct Visibility {
     pub visible: bool,
 }
 
-// Component trait implementations will be added by engine-ecs-core
+// Component trait implementations
+impl Component for Visibility {}
+impl ComponentV2 for Visibility {}
 
 impl Default for Visibility {
     fn default() -> Self {
@@ -159,7 +169,9 @@ pub enum LightType {
     Spot { range: f32, angle: f32 },
 }
 
-// Component trait implementations will be added by engine-ecs-core
+// Component trait implementations
+impl Component for Light {}
+impl ComponentV2 for Light {}
 
 impl Default for Light {
     fn default() -> Self {
@@ -216,7 +228,9 @@ impl Sprite {
     }
 }
 
-// Component trait implementations will be added by engine-ecs-core
+// Component trait implementations
+impl Component for Sprite {}
+impl ComponentV2 for Sprite {}
 
 // Sprite Renderer Component
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -259,7 +273,9 @@ impl SpriteRenderer {
     }
 }
 
-// Component trait implementations will be added by engine-ecs-core
+// Component trait implementations
+impl Component for SpriteRenderer {}
+impl ComponentV2 for SpriteRenderer {}
 
 // Canvas Component for UI rendering
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -288,7 +304,9 @@ impl Default for Canvas {
     }
 }
 
-// Component trait implementations will be added by engine-ecs-core
+// Component trait implementations
+impl Component for Canvas {}
+impl ComponentV2 for Canvas {}
 
 #[cfg(test)]
 mod tests {

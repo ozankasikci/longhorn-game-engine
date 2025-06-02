@@ -945,6 +945,7 @@ dependencies = [
  "anyhow",
  "bitflags 2.9.1",
  "bytemuck",
+ "engine-components-core",
  "engine-ecs-core",
  "glam",
  "log",
@@ -956,6 +957,7 @@ dependencies = [
 name = "engine-components-core"
 version = "0.1.0"
 dependencies = [
+ "engine-ecs-core",
  "glam",
  "serde",
 ]
@@ -966,7 +968,6 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "criterion",
- "engine-components-core",
  "glam",
  "log",
  "rayon",
@@ -982,6 +983,7 @@ dependencies = [
  "egui 0.28.1",
  "egui_dock",
  "engine-camera-core",
+ "engine-components-core",
  "engine-ecs-core",
  "env_logger",
  "serde",
@@ -1100,7 +1102,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-scene-core"
+name = "engine-scene"
 version = "0.1.0"
 dependencies = [
  "engine-camera-core",

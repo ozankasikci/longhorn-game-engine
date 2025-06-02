@@ -10,7 +10,6 @@ serde = { workspace = true }
 log = { workspace = true }
 bytemuck = { workspace = true }
 rayon = "1.8"
-engine-components-core = { workspace = true }
 
 [dev-dependencies]
 tokio-test = "0.4"

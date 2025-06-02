@@ -5,7 +5,8 @@ mod editor_state;
 
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex, TabViewer};
-use engine_ecs_core::{Transform, WorldV2, EntityV2, Read, Write, Name, Visibility, Light, Sprite, SpriteRenderer, Canvas, Material};
+use engine_ecs_core::{World, Entity};
+use engine_components_core::{Transform, Name, Visibility, Light, Sprite, SpriteRenderer, Canvas, Material, Mesh, MeshType};
 use engine_camera::{CameraComponent, CameraType, Viewport, Camera, Camera2D};
 use editor_state::{EditorState, GameObject, ConsoleMessage, ConsoleMessageType};
 use std::io::Write as IoWrite;
@@ -289,8 +290,8 @@ struct UnityEditor {
     dock_state: DockState<PanelType>,
     
     // ECS v2 Integration
-    world: WorldV2,
-    selected_entity: Option<EntityV2>,
+    world: World,
+    selected_entity: Option<Entity>,
     
     // Editor state
     selected_object: Option<String>,
@@ -436,10 +437,10 @@ impl UnityEditor {
         );
         
         // Initialize ECS v2 World with some test entities
-        let mut world = WorldV2::new();
+        let mut world = World::new();
         
         // Create camera entity
-        let camera_entity = world.spawn();
+        let camera_entity = world.create_entity();
         world.add_component(camera_entity, Transform {
             position: [0.0, 0.0, 5.0],
             rotation: [0.0, 0.0, 0.0],
@@ -449,15 +450,15 @@ impl UnityEditor {
         world.add_component(camera_entity, Camera::default()).unwrap();
         
         // Create cube entity with mesh and material
-        let cube_entity = world.spawn();
+        let cube_entity = world.create_entity();
         world.add_component(cube_entity, Transform {
             position: [1.0, 0.0, 0.0],
             rotation: [0.0, 45.0, 0.0],
             scale: [1.0, 1.0, 1.0],
         }).unwrap();
         world.add_component(cube_entity, Name::new("Cube")).unwrap();
-        world.add_component(cube_entity, engine_ecs_core::Mesh {
-            mesh_type: engine_ecs_core::MeshType::Cube,
+        world.add_component(cube_entity, Mesh {
+            mesh_type: MeshType::Cube,
         }).unwrap();
         world.add_component(cube_entity, Material {
             color: [0.8, 0.2, 0.2, 1.0], // Red cube
@@ -468,15 +469,15 @@ impl UnityEditor {
         world.add_component(cube_entity, Visibility::default()).unwrap();
         
         // Create sphere entity with mesh and material
-        let sphere_entity = world.spawn();
+        let sphere_entity = world.create_entity();
         world.add_component(sphere_entity, Transform {
             position: [-1.0, 0.0, 0.0],
             rotation: [0.0, 0.0, 0.0],
             scale: [1.5, 1.5, 1.5],
         }).unwrap();
         world.add_component(sphere_entity, Name::new("Sphere")).unwrap();
-        world.add_component(sphere_entity, engine_ecs_core::Mesh {
-            mesh_type: engine_ecs_core::MeshType::Sphere,
+        world.add_component(sphere_entity, Mesh {
+            mesh_type: MeshType::Sphere,
         }).unwrap();
         world.add_component(sphere_entity, Material {
             color: [0.2, 0.8, 0.2, 1.0], // Green sphere
@@ -487,15 +488,15 @@ impl UnityEditor {
         world.add_component(sphere_entity, Visibility::default()).unwrap();
         
         // Create plane entity (ground)
-        let plane_entity = world.spawn();
+        let plane_entity = world.create_entity();
         world.add_component(plane_entity, Transform {
             position: [0.0, -1.5, 0.0],
             rotation: [0.0, 0.0, 0.0],
             scale: [5.0, 1.0, 5.0],
         }).unwrap();
         world.add_component(plane_entity, Name::new("Ground Plane")).unwrap();
-        world.add_component(plane_entity, engine_ecs_core::Mesh {
-            mesh_type: engine_ecs_core::MeshType::Plane,
+        world.add_component(plane_entity, Mesh {
+            mesh_type: MeshType::Plane,
         }).unwrap();
         world.add_component(plane_entity, Material {
             color: [0.6, 0.6, 0.6, 1.0], // Gray ground
@@ -506,7 +507,7 @@ impl UnityEditor {
         world.add_component(plane_entity, Visibility::default()).unwrap();
         
         // Create sprite entities to test sprite rendering
-        let red_sprite_entity = world.spawn();
+        let red_sprite_entity = world.create_entity();
         world.add_component(red_sprite_entity, Transform {
             position: [-2.0, 0.5, 0.0],
             rotation: [0.0, 0.0, 0.0],
@@ -521,7 +522,7 @@ impl UnityEditor {
         }).unwrap();
         world.add_component(red_sprite_entity, Visibility::default()).unwrap();
         
-        let blue_sprite_entity = world.spawn();
+        let blue_sprite_entity = world.create_entity();
         world.add_component(blue_sprite_entity, Transform {
             position: [2.0, 0.5, 0.0],
             rotation: [0.0, 0.0, 15.0], // Slightly rotated
@@ -536,7 +537,7 @@ impl UnityEditor {
         }).unwrap();
         world.add_component(blue_sprite_entity, Visibility::default()).unwrap();
         
-        let yellow_sprite_entity = world.spawn();
+        let yellow_sprite_entity = world.create_entity();
         world.add_component(yellow_sprite_entity, Transform {
             position: [0.0, 2.0, -1.0], // Higher up and further back
             rotation: [0.0, 0.0, 0.0],
@@ -972,7 +973,7 @@ impl UnityEditor {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("➕").on_hover_text("Create new entity").clicked() {
                     // Create new entity with ECS v2
-                    let entity = self.world.spawn();
+                    let entity = self.world.create_entity();
                     self.world.add_component(entity, Transform::default()).unwrap();
                     self.console_messages.push(ConsoleMessage::info(&format!("➕ Created Entity {:?}", entity)));
                 }
@@ -981,12 +982,12 @@ impl UnityEditor {
         ui.separator();
         
         ui.label(format!("🎯 Entity Count: {}", self.world.entity_count()));
-        ui.label(format!("📦 Archetypes: {}", self.world.archetype_count()));
+        ui.label(format!("📦 Entities: {}", self.world.entity_count()));
         ui.separator();
         
         egui::ScrollArea::vertical().show(ui, |ui| {
             // Show all entities with Transform components using ECS v2 query
-            for (entity, _transform) in self.world.query::<Read<Transform>>().iter() {
+            for (entity, _transform) in self.world.query::<Transform>() {
                 let selected = self.selected_entity == Some(entity);
                 
                 // Build component indicator string
@@ -1000,7 +1001,7 @@ impl UnityEditor {
                 if self.world.get_component::<Canvas>(entity).is_some() { components.push("Canvas"); }
                 if self.world.get_component::<Camera2D>(entity).is_some() { components.push("C2D"); }
                 if self.world.get_component::<CameraComponent>(entity).is_some() { components.push("Cam"); }
-                if self.world.get_component::<engine_ecs_core::Mesh>(entity).is_some() { components.push("M"); }
+                if self.world.get_component::<Mesh>(entity).is_some() { components.push("M"); }
                 if self.world.get_component::<Material>(entity).is_some() { components.push("Mat"); }
                 
                 let component_str = if components.is_empty() { "-".to_string() } else { components.join("") };
@@ -1399,7 +1400,7 @@ impl UnityEditor {
                 ui.separator();
                 ui.collapsing("🔧 Entity Debug", |ui| {
                     ui.label(format!("Entity ID: {}", selected_entity.id()));
-                    ui.label(format!("Generation: {}", selected_entity.generation()));
+                    ui.label(format!("ID: {}", selected_entity.id()));
                     
                     // Count components
                     let mut component_count = 0;
@@ -1462,7 +1463,7 @@ impl UnityEditor {
         }
     }
     
-    fn show_add_component_dialog(&mut self, ui: &mut egui::Ui, entity: EntityV2) {
+    fn show_add_component_dialog(&mut self, ui: &mut egui::Ui, entity: Entity) {
         let mut dialog_open = self.show_add_component_dialog;
         egui::Window::new("Add Component")
             .open(&mut dialog_open)
@@ -1718,7 +1719,7 @@ impl UnityEditor {
         
         // Draw scene objects (simplified 2D representation with camera transform)
         // Use direct component access to ensure we see the latest transform values
-        let entities_with_transforms: Vec<_> = self.world.query::<Read<Transform>>().iter().map(|(e, _)| e).collect();
+        let entities_with_transforms: Vec<_> = self.world.entities_with_component::<Transform>();
         for entity in entities_with_transforms {
             let Some(transform) = self.world.get_component::<Transform>(entity) else {
                 continue;
@@ -1761,12 +1762,12 @@ impl UnityEditor {
             // Determine object type and color
             let (color, icon, size) = if self.world.get_component::<Camera>(entity).is_some() {
                 (egui::Color32::BLUE, "📷", 12.0)
-            } else if self.world.get_component::<engine_ecs_core::Mesh>(entity).is_some() {
-                let mesh = self.world.get_component::<engine_ecs_core::Mesh>(entity).unwrap();
+            } else if self.world.get_component::<Mesh>(entity).is_some() {
+                let mesh = self.world.get_component::<Mesh>(entity).unwrap();
                 match mesh.mesh_type {
-                    engine_ecs_core::MeshType::Cube => (egui::Color32::RED, "⬜", 15.0),
-                    engine_ecs_core::MeshType::Sphere => (egui::Color32::GREEN, "⚫", 15.0),
-                    engine_ecs_core::MeshType::Plane => (egui::Color32::GRAY, "▭", 20.0),
+                    MeshType::Cube => (egui::Color32::RED, "⬜", 15.0),
+                    MeshType::Sphere => (egui::Color32::GREEN, "⚫", 15.0),
+                    MeshType::Plane => (egui::Color32::GRAY, "▭", 20.0),
                     _ => (egui::Color32::WHITE, "📦", 10.0),
                 }
             } else {
@@ -1804,7 +1805,7 @@ impl UnityEditor {
         }
         
         // Draw sprite objects - using safe iteration approach
-        for (entity, _transform) in self.world.query::<Read<Transform>>().iter() {
+        for (entity, _transform) in self.world.query::<Transform>() {
             // Check if this entity has a SpriteRenderer component
             if let Some(sprite_renderer) = self.world.get_component::<SpriteRenderer>(entity) {
                 let transform = _transform; // We already have transform from the query
@@ -2825,9 +2826,9 @@ impl UnityEditor {
     }
     
     /// Find the main camera entity in the scene
-    fn find_main_camera_entity(&self) -> Option<EntityV2> {
+    fn find_main_camera_entity(&self) -> Option<Entity> {
         // Look for entity with Camera component that has is_main = true
-        for (entity, _transform) in self.world.query::<Read<Transform>>().iter() {
+        for (entity, _transform) in self.world.query::<Transform>() {
             if let Some(camera) = self.world.get_component::<Camera>(entity) {
                 if camera.is_main {
                     return Some(entity);
@@ -2836,7 +2837,7 @@ impl UnityEditor {
         }
         
         // If no main camera found, return the first camera entity
-        for (entity, _transform) in self.world.query::<Read<Transform>>().iter() {
+        for (entity, _transform) in self.world.query::<Transform>() {
             if self.world.get_component::<Camera>(entity).is_some() {
                 return Some(entity);
             }
@@ -2859,7 +2860,7 @@ impl UnityEditor {
         let render_scale = 100.0; // Scale factor for rendering
         
         // Render all entities with transforms
-        for (entity, transform) in self.world.query::<Read<Transform>>().iter() {
+        for (entity, transform) in self.world.query::<Transform>() {
             // Skip the camera itself
             if let Some(camera_check) = self.world.get_component::<Camera>(entity) {
                 if camera_check.is_main {
@@ -2916,7 +2917,7 @@ impl UnityEditor {
                     (sprite_renderer.sprite.color[3] * 255.0) as u8,
                 );
                 (sprite_color, "square") // Sprites as squares
-            } else if let Some(_mesh) = self.world.get_component::<engine_ecs_core::Mesh>(entity) {
+            } else if let Some(_mesh) = self.world.get_component::<Mesh>(entity) {
                 // Render mesh object
                 (egui::Color32::from_rgb(180, 180, 180), "circle") // Meshes as circles
             } else {

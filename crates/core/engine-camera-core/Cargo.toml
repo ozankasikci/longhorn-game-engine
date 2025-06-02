@@ -1,28 +1,31 @@
 [package]
 name = "engine-camera-core"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 # Core engine integration
 engine-ecs-core = { workspace = true }
+engine-components-core = { workspace = true }
 
 # Math and graphics
-glam = { version = "0.24", features = ["serde"] }
-bytemuck = { version = "1.14", features = ["derive"] }
+glam = { workspace = true }
+bytemuck = { workspace = true }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true }
 
 # Error handling
-thiserror = "1.0"
-anyhow = "1.0"
+thiserror = { workspace = true }
+anyhow = { workspace = true }
 
 # Logging
-log = "0.4"
+log = { workspace = true }
 
 # Bitflags for dirty state management
-bitflags = "2.4"
+bitflags = { workspace = true }
 
 [features]
 default = []
