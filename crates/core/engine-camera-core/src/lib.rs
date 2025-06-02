@@ -7,12 +7,16 @@ pub mod camera;
 pub mod viewport;
 pub mod projection;
 pub mod culling;
+pub mod components;
 
 // Core exports
-pub use camera::{Camera, CameraType, CameraComponent, CameraUniform};
+pub use camera::{Camera as AdvancedCamera, CameraType, CameraComponent, CameraUniform};
 pub use viewport::{Viewport, ViewportTransform};
 pub use projection::{ProjectionMatrix, OrthographicProjection, PerspectiveProjection};
 pub use culling::{Frustum, CullingResult, CullingStats};
+
+// ECS Component exports
+pub use components::{Camera, Camera2D};
 
 // Error types
 use thiserror::Error;

@@ -5,7 +5,7 @@ use std::any::{Any, TypeId};
 use std::collections::{HashMap, BTreeSet};
 // Removed unused imports
 use rayon::prelude::*;
-use crate::{Transform, Name, Visibility, Camera, Light};
+use crate::{Transform, Name, Visibility, Light};
 
 /// Entity is just an index into component arrays
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -489,7 +489,6 @@ impl World {
         let mut transform_data: Option<(Transform, ComponentTicks)> = None;
         let mut name_data: Option<(Name, ComponentTicks)> = None;
         let mut visibility_data: Option<(Visibility, ComponentTicks)> = None;
-        let mut camera_data: Option<(Camera, ComponentTicks)> = None;
         let mut light_data: Option<(Light, ComponentTicks)> = None;
         
         // Extract existing components from old archetype
@@ -517,12 +516,6 @@ impl World {
                 }
             }
             
-            if let Some(camera) = old_archetype.get_component::<Camera>(old_location.index) {
-                if let Some(ticks) = old_archetype.components.get(&TypeId::of::<Camera>())
-                    .and_then(|arr| arr.get_ticks::<Camera>(old_location.index)) {
-                    camera_data = Some((camera.clone(), ticks.clone()));
-                }
-            }
             
             if let Some(light) = old_archetype.get_component::<Light>(old_location.index) {
                 if let Some(ticks) = old_archetype.components.get(&TypeId::of::<Light>())
@@ -560,9 +553,6 @@ impl World {
         }
         if let Some((visibility, ticks)) = visibility_data {
             target_archetype.add_component(visibility, ticks);
-        }
-        if let Some((camera, ticks)) = camera_data {
-            target_archetype.add_component(camera, ticks);
         }
         if let Some((light, ticks)) = light_data {
             target_archetype.add_component(light, ticks);
@@ -1368,14 +1358,14 @@ mod tests {
         assert!(world.get_component::<Transform>(entity).is_some());
         assert!(world.get_component::<Name>(entity).is_some());
         
-        // Add Camera component - another migration
-        world.add_component(entity, Camera::default()).unwrap();
+        // Add Light component - another migration
+        world.add_component(entity, Light::default()).unwrap();
         
         // Should create another archetype
         assert_eq!(world.archetype_count(), 3);
         assert!(world.get_component::<Transform>(entity).is_some());
         assert!(world.get_component::<Name>(entity).is_some());
-        assert!(world.get_component::<Camera>(entity).is_some());
+        assert!(world.get_component::<Light>(entity).is_some());
         
         // Verify component data integrity
         let name = world.get_component::<Name>(entity).unwrap();

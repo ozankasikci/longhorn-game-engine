@@ -1,10 +1,13 @@
 // Unity-style game editor built with EGUI and dockable panels
 // Provides a modern, responsive Unity-like interface with drag-and-drop docking
 
+mod editor_state;
+
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex, TabViewer};
-use engine_ecs_core::{Transform, WorldV2, EntityV2, Read, Write, Name, Visibility, Camera, Light, Sprite, SpriteRenderer, Canvas, Camera2D, Material};
-use engine_camera::{CameraComponent, CameraType, Viewport};
+use engine_ecs_core::{Transform, WorldV2, EntityV2, Read, Write, Name, Visibility, Light, Sprite, SpriteRenderer, Canvas, Material};
+use engine_camera::{CameraComponent, CameraType, Viewport, Camera, Camera2D};
+use editor_state::{EditorState, GameObject, ConsoleMessage, ConsoleMessageType};
 use std::io::Write as IoWrite;
 
 fn main() -> Result<(), eframe::Error> {
@@ -1524,45 +1527,41 @@ impl UnityEditor {
                 ui.separator();
                 ui.label("Camera Components:");
                 
-                // Advanced Camera Component
-                if ui.button("📷 Advanced Camera Component").clicked() {
+                // Basic 3D Camera Component
+                if ui.button("📷 3D Camera Component").clicked() {
                     // Check if entity already has a camera component
-                    if self.world.get_component::<CameraComponent>(entity).is_some() {
+                    if self.world.get_component::<Camera>(entity).is_some() {
                         self.console_messages.push(ConsoleMessage::info("⚠️ Entity already has a Camera component"));
                     } else {
-                        let viewport = Viewport::new(800, 600);
-                        let camera = engine_camera::Camera::orthographic_2d(5.0, viewport);
-                        let camera_comp = CameraComponent::new(camera);
+                        let camera = Camera::new().with_fov(60.0);
                         
-                        match self.world.add_component(entity, camera_comp) {
+                        match self.world.add_component(entity, camera) {
                             Ok(_) => {
-                                self.console_messages.push(ConsoleMessage::info("✅ Added Advanced Camera component"));
+                                self.console_messages.push(ConsoleMessage::info("✅ Added 3D Camera component"));
                                 self.show_add_component_dialog = false;
                             }
                             Err(e) => {
-                                self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Advanced Camera: {}", e)));
+                                self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add 3D Camera: {}", e)));
                             }
                         }
                     }
                 }
                 
-                // Perspective Camera shortcut
-                if ui.button("🎥 Perspective Camera Component").clicked() {
+                // Main Camera shortcut
+                if ui.button("🎥 Main Camera Component").clicked() {
                     // Check if entity already has a camera component
-                    if self.world.get_component::<CameraComponent>(entity).is_some() {
+                    if self.world.get_component::<Camera>(entity).is_some() {
                         self.console_messages.push(ConsoleMessage::info("⚠️ Entity already has a Camera component"));
                     } else {
-                        let viewport = Viewport::new(800, 600);
-                        let camera = engine_camera::Camera::perspective_3d(60.0, viewport);
-                        let camera_comp = CameraComponent::new(camera);
+                        let camera = Camera::main_camera();
                         
-                        match self.world.add_component(entity, camera_comp) {
+                        match self.world.add_component(entity, camera) {
                             Ok(_) => {
-                                self.console_messages.push(ConsoleMessage::info("✅ Added Perspective Camera component"));
+                                self.console_messages.push(ConsoleMessage::info("✅ Added Main Camera component"));
                                 self.show_add_component_dialog = false;
                             }
                             Err(e) => {
-                                self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Perspective Camera: {}", e)));
+                                self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Main Camera: {}", e)));
                             }
                         }
                     }
@@ -3082,13 +3081,13 @@ impl UnityEditor {
             .stick_to_bottom(true)
             .show(ui, |ui| {
                 for message in &self.console_messages {
-                    let color = match message.level {
-                        LogLevel::Info => egui::Color32::WHITE,
-                        LogLevel::Warning => egui::Color32::YELLOW,
-                        LogLevel::Error => egui::Color32::RED,
+                    let color = match message.message_type {
+                        ConsoleMessageType::Info => egui::Color32::WHITE,
+                        ConsoleMessageType::Warning => egui::Color32::YELLOW,
+                        ConsoleMessageType::Error => egui::Color32::RED,
                     };
                     
-                    ui.colored_label(color, &message.text);
+                    ui.colored_label(color, &message.message);
                 }
             });
     }
@@ -3204,84 +3203,6 @@ impl ProjectAsset {
 }
 
 /// Console message types
-#[derive(Clone)]
-struct ConsoleMessage {
-    text: String,
-    level: LogLevel,
-    timestamp: std::time::SystemTime,
-}
-
-#[derive(Clone, Debug)]
-enum LogLevel {
-    Info,
-    Warning,
-    Error,
-}
-
-impl ConsoleMessage {
-    fn info(text: &str) -> Self {
-        let msg = Self {
-            text: text.to_string(),
-            level: LogLevel::Info,
-            timestamp: std::time::SystemTime::now(),
-        };
-        
-        // Also write to debug log file
-        msg.write_to_file();
-        
-        msg
-    }
-    
-    fn _warning(text: &str) -> Self {
-        let msg = Self {
-            text: text.to_string(),
-            level: LogLevel::Warning,
-            timestamp: std::time::SystemTime::now(),
-        };
-        
-        msg.write_to_file();
-        msg
-    }
-    
-    fn _error(text: &str) -> Self {
-        let msg = Self {
-            text: text.to_string(),
-            level: LogLevel::Error,
-            timestamp: std::time::SystemTime::now(),
-        };
-        
-        msg.write_to_file();
-        msg
-    }
-    
-    fn write_to_file(&self) {
-        if let Ok(mut file) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("debug_console.log") {
-            
-            let timestamp = self.timestamp
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs();
-            
-            let _ = writeln!(file, "[{}] {:?}: {}", timestamp, self.level, self.text);
-        }
-    }
-    
-    fn get_all_logs_as_string(messages: &[ConsoleMessage]) -> String {
-        messages.iter()
-            .map(|msg| {
-                let timestamp = msg.timestamp
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-                format!("[{}] {:?}: {}", timestamp, msg.level, msg.text)
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-}
 
 /// Setup custom fonts for Unity-like appearance
 fn setup_custom_fonts(ctx: &egui::Context) {

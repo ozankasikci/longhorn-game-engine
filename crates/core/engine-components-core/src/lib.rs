@@ -1,7 +1,33 @@
-// Standard components for the game engine
+//! Standard components for the mobile game engine
+//! 
+//! This crate provides the standard component library used across the engine.
+//! Components are designed to work with both the legacy ECS (ecs.rs) and 
+//! the new data-oriented ECS (ecs_v2.rs) systems.
+//!
+//! Note: Component trait implementations are added when this crate is imported
+//! by engine-ecs-core to avoid circular dependencies.
 
 use serde::{Serialize, Deserialize};
-use crate::{Component, ecs_v2};
+
+// Transform component - fundamental for all spatial objects
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Transform {
+    pub position: [f32; 3],
+    pub rotation: [f32; 3], 
+    pub scale: [f32; 3],
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self {
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: [1.0, 1.0, 1.0],
+        }
+    }
+}
+
+// Component trait implementations will be added by engine-ecs-core
 
 // Mesh component - defines what mesh to render
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -17,8 +43,7 @@ pub enum MeshType {
     Custom(String), // Asset path for custom meshes
 }
 
-impl Component for Mesh {}
-impl ecs_v2::Component for Mesh {}
+// Component trait implementations will be added by engine-ecs-core
 
 impl Default for Mesh {
     fn default() -> Self {
@@ -37,8 +62,7 @@ pub struct Material {
     pub emissive: [f32; 3], // RGB emissive color
 }
 
-impl Component for Material {}
-impl ecs_v2::Component for Material {}
+// Component trait implementations will be added by engine-ecs-core
 
 impl Default for Material {
     fn default() -> Self {
@@ -57,8 +81,7 @@ pub struct Name {
     pub name: String,
 }
 
-impl Component for Name {}
-impl ecs_v2::Component for Name {}
+// Component trait implementations will be added by engine-ecs-core
 
 impl Name {
     pub fn new(name: impl Into<String>) -> Self {
@@ -74,35 +97,11 @@ pub struct Visibility {
     pub visible: bool,
 }
 
-impl Component for Visibility {}
-impl ecs_v2::Component for Visibility {}
+// Component trait implementations will be added by engine-ecs-core
 
 impl Default for Visibility {
     fn default() -> Self {
         Self { visible: true }
-    }
-}
-
-// Camera component - defines a camera for rendering
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Camera {
-    pub fov: f32, // Field of view in degrees
-    pub near: f32,
-    pub far: f32,
-    pub is_main: bool, // Is this the main camera?
-}
-
-impl Component for Camera {}
-impl ecs_v2::Component for Camera {}
-
-impl Default for Camera {
-    fn default() -> Self {
-        Self {
-            fov: 60.0,
-            near: 0.1,
-            far: 1000.0,
-            is_main: false,
-        }
     }
 }
 
@@ -121,8 +120,7 @@ pub enum LightType {
     Spot { range: f32, angle: f32 },
 }
 
-impl Component for Light {}
-impl ecs_v2::Component for Light {}
+// Component trait implementations will be added by engine-ecs-core
 
 impl Default for Light {
     fn default() -> Self {
@@ -179,8 +177,7 @@ impl Sprite {
     }
 }
 
-impl Component for Sprite {}
-impl ecs_v2::Component for Sprite {}
+// Component trait implementations will be added by engine-ecs-core
 
 // Sprite Renderer Component
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -223,8 +220,7 @@ impl SpriteRenderer {
     }
 }
 
-impl Component for SpriteRenderer {}
-impl ecs_v2::Component for SpriteRenderer {}
+// Component trait implementations will be added by engine-ecs-core
 
 // Canvas Component for UI rendering
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -253,64 +249,19 @@ impl Default for Canvas {
     }
 }
 
-impl Component for Canvas {}
-impl ecs_v2::Component for Canvas {}
-
-// 2D Camera Component
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Camera2D {
-    pub size: f32,                      // Orthographic size (world units from center to top)
-    pub aspect_ratio: f32,              // Width/height ratio (auto-calculated if 0.0)
-    pub near: f32,                      // Near clipping plane
-    pub far: f32,                       // Far clipping plane
-    pub background_color: [f32; 4],     // Clear color RGBA
-    pub viewport_rect: [f32; 4],        // [x, y, width, height] normalized (0.0-1.0)
-    pub is_main: bool,                  // Whether this is the main 2D camera
-}
-
-impl Default for Camera2D {
-    fn default() -> Self {
-        Self {
-            size: 5.0,                  // 5 world units from center to top
-            aspect_ratio: 0.0,          // Auto-calculate from screen
-            near: -10.0,                // Behind the camera
-            far: 10.0,                  // In front of the camera
-            background_color: [0.2, 0.2, 0.3, 1.0], // Dark blue-gray
-            viewport_rect: [0.0, 0.0, 1.0, 1.0],    // Full screen
-            is_main: false,
-        }
-    }
-}
-
-impl Camera2D {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    
-    pub fn main_camera() -> Self {
-        Self {
-            is_main: true,
-            ..Default::default()
-        }
-    }
-    
-    pub fn with_size(mut self, size: f32) -> Self {
-        self.size = size;
-        self
-    }
-    
-    pub fn with_background_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
-        self.background_color = [r, g, b, a];
-        self
-    }
-}
-
-impl Component for Camera2D {}
-impl ecs_v2::Component for Camera2D {}
+// Component trait implementations will be added by engine-ecs-core
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    
+    #[test]
+    fn test_transform_default() {
+        let transform = Transform::default();
+        assert_eq!(transform.position, [0.0, 0.0, 0.0]);
+        assert_eq!(transform.rotation, [0.0, 0.0, 0.0]);
+        assert_eq!(transform.scale, [1.0, 1.0, 1.0]);
+    }
     
     #[test]
     fn test_sprite_default() {
@@ -366,31 +317,28 @@ mod tests {
     }
     
     #[test]
-    fn test_camera_2d_default() {
-        let camera = Camera2D::default();
-        assert_eq!(camera.size, 5.0);
-        assert_eq!(camera.aspect_ratio, 0.0);
-        assert_eq!(camera.near, -10.0);
-        assert_eq!(camera.far, 10.0);
-        assert_eq!(camera.background_color, [0.2, 0.2, 0.3, 1.0]);
-        assert_eq!(camera.viewport_rect, [0.0, 0.0, 1.0, 1.0]);
-        assert!(!camera.is_main);
-    }
-    
-    #[test]
-    fn test_camera_2d_main() {
-        let camera = Camera2D::main_camera();
-        assert!(camera.is_main);
-        assert_eq!(camera.size, 5.0); // Should still have default size
-    }
-    
-    #[test]
-    fn test_camera_2d_builder() {
-        let camera = Camera2D::new()
-            .with_size(10.0)
-            .with_background_color(1.0, 0.0, 0.0, 1.0);
+    fn test_name_creation() {
+        let name = Name::new("Test Object");
+        assert_eq!(name.name, "Test Object");
         
-        assert_eq!(camera.size, 10.0);
-        assert_eq!(camera.background_color, [1.0, 0.0, 0.0, 1.0]);
+        let name2 = Name::new(String::from("Another Object"));
+        assert_eq!(name2.name, "Another Object");
+    }
+    
+    #[test]
+    fn test_material_default() {
+        let material = Material::default();
+        assert_eq!(material.color, [0.8, 0.8, 0.8, 1.0]);
+        assert_eq!(material.metallic, 0.0);
+        assert_eq!(material.roughness, 0.5);
+        assert_eq!(material.emissive, [0.0, 0.0, 0.0]);
+    }
+    
+    #[test]
+    fn test_light_default() {
+        let light = Light::default();
+        assert_eq!(light.color, [1.0, 1.0, 1.0]);
+        assert_eq!(light.intensity, 1.0);
+        assert!(matches!(light.light_type, LightType::Directional));
     }
 }

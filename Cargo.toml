@@ -2,9 +2,9 @@
 resolver = "2"
 members = [
     # Core abstractions (Tier 1)
-    "crates/core/engine-audio-core",
+    "crates/core/engine-math-core",
+    "crates/core/engine-components-core",
     "crates/core/engine-ecs-core",
-    "crates/core/engine-physics-core",
     "crates/core/engine-renderer-core",
     "crates/core/engine-geometry-core",
     "crates/core/engine-materials-core",
@@ -87,11 +87,6 @@ path = "crates/core/engine-ecs-core"
 [workspace.dependencies.engine-renderer-core]
 path = "crates/core/engine-renderer-core"
 
-[workspace.dependencies.engine-audio-core]
-path = "crates/core/engine-audio-core"
-
-[workspace.dependencies.engine-physics-core]
-path = "crates/core/engine-physics-core"
 
 [workspace.dependencies.engine-input]
 path = "crates/implementation/engine-input"
@@ -130,14 +125,17 @@ path = "crates/implementation/engine-renderer-wgpu"
 path = "crates/implementation/engine-renderer-wgpu"
 package = "engine-renderer-wgpu"
 
-[workspace.dependencies.engine-audio]
-path = "crates/core/engine-audio-core"
-package = "engine-audio-core"
 
-[workspace.dependencies.engine-physics]
-path = "crates/core/engine-physics-core"
-package = "engine-physics-core"
+[workspace.dependencies.engine-math-core]
+path = "crates/core/engine-math-core"
 
 [workspace.dependencies.engine-camera]
 path = "crates/core/engine-camera-core"
 package = "engine-camera-core"
+
+[workspace.dependencies.engine-components-core]
+path = "crates/core/engine-components-core"
+
+[workspace.dependencies.engine-components]
+path = "crates/core/engine-components-core"
+package = "engine-components-core"
