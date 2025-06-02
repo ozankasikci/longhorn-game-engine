@@ -10,6 +10,7 @@ members = [
     "crates/core/engine-materials-core",
     "crates/core/engine-scene-core",
     "crates/core/engine-camera-core",
+    "crates/core/engine-resource-core",
     
     # Implementation layer (Tier 2)
     "crates/implementation/engine-input",
@@ -139,3 +140,6 @@ path = "crates/core/engine-components-core"
 [workspace.dependencies.engine-components]
 path = "crates/core/engine-components-core"
 package = "engine-components-core"
+
+[workspace.dependencies.engine-resource-core]
+path = "crates/core/engine-resource-core"

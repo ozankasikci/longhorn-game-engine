@@ -1072,6 +1072,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine-resource-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "engine-runtime"
 version = "0.1.0"
 dependencies = [

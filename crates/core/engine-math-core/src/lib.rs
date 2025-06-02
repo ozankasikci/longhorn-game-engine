@@ -1,7 +1,20 @@
 // Engine Math Core - Centralized mathematical utilities for the mobile game engine
 
+pub mod constants;
+pub mod curves;
+pub mod interpolation;
+pub mod geometry;
+pub mod physics_math;
+
 // Re-export all glam types and functions for convenience
 pub use glam::*;
+
+// Re-export module contents for easy access
+pub use constants::*;
+pub use curves::*;
+pub use interpolation::*;
+pub use geometry::*;
+pub use physics_math::*;
 
 /// Convert degrees to radians
 pub fn degrees_to_radians(degrees: f32) -> f32 {
@@ -11,11 +24,6 @@ pub fn degrees_to_radians(degrees: f32) -> f32 {
 /// Convert radians to degrees
 pub fn radians_to_degrees(radians: f32) -> f32 {
     radians * 180.0 / std::f32::consts::PI
-}
-
-/// Linear interpolation between two values
-pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a + (b - a) * t
 }
 
 /// Clamp a value between min and max

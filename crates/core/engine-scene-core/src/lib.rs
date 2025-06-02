@@ -7,7 +7,7 @@ pub mod light;
 
 pub use node::{SceneNode, NodeId, NodeHierarchy};
 pub use scene::{Scene, SceneHandle, SceneManager, SceneMetadata};
-pub use transform::{Transform, TransformMatrix};
+pub use transform::TransformMatrix;
 pub use light::{Light, LightType, DirectionalLight, PointLight, SpotLight, AreaLight};
 
 use thiserror::Error;
