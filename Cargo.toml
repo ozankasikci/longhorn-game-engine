@@ -1,18 +1,29 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/engine-core",
-    "crates/engine-graphics", 
-    "crates/engine-audio",
-    "crates/engine-physics",
-    "crates/engine-input",
-    "crates/engine-assets",
-    "crates/engine-scripting",
-    "crates/engine-ui",
-    "crates/engine-platform",
-    "crates/engine-camera",
-    "crates/engine-editor-egui",
-    "crates/engine-runtime",
+    # Core abstractions (Tier 1)
+    "crates/core/engine-audio-core",
+    "crates/core/engine-ecs-core",
+    "crates/core/engine-physics-core",
+    "crates/core/engine-renderer-core",
+    "crates/core/engine-geometry-core",
+    "crates/core/engine-materials-core",
+    "crates/core/engine-scene-core",
+    "crates/core/engine-camera-core",
+    
+    # Implementation layer (Tier 2)
+    "crates/implementation/engine-input",
+    "crates/implementation/engine-assets",
+    "crates/implementation/engine-scripting",
+    "crates/implementation/engine-ui",
+    "crates/implementation/engine-platform",
+    "crates/implementation/engine-renderer-wgpu",
+    
+    # Integration layer (Tier 3)
+    "crates/integration/engine-runtime",
+    
+    # Application layer (Tier 4)
+    "crates/application/engine-editor-egui",
 ]
 
 [workspace.package]
@@ -70,35 +81,63 @@ bitflags = "2.4"
 thiserror = "1.0"
 anyhow = "1.0"
 
-[workspace.dependencies.engine-core]
-path = "crates/engine-core"
+[workspace.dependencies.engine-ecs-core]
+path = "crates/core/engine-ecs-core"
 
-[workspace.dependencies.engine-graphics]
-path = "crates/engine-graphics"
+[workspace.dependencies.engine-renderer-core]
+path = "crates/core/engine-renderer-core"
 
-[workspace.dependencies.engine-audio]
-path = "crates/engine-audio"
+[workspace.dependencies.engine-audio-core]
+path = "crates/core/engine-audio-core"
 
-[workspace.dependencies.engine-physics]
-path = "crates/engine-physics"
+[workspace.dependencies.engine-physics-core]
+path = "crates/core/engine-physics-core"
 
 [workspace.dependencies.engine-input]
-path = "crates/engine-input"
+path = "crates/implementation/engine-input"
 
 [workspace.dependencies.engine-assets]
-path = "crates/engine-assets"
+path = "crates/implementation/engine-assets"
 
 [workspace.dependencies.engine-scripting]
-path = "crates/engine-scripting"
+path = "crates/implementation/engine-scripting"
 
 [workspace.dependencies.engine-ui]
-path = "crates/engine-ui"
+path = "crates/implementation/engine-ui"
 
 [workspace.dependencies.engine-platform]
-path = "crates/engine-platform"
+path = "crates/implementation/engine-platform"
 
 [workspace.dependencies.engine-runtime]
-path = "crates/engine-runtime"
+path = "crates/integration/engine-runtime"
+
+[workspace.dependencies.engine-camera-core]
+path = "crates/core/engine-camera-core"
+
+[workspace.dependencies.engine-geometry-core]
+path = "crates/core/engine-geometry-core"
+
+[workspace.dependencies.engine-materials-core]
+path = "crates/core/engine-materials-core"
+
+[workspace.dependencies.engine-scene-core]
+path = "crates/core/engine-scene-core"
+
+[workspace.dependencies.engine-renderer-wgpu]
+path = "crates/implementation/engine-renderer-wgpu"
+
+[workspace.dependencies.engine-renderer]
+path = "crates/implementation/engine-renderer-wgpu"
+package = "engine-renderer-wgpu"
+
+[workspace.dependencies.engine-audio]
+path = "crates/core/engine-audio-core"
+package = "engine-audio-core"
+
+[workspace.dependencies.engine-physics]
+path = "crates/core/engine-physics-core"
+package = "engine-physics-core"
 
 [workspace.dependencies.engine-camera]
-path = "crates/engine-camera"
+path = "crates/core/engine-camera-core"
+package = "engine-camera-core"

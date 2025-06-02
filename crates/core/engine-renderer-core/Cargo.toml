@@ -1,0 +1,17 @@
+[package]
+name = "engine-renderer-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engine-ecs-core = { workspace = true }
+engine-geometry-core = { workspace = true }
+engine-materials-core = { workspace = true }
+glam = { workspace = true }
+bytemuck = { workspace = true }
+bitflags = { workspace = true }
+serde = { workspace = true }
+thiserror = "1.0"
+
+[dev-dependencies]

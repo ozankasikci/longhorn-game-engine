@@ -1092,7 +1092,7 @@ dependencies = [
 name = "engine-assets"
 version = "0.1.0"
 dependencies = [
- "engine-core",
+ "engine-ecs-core",
  "image 0.24.9",
  "log",
  "serde",
@@ -1103,10 +1103,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-audio"
+name = "engine-audio-core"
 version = "0.1.0"
 dependencies = [
- "engine-core",
+ "engine-ecs-core",
  "log",
  "rodio",
  "serde",
@@ -1116,13 +1116,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-camera"
+name = "engine-camera-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "bitflags 2.9.1",
  "bytemuck",
- "engine-core",
+ "engine-ecs-core",
  "glam",
  "log",
  "serde",
@@ -1130,7 +1130,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-core"
+name = "engine-ecs-core"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
@@ -1149,32 +1149,26 @@ dependencies = [
  "eframe",
  "egui 0.28.1",
  "egui_dock",
- "engine-camera",
- "engine-core",
+ "engine-camera-core",
+ "engine-ecs-core",
  "env_logger",
  "serde",
 ]
 
 [[package]]
-name = "engine-graphics"
+name = "engine-geometry-core"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
- "engine-camera",
- "engine-core",
- "env_logger",
  "glam",
- "thiserror",
- "tokio",
- "wgpu",
- "winit",
+ "serde",
 ]
 
 [[package]]
 name = "engine-input"
 version = "0.1.0"
 dependencies = [
- "engine-core",
+ "engine-ecs-core",
  "glam",
  "log",
  "serde",
@@ -1184,10 +1178,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-physics"
+name = "engine-materials-core"
 version = "0.1.0"
 dependencies = [
- "engine-core",
+ "bitflags 2.9.1",
+ "glam",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "engine-physics-core"
+version = "0.1.0"
+dependencies = [
+ "engine-ecs-core",
  "glam",
  "log",
  "rapier2d",
@@ -1201,7 +1205,7 @@ dependencies = [
 name = "engine-platform"
 version = "0.1.0"
 dependencies = [
- "engine-core",
+ "engine-ecs-core",
  "log",
  "num_cpus",
  "serde",
@@ -1212,16 +1216,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine-renderer-core"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.9.1",
+ "bytemuck",
+ "engine-ecs-core",
+ "engine-geometry-core",
+ "engine-materials-core",
+ "glam",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "engine-renderer-wgpu"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "engine-geometry-core",
+ "engine-materials-core",
+ "engine-renderer-core",
+ "glam",
+ "log",
+ "pollster",
+ "serde",
+ "thiserror",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "engine-runtime"
 version = "0.1.0"
 dependencies = [
  "engine-assets",
- "engine-audio",
- "engine-core",
- "engine-graphics",
+ "engine-audio-core",
+ "engine-ecs-core",
  "engine-input",
- "engine-physics",
+ "engine-physics-core",
  "engine-platform",
+ "engine-renderer-wgpu",
  "engine-ui",
  "env_logger",
  "log",
@@ -1233,10 +1268,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine-scene-core"
+version = "0.1.0"
+dependencies = [
+ "engine-geometry-core",
+ "engine-materials-core",
+ "engine-renderer-core",
+ "glam",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "engine-scripting"
 version = "0.1.0"
 dependencies = [
- "engine-core",
+ "engine-ecs-core",
  "log",
  "serde",
  "serde_json",
@@ -1252,8 +1300,8 @@ dependencies = [
  "egui 0.26.2",
  "egui-wgpu",
  "egui-winit 0.26.2",
- "engine-core",
- "engine-graphics",
+ "engine-ecs-core",
+ "engine-renderer-wgpu",
  "glam",
  "log",
  "serde",
@@ -1465,6 +1513,7 @@ version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5418c17512bdf42730f9032c74e1ae39afc408745ebb2acf72fbc4691c17945"
 dependencies = [
+ "bytemuck",
  "serde",
 ]
 

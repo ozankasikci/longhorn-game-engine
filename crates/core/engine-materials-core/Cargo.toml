@@ -1,0 +1,16 @@
+[package]
+name = "engine-materials-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Core dependencies
+glam = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+bitflags = { workspace = true }
+thiserror = { workspace = true }
+
+# Materials shouldn't depend on renderer - renderer depends on materials
+
+# No implementation dependencies

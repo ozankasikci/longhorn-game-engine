@@ -1,0 +1,18 @@
+[package]
+name = "engine-scene-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core dependencies
+glam = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+# Internal core dependencies
+engine-renderer-core = { workspace = true }
+engine-geometry-core = { workspace = true }
+engine-materials-core = { workspace = true }

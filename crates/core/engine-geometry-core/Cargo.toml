@@ -1,0 +1,13 @@
+[package]
+name = "engine-geometry-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Pure dependencies only - no implementation-specific crates
+glam = { workspace = true, features = ["serde", "bytemuck"] }
+serde = { workspace = true }
+bytemuck = { workspace = true, features = ["derive"] }
+
+# No graphics APIs, no external geometry libraries - pure geometric data only
