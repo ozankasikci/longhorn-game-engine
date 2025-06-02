@@ -14,15 +14,23 @@ engine-components-3d = { workspace = true }
 engine-components-2d = { workspace = true }
 engine-components-ui = { workspace = true }
 engine-camera = { workspace = true }
+engine-renderer-wgpu = { workspace = true }
 
 # EGUI and platform integration
 egui = "0.28"
 eframe = { version = "0.28", default-features = false, features = [
     "default_fonts", # Embed the default egui fonts.
-    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
+    "wgpu",          # Use the wgpu rendering backend for better 3D integration.
+    "accesskit",     # Enable accessibility support
 ] }
 egui_dock = "0.13"  # For dockable panels
 
 # Utilities
 serde = { version = "1.0", features = ["derive"] }
 env_logger = "0.10"
+
+# WGPU integration
+wgpu = { workspace = true }
+winit = { workspace = true }
+bytemuck = { workspace = true }
+glam = { workspace = true }

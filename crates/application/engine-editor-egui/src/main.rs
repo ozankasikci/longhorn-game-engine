@@ -2,6 +2,7 @@
 // Provides a modern, responsive Unity-like interface with drag-and-drop docking
 
 mod editor_state;
+mod scene_renderer;
 
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex, TabViewer};
@@ -11,7 +12,8 @@ use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::{Canvas, Name};
 use engine_camera::{CameraComponent, CameraType, Viewport, Camera, Camera2D};
 use editor_state::{EditorState, GameObject, ConsoleMessage, ConsoleMessageType};
-use std::io::Write as IoWrite;
+use scene_renderer::SceneRenderer;
+use std::io::Write as _IoWrite;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -322,6 +324,9 @@ struct UnityEditor {
     
     // Scene navigation system
     scene_navigation: SceneNavigation,
+    
+    // 3D scene renderer
+    scene_renderer: SceneRenderer,
 }
 
 impl UnityEditor {
@@ -603,6 +608,7 @@ impl UnityEditor {
             show_add_component_dialog: false,
             gizmo_system: GizmoSystem::new(),
             scene_navigation: SceneNavigation::default(),
+            scene_renderer: SceneRenderer::new(),
         }
     }
 }
@@ -1695,7 +1701,7 @@ impl UnityEditor {
     fn draw_simple_scene_view(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
         let painter = ui.painter();
         
-        // Get camera position for view transformation
+        // Get camera position and rotation for view transformation
         let camera_pos = self.scene_navigation.scene_camera_transform.position;
         let camera_rot = self.scene_navigation.scene_camera_transform.rotation;
         
@@ -1761,49 +1767,170 @@ impl UnityEditor {
                 .map(|n| n.name.clone())
                 .unwrap_or_else(|| format!("Entity {}", entity.id()));
             
-            // Determine object type and color
-            let (color, icon, size) = if self.world.get_component::<Camera>(entity).is_some() {
-                (egui::Color32::BLUE, "📷", 12.0)
-            } else if self.world.get_component::<Mesh>(entity).is_some() {
-                let mesh = self.world.get_component::<Mesh>(entity).unwrap();
+            // Determine object type and rendering style
+            let is_selected = self.selected_entity == Some(entity);
+            
+            if self.world.get_component::<Camera>(entity).is_some() {
+                // Draw camera
+                let size = 12.0;
+                let color = if is_selected { egui::Color32::YELLOW } else { egui::Color32::BLUE };
+                painter.circle_filled(screen_pos, size, color);
+                painter.text(
+                    screen_pos + egui::vec2(size + 5.0, -size),
+                    egui::Align2::LEFT_CENTER,
+                    format!("📷 {}", name),
+                    egui::FontId::proportional(12.0),
+                    color
+                );
+            } else if let Some(mesh) = self.world.get_component::<Mesh>(entity) {
+                // Get material color if available
+                let base_color = if let Some(material) = self.world.get_component::<Material>(entity) {
+                    egui::Color32::from_rgba_unmultiplied(
+                        (material.color[0] * 255.0) as u8,
+                        (material.color[1] * 255.0) as u8,
+                        (material.color[2] * 255.0) as u8,
+                        (material.color[3] * 255.0) as u8,
+                    )
+                } else {
+                    egui::Color32::from_rgb(180, 180, 180)
+                };
+                
+                let color = if is_selected { egui::Color32::YELLOW } else { base_color };
+                
+                // Draw pseudo-3D representations based on mesh type
                 match mesh.mesh_type {
-                    MeshType::Cube => (egui::Color32::RED, "⬜", 15.0),
-                    MeshType::Sphere => (egui::Color32::GREEN, "⚫", 15.0),
-                    MeshType::Plane => (egui::Color32::GRAY, "▭", 20.0),
-                    _ => (egui::Color32::WHITE, "📦", 10.0),
+                    MeshType::Cube => {
+                        // Draw cube with pseudo-3D effect
+                        let size = 20.0 * transform.scale[0];
+                        let offset = size * 0.3;
+                        
+                        // Front face
+                        let front_rect = egui::Rect::from_center_size(screen_pos, egui::vec2(size, size));
+                        painter.rect_filled(front_rect, egui::Rounding::same(2.0), color);
+                        
+                        // Top face (lighter)
+                        let top_points = vec![
+                            egui::pos2(front_rect.left(), front_rect.top()),
+                            egui::pos2(front_rect.left() + offset, front_rect.top() - offset),
+                            egui::pos2(front_rect.right() + offset, front_rect.top() - offset),
+                            egui::pos2(front_rect.right(), front_rect.top()),
+                        ];
+                        // Create lighter color for top face
+                        let lighter_color = egui::Color32::from_rgba_unmultiplied(
+                            ((color.r() as f32 * 1.2).min(255.0)) as u8,
+                            ((color.g() as f32 * 1.2).min(255.0)) as u8,
+                            ((color.b() as f32 * 1.2).min(255.0)) as u8,
+                            color.a(),
+                        );
+                        painter.add(egui::Shape::convex_polygon(
+                            top_points,
+                            lighter_color,
+                            egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 60, 60))
+                        ));
+                        
+                        // Right face (darker)
+                        let right_points = vec![
+                            egui::pos2(front_rect.right(), front_rect.top()),
+                            egui::pos2(front_rect.right() + offset, front_rect.top() - offset),
+                            egui::pos2(front_rect.right() + offset, front_rect.bottom() - offset),
+                            egui::pos2(front_rect.right(), front_rect.bottom()),
+                        ];
+                        painter.add(egui::Shape::convex_polygon(
+                            right_points,
+                            color.gamma_multiply(0.8),
+                            egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 60, 60))
+                        ));
+                        
+                        painter.text(
+                            screen_pos + egui::vec2(size * 0.7 + 10.0, -size * 0.7),
+                            egui::Align2::LEFT_CENTER,
+                            format!("⬜ {}", name),
+                            egui::FontId::proportional(12.0),
+                            color
+                        );
+                    }
+                    MeshType::Sphere => {
+                        // Draw sphere with shading
+                        let radius = 15.0 * transform.scale[0];
+                        
+                        // Main sphere
+                        painter.circle_filled(screen_pos, radius, color);
+                        
+                        // Highlight for 3D effect
+                        let highlight_pos = screen_pos + egui::vec2(-radius * 0.3, -radius * 0.3);
+                        painter.circle_filled(
+                            highlight_pos,
+                            radius * 0.3,
+                            egui::Color32::from_rgba_unmultiplied(
+                                ((base_color.r() as f32 * 1.5).min(255.0)) as u8,
+                                ((base_color.g() as f32 * 1.5).min(255.0)) as u8,
+                                ((base_color.b() as f32 * 1.5).min(255.0)) as u8,
+                                base_color.a(),
+                            )
+                        );
+                        
+                        // Shadow
+                        painter.circle_stroke(
+                            screen_pos,
+                            radius,
+                            egui::Stroke::new(2.0, color.gamma_multiply(0.6))
+                        );
+                        
+                        painter.text(
+                            screen_pos + egui::vec2(radius + 5.0, -radius),
+                            egui::Align2::LEFT_CENTER,
+                            format!("⚫ {}", name),
+                            egui::FontId::proportional(12.0),
+                            color
+                        );
+                    }
+                    MeshType::Plane => {
+                        // Draw plane as flat rectangle
+                        let width = 30.0 * transform.scale[0];
+                        let height = 5.0 * transform.scale[2];
+                        let plane_rect = egui::Rect::from_center_size(
+                            screen_pos,
+                            egui::vec2(width, height)
+                        );
+                        painter.rect_filled(plane_rect, egui::Rounding::same(1.0), color);
+                        painter.rect_stroke(
+                            plane_rect,
+                            egui::Rounding::same(1.0),
+                            egui::Stroke::new(1.0, color.gamma_multiply(0.6))
+                        );
+                        
+                        painter.text(
+                            screen_pos + egui::vec2(width * 0.5 + 5.0, 0.0),
+                            egui::Align2::LEFT_CENTER,
+                            format!("▭ {}", name),
+                            egui::FontId::proportional(12.0),
+                            color
+                        );
+                    }
+                    _ => {
+                        // Default mesh representation
+                        painter.circle_filled(screen_pos, 10.0, color);
+                        painter.text(
+                            screen_pos + egui::vec2(15.0, -10.0),
+                            egui::Align2::LEFT_CENTER,
+                            format!("📦 {}", name),
+                            egui::FontId::proportional(12.0),
+                            color
+                        );
+                    }
                 }
             } else {
-                (egui::Color32::YELLOW, "📍", 8.0)
-            };
-            
-            // Highlight if selected
-            let is_selected = self.selected_entity == Some(entity);
-            let final_color = if is_selected {
-                egui::Color32::YELLOW
-            } else {
-                color
-            };
-            
-            // Draw object
-            painter.circle_filled(screen_pos, size, final_color);
-            
-            // Draw selection outline
-            if is_selected {
-                painter.circle_stroke(
-                    screen_pos,
-                    size + 3.0,
-                    egui::Stroke::new(2.0, egui::Color32::WHITE)
+                // Default object
+                let color = if is_selected { egui::Color32::YELLOW } else { egui::Color32::from_rgb(150, 150, 150) };
+                painter.circle_filled(screen_pos, 8.0, color);
+                painter.text(
+                    screen_pos + egui::vec2(10.0, -8.0),
+                    egui::Align2::LEFT_CENTER,
+                    format!("📍 {}", name),
+                    egui::FontId::proportional(12.0),
+                    color
                 );
             }
-            
-            // Draw label
-            painter.text(
-                screen_pos + egui::vec2(size + 5.0, -size),
-                egui::Align2::LEFT_CENTER,
-                format!("{} {}", icon, name),
-                egui::FontId::proportional(12.0),
-                final_color
-            );
         }
         
         // Draw sprite objects - using safe iteration approach
