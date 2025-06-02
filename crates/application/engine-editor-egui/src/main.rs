@@ -38,6 +38,36 @@ pub enum PlayState {
     Paused,    // Game paused - can inspect state, limited editing
 }
 
+/// Scene navigation state for Unity/Unreal style camera controls
+#[derive(Debug, Clone)]
+pub struct SceneNavigation {
+    pub enabled: bool,
+    pub is_navigating: bool,
+    pub movement_speed: f32,
+    pub rotation_sensitivity: f32,
+    pub fast_movement_multiplier: f32,
+    pub last_mouse_pos: Option<egui::Pos2>,
+    pub scene_camera_transform: Transform,
+}
+
+impl Default for SceneNavigation {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            is_navigating: false,
+            movement_speed: 5.0,                    // Units per second
+            rotation_sensitivity: 0.005,            // Radians per pixel - increased for better responsiveness
+            fast_movement_multiplier: 3.0,          // Shift speed boost
+            last_mouse_pos: None,
+            scene_camera_transform: Transform {
+                position: [0.0, 2.0, 5.0],          // Default camera position
+                rotation: [0.0, 0.0, 0.0],          // Looking forward
+                scale: [1.0, 1.0, 1.0],
+            },
+        }
+    }
+}
+
 impl Default for PlayState {
     fn default() -> Self {
         Self::Editing
@@ -283,6 +313,9 @@ struct UnityEditor {
     
     // Gizmo system
     gizmo_system: GizmoSystem,
+    
+    // Scene navigation system
+    scene_navigation: SceneNavigation,
 }
 
 impl UnityEditor {
@@ -354,10 +387,14 @@ impl UnityEditor {
     
     /// Update delta time for game loop
     fn update_delta_time(&mut self) {
-        if self.play_state == PlayState::Playing {
-            let now = std::time::Instant::now();
-            self.delta_time = now.duration_since(self.last_frame_time).as_secs_f32();
-            self.last_frame_time = now;
+        let now = std::time::Instant::now();
+        self.delta_time = now.duration_since(self.last_frame_time).as_secs_f32();
+        self.last_frame_time = now;
+        
+        // Scene navigation needs delta time even in editing mode
+        // Only pause delta time calculation during actual pause state
+        if self.play_state == PlayState::Paused {
+            self.delta_time = 0.0;
         }
     }
     
@@ -559,6 +596,7 @@ impl UnityEditor {
             scene_view_active: true,
             show_add_component_dialog: false,
             gizmo_system: GizmoSystem::new(),
+            scene_navigation: SceneNavigation::default(),
         }
     }
 }
@@ -1655,31 +1693,65 @@ impl UnityEditor {
     fn draw_simple_scene_view(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
         let painter = ui.painter();
         
+        // Get camera position for view transformation
+        let camera_pos = self.scene_navigation.scene_camera_transform.position;
+        let camera_rot = self.scene_navigation.scene_camera_transform.rotation;
+        
         // Draw grid background
         let grid_size = 50.0;
-        let center = rect.center();
+        let view_center = rect.center();
         
-        // Draw grid lines
+        // Apply camera offset to grid rendering
+        let camera_offset_x = -camera_pos[0] * 50.0; // 50 pixels per world unit
+        let camera_offset_y = camera_pos[2] * 50.0;  // Z becomes Y in screen space
+        
+        // Draw grid lines with camera offset
         painter.line_segment(
-            [egui::pos2(rect.left(), center.y), egui::pos2(rect.right(), center.y)],
+            [egui::pos2(rect.left(), view_center.y + camera_offset_y), 
+             egui::pos2(rect.right(), view_center.y + camera_offset_y)],
             egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(100, 100, 100, 100))
         );
         painter.line_segment(
-            [egui::pos2(center.x, rect.top()), egui::pos2(center.x, rect.bottom())],
+            [egui::pos2(view_center.x + camera_offset_x, rect.top()), 
+             egui::pos2(view_center.x + camera_offset_x, rect.bottom())],
             egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(100, 100, 100, 100))
         );
         
-        // Draw scene objects (simplified 2D representation)
+        // Draw scene objects (simplified 2D representation with camera transform)
         // Use direct component access to ensure we see the latest transform values
         let entities_with_transforms: Vec<_> = self.world.query::<Read<Transform>>().iter().map(|(e, _)| e).collect();
         for entity in entities_with_transforms {
             let Some(transform) = self.world.get_component::<Transform>(entity) else {
                 continue;
             };
-            // Project 3D position to 2D screen coordinates (simple orthographic)
+            
+            // Apply camera transformation to object positions
+            let relative_pos = [
+                transform.position[0] - camera_pos[0],
+                transform.position[1] - camera_pos[1], 
+                transform.position[2] - camera_pos[2]
+            ];
+            
+            // Apply camera rotation to the relative position
+            let yaw = camera_rot[1];
+            let pitch = camera_rot[0];
+            
+            // Rotate around Y-axis (yaw)
+            let cos_yaw = yaw.cos();
+            let sin_yaw = yaw.sin();
+            let rotated_x = relative_pos[0] * cos_yaw - relative_pos[2] * sin_yaw;
+            let rotated_z = relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
+            
+            // Apply pitch rotation (simplified for 2D view)
+            let cos_pitch = pitch.cos();
+            let sin_pitch = pitch.sin();
+            let final_y = relative_pos[1] * cos_pitch - rotated_z * sin_pitch;
+            let final_z = relative_pos[1] * sin_pitch + rotated_z * cos_pitch;
+            
+            // Project 3D position to 2D screen coordinates
             let scale = 50.0; // Pixels per world unit
-            let screen_x = center.x + transform.position[0] * scale;
-            let screen_y = center.y - transform.position[2] * scale; // Z becomes Y in screen space
+            let screen_x = view_center.x + rotated_x * scale;
+            let screen_y = view_center.y - final_z * scale; // Z becomes Y in screen space
             let screen_pos = egui::pos2(screen_x, screen_y);
             
             // Get entity info
@@ -1738,10 +1810,33 @@ impl UnityEditor {
             if let Some(sprite_renderer) = self.world.get_component::<SpriteRenderer>(entity) {
                 let transform = _transform; // We already have transform from the query
                 
+                // Apply camera transformation to sprite positions
+                let relative_pos = [
+                    transform.position[0] - camera_pos[0],
+                    transform.position[1] - camera_pos[1], 
+                    transform.position[2] - camera_pos[2]
+                ];
+                
+                // Apply camera rotation to the relative position (same as regular objects)
+                let yaw = camera_rot[1];
+                let pitch = camera_rot[0];
+                
+                // Rotate around Y-axis (yaw)
+                let cos_yaw = yaw.cos();
+                let sin_yaw = yaw.sin();
+                let rotated_x = relative_pos[0] * cos_yaw - relative_pos[2] * sin_yaw;
+                let rotated_z = relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
+                
+                // Apply pitch rotation (simplified for 2D view)
+                let cos_pitch = pitch.cos();
+                let sin_pitch = pitch.sin();
+                let final_y = relative_pos[1] * cos_pitch - rotated_z * sin_pitch;
+                let final_z = relative_pos[1] * sin_pitch + rotated_z * cos_pitch;
+                
                 // Project sprite position to 2D screen coordinates
                 let scale = 50.0; // Pixels per world unit
-                let screen_x = center.x + transform.position[0] * scale;
-                let screen_y = center.y - transform.position[2] * scale; // Z becomes Y in screen space
+                let screen_x = view_center.x + rotated_x * scale;
+                let screen_y = view_center.y - final_z * scale; // Z becomes Y in screen space
                 let screen_pos = egui::pos2(screen_x, screen_y);
                 
                 // Calculate sprite size in screen space
@@ -1799,20 +1894,41 @@ impl UnityEditor {
             }
         }
         
-        // Draw camera view indicator
+        // Draw scene camera position indicator (showing where the navigation camera is)
+        painter.circle_filled(
+            view_center, 
+            8.0, 
+            egui::Color32::from_rgba_unmultiplied(255, 255, 0, 200)
+        );
+        painter.text(
+            view_center + egui::vec2(12.0, -8.0),
+            egui::Align2::LEFT_CENTER,
+            format!("📷 Scene Camera [{:.1}, {:.1}, {:.1}]", camera_pos[0], camera_pos[1], camera_pos[2]),
+            egui::FontId::proportional(11.0),
+            egui::Color32::WHITE
+        );
+        
+        // Draw camera view indicator for selected entities
         if let Some(camera_entity) = self.selected_entity {
             if self.world.get_component::<Camera>(camera_entity).is_some() {
                 if let Some(camera_transform) = self.world.get_component::<Transform>(camera_entity) {
+                    // Apply camera transformation to entity camera positions too
+                    let relative_cam_pos = [
+                        camera_transform.position[0] - camera_pos[0],
+                        camera_transform.position[1] - camera_pos[1], 
+                        camera_transform.position[2] - camera_pos[2]
+                    ];
+                    
                     let scale = 50.0;
-                    let camera_screen_x = center.x + camera_transform.position[0] * scale;
-                    let camera_screen_y = center.y - camera_transform.position[2] * scale;
-                    let camera_pos = egui::pos2(camera_screen_x, camera_screen_y);
+                    let camera_screen_x = view_center.x + relative_cam_pos[0] * scale;
+                    let camera_screen_y = view_center.y - relative_cam_pos[2] * scale;
+                    let entity_camera_pos = egui::pos2(camera_screen_x, camera_screen_y);
                     
                     // Draw camera view frustum (simplified)
                     let frustum_width = 80.0;
                     let frustum_height = 60.0;
                     let frustum_rect = egui::Rect::from_center_size(
-                        camera_pos + egui::vec2(40.0, 0.0),
+                        entity_camera_pos + egui::vec2(40.0, 0.0),
                         egui::vec2(frustum_width, frustum_height)
                     );
                     
@@ -1824,7 +1940,7 @@ impl UnityEditor {
                     
                     // Draw view direction line
                     painter.line_segment(
-                        [camera_pos, frustum_rect.left_center()],
+                        [entity_camera_pos, frustum_rect.left_center()],
                         egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 255, 255))
                     );
                 }
@@ -1835,7 +1951,7 @@ impl UnityEditor {
         if self.gizmo_system.get_active_tool() == SceneTool::Move {
             if let Some(selected_entity) = self.selected_entity {
                 if let Some(transform) = self.world.get_component::<Transform>(selected_entity) {
-                    self.render_move_gizmo(ui, rect, center, transform.position);
+                    self.render_move_gizmo(ui, rect, view_center, transform.position);
                 }
             }
         }
@@ -1880,10 +1996,18 @@ impl UnityEditor {
     fn render_move_gizmo(&mut self, ui: &mut egui::Ui, rect: egui::Rect, scene_center: egui::Pos2, world_position: [f32; 3]) {
         let painter = ui.painter();
         
+        // Apply camera transformation to gizmo position
+        let camera_pos = self.scene_navigation.scene_camera_transform.position;
+        let relative_pos = [
+            world_position[0] - camera_pos[0],
+            world_position[1] - camera_pos[1], 
+            world_position[2] - camera_pos[2]
+        ];
+        
         // Convert world position to screen coordinates (simple orthographic projection)
         let scale = 50.0; // Same scale as scene objects
-        let gizmo_screen_x = scene_center.x + world_position[0] * scale;
-        let gizmo_screen_y = scene_center.y - world_position[2] * scale; // Z becomes Y in screen space
+        let gizmo_screen_x = scene_center.x + relative_pos[0] * scale;
+        let gizmo_screen_y = scene_center.y - relative_pos[2] * scale; // Z becomes Y in screen space
         let gizmo_center = egui::pos2(gizmo_screen_x, gizmo_screen_y);
         
         // Check if gizmo is within screen bounds
@@ -2067,17 +2191,294 @@ impl UnityEditor {
         );
     }
     
-    /// Handle mouse input for scene view including gizmo interactions
-    fn handle_scene_input(&mut self, _ui: &egui::Ui, response: &egui::Response, rect: egui::Rect) {
+    /// Handle scene navigation input (right mouse + WASD for Unity/Unreal style navigation)
+    fn handle_scene_navigation(&mut self, ui: &egui::Ui, response: &egui::Response, _rect: egui::Rect) {
+        // Check for right mouse button to start navigation
+        let rmb_down = ui.input(|i| i.pointer.secondary_down());
+        let current_mouse_pos = response.hover_pos();
+        
+        // DEBUG: Log RMB state occasionally
+        static mut RMB_COUNTER: u32 = 0;
+        unsafe {
+            RMB_COUNTER += 1;
+            if RMB_COUNTER % 60 == 0 && rmb_down {  // Log every 60 frames when RMB is down
+                self.console_messages.push(ConsoleMessage::info(&format!(
+                    "🎮 DEBUG: RMB down, Nav: {}, Pos: {:?}", 
+                    self.scene_navigation.is_navigating, current_mouse_pos
+                )));
+            }
+        }
+        
+        // Start navigation if RMB is down and we're not already navigating
+        if rmb_down && !self.scene_navigation.is_navigating {
+            if let Some(mouse_pos) = current_mouse_pos {
+                self.console_messages.push(ConsoleMessage::info(&format!(
+                    "🎮 Starting navigation at ({:.1}, {:.1})", mouse_pos.x, mouse_pos.y
+                )));
+                self.start_scene_navigation(mouse_pos);
+            }
+        }
+        
+        // Check for right mouse button release
+        if !rmb_down && self.scene_navigation.is_navigating {
+            self.end_scene_navigation();
+        }
+        
+        // Handle navigation input during active navigation
+        if self.scene_navigation.is_navigating {
+            // DEBUG: Log that we're processing navigation
+            static mut NAV_DEBUG_COUNTER: u32 = 0;
+            unsafe {
+                NAV_DEBUG_COUNTER += 1;
+                if NAV_DEBUG_COUNTER % 30 == 0 {  // Log every 30 frames
+                    self.console_messages.push(ConsoleMessage::info("🎮 Processing navigation input..."));
+                }
+            }
+            self.process_navigation_input(ui, response);
+        }
+        
+        // Handle scroll wheel for speed adjustment (even when not actively navigating)
+        self.handle_navigation_speed_control(ui);
+    }
+    
+    /// Start scene navigation mode
+    fn start_scene_navigation(&mut self, mouse_pos: egui::Pos2) {
+        if !self.scene_navigation.enabled {
+            return;
+        }
+        
+        self.scene_navigation.is_navigating = true;
+        self.scene_navigation.last_mouse_pos = Some(mouse_pos);
+        
+        self.console_messages.push(ConsoleMessage::info(&format!(
+            "🎮 Started scene navigation at ({:.1}, {:.1})", 
+            mouse_pos.x, mouse_pos.y
+        )));
+    }
+    
+    /// End scene navigation mode
+    fn end_scene_navigation(&mut self) {
+        self.scene_navigation.is_navigating = false;
+        self.scene_navigation.last_mouse_pos = None;
+        
+        self.console_messages.push(ConsoleMessage::info("🎮 Ended scene navigation"));
+    }
+    
+    /// Process navigation input during active navigation
+    fn process_navigation_input(&mut self, ui: &egui::Ui, response: &egui::Response) {
+        // Handle mouse look (rotation)
+        if let Some(current_mouse_pos) = response.hover_pos() {
+            if let Some(last_mouse_pos) = self.scene_navigation.last_mouse_pos {
+                let mouse_delta = current_mouse_pos - last_mouse_pos;
+                self.apply_mouse_look(mouse_delta);
+            }
+            self.scene_navigation.last_mouse_pos = Some(current_mouse_pos);
+        }
+        
+        // Handle WASD movement (will implement in next phase)
+        self.handle_wasd_movement(ui);
+    }
+    
+    /// Apply mouse movement to camera rotation
+    fn apply_mouse_look(&mut self, mouse_delta: egui::Vec2) {
+        let sensitivity = self.scene_navigation.rotation_sensitivity;
+        
+        // Horizontal rotation (Y-axis - yaw)
+        let yaw_delta = -mouse_delta.x * sensitivity;
+        
+        // Vertical rotation (X-axis - pitch)  
+        let pitch_delta = -mouse_delta.y * sensitivity;
+        
+        // Apply rotations to scene camera - no clamping for scene editing
+        self.scene_navigation.scene_camera_transform.rotation[1] += yaw_delta;
+        self.scene_navigation.scene_camera_transform.rotation[0] += pitch_delta;
+        
+        // No rotation limits for scene navigation - complete freedom
+        
+        // Debug log rotation changes
+        if mouse_delta.length() > 0.5 {
+            self.console_messages.push(ConsoleMessage::info(&format!(
+                "🎥 Mouse delta: ({:.1}, {:.1}) → yaw={:.1}°, pitch={:.1}°",
+                mouse_delta.x, mouse_delta.y,
+                self.scene_navigation.scene_camera_transform.rotation[1].to_degrees(),
+                self.scene_navigation.scene_camera_transform.rotation[0].to_degrees()
+            )));
+        }
+    }
+    
+    /// Handle WASD movement input during navigation mode
+    fn handle_wasd_movement(&mut self, ui: &egui::Ui) {
+        let movement_speed = self.scene_navigation.movement_speed;
+        let delta_time = self.delta_time;
+        let fast_multiplier = if ui.input(|i| i.modifiers.shift) {
+            self.scene_navigation.fast_movement_multiplier
+        } else {
+            1.0
+        };
+        
+        let actual_speed = movement_speed * delta_time * fast_multiplier;
+        let mut movement = [0.0, 0.0, 0.0];
+        let mut any_movement = false;
+        
+        // DEBUG: Always log WASD state during navigation
+        let (w, a, s, d, q, e) = ui.input(|i| {
+            (i.key_down(egui::Key::W), i.key_down(egui::Key::A), i.key_down(egui::Key::S), 
+             i.key_down(egui::Key::D), i.key_down(egui::Key::Q), i.key_down(egui::Key::E))
+        });
+        
+        static mut DEBUG_COUNTER: u32 = 0;
+        unsafe {
+            DEBUG_COUNTER += 1;
+            if DEBUG_COUNTER % 15 == 0 {  // Log every 15 frames
+                self.console_messages.push(ConsoleMessage::info(&format!(
+                    "🎮 WASD DEBUG: W:{} A:{} S:{} D:{} Q:{} E:{} | speed:{:.1} delta:{:.4} actual:{:.4}",
+                    w, a, s, d, q, e, movement_speed, delta_time, actual_speed
+                )));
+            }
+        }
+        
+        
+        // Check WASD keys
+        ui.input(|i| {
+            if i.key_down(egui::Key::W) {
+                movement[2] -= actual_speed; // Forward (negative Z)
+                any_movement = true;
+            }
+            if i.key_down(egui::Key::S) {
+                movement[2] += actual_speed; // Backward (positive Z)
+                any_movement = true;
+            }
+            if i.key_down(egui::Key::A) {
+                movement[0] -= actual_speed; // Left (negative X)
+                any_movement = true;
+            }
+            if i.key_down(egui::Key::D) {
+                movement[0] += actual_speed; // Right (positive X)
+                any_movement = true;
+            }
+            if i.key_down(egui::Key::Q) {
+                movement[1] -= actual_speed; // Down (negative Y)
+                any_movement = true;
+            }
+            if i.key_down(egui::Key::E) {
+                movement[1] += actual_speed; // Up (positive Y)
+                any_movement = true;
+            }
+        });
+        
+        if any_movement {
+            // Transform movement relative to camera orientation
+            let transformed_movement = self.transform_movement_by_camera(movement);
+            
+            // Apply movement to camera position
+            self.scene_navigation.scene_camera_transform.position[0] += transformed_movement[0];
+            self.scene_navigation.scene_camera_transform.position[1] += transformed_movement[1];
+            self.scene_navigation.scene_camera_transform.position[2] += transformed_movement[2];
+            
+            // Log camera position occasionally (every 10th frame or significant change)
+            static mut MOVEMENT_COUNTER: u32 = 0;
+            unsafe {
+                MOVEMENT_COUNTER += 1;
+                if MOVEMENT_COUNTER % 10 == 0 {
+                    self.console_messages.push(ConsoleMessage::info(&format!(
+                        "🎮 Camera moved to [{:.1}, {:.1}, {:.1}] delta:{:.3}{}",
+                        self.scene_navigation.scene_camera_transform.position[0],
+                        self.scene_navigation.scene_camera_transform.position[1],
+                        self.scene_navigation.scene_camera_transform.position[2],
+                        delta_time,
+                        if fast_multiplier > 1.0 { " (FAST)" } else { "" }
+                    )));
+                }
+            }
+        } else {
+            // DEBUG: Log when keys are pressed but no movement happens
+            let any_key_pressed = ui.input(|i| {
+                i.key_down(egui::Key::W) || i.key_down(egui::Key::A) || 
+                i.key_down(egui::Key::S) || i.key_down(egui::Key::D) ||
+                i.key_down(egui::Key::Q) || i.key_down(egui::Key::E)
+            });
+            
+            if any_key_pressed {
+                static mut KEY_DEBUG_COUNTER: u32 = 0;
+                unsafe {
+                    KEY_DEBUG_COUNTER += 1;
+                    if KEY_DEBUG_COUNTER % 30 == 0 {  // Log every 30 frames
+                        self.console_messages.push(ConsoleMessage::info(&format!(
+                            "🎮 Keys pressed but no movement - Delta:{:.3} Speed:{:.1}",
+                            delta_time, movement_speed
+                        )));
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Transform movement vector by camera orientation for relative movement
+    fn transform_movement_by_camera(&self, movement: [f32; 3]) -> [f32; 3] {
+        let rotation = &self.scene_navigation.scene_camera_transform.rotation;
+        let yaw = rotation[1]; // Y-axis rotation
+        
+        // Calculate forward and right vectors based on camera yaw
+        let cos_yaw = yaw.cos();
+        let sin_yaw = yaw.sin();
+        
+        // Forward vector (camera's -Z direction in world space)
+        let forward = [-sin_yaw, 0.0, -cos_yaw];
+        // Right vector (camera's +X direction in world space)
+        let right = [cos_yaw, 0.0, -sin_yaw];
+        // Up vector (always world up for now)
+        let up = [0.0, 1.0, 0.0];
+        
+        // Transform movement vector
+        [
+            movement[0] * right[0] + movement[1] * up[0] + movement[2] * forward[0],
+            movement[0] * right[1] + movement[1] * up[1] + movement[2] * forward[1],
+            movement[0] * right[2] + movement[1] * up[2] + movement[2] * forward[2],
+        ]
+    }
+    
+    /// Handle mouse wheel for navigation speed control
+    fn handle_navigation_speed_control(&mut self, ui: &egui::Ui) {
+        ui.input(|i| {
+            let scroll_delta = i.raw_scroll_delta.y;
+            if scroll_delta != 0.0 && self.scene_navigation.enabled {
+                let speed_adjustment = scroll_delta * 0.1; // Sensitivity adjustment
+                let old_speed = self.scene_navigation.movement_speed;
+                
+                // Adjust speed with limits
+                self.scene_navigation.movement_speed = 
+                    (self.scene_navigation.movement_speed + speed_adjustment).clamp(0.5, 50.0);
+                
+                if old_speed != self.scene_navigation.movement_speed {
+                    self.console_messages.push(ConsoleMessage::info(&format!(
+                        "🎮 Navigation speed: {:.1} units/sec {}",
+                        self.scene_navigation.movement_speed,
+                        if scroll_delta > 0.0 { "📈" } else { "📉" }
+                    )));
+                }
+            }
+        });
+    }
+    
+    /// Handle mouse input for scene view including navigation and gizmo interactions
+    fn handle_scene_input(&mut self, ui: &egui::Ui, response: &egui::Response, rect: egui::Rect) {
         // DEBUG: Log basic input state
         if let Some(mouse_pos) = response.hover_pos() {
             // Only log occasionally to avoid spam
-            if response.clicked() || response.dragged() || response.drag_stopped() {
+            if response.clicked() || response.dragged() || response.drag_stopped() || response.secondary_clicked() {
                 self.console_messages.push(ConsoleMessage::info(&format!(
-                    "🖱️ Mouse input: pos=({:.1}, {:.1}), clicked={}, dragged={}, drag_stopped={}",
-                    mouse_pos.x, mouse_pos.y, response.clicked(), response.dragged(), response.drag_stopped()
+                    "🖱️ Mouse input: pos=({:.1}, {:.1}), clicked={}, dragged={}, drag_stopped={}, secondary_clicked={}",
+                    mouse_pos.x, mouse_pos.y, response.clicked(), response.dragged(), response.drag_stopped(), response.secondary_clicked()
                 )));
             }
+        }
+        
+        // Handle scene navigation (right mouse button + WASD)
+        self.handle_scene_navigation(ui, response, rect);
+        
+        // Skip gizmo interaction if we're in navigation mode
+        if self.scene_navigation.is_navigating {
+            return;
         }
         
         // Only handle input if we have a selected entity and move tool is active
