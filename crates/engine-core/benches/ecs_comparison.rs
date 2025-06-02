@@ -2,9 +2,8 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use engine_core::{Transform, Component, ComponentV2};
-use engine_core::ecs::{World as OldWorld, Entity as OldEntity};
-use engine_core::ecs_v2::{World as NewWorld, Entity as NewEntity};
-use std::time::Duration;
+use engine_core::ecs::{World as OldWorld};
+use engine_core::ecs_v2::{World as NewWorld, Read};
 
 #[derive(Debug, Clone)]
 struct Velocity {
@@ -14,7 +13,7 @@ struct Velocity {
 }
 
 impl Component for Velocity {}
-impl ComponentV2 for Velocity {}
+impl engine_core::ecs_v2::Component for Velocity {}
 
 #[derive(Debug, Clone)]
 struct Health {
@@ -23,7 +22,7 @@ struct Health {
 }
 
 impl Component for Health {}
-impl ComponentV2 for Health {}
+impl engine_core::ecs_v2::Component for Health {}
 
 fn benchmark_entity_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("entity_creation");
@@ -101,7 +100,7 @@ fn benchmark_iteration(c: &mut Criterion) {
             |b, &_entity_count| {
                 b.iter(|| {
                     let mut sum = 0.0f32;
-                    for (_, transform) in new_world.query::<Transform>() {
+                    for (_, transform) in new_world.query::<Read<Transform>>().iter() {
                         sum += transform.position[0];
                     }
                     black_box(sum);

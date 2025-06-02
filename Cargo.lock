@@ -1129,6 +1129,7 @@ dependencies = [
  "eframe",
  "egui 0.28.1",
  "egui_dock",
+ "engine-core",
  "env_logger",
  "serde",
 ]

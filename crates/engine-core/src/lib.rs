@@ -14,7 +14,7 @@ pub mod components;
 pub use ecs::{Entity, Component, World};
 
 // Re-export new ECS types
-pub use ecs_v2::{Entity as EntityV2, Component as ComponentV2, World as WorldV2, ArchetypeId};
+pub use ecs_v2::{Entity as EntityV2, Component as ComponentV2, World as WorldV2, ArchetypeId, Query, QueryMut, Read, Write, Changed, Tick};
 
 // Re-export common components
 pub use components::{Mesh, MeshType, Material, Name, Visibility, Camera, Light, LightType};
@@ -38,7 +38,7 @@ impl Default for Transform {
 
 // Make Transform a component for both ECS systems
 impl Component for Transform {}
-impl ComponentV2 for Transform {}
+impl ecs_v2::Component for Transform {}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GameObject {

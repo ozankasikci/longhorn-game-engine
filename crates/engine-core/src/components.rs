@@ -1,7 +1,7 @@
 // Standard components for the game engine
 
 use serde::{Serialize, Deserialize};
-use crate::Component;
+use crate::{Component, ecs_v2};
 
 // Mesh component - defines what mesh to render
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -18,6 +18,7 @@ pub enum MeshType {
 }
 
 impl Component for Mesh {}
+impl ecs_v2::Component for Mesh {}
 
 impl Default for Mesh {
     fn default() -> Self {
@@ -37,6 +38,7 @@ pub struct Material {
 }
 
 impl Component for Material {}
+impl ecs_v2::Component for Material {}
 
 impl Default for Material {
     fn default() -> Self {
@@ -56,6 +58,7 @@ pub struct Name {
 }
 
 impl Component for Name {}
+impl ecs_v2::Component for Name {}
 
 impl Name {
     pub fn new(name: impl Into<String>) -> Self {
@@ -72,6 +75,7 @@ pub struct Visibility {
 }
 
 impl Component for Visibility {}
+impl ecs_v2::Component for Visibility {}
 
 impl Default for Visibility {
     fn default() -> Self {
@@ -89,6 +93,7 @@ pub struct Camera {
 }
 
 impl Component for Camera {}
+impl ecs_v2::Component for Camera {}
 
 impl Default for Camera {
     fn default() -> Self {
@@ -117,6 +122,7 @@ pub enum LightType {
 }
 
 impl Component for Light {}
+impl ecs_v2::Component for Light {}
 
 impl Default for Light {
     fn default() -> Self {

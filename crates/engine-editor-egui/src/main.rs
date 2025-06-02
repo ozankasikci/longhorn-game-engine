@@ -3,6 +3,7 @@
 
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex, TabViewer};
+use engine_core::{Transform, WorldV2, EntityV2, Read, Write, Name, Visibility, Camera, Light};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -32,6 +33,10 @@ struct UnityEditor {
     // Docking system
     dock_state: DockState<PanelType>,
     
+    // ECS v2 Integration
+    world: WorldV2,
+    selected_entity: Option<EntityV2>,
+    
     // Editor state
     selected_object: Option<String>,
     console_messages: Vec<ConsoleMessage>,
@@ -42,6 +47,7 @@ struct UnityEditor {
     
     // UI state
     scene_view_active: bool,
+    show_add_component_dialog: bool,
 }
 
 impl UnityEditor {
@@ -70,14 +76,41 @@ impl UnityEditor {
             vec![PanelType::Console]
         );
         
+        // Initialize ECS v2 World with some test entities
+        let mut world = WorldV2::new();
+        
+        // Create some entities with Transform components
+        let camera_entity = world.spawn();
+        world.add_component(camera_entity, Transform {
+            position: [0.0, 0.0, 5.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: [1.0, 1.0, 1.0],
+        }).unwrap();
+        
+        let cube_entity = world.spawn();
+        world.add_component(cube_entity, Transform {
+            position: [1.0, 0.0, 0.0],
+            rotation: [0.0, 45.0, 0.0],
+            scale: [1.0, 1.0, 1.0],
+        }).unwrap();
+        
+        let sphere_entity = world.spawn();
+        world.add_component(sphere_entity, Transform {
+            position: [-1.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: [1.5, 1.5, 1.5],
+        }).unwrap();
+        
         Self {
             dock_state,
+            world,
+            selected_entity: Some(camera_entity),
             selected_object: None,
             console_messages: vec![
                 ConsoleMessage::info("🎮 Unity Editor initialized with dockable panels"),
                 ConsoleMessage::info("✅ EGUI docking system active"),
-                ConsoleMessage::info("🚀 Drag panel tabs to rearrange layout"),
-                ConsoleMessage::info("💡 Try dragging tabs to different areas to dock them"),
+                ConsoleMessage::info("🚀 ECS v2 World created with 3 entities!"),
+                ConsoleMessage::info("💡 Try selecting entities in the hierarchy"),
             ],
             hierarchy_objects: vec![
                 HierarchyObject::new("📱 Main Camera", ObjectType::Camera),
@@ -106,6 +139,7 @@ impl UnityEditor {
                 ]),
             ],
             scene_view_active: true,
+            show_add_component_dialog: false,
         }
     }
 }
@@ -358,19 +392,42 @@ impl UnityEditor {
     
     fn show_hierarchy_panel(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label("Scene Objects");
+            ui.label("ECS Entities");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("➕").on_hover_text("Create new object").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("➕ Create object menu"));
+                if ui.button("➕").on_hover_text("Create new entity").clicked() {
+                    // Create new entity with ECS v2
+                    let entity = self.world.spawn();
+                    self.world.add_component(entity, Transform::default()).unwrap();
+                    self.console_messages.push(ConsoleMessage::info(&format!("➕ Created Entity {:?}", entity)));
                 }
             });
         });
         ui.separator();
         
+        ui.label(format!("🎯 Entity Count: {}", self.world.entity_count()));
+        ui.label(format!("📦 Archetypes: {}", self.world.archetype_count()));
+        ui.separator();
+        
         egui::ScrollArea::vertical().show(ui, |ui| {
-            let objects = self.hierarchy_objects.clone();
-            for object in &objects {
-                self.show_hierarchy_object(ui, object);
+            // Show all entities with Transform components using ECS v2 query
+            for (entity, _transform) in self.world.query::<Read<Transform>>().iter() {
+                let selected = self.selected_entity == Some(entity);
+                
+                // Build component indicator string
+                let mut components = Vec::new();
+                if self.world.get_component::<Transform>(entity).is_some() { components.push("T"); }
+                if self.world.get_component::<Name>(entity).is_some() { components.push("N"); }
+                if self.world.get_component::<Visibility>(entity).is_some() { components.push("V"); }
+                if self.world.get_component::<Camera>(entity).is_some() { components.push("C"); }
+                if self.world.get_component::<Light>(entity).is_some() { components.push("L"); }
+                
+                let component_str = if components.is_empty() { "-".to_string() } else { components.join("") };
+                let label = format!("🎲 Entity {} [{}]", entity.id(), component_str);
+                
+                if ui.selectable_label(selected, &label).clicked() {
+                    self.selected_entity = Some(entity);
+                    self.console_messages.push(ConsoleMessage::info(&format!("🎯 Selected Entity {:?}", entity)));
+                }
             }
         });
     }
@@ -397,65 +454,225 @@ impl UnityEditor {
     }
     
     fn show_inspector_panel(&mut self, ui: &mut egui::Ui) {
-        ui.label("Object Inspector");
+        ui.label("Entity Inspector");
         ui.separator();
         
-        if let Some(ref selected) = self.selected_object {
-            ui.label(format!("Selected: {}", selected));
+        if let Some(selected_entity) = self.selected_entity {
+            ui.label(format!("Entity ID: {}", selected_entity.id()));
             ui.separator();
             
             egui::ScrollArea::vertical().show(ui, |ui| {
-                // Transform component (always present)
-                ui.collapsing("📐 Transform", |ui| {
-                    egui::Grid::new("transform_grid").show(ui, |ui| {
-                        ui.label("Position:");
-                        ui.end_row();
-                        ui.label("X:");
-                        ui.add(egui::DragValue::new(&mut 0.0f32).speed(0.1));
-                        ui.label("Y:");
-                        ui.add(egui::DragValue::new(&mut 0.0f32).speed(0.1));
-                        ui.label("Z:");
-                        ui.add(egui::DragValue::new(&mut 0.0f32).speed(0.1));
-                        ui.end_row();
-                    });
-                });
-                
-                // Type-specific components
-                if selected.contains("Camera") {
-                    ui.collapsing("📷 Camera", |ui| {
-                        ui.label("Field of View:");
-                        ui.add(egui::Slider::new(&mut 60.0f32, 1.0..=179.0).suffix("°"));
-                    });
-                } else if selected.contains("Light") {
-                    ui.collapsing("💡 Light", |ui| {
-                        ui.label("Color:");
-                        let mut color = [1.0, 1.0, 1.0];
-                        ui.color_edit_button_rgb(&mut color);
-                        ui.label("Intensity:");
-                        ui.add(egui::Slider::new(&mut 1.0f32, 0.0..=8.0));
+                // Get Transform component from ECS v2 (clone it to avoid borrowing issues)
+                if let Some(transform) = self.world.get_component::<Transform>(selected_entity).cloned() {
+                    ui.collapsing("📐 Transform", |ui| {
+                        // Clone the transform to make it mutable for editing
+                        let mut pos = transform.position;
+                        let mut rot = transform.rotation;
+                        let mut scale = transform.scale;
+                        
+                        let mut changed = false;
+                        
+                        egui::Grid::new("transform_grid").show(ui, |ui| {
+                            // Position
+                            ui.label("Position:");
+                            ui.end_row();
+                            ui.label("X:");
+                            changed |= ui.add(egui::DragValue::new(&mut pos[0]).speed(0.1)).changed();
+                            ui.label("Y:");
+                            changed |= ui.add(egui::DragValue::new(&mut pos[1]).speed(0.1)).changed();
+                            ui.label("Z:");
+                            changed |= ui.add(egui::DragValue::new(&mut pos[2]).speed(0.1)).changed();
+                            ui.end_row();
+                            
+                            // Rotation
+                            ui.label("Rotation:");
+                            ui.end_row();
+                            ui.label("X:");
+                            changed |= ui.add(egui::DragValue::new(&mut rot[0]).speed(1.0).suffix("°")).changed();
+                            ui.label("Y:");
+                            changed |= ui.add(egui::DragValue::new(&mut rot[1]).speed(1.0).suffix("°")).changed();
+                            ui.label("Z:");
+                            changed |= ui.add(egui::DragValue::new(&mut rot[2]).speed(1.0).suffix("°")).changed();
+                            ui.end_row();
+                            
+                            // Scale
+                            ui.label("Scale:");
+                            ui.end_row();
+                            ui.label("X:");
+                            changed |= ui.add(egui::DragValue::new(&mut scale[0]).speed(0.01).range(0.01..=10.0)).changed();
+                            ui.label("Y:");
+                            changed |= ui.add(egui::DragValue::new(&mut scale[1]).speed(0.01).range(0.01..=10.0)).changed();
+                            ui.label("Z:");
+                            changed |= ui.add(egui::DragValue::new(&mut scale[2]).speed(0.01).range(0.01..=10.0)).changed();
+                            ui.end_row();
+                        });
+                        
+                        // Update the ECS component if values changed
+                        if changed {
+                            if let Some(transform_mut) = self.world.get_component_mut::<Transform>(selected_entity) {
+                                transform_mut.position = pos;
+                                transform_mut.rotation = rot;
+                                transform_mut.scale = scale;
+                            }
+                        }
                     });
                 } else {
-                    ui.collapsing("🎨 Mesh Renderer", |ui| {
-                        ui.label("Material:");
-                        egui::ComboBox::from_label("")
-                            .selected_text("Default")
-                            .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut "", "Default", "Default");
-                                ui.selectable_value(&mut "", "Wood", "Wood");
-                                ui.selectable_value(&mut "", "Metal", "Metal");
-                            });
+                    ui.label("❌ No Transform component");
+                }
+                
+                // Name Component
+                if let Some(name) = self.world.get_component::<Name>(selected_entity) {
+                    ui.collapsing("📝 Name", |ui| {
+                        ui.label(format!("Name: {}", name.name));
                     });
                 }
+                
+                // Visibility Component
+                if let Some(visibility) = self.world.get_component::<Visibility>(selected_entity) {
+                    ui.collapsing("👁️ Visibility", |ui| {
+                        ui.label(format!("Visible: {}", visibility.visible));
+                    });
+                }
+                
+                // Camera Component
+                if let Some(camera) = self.world.get_component::<Camera>(selected_entity) {
+                    ui.collapsing("📷 Camera", |ui| {
+                        ui.label(format!("FOV: {:.1}°", camera.fov));
+                        ui.label(format!("Near: {:.2}", camera.near));
+                        ui.label(format!("Far: {:.0}", camera.far));
+                        ui.label(format!("Main Camera: {}", camera.is_main));
+                    });
+                }
+                
+                // Light Component
+                if let Some(light) = self.world.get_component::<Light>(selected_entity) {
+                    ui.collapsing("💡 Light", |ui| {
+                        ui.label(format!("Type: {:?}", light.light_type));
+                        ui.label(format!("Color: [{:.2}, {:.2}, {:.2}]", 
+                                 light.color[0], light.color[1], light.color[2]));
+                        ui.label(format!("Intensity: {:.2}", light.intensity));
+                    });
+                }
+                
+                // ECS v2 Entity Info
+                ui.separator();
+                ui.collapsing("🔧 Entity Debug", |ui| {
+                    ui.label(format!("Entity ID: {}", selected_entity.id()));
+                    ui.label(format!("Generation: {}", selected_entity.generation()));
+                    
+                    // Count components
+                    let mut component_count = 0;
+                    let mut component_list = Vec::new();
+                    
+                    if self.world.get_component::<Transform>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("Transform");
+                    }
+                    if self.world.get_component::<Name>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("Name");
+                    }
+                    if self.world.get_component::<Visibility>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("Visibility");
+                    }
+                    if self.world.get_component::<Camera>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("Camera");
+                    }
+                    if self.world.get_component::<Light>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("Light");
+                    }
+                    
+                    ui.label(format!("Component Count: {}", component_count));
+                    ui.label(format!("Components: {}", component_list.join(", ")));
+                });
                 
                 ui.separator();
                 if ui.button("➕ Add Component").clicked() {
-                    self.console_messages.push(ConsoleMessage::info("➕ Add Component dialog"));
+                    self.show_add_component_dialog = true;
+                }
+                
+                // Add Component Dialog
+                if self.show_add_component_dialog {
+                    self.show_add_component_dialog(ui, selected_entity);
                 }
             });
         } else {
-            ui.label("No object selected");
-            ui.label("Select an object in the Hierarchy to view its properties.");
+            ui.label("No entity selected");
+            ui.label("Select an entity in the Hierarchy to view its components.");
         }
+    }
+    
+    fn show_add_component_dialog(&mut self, ui: &mut egui::Ui, entity: EntityV2) {
+        let mut dialog_open = self.show_add_component_dialog;
+        egui::Window::new("Add Component")
+            .open(&mut dialog_open)
+            .resizable(false)
+            .collapsible(false)
+            .show(ui.ctx(), |ui| {
+                ui.label("Choose a component to add:");
+                ui.separator();
+                
+                // Name Component
+                if ui.button("📝 Name Component").clicked() {
+                    match self.world.add_component(entity, Name::new("New Object")) {
+                        Ok(_) => {
+                            self.console_messages.push(ConsoleMessage::info("✅ Added Name component"));
+                            self.show_add_component_dialog = false;
+                        }
+                        Err(e) => {
+                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Name: {}", e)));
+                        }
+                    }
+                }
+                
+                // Visibility Component
+                if ui.button("👁️ Visibility Component").clicked() {
+                    match self.world.add_component(entity, Visibility::default()) {
+                        Ok(_) => {
+                            self.console_messages.push(ConsoleMessage::info("✅ Added Visibility component"));
+                            self.show_add_component_dialog = false;
+                        }
+                        Err(e) => {
+                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Visibility: {}", e)));
+                        }
+                    }
+                }
+                
+                // Camera Component
+                if ui.button("📷 Camera Component").clicked() {
+                    match self.world.add_component(entity, Camera::default()) {
+                        Ok(_) => {
+                            self.console_messages.push(ConsoleMessage::info("✅ Added Camera component"));
+                            self.show_add_component_dialog = false;
+                        }
+                        Err(e) => {
+                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Camera: {}", e)));
+                        }
+                    }
+                }
+                
+                // Light Component
+                if ui.button("💡 Light Component").clicked() {
+                    match self.world.add_component(entity, Light::default()) {
+                        Ok(_) => {
+                            self.console_messages.push(ConsoleMessage::info("✅ Added Light component"));
+                            self.show_add_component_dialog = false;
+                        }
+                        Err(e) => {
+                            self.console_messages.push(ConsoleMessage::info(&format!("❌ Failed to add Light: {}", e)));
+                        }
+                    }
+                }
+                
+                ui.separator();
+                if ui.button("Cancel").clicked() {
+                    self.show_add_component_dialog = false;
+                }
+            });
+        self.show_add_component_dialog = dialog_open;
     }
     
     fn show_scene_view(&mut self, ui: &mut egui::Ui) {
