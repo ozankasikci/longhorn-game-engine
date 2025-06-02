@@ -1160,9 +1160,11 @@ name = "engine-graphics"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "engine-camera",
  "engine-core",
  "env_logger",
  "glam",
+ "thiserror",
  "tokio",
  "wgpu",
  "winit",

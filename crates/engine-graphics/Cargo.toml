@@ -6,9 +6,11 @@ license.workspace = true
 
 [dependencies]
 engine-core = { workspace = true }
+engine-camera = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
 bytemuck = { workspace = true }
 glam = { workspace = true }
 tokio = { workspace = true }
 env_logger = { workspace = true }
+thiserror = { workspace = true }
