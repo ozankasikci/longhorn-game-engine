@@ -5,6 +5,7 @@ use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex, TabViewer};
 use engine_ecs_core::{Transform, WorldV2, EntityV2, Read, Write, Name, Visibility, Camera, Light, Sprite, SpriteRenderer, Canvas, Camera2D, Material};
 use engine_camera::{CameraComponent, CameraType, Viewport};
+use std::io::Write as IoWrite;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -40,6 +41,203 @@ pub enum PlayState {
 impl Default for PlayState {
     fn default() -> Self {
         Self::Editing
+    }
+}
+
+/// Scene manipulation tool types
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SceneTool {
+    Select,   // Q - Selection tool (default)
+    Move,     // W - Move tool with XYZ gizmo
+    Rotate,   // E - Rotation tool (future)
+    Scale,    // R - Scale tool (future)
+}
+
+impl Default for SceneTool {
+    fn default() -> Self {
+        Self::Select
+    }
+}
+
+/// Gizmo axis selection for movement constraints
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GizmoAxis {
+    X,   // Red axis - Left/Right
+    Y,   // Green axis - Up/Down  
+    Z,   // Blue axis - Forward/Backward
+}
+
+/// Gizmo plane selection for planar movement
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GizmoPlane {
+    XY,  // Blue square - Z locked
+    XZ,  // Green square - Y locked
+    YZ,  // Red square - X locked
+}
+
+/// Gizmo component that can be interacted with
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GizmoComponent {
+    Axis(GizmoAxis),
+    Plane(GizmoPlane),
+    Center,  // Screen-space movement
+}
+
+/// Current gizmo interaction state
+#[derive(Debug, Clone)]
+pub enum GizmoInteractionState {
+    Idle,                                    // No interaction
+    Hovering(GizmoComponent),               // Mouse over component
+    Dragging {
+        component: GizmoComponent,
+        start_mouse_pos: egui::Pos2,
+        start_object_pos: [f32; 3],
+    },
+}
+
+impl Default for GizmoInteractionState {
+    fn default() -> Self {
+        Self::Idle
+    }
+}
+
+/// Move gizmo for 3D object manipulation
+#[derive(Debug, Clone)]
+pub struct MoveGizmo {
+    /// World position of the gizmo (object center)
+    position: [f32; 3],
+    /// Scale factor based on camera distance for consistent screen size
+    scale: f32,
+    /// Current interaction state
+    interaction_state: GizmoInteractionState,
+    /// Whether gizmo is visible and active
+    enabled: bool,
+}
+
+impl MoveGizmo {
+    pub fn new(position: [f32; 3]) -> Self {
+        Self {
+            position,
+            scale: 1.0,
+            interaction_state: GizmoInteractionState::default(),
+            enabled: true,
+        }
+    }
+    
+    pub fn set_position(&mut self, position: [f32; 3]) {
+        self.position = position;
+    }
+    
+    pub fn set_scale(&mut self, scale: f32) {
+        self.scale = scale;
+    }
+    
+    pub fn is_interacting(&self) -> bool {
+        matches!(self.interaction_state, GizmoInteractionState::Dragging { .. })
+    }
+    
+    pub fn get_hovered_component(&self) -> Option<GizmoComponent> {
+        match &self.interaction_state {
+            GizmoInteractionState::Hovering(component) => Some(*component),
+            GizmoInteractionState::Dragging { component, .. } => Some(*component),
+            _ => None,
+        }
+    }
+}
+
+/// Gizmo system for managing scene manipulation tools
+#[derive(Debug, Clone)]
+pub struct GizmoSystem {
+    /// Currently active scene tool
+    active_tool: SceneTool,
+    /// Move gizmo instance
+    move_gizmo: Option<MoveGizmo>,
+    /// Whether gizmos should be rendered
+    enabled: bool,
+    /// Grid snapping settings
+    snap_enabled: bool,
+    snap_increment: f32,
+}
+
+impl Default for GizmoSystem {
+    fn default() -> Self {
+        Self {
+            active_tool: SceneTool::default(),
+            move_gizmo: None,
+            enabled: true,
+            snap_enabled: false,
+            snap_increment: 1.0,
+        }
+    }
+}
+
+impl GizmoSystem {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    pub fn set_active_tool(&mut self, tool: SceneTool) {
+        self.active_tool = tool;
+    }
+    
+    pub fn get_active_tool(&self) -> SceneTool {
+        self.active_tool
+    }
+    
+    pub fn enable_move_gizmo(&mut self, position: [f32; 3]) {
+        if self.active_tool == SceneTool::Move {
+            self.move_gizmo = Some(MoveGizmo::new(position));
+        }
+    }
+    
+    pub fn disable_move_gizmo(&mut self) {
+        self.move_gizmo = None;
+    }
+    
+    pub fn get_move_gizmo_mut(&mut self) -> Option<&mut MoveGizmo> {
+        self.move_gizmo.as_mut()
+    }
+    
+    pub fn get_move_gizmo(&self) -> Option<&MoveGizmo> {
+        self.move_gizmo.as_ref()
+    }
+    
+    pub fn toggle_snap(&mut self) {
+        self.snap_enabled = !self.snap_enabled;
+    }
+    
+    pub fn set_snap_increment(&mut self, increment: f32) {
+        self.snap_increment = increment;
+    }
+    
+    pub fn apply_snap(&self, value: f32) -> f32 {
+        if self.snap_enabled {
+            (value / self.snap_increment).round() * self.snap_increment
+        } else {
+            value
+        }
+    }
+}
+
+/// Ray for 3D intersection testing
+#[derive(Debug, Clone, Copy)]
+pub struct Ray {
+    pub origin: [f32; 3],
+    pub direction: [f32; 3],
+}
+
+impl Ray {
+    pub fn new(origin: [f32; 3], direction: [f32; 3]) -> Self {
+        Self { origin, direction }
+    }
+    
+    /// Get point along ray at distance t
+    pub fn at(&self, t: f32) -> [f32; 3] {
+        [
+            self.origin[0] + self.direction[0] * t,
+            self.origin[1] + self.direction[1] * t,
+            self.origin[2] + self.direction[2] * t,
+        ]
     }
 }
 
@@ -82,6 +280,9 @@ struct UnityEditor {
     // UI state
     scene_view_active: bool,
     show_add_component_dialog: bool,
+    
+    // Gizmo system
+    gizmo_system: GizmoSystem,
 }
 
 impl UnityEditor {
@@ -319,7 +520,9 @@ impl UnityEditor {
                 ConsoleMessage::info("🎮 Unity Editor initialized with dockable panels"),
                 ConsoleMessage::info("✅ EGUI docking system active"),
                 ConsoleMessage::info("🚀 ECS v2 World created with 3 entities!"),
-                ConsoleMessage::info("💡 Try selecting entities in the hierarchy"),
+                ConsoleMessage::info("📝 Debug logs are being written to debug_console.log"),
+                ConsoleMessage::info("💡 Use 📋 Copy All or 💾 Export buttons to get logs"),
+                ConsoleMessage::info("🔧 Select an entity and use the move tool to test gizmos"),
             ],
             hierarchy_objects: vec![
                 HierarchyObject::new("📱 Main Camera", ObjectType::Camera),
@@ -355,6 +558,7 @@ impl UnityEditor {
             delta_time: 0.0,
             scene_view_active: true,
             show_add_component_dialog: false,
+            gizmo_system: GizmoSystem::new(),
         }
     }
 }
@@ -563,15 +767,74 @@ impl UnityEditor {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 8.0;
             
-            // Transform tools
-            if ui.button("🔗").on_hover_text("Move Tool").clicked() {
-                self.console_messages.push(ConsoleMessage::info("🔗 Move tool selected"));
+            // Scene manipulation tools
+            let current_tool = self.gizmo_system.get_active_tool();
+            
+            // Selection tool (Q)
+            let select_pressed = ui.add(
+                egui::Button::new("🎯")
+                    .fill(if current_tool == SceneTool::Select { 
+                        egui::Color32::from_rgb(100, 150, 255) 
+                    } else { 
+                        egui::Color32::TRANSPARENT 
+                    })
+            ).on_hover_text("Select Tool (Q)").clicked();
+            
+            if select_pressed {
+                self.gizmo_system.set_active_tool(SceneTool::Select);
+                self.gizmo_system.disable_move_gizmo();
+                self.console_messages.push(ConsoleMessage::info("🎯 Selection tool activated"));
             }
-            if ui.button("🔄").on_hover_text("Rotate Tool").clicked() {
-                self.console_messages.push(ConsoleMessage::info("🔄 Rotate tool selected"));
+            
+            // Move tool (W)
+            let move_pressed = ui.add(
+                egui::Button::new("🔗")
+                    .fill(if current_tool == SceneTool::Move { 
+                        egui::Color32::from_rgb(100, 150, 255) 
+                    } else { 
+                        egui::Color32::TRANSPARENT 
+                    })
+            ).on_hover_text("Move Tool (W)").clicked();
+            
+            if move_pressed {
+                self.gizmo_system.set_active_tool(SceneTool::Move);
+                // Enable move gizmo if an entity is selected
+                if let Some(entity) = self.selected_entity {
+                    if let Some(transform) = self.world.get_component::<Transform>(entity) {
+                        self.gizmo_system.enable_move_gizmo(transform.position);
+                    }
+                }
+                self.console_messages.push(ConsoleMessage::info("🔗 Move tool activated"));
             }
-            if ui.button("📐").on_hover_text("Scale Tool").clicked() {
-                self.console_messages.push(ConsoleMessage::info("📐 Scale tool selected"));
+            
+            // Rotate tool (E) - Future implementation
+            let rotate_pressed = ui.add(
+                egui::Button::new("🔄")
+                    .fill(if current_tool == SceneTool::Rotate { 
+                        egui::Color32::from_rgb(100, 150, 255) 
+                    } else { 
+                        egui::Color32::TRANSPARENT 
+                    })
+            ).on_hover_text("Rotate Tool (E) - Coming Soon").clicked();
+            
+            if rotate_pressed {
+                self.gizmo_system.set_active_tool(SceneTool::Rotate);
+                self.console_messages.push(ConsoleMessage::info("🔄 Rotate tool - coming soon!"));
+            }
+            
+            // Scale tool (R) - Future implementation
+            let scale_pressed = ui.add(
+                egui::Button::new("📐")
+                    .fill(if current_tool == SceneTool::Scale { 
+                        egui::Color32::from_rgb(100, 150, 255) 
+                    } else { 
+                        egui::Color32::TRANSPARENT 
+                    })
+            ).on_hover_text("Scale Tool (R) - Coming Soon").clicked();
+            
+            if scale_pressed {
+                self.gizmo_system.set_active_tool(SceneTool::Scale);
+                self.console_messages.push(ConsoleMessage::info("📐 Scale tool - coming soon!"));
             }
             
             ui.separator();
@@ -605,6 +868,27 @@ impl UnityEditor {
                     if ui.button("⏹️").on_hover_text("Stop").clicked() {
                         self.stop_play();
                     }
+                }
+            }
+            
+            ui.separator();
+            
+            // DEBUG: Test transform mutation
+            if ui.button("🔧 Test Move").on_hover_text("Debug: Move selected object 1 unit in X").clicked() {
+                if let Some(selected_entity) = self.selected_entity {
+                    if let Some(transform_mut) = self.world.get_component_mut::<Transform>(selected_entity) {
+                        let old_pos = transform_mut.position;
+                        transform_mut.position[0] += 1.0; // Move 1 unit in X
+                        self.console_messages.push(ConsoleMessage::info(&format!(
+                            "🔧 TEST: Moved object from [{:.2}, {:.2}, {:.2}] to [{:.2}, {:.2}, {:.2}]",
+                            old_pos[0], old_pos[1], old_pos[2],
+                            transform_mut.position[0], transform_mut.position[1], transform_mut.position[2]
+                        )));
+                    } else {
+                        self.console_messages.push(ConsoleMessage::info("🔧 TEST: Failed to get mutable transform"));
+                    }
+                } else {
+                    self.console_messages.push(ConsoleMessage::info("🔧 TEST: No object selected"));
                 }
             }
             
@@ -692,6 +976,13 @@ impl UnityEditor {
                 if ui.selectable_label(selected, &label).clicked() {
                     self.selected_entity = Some(entity);
                     self.console_messages.push(ConsoleMessage::info(&format!("🎯 Selected Entity {:?}", entity)));
+                    
+                    // Update gizmo position if move tool is active
+                    if self.gizmo_system.get_active_tool() == SceneTool::Move {
+                        if let Some(transform) = self.world.get_component::<Transform>(entity) {
+                            self.gizmo_system.enable_move_gizmo(transform.position);
+                        }
+                    }
                 }
             }
         });
@@ -1333,10 +1624,8 @@ impl UnityEditor {
             }
         });
         
-        // Handle scene interactions
-        if response.dragged() {
-            self.console_messages.push(ConsoleMessage::info("🖱️ Scene view interaction"));
-        }
+        // Handle gizmo and scene interactions
+        self.handle_scene_input(ui, &response, response.rect);
     }
     
     /// Get the color for a sprite based on its texture handle and tint
@@ -1381,7 +1670,12 @@ impl UnityEditor {
         );
         
         // Draw scene objects (simplified 2D representation)
-        for (entity, transform) in self.world.query::<Read<Transform>>().iter() {
+        // Use direct component access to ensure we see the latest transform values
+        let entities_with_transforms: Vec<_> = self.world.query::<Read<Transform>>().iter().map(|(e, _)| e).collect();
+        for entity in entities_with_transforms {
+            let Some(transform) = self.world.get_component::<Transform>(entity) else {
+                continue;
+            };
             // Project 3D position to 2D screen coordinates (simple orthographic)
             let scale = 50.0; // Pixels per world unit
             let screen_x = center.x + transform.position[0] * scale;
@@ -1537,6 +1831,15 @@ impl UnityEditor {
             }
         }
         
+        // Draw gizmos for selected entity
+        if self.gizmo_system.get_active_tool() == SceneTool::Move {
+            if let Some(selected_entity) = self.selected_entity {
+                if let Some(transform) = self.world.get_component::<Transform>(selected_entity) {
+                    self.render_move_gizmo(ui, rect, center, transform.position);
+                }
+            }
+        }
+        
         // Draw info overlay with play state information
         ui.allocate_ui_at_rect(egui::Rect::from_min_size(rect.min, egui::vec2(350.0, 120.0)), |ui| {
             ui.vertical(|ui| {
@@ -1571,6 +1874,506 @@ impl UnityEditor {
                 };
             });
         });
+    }
+    
+    /// Render the move gizmo for the selected entity
+    fn render_move_gizmo(&mut self, ui: &mut egui::Ui, rect: egui::Rect, scene_center: egui::Pos2, world_position: [f32; 3]) {
+        let painter = ui.painter();
+        
+        // Convert world position to screen coordinates (simple orthographic projection)
+        let scale = 50.0; // Same scale as scene objects
+        let gizmo_screen_x = scene_center.x + world_position[0] * scale;
+        let gizmo_screen_y = scene_center.y - world_position[2] * scale; // Z becomes Y in screen space
+        let gizmo_center = egui::pos2(gizmo_screen_x, gizmo_screen_y);
+        
+        // Check if gizmo is within screen bounds
+        if !rect.contains(gizmo_center) {
+            return;
+        }
+        
+        // Gizmo size - scale based on distance for consistent screen size
+        let base_size = 40.0;
+        let arrow_length = base_size;
+        let arrow_width = 4.0;
+        let arrow_head_size = 8.0;
+        
+        // Get current interaction state
+        let hovered_component = self.gizmo_system.get_move_gizmo()
+            .and_then(|gizmo| gizmo.get_hovered_component());
+        
+        // Define Unity standard colors
+        let x_color = egui::Color32::from_rgb(255, 0, 0);   // Red for X-axis
+        let y_color = egui::Color32::from_rgb(0, 255, 0);   // Green for Y-axis  
+        let z_color = egui::Color32::from_rgb(0, 0, 255);   // Blue for Z-axis
+        let highlight_color = egui::Color32::from_rgb(255, 255, 0); // Yellow for selection
+        
+        // X-Axis Arrow (Red - Right direction)
+        let x_axis_color = if matches!(hovered_component, Some(GizmoComponent::Axis(GizmoAxis::X))) {
+            highlight_color
+        } else {
+            x_color
+        };
+        
+        let x_start = gizmo_center;
+        let x_end = egui::pos2(gizmo_center.x + arrow_length, gizmo_center.y);
+        
+        // Draw X-axis arrow shaft
+        painter.line_segment(
+            [x_start, x_end],
+            egui::Stroke::new(arrow_width, x_axis_color)
+        );
+        
+        // Draw X-axis arrow head
+        let x_head_points = [
+            egui::pos2(x_end.x, x_end.y),
+            egui::pos2(x_end.x - arrow_head_size, x_end.y - arrow_head_size/2.0),
+            egui::pos2(x_end.x - arrow_head_size, x_end.y + arrow_head_size/2.0),
+        ];
+        painter.add(egui::Shape::convex_polygon(
+            x_head_points.to_vec(),
+            x_axis_color,
+            egui::Stroke::NONE
+        ));
+        
+        // Y-Axis Arrow (Green - Up direction)
+        let y_axis_color = if matches!(hovered_component, Some(GizmoComponent::Axis(GizmoAxis::Y))) {
+            highlight_color
+        } else {
+            y_color
+        };
+        
+        let y_start = gizmo_center;
+        let y_end = egui::pos2(gizmo_center.x, gizmo_center.y - arrow_length);
+        
+        // Draw Y-axis arrow shaft
+        painter.line_segment(
+            [y_start, y_end],
+            egui::Stroke::new(arrow_width, y_axis_color)
+        );
+        
+        // Draw Y-axis arrow head
+        let y_head_points = [
+            egui::pos2(y_end.x, y_end.y),
+            egui::pos2(y_end.x - arrow_head_size/2.0, y_end.y + arrow_head_size),
+            egui::pos2(y_end.x + arrow_head_size/2.0, y_end.y + arrow_head_size),
+        ];
+        painter.add(egui::Shape::convex_polygon(
+            y_head_points.to_vec(),
+            y_axis_color,
+            egui::Stroke::NONE
+        ));
+        
+        // Z-Axis Arrow (Blue - Forward direction, diagonal up-right in 2D view)
+        let z_axis_color = if matches!(hovered_component, Some(GizmoComponent::Axis(GizmoAxis::Z))) {
+            highlight_color
+        } else {
+            z_color
+        };
+        
+        let z_offset_x = arrow_length * 0.7; // Diagonal direction for Z
+        let z_offset_y = -arrow_length * 0.7;
+        let z_start = gizmo_center;
+        let z_end = egui::pos2(gizmo_center.x + z_offset_x, gizmo_center.y + z_offset_y);
+        
+        // Draw Z-axis arrow shaft
+        painter.line_segment(
+            [z_start, z_end],
+            egui::Stroke::new(arrow_width, z_axis_color)
+        );
+        
+        // Draw Z-axis arrow head
+        let z_head_angle = std::f32::consts::PI / 4.0; // 45 degrees
+        let z_head_points = [
+            egui::pos2(z_end.x, z_end.y),
+            egui::pos2(z_end.x - arrow_head_size * z_head_angle.cos(), z_end.y - arrow_head_size * z_head_angle.sin()),
+            egui::pos2(z_end.x - arrow_head_size * (-z_head_angle).cos(), z_end.y - arrow_head_size * (-z_head_angle).sin()),
+        ];
+        painter.add(egui::Shape::convex_polygon(
+            z_head_points.to_vec(),
+            z_axis_color,
+            egui::Stroke::NONE
+        ));
+        
+        // Draw planar movement squares
+        let square_size = 12.0;
+        let square_offset = arrow_length * 0.3;
+        
+        // XY Plane (Blue square - Z locked)
+        let xy_plane_color = if matches!(hovered_component, Some(GizmoComponent::Plane(GizmoPlane::XY))) {
+            highlight_color
+        } else {
+            z_color.gamma_multiply(0.6) // Dimmed blue for plane
+        };
+        
+        let xy_square_center = egui::pos2(gizmo_center.x + square_offset, gizmo_center.y - square_offset);
+        let xy_square = egui::Rect::from_center_size(xy_square_center, egui::vec2(square_size, square_size));
+        painter.rect_filled(xy_square, egui::Rounding::same(2.0), xy_plane_color);
+        
+        // XZ Plane (Green square - Y locked)
+        let xz_plane_color = if matches!(hovered_component, Some(GizmoComponent::Plane(GizmoPlane::XZ))) {
+            highlight_color
+        } else {
+            y_color.gamma_multiply(0.6) // Dimmed green for plane
+        };
+        
+        let xz_square_center = egui::pos2(gizmo_center.x + square_offset, gizmo_center.y + square_offset * 0.5);
+        let xz_square = egui::Rect::from_center_size(xz_square_center, egui::vec2(square_size, square_size));
+        painter.rect_filled(xz_square, egui::Rounding::same(2.0), xz_plane_color);
+        
+        // YZ Plane (Red square - X locked)  
+        let yz_plane_color = if matches!(hovered_component, Some(GizmoComponent::Plane(GizmoPlane::YZ))) {
+            highlight_color
+        } else {
+            x_color.gamma_multiply(0.6) // Dimmed red for plane
+        };
+        
+        let yz_square_center = egui::pos2(gizmo_center.x - square_offset * 0.5, gizmo_center.y - square_offset);
+        let yz_square = egui::Rect::from_center_size(yz_square_center, egui::vec2(square_size, square_size));
+        painter.rect_filled(yz_square, egui::Rounding::same(2.0), yz_plane_color);
+        
+        // Center handle for screen-space movement
+        let center_color = if matches!(hovered_component, Some(GizmoComponent::Center)) {
+            highlight_color
+        } else {
+            egui::Color32::WHITE
+        };
+        
+        painter.circle_filled(gizmo_center, 6.0, center_color);
+        painter.circle_stroke(gizmo_center, 6.0, egui::Stroke::new(2.0, egui::Color32::BLACK));
+        
+        // Draw axis labels
+        painter.text(
+            egui::pos2(x_end.x + 10.0, x_end.y),
+            egui::Align2::LEFT_CENTER,
+            "X",
+            egui::FontId::proportional(14.0),
+            x_axis_color
+        );
+        
+        painter.text(
+            egui::pos2(y_end.x, y_end.y - 10.0),
+            egui::Align2::CENTER_BOTTOM,
+            "Y",
+            egui::FontId::proportional(14.0),
+            y_axis_color
+        );
+        
+        painter.text(
+            egui::pos2(z_end.x + 5.0, z_end.y - 5.0),
+            egui::Align2::LEFT_BOTTOM,
+            "Z",
+            egui::FontId::proportional(14.0),
+            z_axis_color
+        );
+    }
+    
+    /// Handle mouse input for scene view including gizmo interactions
+    fn handle_scene_input(&mut self, _ui: &egui::Ui, response: &egui::Response, rect: egui::Rect) {
+        // DEBUG: Log basic input state
+        if let Some(mouse_pos) = response.hover_pos() {
+            // Only log occasionally to avoid spam
+            if response.clicked() || response.dragged() || response.drag_stopped() {
+                self.console_messages.push(ConsoleMessage::info(&format!(
+                    "🖱️ Mouse input: pos=({:.1}, {:.1}), clicked={}, dragged={}, drag_stopped={}",
+                    mouse_pos.x, mouse_pos.y, response.clicked(), response.dragged(), response.drag_stopped()
+                )));
+            }
+        }
+        
+        // Only handle input if we have a selected entity and move tool is active
+        if self.gizmo_system.get_active_tool() != SceneTool::Move {
+            // Only log if there's actual input
+            if response.clicked() || response.dragged() {
+                self.console_messages.push(ConsoleMessage::info(&format!(
+                    "🔧 Not handling input: tool={:?}", self.gizmo_system.get_active_tool()
+                )));
+            }
+            return;
+        }
+        
+        let Some(selected_entity) = self.selected_entity else {
+            if response.clicked() || response.dragged() {
+                self.console_messages.push(ConsoleMessage::info("🔧 No selected entity"));
+            }
+            return;
+        };
+        
+        let Some(transform) = self.world.get_component::<Transform>(selected_entity).cloned() else {
+            if response.clicked() || response.dragged() {
+                self.console_messages.push(ConsoleMessage::info("🔧 No transform component on selected entity"));
+            }
+            return;
+        };
+        
+        // Only log when we're actually processing input
+        if response.clicked() || response.dragged() || response.drag_stopped() {
+            self.console_messages.push(ConsoleMessage::info(&format!(
+                "🔧 Processing input for entity {} at position [{:.2}, {:.2}, {:.2}]",
+                selected_entity.id(), transform.position[0], transform.position[1], transform.position[2]
+            )));
+        }
+        
+        // Calculate scene center and gizmo position
+        let scene_center = rect.center();
+        let scale = 50.0;
+        let gizmo_screen_x = scene_center.x + transform.position[0] * scale;
+        let gizmo_screen_y = scene_center.y - transform.position[2] * scale;
+        let gizmo_center = egui::pos2(gizmo_screen_x, gizmo_screen_y);
+        
+        // Handle mouse interaction
+        if let Some(mouse_pos) = response.hover_pos() {
+            // Test for gizmo component hits
+            let hit_component = self.test_gizmo_hit(mouse_pos, gizmo_center);
+            
+            // DEBUG: Log gizmo hit testing (only when relevant)
+            if response.clicked() || hit_component.is_some() {
+                self.console_messages.push(ConsoleMessage::info(&format!(
+                    "🎯 Gizmo hit test: mouse=({:.1}, {:.1}), gizmo_center=({:.1}, {:.1}), hit={:?}",
+                    mouse_pos.x, mouse_pos.y, gizmo_center.x, gizmo_center.y, hit_component
+                )));
+            }
+            
+            // Check for mouse press (start of drag) or click
+            if response.clicked() || (response.drag_started() && hit_component.is_some()) {
+                if response.clicked() {
+                    self.console_messages.push(ConsoleMessage::info("🖱️ Mouse CLICKED"));
+                } else {
+                    self.console_messages.push(ConsoleMessage::info("🖱️ Mouse DRAG_STARTED"));
+                }
+                
+                if let Some(component) = hit_component {
+                    // Start dragging
+                    if let Some(gizmo) = self.gizmo_system.get_move_gizmo_mut() {
+                        gizmo.interaction_state = GizmoInteractionState::Dragging {
+                            component,
+                            start_mouse_pos: mouse_pos,
+                            start_object_pos: transform.position,
+                        };
+                        self.console_messages.push(ConsoleMessage::info(&format!(
+                            "🔗 Started dragging {:?} at mouse=({:.1}, {:.1}), object_pos=[{:.2}, {:.2}, {:.2}]", 
+                            component, mouse_pos.x, mouse_pos.y,
+                            transform.position[0], transform.position[1], transform.position[2]
+                        )));
+                    } else {
+                        self.console_messages.push(ConsoleMessage::info("❌ Failed to get mutable gizmo"));
+                    }
+                } else {
+                    self.console_messages.push(ConsoleMessage::info("🔗 Input detected but no gizmo component hit"));
+                }
+            } else if response.drag_stopped() {
+                // Stop dragging (fixed deprecated method)
+                if let Some(gizmo) = self.gizmo_system.get_move_gizmo_mut() {
+                    if gizmo.is_interacting() {
+                        gizmo.interaction_state = GizmoInteractionState::Idle;
+                        self.console_messages.push(ConsoleMessage::info("🔗 Finished dragging"));
+                    }
+                }
+            } else if response.dragged() {
+                self.console_messages.push(ConsoleMessage::info("🖱️ Mouse DRAGGED"));
+                
+                // Handle dragging - extract values to avoid borrowing conflicts
+                let mut new_position = transform.position;
+                let mut should_update = false;
+                
+                if let Some(gizmo) = self.gizmo_system.get_move_gizmo() {
+                    self.console_messages.push(ConsoleMessage::info(&format!(
+                        "🔧 Gizmo state: {:?}", gizmo.interaction_state
+                    )));
+                    
+                    if let GizmoInteractionState::Dragging { component, start_mouse_pos, start_object_pos } = &gizmo.interaction_state {
+                        let mouse_delta = mouse_pos - *start_mouse_pos;
+                        new_position = self.calculate_new_position(*start_object_pos, mouse_delta, *component, scale);
+                        should_update = true;
+                        
+                        // Debug output
+                        self.console_messages.push(ConsoleMessage::info(&format!(
+                            "🖱️ Dragging {:?}: delta=({:.1}, {:.1}), start=[{:.2}, {:.2}, {:.2}], new=[{:.2}, {:.2}, {:.2}]",
+                            component, mouse_delta.x, mouse_delta.y,
+                            start_object_pos[0], start_object_pos[1], start_object_pos[2],
+                            new_position[0], new_position[1], new_position[2]
+                        )));
+                    } else {
+                        self.console_messages.push(ConsoleMessage::info("🔧 Not in dragging state"));
+                    }
+                } else {
+                    self.console_messages.push(ConsoleMessage::info("❌ No gizmo available"));
+                }
+                
+                if should_update {
+                    self.console_messages.push(ConsoleMessage::info(&format!(
+                        "🔄 About to update transform from [{:.2}, {:.2}, {:.2}] to [{:.2}, {:.2}, {:.2}]",
+                        transform.position[0], transform.position[1], transform.position[2],
+                        new_position[0], new_position[1], new_position[2]
+                    )));
+                    
+                    // Apply snapping if enabled
+                    let snap_enabled = self.gizmo_system.snap_enabled;
+                    let snap_increment = self.gizmo_system.snap_increment;
+                    
+                    if snap_enabled {
+                        let old_new_pos = new_position;
+                        new_position[0] = (new_position[0] / snap_increment).round() * snap_increment;
+                        new_position[1] = (new_position[1] / snap_increment).round() * snap_increment;
+                        new_position[2] = (new_position[2] / snap_increment).round() * snap_increment;
+                        self.console_messages.push(ConsoleMessage::info(&format!(
+                            "🔄 Snapping applied: [{:.2}, {:.2}, {:.2}] → [{:.2}, {:.2}, {:.2}]",
+                            old_new_pos[0], old_new_pos[1], old_new_pos[2],
+                            new_position[0], new_position[1], new_position[2]
+                        )));
+                    }
+                    
+                    // Update transform in ECS
+                    self.console_messages.push(ConsoleMessage::info(&format!(
+                        "🔄 Attempting ECS mutation for entity {}", selected_entity.id()
+                    )));
+                    
+                    match self.world.get_component_mut::<Transform>(selected_entity) {
+                        Some(transform_mut) => {
+                            let old_position = transform_mut.position;
+                            transform_mut.position = new_position;
+                            self.console_messages.push(ConsoleMessage::info(&format!(
+                                "✅ Transform updated: [{:.2}, {:.2}, {:.2}] → [{:.2}, {:.2}, {:.2}]", 
+                                old_position[0], old_position[1], old_position[2],
+                                transform_mut.position[0], transform_mut.position[1], transform_mut.position[2]
+                            )));
+                        }
+                        None => {
+                            self.console_messages.push(ConsoleMessage::info("❌ Failed to get mutable transform - entity doesn't exist or no transform component"));
+                        }
+                    }
+                    
+                    // Update gizmo position
+                    if let Some(gizmo) = self.gizmo_system.get_move_gizmo_mut() {
+                        gizmo.set_position(new_position);
+                    }
+                }
+            } else {
+                // Handle hovering
+                if let Some(gizmo) = self.gizmo_system.get_move_gizmo_mut() {
+                    if !gizmo.is_interacting() {
+                        gizmo.interaction_state = if let Some(component) = hit_component {
+                            GizmoInteractionState::Hovering(component)
+                        } else {
+                            GizmoInteractionState::Idle
+                        };
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Test if mouse position hits any gizmo component
+    fn test_gizmo_hit(&self, mouse_pos: egui::Pos2, gizmo_center: egui::Pos2) -> Option<GizmoComponent> {
+        let arrow_length = 40.0;
+        let arrow_width = 8.0; // Slightly wider for easier clicking
+        let square_size = 16.0; // Slightly larger for easier clicking
+        let square_offset = arrow_length * 0.3;
+        let center_radius = 10.0;
+        
+        // Test center handle first (highest priority)
+        if (mouse_pos - gizmo_center).length() <= center_radius {
+            return Some(GizmoComponent::Center);
+        }
+        
+        // Test planar movement squares
+        let xy_square_center = egui::pos2(gizmo_center.x + square_offset, gizmo_center.y - square_offset);
+        let xy_square = egui::Rect::from_center_size(xy_square_center, egui::vec2(square_size, square_size));
+        if xy_square.contains(mouse_pos) {
+            return Some(GizmoComponent::Plane(GizmoPlane::XY));
+        }
+        
+        let xz_square_center = egui::pos2(gizmo_center.x + square_offset, gizmo_center.y + square_offset * 0.5);
+        let xz_square = egui::Rect::from_center_size(xz_square_center, egui::vec2(square_size, square_size));
+        if xz_square.contains(mouse_pos) {
+            return Some(GizmoComponent::Plane(GizmoPlane::XZ));
+        }
+        
+        let yz_square_center = egui::pos2(gizmo_center.x - square_offset * 0.5, gizmo_center.y - square_offset);
+        let yz_square = egui::Rect::from_center_size(yz_square_center, egui::vec2(square_size, square_size));
+        if yz_square.contains(mouse_pos) {
+            return Some(GizmoComponent::Plane(GizmoPlane::YZ));
+        }
+        
+        // Test axis arrows
+        // X-Axis (horizontal right)
+        let x_end = egui::pos2(gizmo_center.x + arrow_length, gizmo_center.y);
+        if self.point_to_line_distance(mouse_pos, gizmo_center, x_end) <= arrow_width {
+            return Some(GizmoComponent::Axis(GizmoAxis::X));
+        }
+        
+        // Y-Axis (vertical up)
+        let y_end = egui::pos2(gizmo_center.x, gizmo_center.y - arrow_length);
+        if self.point_to_line_distance(mouse_pos, gizmo_center, y_end) <= arrow_width {
+            return Some(GizmoComponent::Axis(GizmoAxis::Y));
+        }
+        
+        // Z-Axis (diagonal up-right)
+        let z_offset_x = arrow_length * 0.7;
+        let z_offset_y = -arrow_length * 0.7;
+        let z_end = egui::pos2(gizmo_center.x + z_offset_x, gizmo_center.y + z_offset_y);
+        if self.point_to_line_distance(mouse_pos, gizmo_center, z_end) <= arrow_width {
+            return Some(GizmoComponent::Axis(GizmoAxis::Z));
+        }
+        
+        None
+    }
+    
+    /// Calculate distance from point to line segment
+    fn point_to_line_distance(&self, point: egui::Pos2, line_start: egui::Pos2, line_end: egui::Pos2) -> f32 {
+        let line_vec = line_end - line_start;
+        let point_vec = point - line_start;
+        
+        let line_len_sq = line_vec.length_sq();
+        if line_len_sq < 1e-6 {
+            return (point - line_start).length();
+        }
+        
+        let t = (point_vec.dot(line_vec) / line_len_sq).clamp(0.0, 1.0);
+        let projection = line_start + t * line_vec;
+        (point - projection).length()
+    }
+    
+    /// Calculate new position based on mouse delta and movement constraint
+    fn calculate_new_position(&self, start_pos: [f32; 3], mouse_delta: egui::Vec2, component: GizmoComponent, scale: f32) -> [f32; 3] {
+        let mut new_pos = start_pos;
+        
+        match component {
+            GizmoComponent::Axis(GizmoAxis::X) => {
+                // X-axis movement (horizontal)
+                new_pos[0] = start_pos[0] + mouse_delta.x / scale;
+            }
+            GizmoComponent::Axis(GizmoAxis::Y) => {
+                // Y-axis movement (vertical, inverted because screen Y is flipped)
+                new_pos[1] = start_pos[1] - mouse_delta.y / scale;
+            }
+            GizmoComponent::Axis(GizmoAxis::Z) => {
+                // Z-axis movement (diagonal, using both X and Y mouse movement)
+                let z_movement = (mouse_delta.x - mouse_delta.y) / scale * 0.7; // Scaled for diagonal
+                new_pos[2] = start_pos[2] + z_movement;
+            }
+            GizmoComponent::Plane(GizmoPlane::XY) => {
+                // XY plane movement (Z locked)
+                new_pos[0] = start_pos[0] + mouse_delta.x / scale;
+                new_pos[1] = start_pos[1] - mouse_delta.y / scale;
+            }
+            GizmoComponent::Plane(GizmoPlane::XZ) => {
+                // XZ plane movement (Y locked) 
+                new_pos[0] = start_pos[0] + mouse_delta.x / scale;
+                new_pos[2] = start_pos[2] - mouse_delta.y / scale;
+            }
+            GizmoComponent::Plane(GizmoPlane::YZ) => {
+                // YZ plane movement (X locked)
+                new_pos[1] = start_pos[1] - mouse_delta.y / scale * 0.5; // Reduced sensitivity
+                new_pos[2] = start_pos[2] + mouse_delta.x / scale * 0.5;
+            }
+            GizmoComponent::Center => {
+                // Screen-space movement (maintain world depth)
+                new_pos[0] = start_pos[0] + mouse_delta.x / scale;
+                new_pos[1] = start_pos[1] - mouse_delta.y / scale;
+            }
+        }
+        
+        new_pos
     }
 
     /// Render the scene from the main camera's perspective
@@ -1854,6 +2657,20 @@ impl UnityEditor {
                     self.console_messages.clear();
                     self.console_messages.push(ConsoleMessage::info("🧹 Console cleared"));
                 }
+                
+                if ui.button("📋 Copy All").on_hover_text("Copy all logs to clipboard").clicked() {
+                    let all_logs = ConsoleMessage::get_all_logs_as_string(&self.console_messages);
+                    ui.output_mut(|o| o.copied_text = all_logs);
+                    self.console_messages.push(ConsoleMessage::info("📋 Logs copied to clipboard"));
+                }
+                
+                if ui.button("💾 Export").on_hover_text("Export logs to file").clicked() {
+                    let all_logs = ConsoleMessage::get_all_logs_as_string(&self.console_messages);
+                    match std::fs::write("console_export.log", all_logs) {
+                        Ok(_) => self.console_messages.push(ConsoleMessage::info("💾 Logs exported to console_export.log")),
+                        Err(e) => self.console_messages.push(ConsoleMessage::info(&format!("❌ Export failed: {}", e))),
+                    }
+                }
             });
         });
         
@@ -1990,9 +2807,10 @@ impl ProjectAsset {
 struct ConsoleMessage {
     text: String,
     level: LogLevel,
+    timestamp: std::time::SystemTime,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum LogLevel {
     Info,
     Warning,
@@ -2001,24 +2819,66 @@ enum LogLevel {
 
 impl ConsoleMessage {
     fn info(text: &str) -> Self {
-        Self {
+        let msg = Self {
             text: text.to_string(),
             level: LogLevel::Info,
-        }
+            timestamp: std::time::SystemTime::now(),
+        };
+        
+        // Also write to debug log file
+        msg.write_to_file();
+        
+        msg
     }
     
     fn _warning(text: &str) -> Self {
-        Self {
+        let msg = Self {
             text: text.to_string(),
             level: LogLevel::Warning,
-        }
+            timestamp: std::time::SystemTime::now(),
+        };
+        
+        msg.write_to_file();
+        msg
     }
     
     fn _error(text: &str) -> Self {
-        Self {
+        let msg = Self {
             text: text.to_string(),
             level: LogLevel::Error,
+            timestamp: std::time::SystemTime::now(),
+        };
+        
+        msg.write_to_file();
+        msg
+    }
+    
+    fn write_to_file(&self) {
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("debug_console.log") {
+            
+            let timestamp = self.timestamp
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            
+            let _ = writeln!(file, "[{}] {:?}: {}", timestamp, self.level, self.text);
         }
+    }
+    
+    fn get_all_logs_as_string(messages: &[ConsoleMessage]) -> String {
+        messages.iter()
+            .map(|msg| {
+                let timestamp = msg.timestamp
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                format!("[{}] {:?}: {}", timestamp, msg.level, msg.text)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }
 
