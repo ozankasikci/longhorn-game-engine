@@ -939,6 +939,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine-audio-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "engine-components-core",
+ "engine-ecs-core",
+ "glam",
+ "log",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "engine-camera-core"
 version = "0.1.0"
 dependencies = [
@@ -951,6 +964,15 @@ dependencies = [
  "log",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "engine-camera-impl"
+version = "0.1.0"
+dependencies = [
+ "engine-camera-core",
+ "glam",
+ "serde",
 ]
 
 [[package]]
@@ -990,10 +1012,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine-events-core"
+version = "0.1.0"
+dependencies = [
+ "engine-ecs-core",
+ "glam",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "engine-geometry-core"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "glam",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "engine-geometry-impl"
+version = "0.1.0"
+dependencies = [
+ "engine-geometry-core",
  "glam",
  "serde",
 ]
@@ -1027,6 +1071,20 @@ version = "0.1.0"
 dependencies = [
  "glam",
  "serde",
+]
+
+[[package]]
+name = "engine-physics-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "engine-components-core",
+ "engine-ecs-core",
+ "engine-math-core",
+ "glam",
+ "log",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]

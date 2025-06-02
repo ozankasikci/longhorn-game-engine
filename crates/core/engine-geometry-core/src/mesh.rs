@@ -441,6 +441,16 @@ impl Mesh {
         self.update_bounds();
         Ok(())
     }
+    
+    /// Set the mesh name
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+    
+    /// Get the mesh name
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl IndexBuffer {

@@ -1,0 +1,23 @@
+[package]
+name = "engine-events-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core ECS integration
+engine-ecs-core = { workspace = true }
+
+# Math types
+glam = { workspace = true, features = ["serde"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Logging
+log = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }

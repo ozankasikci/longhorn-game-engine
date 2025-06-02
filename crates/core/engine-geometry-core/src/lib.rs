@@ -14,8 +14,27 @@ pub mod vertex;
 pub use mesh::{Mesh, MeshHandle, IndexBuffer, MeshData};
 pub use bounds::{BoundingBox, BoundingSphere, Bounds};
 pub use spatial::{Ray, Plane, Frustum, SpatialQuery};
-pub use primitives::{PrimitiveType, MeshPrimitives};
+pub use primitives::*;
 pub use vertex::{Vertex, VertexData, VertexAttribute};
+
+/// Common error type for geometry operations
+pub type Result<T> = std::result::Result<T, GeometryError>;
+
+/// Geometry-related errors
+#[derive(Debug, thiserror::Error)]
+pub enum GeometryError {
+    #[error("Invalid mesh data: {0}")]
+    InvalidMeshData(String),
+    
+    #[error("Primitive generation failed: {0}")]
+    PrimitiveGenerationFailed(String),
+    
+    #[error("Unsupported primitive type: {0:?}")]
+    UnsupportedPrimitiveType(String),
+    
+    #[error("Invalid parameters: {0}")]
+    InvalidParameters(String),
+}
 
 /// Handle type for mesh resources
 pub type Handle = u64;

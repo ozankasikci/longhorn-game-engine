@@ -10,6 +10,9 @@ members = [
     "crates/core/engine-materials-core",
     "crates/core/engine-camera-core",
     "crates/core/engine-resource-core",
+    "crates/core/engine-audio-core",
+    "crates/core/engine-physics-core",
+    "crates/core/engine-events-core",
     
     # Implementation layer (Tier 2)
     "crates/implementation/engine-input",
@@ -18,6 +21,8 @@ members = [
     "crates/implementation/engine-ui",
     "crates/implementation/engine-platform",
     "crates/implementation/engine-renderer-wgpu",
+    "crates/implementation/engine-geometry-impl",
+    "crates/implementation/engine-camera-impl",
     
     # Integration layer (Tier 3)
     "crates/integration/engine-scene",
@@ -143,3 +148,18 @@ package = "engine-components-core"
 
 [workspace.dependencies.engine-resource-core]
 path = "crates/core/engine-resource-core"
+
+[workspace.dependencies.engine-audio-core]
+path = "crates/core/engine-audio-core"
+
+[workspace.dependencies.engine-physics-core]
+path = "crates/core/engine-physics-core"
+
+[workspace.dependencies.engine-events-core]
+path = "crates/core/engine-events-core"
+
+[workspace.dependencies.engine-geometry-impl]
+path = "crates/implementation/engine-geometry-impl"
+
+[workspace.dependencies.engine-camera-impl]
+path = "crates/implementation/engine-camera-impl"

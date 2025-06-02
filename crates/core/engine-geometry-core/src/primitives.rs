@@ -1,7 +1,9 @@
-//! Primitive mesh generators and geometric shapes
+//! Primitive shape abstractions and interfaces
+//! 
+//! This module defines the core abstractions for primitive shapes.
+//! Concrete implementations are provided by implementation crates.
 
-use crate::{Mesh, MeshData, Vertex};
-use glam::{Vec3, Vec2};
+use crate::{Mesh, MeshData};
 use serde::{Serialize, Deserialize};
 
 /// Primitive shape types
@@ -18,293 +20,233 @@ pub enum PrimitiveType {
     Torus,
 }
 
-/// Mesh primitive generators
-pub struct MeshPrimitives;
+/// Parameters for cube generation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CubeParams {
+    pub size: f32,
+}
 
-impl MeshPrimitives {
-    /// Create a cube mesh
-    pub fn cube(size: f32) -> Mesh {
-        let half_size = size * 0.5;
-        let vertices = vec![
-            // Front face
-            Vertex::new(Vec3::new(-half_size, -half_size, half_size)).with_normal(Vec3::Z).with_uv(Vec2::new(0.0, 0.0)),
-            Vertex::new(Vec3::new(half_size, -half_size, half_size)).with_normal(Vec3::Z).with_uv(Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(half_size, half_size, half_size)).with_normal(Vec3::Z).with_uv(Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(-half_size, half_size, half_size)).with_normal(Vec3::Z).with_uv(Vec2::new(0.0, 1.0)),
-            
-            // Back face
-            Vertex::new(Vec3::new(half_size, -half_size, -half_size)).with_normal(Vec3::NEG_Z).with_uv(Vec2::new(0.0, 0.0)),
-            Vertex::new(Vec3::new(-half_size, -half_size, -half_size)).with_normal(Vec3::NEG_Z).with_uv(Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(-half_size, half_size, -half_size)).with_normal(Vec3::NEG_Z).with_uv(Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(half_size, half_size, -half_size)).with_normal(Vec3::NEG_Z).with_uv(Vec2::new(0.0, 1.0)),
-            
-            // Left face
-            Vertex::new(Vec3::new(-half_size, -half_size, -half_size)).with_normal(Vec3::NEG_X).with_uv(Vec2::new(0.0, 0.0)),
-            Vertex::new(Vec3::new(-half_size, -half_size, half_size)).with_normal(Vec3::NEG_X).with_uv(Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(-half_size, half_size, half_size)).with_normal(Vec3::NEG_X).with_uv(Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(-half_size, half_size, -half_size)).with_normal(Vec3::NEG_X).with_uv(Vec2::new(0.0, 1.0)),
-            
-            // Right face
-            Vertex::new(Vec3::new(half_size, -half_size, half_size)).with_normal(Vec3::X).with_uv(Vec2::new(0.0, 0.0)),
-            Vertex::new(Vec3::new(half_size, -half_size, -half_size)).with_normal(Vec3::X).with_uv(Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(half_size, half_size, -half_size)).with_normal(Vec3::X).with_uv(Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(half_size, half_size, half_size)).with_normal(Vec3::X).with_uv(Vec2::new(0.0, 1.0)),
-            
-            // Top face
-            Vertex::new(Vec3::new(-half_size, half_size, half_size)).with_normal(Vec3::Y).with_uv(Vec2::new(0.0, 0.0)),
-            Vertex::new(Vec3::new(half_size, half_size, half_size)).with_normal(Vec3::Y).with_uv(Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(half_size, half_size, -half_size)).with_normal(Vec3::Y).with_uv(Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(-half_size, half_size, -half_size)).with_normal(Vec3::Y).with_uv(Vec2::new(0.0, 1.0)),
-            
-            // Bottom face
-            Vertex::new(Vec3::new(-half_size, -half_size, -half_size)).with_normal(Vec3::NEG_Y).with_uv(Vec2::new(0.0, 0.0)),
-            Vertex::new(Vec3::new(half_size, -half_size, -half_size)).with_normal(Vec3::NEG_Y).with_uv(Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(half_size, -half_size, half_size)).with_normal(Vec3::NEG_Y).with_uv(Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(-half_size, -half_size, half_size)).with_normal(Vec3::NEG_Y).with_uv(Vec2::new(0.0, 1.0)),
-        ];
-        
-        let indices = vec![
-            // Front face
-            0, 1, 2, 0, 2, 3,
-            // Back face
-            4, 5, 6, 4, 6, 7,
-            // Left face
-            8, 9, 10, 8, 10, 11,
-            // Right face
-            12, 13, 14, 12, 14, 15,
-            // Top face
-            16, 17, 18, 16, 18, 19,
-            // Bottom face
-            20, 21, 22, 20, 22, 23,
-        ];
-        
-        Mesh::from_data(MeshData {
-            name: "Cube".to_string(),
-            vertices,
-            indices,
-        })
+impl Default for CubeParams {
+    fn default() -> Self {
+        Self { size: 1.0 }
+    }
+}
+
+/// Parameters for sphere generation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SphereParams {
+    pub radius: f32,
+    pub rings: u32,
+    pub sectors: u32,
+}
+
+impl Default for SphereParams {
+    fn default() -> Self {
+        Self {
+            radius: 0.5,
+            rings: 16,
+            sectors: 32,
+        }
+    }
+}
+
+/// Parameters for cylinder generation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CylinderParams {
+    pub top_radius: f32,
+    pub bottom_radius: f32,
+    pub height: f32,
+    pub sectors: u32,
+}
+
+impl Default for CylinderParams {
+    fn default() -> Self {
+        Self {
+            top_radius: 0.5,
+            bottom_radius: 0.5,
+            height: 1.0,
+            sectors: 16,
+        }
+    }
+}
+
+/// Parameters for cone generation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ConeParams {
+    pub radius: f32,
+    pub height: f32,
+    pub sectors: u32,
+}
+
+impl Default for ConeParams {
+    fn default() -> Self {
+        Self {
+            radius: 0.5,
+            height: 1.0,
+            sectors: 16,
+        }
+    }
+}
+
+/// Parameters for plane generation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlaneParams {
+    pub width: f32,
+    pub height: f32,
+    pub subdivisions_x: u32,
+    pub subdivisions_y: u32,
+}
+
+impl Default for PlaneParams {
+    fn default() -> Self {
+        Self {
+            width: 1.0,
+            height: 1.0,
+            subdivisions_x: 1,
+            subdivisions_y: 1,
+        }
+    }
+}
+
+/// Parameters for primitive generation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum PrimitiveParams {
+    Cube(CubeParams),
+    Sphere(SphereParams),
+    Cylinder(CylinderParams),
+    Cone(ConeParams),
+    Plane(PlaneParams),
+    Quad,
+    Triangle,
+    Capsule(CylinderParams), // Reuse cylinder params for now
+    Torus(SphereParams),     // Reuse sphere params for now
+}
+
+impl PrimitiveParams {
+    /// Create default parameters for a primitive type
+    pub fn for_type(primitive_type: PrimitiveType) -> Self {
+        match primitive_type {
+            PrimitiveType::Cube => Self::Cube(CubeParams::default()),
+            PrimitiveType::Sphere => Self::Sphere(SphereParams::default()),
+            PrimitiveType::Cylinder => Self::Cylinder(CylinderParams::default()),
+            PrimitiveType::Cone => Self::Cone(ConeParams::default()),
+            PrimitiveType::Plane => Self::Plane(PlaneParams::default()),
+            PrimitiveType::Quad => Self::Quad,
+            PrimitiveType::Triangle => Self::Triangle,
+            PrimitiveType::Capsule => Self::Capsule(CylinderParams::default()),
+            PrimitiveType::Torus => Self::Torus(SphereParams::default()),
+        }
     }
     
-    /// Create a quad mesh (single-sided plane)
-    pub fn quad() -> Mesh {
-        let vertices = vec![
-            Vertex::new(Vec3::new(-0.5, -0.5, 0.0)).with_normal(Vec3::Z).with_uv(Vec2::new(0.0, 0.0)),
-            Vertex::new(Vec3::new(0.5, -0.5, 0.0)).with_normal(Vec3::Z).with_uv(Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(0.5, 0.5, 0.0)).with_normal(Vec3::Z).with_uv(Vec2::new(1.0, 1.0)),
-            Vertex::new(Vec3::new(-0.5, 0.5, 0.0)).with_normal(Vec3::Z).with_uv(Vec2::new(0.0, 1.0)),
-        ];
-        
-        let indices = vec![0, 1, 2, 0, 2, 3];
-        
-        Mesh::from_data(MeshData {
-            name: "Quad".to_string(),
-            vertices,
-            indices,
-        })
+    /// Get the primitive type
+    pub fn primitive_type(&self) -> PrimitiveType {
+        match self {
+            Self::Cube(_) => PrimitiveType::Cube,
+            Self::Sphere(_) => PrimitiveType::Sphere,
+            Self::Cylinder(_) => PrimitiveType::Cylinder,
+            Self::Cone(_) => PrimitiveType::Cone,
+            Self::Plane(_) => PrimitiveType::Plane,
+            Self::Quad => PrimitiveType::Quad,
+            Self::Triangle => PrimitiveType::Triangle,
+            Self::Capsule(_) => PrimitiveType::Capsule,
+            Self::Torus(_) => PrimitiveType::Torus,
+        }
     }
+}
+
+/// Trait for primitive mesh generation
+/// 
+/// This trait should be implemented by geometry implementation crates
+/// to provide actual mesh generation algorithms.
+pub trait PrimitiveGenerator: Send + Sync {
+    /// Generate a mesh for the given primitive parameters
+    fn generate(&self, params: &PrimitiveParams) -> crate::Result<Mesh>;
+    
+    /// Generate a mesh for a primitive type with default parameters
+    fn generate_default(&self, primitive_type: PrimitiveType) -> crate::Result<Mesh> {
+        let params = PrimitiveParams::for_type(primitive_type);
+        self.generate(&params)
+    }
+    
+    /// Check if this generator supports a specific primitive type
+    fn supports(&self, primitive_type: PrimitiveType) -> bool;
+    
+    /// Get a list of supported primitive types
+    fn supported_types(&self) -> Vec<PrimitiveType>;
+}
+
+/// Simple primitive mesh factory trait
+/// 
+/// Provides a simplified interface for common primitive generation.
+pub trait PrimitiveMeshFactory {
+    /// Create a cube mesh
+    fn cube(size: f32) -> crate::Result<Mesh>;
     
     /// Create a sphere mesh
-    pub fn sphere(radius: f32, rings: u32, sectors: u32) -> Mesh {
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-        
-        let ring_step = std::f32::consts::PI / rings as f32;
-        let sector_step = 2.0 * std::f32::consts::PI / sectors as f32;
-        
-        // Generate vertices
-        for i in 0..=rings {
-            let ring_angle = i as f32 * ring_step;
-            let y = radius * ring_angle.cos();
-            let ring_radius = radius * ring_angle.sin();
-            
-            for j in 0..=sectors {
-                let sector_angle = j as f32 * sector_step;
-                let x = ring_radius * sector_angle.cos();
-                let z = ring_radius * sector_angle.sin();
-                
-                let position = Vec3::new(x, y, z);
-                let normal = position.normalize();
-                let uv = Vec2::new(j as f32 / sectors as f32, i as f32 / rings as f32);
-                
-                vertices.push(Vertex::new(position).with_normal(normal).with_uv(uv));
-            }
-        }
-        
-        // Generate indices
-        for i in 0..rings {
-            for j in 0..sectors {
-                let current = i * (sectors + 1) + j;
-                let next = current + sectors + 1;
-                
-                // Two triangles per quad
-                indices.extend([current, next, current + 1]);
-                indices.extend([current + 1, next, next + 1]);
-            }
-        }
-        
-        Mesh::from_data(MeshData {
-            name: "Sphere".to_string(),
-            vertices,
-            indices,
-        })
-    }
+    fn sphere(radius: f32, rings: u32, sectors: u32) -> crate::Result<Mesh>;
     
     /// Create a cylinder mesh
-    pub fn cylinder(top_radius: f32, bottom_radius: f32, height: f32, sectors: u32) -> Mesh {
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-        
-        let half_height = height * 0.5;
-        let sector_step = 2.0 * std::f32::consts::PI / sectors as f32;
-        
-        // Generate side vertices
-        for i in 0..=sectors {
-            let angle = i as f32 * sector_step;
-            let cos_angle = angle.cos();
-            let sin_angle = angle.sin();
-            
-            // Top vertex
-            let top_pos = Vec3::new(top_radius * cos_angle, half_height, top_radius * sin_angle);
-            let top_normal = Vec3::new(cos_angle, 0.0, sin_angle);
-            let top_uv = Vec2::new(i as f32 / sectors as f32, 1.0);
-            vertices.push(Vertex::new(top_pos).with_normal(top_normal).with_uv(top_uv));
-            
-            // Bottom vertex
-            let bottom_pos = Vec3::new(bottom_radius * cos_angle, -half_height, bottom_radius * sin_angle);
-            let bottom_normal = Vec3::new(cos_angle, 0.0, sin_angle);
-            let bottom_uv = Vec2::new(i as f32 / sectors as f32, 0.0);
-            vertices.push(Vertex::new(bottom_pos).with_normal(bottom_normal).with_uv(bottom_uv));
-        }
-        
-        // Generate side indices
-        for i in 0..sectors {
-            let top_current = i * 2;
-            let bottom_current = i * 2 + 1;
-            let top_next = (i + 1) * 2;
-            let bottom_next = (i + 1) * 2 + 1;
-            
-            // Two triangles per side segment
-            indices.extend([top_current, bottom_current, top_next]);
-            indices.extend([top_next, bottom_current, bottom_next]);
-        }
-        
-        Mesh::from_data(MeshData {
-            name: "Cylinder".to_string(),
-            vertices,
-            indices,
-        })
-    }
-    
-    /// Create a plane mesh with subdivisions
-    pub fn plane(width: f32, height: f32, subdivisions_x: u32, subdivisions_y: u32) -> Mesh {
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-        
-        // Generate vertices
-        for y in 0..=subdivisions_y {
-            for x in 0..=subdivisions_x {
-                let u = x as f32 / subdivisions_x as f32;
-                let v = y as f32 / subdivisions_y as f32;
-                
-                let position = Vec3::new(
-                    (u - 0.5) * width,
-                    0.0,
-                    (v - 0.5) * height,
-                );
-                
-                let normal = Vec3::Y;
-                let uv = Vec2::new(u, v);
-                
-                vertices.push(Vertex::new(position).with_normal(normal).with_uv(uv));
-            }
-        }
-        
-        // Generate indices
-        for y in 0..subdivisions_y {
-            for x in 0..subdivisions_x {
-                let i = y * (subdivisions_x + 1) + x;
-                
-                // Two triangles per quad
-                indices.extend([i, i + 1, i + subdivisions_x + 1]);
-                indices.extend([i + 1, i + subdivisions_x + 2, i + subdivisions_x + 1]);
-            }
-        }
-        
-        Mesh::from_data(MeshData {
-            name: "Plane".to_string(),
-            vertices,
-            indices,
-        })
-    }
-    
-    /// Create a triangle mesh
-    pub fn triangle() -> Mesh {
-        let vertices = vec![
-            Vertex::new(Vec3::new(-0.5, -0.5, 0.0)).with_normal(Vec3::Z).with_uv(Vec2::new(0.0, 0.0)),
-            Vertex::new(Vec3::new(0.5, -0.5, 0.0)).with_normal(Vec3::Z).with_uv(Vec2::new(1.0, 0.0)),
-            Vertex::new(Vec3::new(0.0, 0.5, 0.0)).with_normal(Vec3::Z).with_uv(Vec2::new(0.5, 1.0)),
-        ];
-        
-        let indices = vec![0, 1, 2];
-        
-        Mesh::from_data(MeshData {
-            name: "Triangle".to_string(),
-            vertices,
-            indices,
-        })
-    }
+    fn cylinder(top_radius: f32, bottom_radius: f32, height: f32, sectors: u32) -> crate::Result<Mesh>;
     
     /// Create a cone mesh
-    pub fn cone(radius: f32, height: f32, sectors: u32) -> Mesh {
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-        
-        let half_height = height * 0.5;
-        let sector_step = 2.0 * std::f32::consts::PI / sectors as f32;
-        
-        // Tip vertex
-        vertices.push(Vertex::new(Vec3::new(0.0, half_height, 0.0)).with_normal(Vec3::Y).with_uv(Vec2::new(0.5, 1.0)));
-        
-        // Base vertices
-        for i in 0..=sectors {
-            let angle = i as f32 * sector_step;
-            let x = radius * angle.cos();
-            let z = radius * angle.sin();
-            
-            let position = Vec3::new(x, -half_height, z);
-            let normal = Vec3::new(x, 0.0, z).normalize();
-            let uv = Vec2::new(
-                0.5 + 0.5 * angle.cos(),
-                0.5 + 0.5 * angle.sin(),
-            );
-            
-            vertices.push(Vertex::new(position).with_normal(normal).with_uv(uv));
+    fn cone(radius: f32, height: f32, sectors: u32) -> crate::Result<Mesh>;
+    
+    /// Create a plane mesh
+    fn plane(width: f32, height: f32, subdivisions_x: u32, subdivisions_y: u32) -> crate::Result<Mesh>;
+    
+    /// Create a quad mesh
+    fn quad() -> crate::Result<Mesh>;
+    
+    /// Create a triangle mesh
+    fn triangle() -> crate::Result<Mesh>;
+}
+
+/// Mesh builder for creating custom primitives
+pub struct PrimitiveMeshBuilder {
+    params: PrimitiveParams,
+    name: Option<String>,
+}
+
+impl PrimitiveMeshBuilder {
+    /// Create a new builder for the given primitive type
+    pub fn new(primitive_type: PrimitiveType) -> Self {
+        Self {
+            params: PrimitiveParams::for_type(primitive_type),
+            name: None,
         }
-        
-        // Generate side triangles
-        for i in 0..sectors {
-            indices.extend([0, i + 1, i + 2]);
-        }
-        
-        Mesh::from_data(MeshData {
-            name: "Cone".to_string(),
-            vertices,
-            indices,
-        })
     }
     
-    /// Generate mesh for the given primitive type
-    pub fn generate(primitive: PrimitiveType) -> Mesh {
-        match primitive {
-            PrimitiveType::Cube => Self::cube(1.0),
-            PrimitiveType::Sphere => Self::sphere(0.5, 16, 32),
-            PrimitiveType::Cylinder => Self::cylinder(0.5, 0.5, 1.0, 16),
-            PrimitiveType::Cone => Self::cone(0.5, 1.0, 16),
-            PrimitiveType::Plane => Self::plane(1.0, 1.0, 1, 1),
-            PrimitiveType::Quad => Self::quad(),
-            PrimitiveType::Triangle => Self::triangle(),
-            PrimitiveType::Capsule => Self::cylinder(0.5, 0.5, 1.0, 16), // Simplified as cylinder for now
-            PrimitiveType::Torus => Self::sphere(0.5, 8, 16), // Simplified as sphere for now
+    /// Set custom parameters
+    pub fn with_params(mut self, params: PrimitiveParams) -> Self {
+        self.params = params;
+        self
+    }
+    
+    /// Set mesh name
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = Some(name);
+        self
+    }
+    
+    /// Build the mesh using the provided generator
+    pub fn build(self, generator: &dyn PrimitiveGenerator) -> crate::Result<Mesh> {
+        let mut mesh = generator.generate(&self.params)?;
+        
+        if let Some(name) = self.name {
+            mesh.set_name(name);
         }
+        
+        Ok(mesh)
+    }
+    
+    /// Get the parameters
+    pub fn params(&self) -> &PrimitiveParams {
+        &self.params
+    }
+}
+
+impl Default for PrimitiveMeshBuilder {
+    fn default() -> Self {
+        Self::new(PrimitiveType::Cube)
     }
 }

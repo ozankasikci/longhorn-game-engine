@@ -1,6 +1,6 @@
 //! Core camera implementation with ECS v2 integration
 
-use crate::{Viewport, Frustum, Result, OrthographicProjection, PerspectiveProjection};
+use crate::{Viewport, Result, OrthographicProjection, PerspectiveProjection};
 use engine_components_core::Transform;
 use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
 use bytemuck::{Pod, Zeroable};
@@ -43,8 +43,7 @@ bitflags! {
     struct CameraDirtyFlags: u8 {
         const VIEW_MATRIX = 0b0001;
         const PROJECTION_MATRIX = 0b0010;
-        const FRUSTUM = 0b0100;
-        const ALL = 0b0111;
+        const ALL = 0b0011;
     }
 }
 
@@ -56,7 +55,6 @@ pub struct Camera {
     view_matrix: Mat4,
     projection_matrix: Mat4,
     view_projection_matrix: Mat4,
-    frustum: Frustum,
     
     // Rendering properties
     clear_color: [f32; 4],
@@ -78,7 +76,6 @@ impl Camera {
             view_matrix: Mat4::IDENTITY,
             projection_matrix: Mat4::IDENTITY,
             view_projection_matrix: Mat4::IDENTITY,
-            frustum: Frustum::default(),
             clear_color: [0.2, 0.2, 0.3, 1.0],
             clear_depth: 1.0,
             render_order: 0,
@@ -161,15 +158,10 @@ impl Camera {
         Ok(())
     }
     
-    /// Update combined view-projection matrix and frustum
+    /// Update combined view-projection matrix
     pub fn update_derived_data(&mut self) -> Result<()> {
         if self.dirty_flags.intersects(CameraDirtyFlags::VIEW_MATRIX | CameraDirtyFlags::PROJECTION_MATRIX) {
             self.view_projection_matrix = self.projection_matrix * self.view_matrix;
-            self.dirty_flags.insert(CameraDirtyFlags::FRUSTUM);
-        }
-        
-        if self.dirty_flags.contains(CameraDirtyFlags::FRUSTUM) {
-            self.frustum = Frustum::from_matrix(self.view_projection_matrix)?;
         }
         
         self.dirty_flags = CameraDirtyFlags::empty();
@@ -226,8 +218,10 @@ impl Camera {
     pub fn viewport(&self) -> &Viewport { &self.viewport }
     pub fn view_matrix(&self) -> Mat4 { self.view_matrix }
     pub fn projection_matrix(&self) -> Mat4 { self.projection_matrix }
-    pub fn view_projection_matrix(&self) -> Mat4 { self.view_projection_matrix }
-    pub fn frustum(&self) -> &Frustum { &self.frustum }
+    /// Get the view-projection matrix (for creating frustum cullers)
+    pub fn view_projection_matrix(&self) -> Mat4 { 
+        self.view_projection_matrix 
+    }
     pub fn clear_color(&self) -> [f32; 4] { self.clear_color }
     pub fn clear_depth(&self) -> f32 { self.clear_depth }
     pub fn render_order(&self) -> i32 { self.render_order }

@@ -1,0 +1,16 @@
+[package]
+name = "engine-camera-impl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core camera abstractions
+engine-camera-core = { workspace = true }
+
+# Math types
+glam = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
