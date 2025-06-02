@@ -3,7 +3,7 @@
 
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex, TabViewer};
-use engine_ecs_core::{Transform, WorldV2, EntityV2, Read, Write, Name, Visibility, Camera, Light, Sprite, SpriteRenderer, Canvas, Camera2D};
+use engine_ecs_core::{Transform, WorldV2, EntityV2, Read, Write, Name, Visibility, Camera, Light, Sprite, SpriteRenderer, Canvas, Camera2D, Material};
 use engine_camera::{CameraComponent, CameraType, Viewport};
 
 fn main() -> Result<(), eframe::Error> {
@@ -29,6 +29,29 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
+/// Play state for editor mode management
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PlayState {
+    Editing,   // Normal editor mode - full editing capabilities
+    Playing,   // Game running - properties locked, runtime active  
+    Paused,    // Game paused - can inspect state, limited editing
+}
+
+impl Default for PlayState {
+    fn default() -> Self {
+        Self::Editing
+    }
+}
+
+/// Basic texture asset for sprites
+#[derive(Debug, Clone)]
+struct TextureAsset {
+    handle: u64,
+    name: String,
+    color: [f32; 4], // RGBA color for simple colored textures
+    size: [u32; 2],  // Width, Height
+}
+
 /// Unity-style editor application with dockable panels
 struct UnityEditor {
     // Docking system
@@ -46,15 +69,109 @@ struct UnityEditor {
     hierarchy_objects: Vec<HierarchyObject>,
     project_assets: Vec<ProjectAsset>,
     
+    // Texture asset system
+    texture_assets: std::collections::HashMap<u64, TextureAsset>,
+    next_texture_handle: u64,
+    
+    // Play state management
+    play_state: PlayState,
+    game_start_time: Option<std::time::Instant>,
+    last_frame_time: std::time::Instant,
+    delta_time: f32,
+    
     // UI state
     scene_view_active: bool,
     show_add_component_dialog: bool,
 }
 
 impl UnityEditor {
+    /// Create default colored textures for sprites
+    fn create_default_textures() -> std::collections::HashMap<u64, TextureAsset> {
+        let mut textures = std::collections::HashMap::new();
+        
+        // Create basic colored square textures
+        let textures_data = [
+            (1000, "White Square", [1.0, 1.0, 1.0, 1.0]),
+            (1001, "Red Square", [1.0, 0.2, 0.2, 1.0]),
+            (1002, "Green Square", [0.2, 1.0, 0.2, 1.0]),
+            (1003, "Blue Square", [0.2, 0.2, 1.0, 1.0]),
+            (1004, "Yellow Square", [1.0, 1.0, 0.2, 1.0]),
+            (1005, "Purple Square", [1.0, 0.2, 1.0, 1.0]),
+            (1006, "Cyan Square", [0.2, 1.0, 1.0, 1.0]),
+            (1007, "Orange Square", [1.0, 0.5, 0.2, 1.0]),
+        ];
+        
+        for (handle, name, color) in textures_data {
+            textures.insert(handle, TextureAsset {
+                handle,
+                name: name.to_string(),
+                color,
+                size: [64, 64], // 64x64 pixel textures
+            });
+        }
+        
+        textures
+    }
+
+    /// Transition to playing state
+    fn start_play(&mut self) {
+        if self.play_state == PlayState::Editing {
+            self.play_state = PlayState::Playing;
+            self.game_start_time = Some(std::time::Instant::now());
+            self.last_frame_time = std::time::Instant::now();
+            self.delta_time = 0.0;
+            self.console_messages.push(ConsoleMessage::info("▶️ Play mode started"));
+        }
+    }
+    
+    /// Pause the game (only from playing state)
+    fn pause_play(&mut self) {
+        if self.play_state == PlayState::Playing {
+            self.play_state = PlayState::Paused;
+            self.console_messages.push(ConsoleMessage::info("⏸️ Play mode paused"));
+        }
+    }
+    
+    /// Resume from paused state
+    fn resume_play(&mut self) {
+        if self.play_state == PlayState::Paused {
+            self.play_state = PlayState::Playing;
+            self.last_frame_time = std::time::Instant::now(); // Reset delta time
+            self.console_messages.push(ConsoleMessage::info("▶️ Play mode resumed"));
+        }
+    }
+    
+    /// Stop play mode and return to editing
+    fn stop_play(&mut self) {
+        if self.play_state != PlayState::Editing {
+            self.play_state = PlayState::Editing;
+            self.game_start_time = None;
+            self.delta_time = 0.0;
+            self.console_messages.push(ConsoleMessage::info("⏹️ Play mode stopped - returned to editing"));
+        }
+    }
+    
+    /// Update delta time for game loop
+    fn update_delta_time(&mut self) {
+        if self.play_state == PlayState::Playing {
+            let now = std::time::Instant::now();
+            self.delta_time = now.duration_since(self.last_frame_time).as_secs_f32();
+            self.last_frame_time = now;
+        }
+    }
+    
+    /// Get current play time in seconds
+    fn get_play_time(&self) -> f32 {
+        if let Some(start_time) = self.game_start_time {
+            start_time.elapsed().as_secs_f32()
+        } else {
+            0.0
+        }
+    }
+
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        // Create Unity-style dock layout
-        let mut dock_state = DockState::new(vec![PanelType::SceneView]);
+        // Create Unity-style dock layout with Scene and Game views
+        let mut dock_state = DockState::new(vec![PanelType::SceneView, PanelType::GameView]);
         
         // Add Hierarchy to the left
         let [_main, _left] = dock_state.main_surface_mut().split_left(
@@ -80,27 +197,118 @@ impl UnityEditor {
         // Initialize ECS v2 World with some test entities
         let mut world = WorldV2::new();
         
-        // Create some entities with Transform components
+        // Create camera entity
         let camera_entity = world.spawn();
         world.add_component(camera_entity, Transform {
             position: [0.0, 0.0, 5.0],
             rotation: [0.0, 0.0, 0.0],
             scale: [1.0, 1.0, 1.0],
         }).unwrap();
+        world.add_component(camera_entity, Name::new("Main Camera")).unwrap();
+        world.add_component(camera_entity, Camera::default()).unwrap();
         
+        // Create cube entity with mesh and material
         let cube_entity = world.spawn();
         world.add_component(cube_entity, Transform {
             position: [1.0, 0.0, 0.0],
             rotation: [0.0, 45.0, 0.0],
             scale: [1.0, 1.0, 1.0],
         }).unwrap();
+        world.add_component(cube_entity, Name::new("Cube")).unwrap();
+        world.add_component(cube_entity, engine_ecs_core::Mesh {
+            mesh_type: engine_ecs_core::MeshType::Cube,
+        }).unwrap();
+        world.add_component(cube_entity, Material {
+            color: [0.8, 0.2, 0.2, 1.0], // Red cube
+            metallic: 0.0,
+            roughness: 0.5,
+            emissive: [0.0, 0.0, 0.0],
+        }).unwrap();
+        world.add_component(cube_entity, Visibility::default()).unwrap();
         
+        // Create sphere entity with mesh and material
         let sphere_entity = world.spawn();
         world.add_component(sphere_entity, Transform {
             position: [-1.0, 0.0, 0.0],
             rotation: [0.0, 0.0, 0.0],
             scale: [1.5, 1.5, 1.5],
         }).unwrap();
+        world.add_component(sphere_entity, Name::new("Sphere")).unwrap();
+        world.add_component(sphere_entity, engine_ecs_core::Mesh {
+            mesh_type: engine_ecs_core::MeshType::Sphere,
+        }).unwrap();
+        world.add_component(sphere_entity, Material {
+            color: [0.2, 0.8, 0.2, 1.0], // Green sphere
+            metallic: 0.1,
+            roughness: 0.3,
+            emissive: [0.0, 0.0, 0.0],
+        }).unwrap();
+        world.add_component(sphere_entity, Visibility::default()).unwrap();
+        
+        // Create plane entity (ground)
+        let plane_entity = world.spawn();
+        world.add_component(plane_entity, Transform {
+            position: [0.0, -1.5, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: [5.0, 1.0, 5.0],
+        }).unwrap();
+        world.add_component(plane_entity, Name::new("Ground Plane")).unwrap();
+        world.add_component(plane_entity, engine_ecs_core::Mesh {
+            mesh_type: engine_ecs_core::MeshType::Plane,
+        }).unwrap();
+        world.add_component(plane_entity, Material {
+            color: [0.6, 0.6, 0.6, 1.0], // Gray ground
+            metallic: 0.0,
+            roughness: 0.8,
+            emissive: [0.0, 0.0, 0.0],
+        }).unwrap();
+        world.add_component(plane_entity, Visibility::default()).unwrap();
+        
+        // Create sprite entities to test sprite rendering
+        let red_sprite_entity = world.spawn();
+        world.add_component(red_sprite_entity, Transform {
+            position: [-2.0, 0.5, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: [1.5, 1.5, 1.0],
+        }).unwrap();
+        world.add_component(red_sprite_entity, Name::new("Red Sprite")).unwrap();
+        world.add_component(red_sprite_entity, SpriteRenderer {
+            sprite: Sprite::new().with_texture(1001).with_color(1.0, 0.8, 0.8, 1.0), // Red texture with light tint
+            layer: 0,
+            material_override: None,
+            enabled: true,
+        }).unwrap();
+        world.add_component(red_sprite_entity, Visibility::default()).unwrap();
+        
+        let blue_sprite_entity = world.spawn();
+        world.add_component(blue_sprite_entity, Transform {
+            position: [2.0, 0.5, 0.0],
+            rotation: [0.0, 0.0, 15.0], // Slightly rotated
+            scale: [1.0, 2.0, 1.0], // Tall sprite
+        }).unwrap();
+        world.add_component(blue_sprite_entity, Name::new("Blue Sprite")).unwrap();
+        world.add_component(blue_sprite_entity, SpriteRenderer {
+            sprite: Sprite::new().with_texture(1003), // Blue texture
+            layer: 1,
+            material_override: None,
+            enabled: true,
+        }).unwrap();
+        world.add_component(blue_sprite_entity, Visibility::default()).unwrap();
+        
+        let yellow_sprite_entity = world.spawn();
+        world.add_component(yellow_sprite_entity, Transform {
+            position: [0.0, 2.0, -1.0], // Higher up and further back
+            rotation: [0.0, 0.0, 0.0],
+            scale: [0.8, 0.8, 1.0], // Smaller sprite
+        }).unwrap();
+        world.add_component(yellow_sprite_entity, Name::new("Yellow Sprite")).unwrap();
+        world.add_component(yellow_sprite_entity, SpriteRenderer {
+            sprite: Sprite::new().with_texture(1004).with_color(1.0, 1.0, 0.5, 0.9), // Yellow with slight transparency
+            layer: 2,
+            material_override: None,
+            enabled: true,
+        }).unwrap();
+        world.add_component(yellow_sprite_entity, Visibility::default()).unwrap();
         
         Self {
             dock_state,
@@ -139,6 +347,12 @@ impl UnityEditor {
                     ProjectAsset::file("🖼️ sky_gradient.png"),
                 ]),
             ],
+            texture_assets: Self::create_default_textures(),
+            next_texture_handle: 1000, // Start texture handles at 1000
+            play_state: PlayState::default(),
+            game_start_time: None,
+            last_frame_time: std::time::Instant::now(),
+            delta_time: 0.0,
             scene_view_active: true,
             show_add_component_dialog: false,
         }
@@ -147,8 +361,18 @@ impl UnityEditor {
 
 impl eframe::App for UnityEditor {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Apply custom styling
-        apply_unity_style(ctx);
+        // Update play state timing
+        self.update_delta_time();
+        
+        // Apply custom styling based on play state
+        if self.play_state != PlayState::Editing {
+            // Apply Unity-style play mode tint (subtle blue)
+            let mut style = (*ctx.style()).clone();
+            style.visuals.panel_fill = egui::Color32::from_rgba_unmultiplied(45, 45, 55, 240);
+            ctx.set_style(style);
+        } else {
+            apply_unity_style(ctx);
+        }
         
         // Top menu bar (macOS style)
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -289,10 +513,15 @@ impl UnityEditor {
                     self.console_messages.push(ConsoleMessage::info("➕ Added Project panel"));
                     ui.close_menu();
                 }
+                if ui.button("Add Game View Panel").clicked() {
+                    self.dock_state.add_window(vec![PanelType::GameView]);
+                    self.console_messages.push(ConsoleMessage::info("➕ Added Game View panel"));
+                    ui.close_menu();
+                }
                 ui.separator();
                 if ui.button("Reset Layout").clicked() {
-                    // Reset to Unity-style layout
-                    let mut dock_state = DockState::new(vec![PanelType::SceneView]);
+                    // Reset to Unity-style layout with Scene and Game views
+                    let mut dock_state = DockState::new(vec![PanelType::SceneView, PanelType::GameView]);
                     
                     // Add Hierarchy to the left
                     let [_main, _left] = dock_state.main_surface_mut().split_left(
@@ -347,15 +576,36 @@ impl UnityEditor {
             
             ui.separator();
             
-            // Play controls
-            if ui.button("▶️").on_hover_text("Play").clicked() {
-                self.console_messages.push(ConsoleMessage::info("▶️ Game started"));
-            }
-            if ui.button("⏸️").on_hover_text("Pause").clicked() {
-                self.console_messages.push(ConsoleMessage::info("⏸️ Game paused"));
-            }
-            if ui.button("⏹️").on_hover_text("Stop").clicked() {
-                self.console_messages.push(ConsoleMessage::info("⏹️ Game stopped"));
+            // Play controls - state-aware buttons
+            match self.play_state {
+                PlayState::Editing => {
+                    if ui.button("▶️").on_hover_text("Play").clicked() {
+                        self.start_play();
+                    }
+                    // Show disabled pause/stop buttons
+                    ui.add_enabled(false, egui::Button::new("⏸️"));
+                    ui.add_enabled(false, egui::Button::new("⏹️"));
+                }
+                PlayState::Playing => {
+                    // Show highlighted play button (active state)
+                    ui.add_enabled(false, egui::Button::new("▶️").fill(egui::Color32::from_rgb(100, 200, 100)));
+                    if ui.button("⏸️").on_hover_text("Pause").clicked() {
+                        self.pause_play();
+                    }
+                    if ui.button("⏹️").on_hover_text("Stop").clicked() {
+                        self.stop_play();
+                    }
+                }
+                PlayState::Paused => {
+                    if ui.button("▶️").on_hover_text("Resume").clicked() {
+                        self.resume_play();
+                    }
+                    // Show highlighted pause button (active state)
+                    ui.add_enabled(false, egui::Button::new("⏸️").fill(egui::Color32::from_rgb(200, 200, 100)));
+                    if ui.button("⏹️").on_hover_text("Stop").clicked() {
+                        self.stop_play();
+                    }
+                }
             }
             
             ui.separator();
@@ -421,13 +671,23 @@ impl UnityEditor {
                 if self.world.get_component::<Visibility>(entity).is_some() { components.push("V"); }
                 if self.world.get_component::<Camera>(entity).is_some() { components.push("C"); }
                 if self.world.get_component::<Light>(entity).is_some() { components.push("L"); }
-                if self.world.get_component::<SpriteRenderer>(entity).is_some() { components.push("S"); }
+                if self.world.get_component::<SpriteRenderer>(entity).is_some() { components.push("Spr"); }
                 if self.world.get_component::<Canvas>(entity).is_some() { components.push("Canvas"); }
                 if self.world.get_component::<Camera2D>(entity).is_some() { components.push("C2D"); }
                 if self.world.get_component::<CameraComponent>(entity).is_some() { components.push("Cam"); }
+                if self.world.get_component::<engine_ecs_core::Mesh>(entity).is_some() { components.push("M"); }
+                if self.world.get_component::<Material>(entity).is_some() { components.push("Mat"); }
                 
                 let component_str = if components.is_empty() { "-".to_string() } else { components.join("") };
-                let label = format!("🎲 Entity {} [{}]", entity.id(), component_str);
+                
+                // Get entity name if available
+                let entity_name = if let Some(name) = self.world.get_component::<Name>(entity) {
+                    name.name.clone()
+                } else {
+                    format!("Entity {}", entity.id())
+                };
+                
+                let label = format!("📦 {} [{}]", entity_name, component_str);
                 
                 if ui.selectable_label(selected, &label).clicked() {
                     self.selected_entity = Some(entity);
@@ -1059,26 +1319,18 @@ impl UnityEditor {
         
         // Scene content
         ui.allocate_ui_at_rect(response.rect, |ui| {
-            ui.centered_and_justified(|ui| {
-                if self.scene_view_active {
-                    ui.vertical_centered(|ui| {
-                        ui.label("🎨 Scene View");
-                        ui.label("Your 3D scene editor");
-                        ui.small("Drag objects from hierarchy • Use transform tools");
-                        
-                        if let Some(ref selected) = self.selected_object {
-                            ui.separator();
-                            ui.label(format!("Selected: {}", selected));
-                        }
-                    });
-                } else {
+            if self.scene_view_active {
+                // Draw a simple 3D scene visualization
+                self.draw_simple_scene_view(ui, response.rect);
+            } else {
+                ui.centered_and_justified(|ui| {
                     ui.vertical_centered(|ui| {
                         ui.label("🎮 Game View");
-                        ui.label("Runtime preview");
-                        ui.small("Press Play to see your game");
+                        ui.label("Runtime game preview");
+                        ui.small("Press Play to see game running");
                     });
-                }
-            });
+                });
+            }
         });
         
         // Handle scene interactions
@@ -1087,9 +1339,511 @@ impl UnityEditor {
         }
     }
     
+    /// Get the color for a sprite based on its texture handle and tint
+    fn get_sprite_color(&self, sprite: &Sprite) -> egui::Color32 {
+        // Start with sprite tint color
+        let mut final_color = sprite.color;
+        
+        // If sprite has a texture, blend with texture color
+        if let Some(texture_handle) = sprite.texture_handle {
+            if let Some(texture) = self.texture_assets.get(&texture_handle) {
+                // Multiply sprite tint with texture color
+                final_color[0] *= texture.color[0];
+                final_color[1] *= texture.color[1];
+                final_color[2] *= texture.color[2];
+                final_color[3] *= texture.color[3];
+            }
+        }
+        
+        egui::Color32::from_rgba_unmultiplied(
+            (final_color[0] * 255.0) as u8,
+            (final_color[1] * 255.0) as u8,
+            (final_color[2] * 255.0) as u8,
+            (final_color[3] * 255.0) as u8,
+        )
+    }
+
+    fn draw_simple_scene_view(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
+        let painter = ui.painter();
+        
+        // Draw grid background
+        let grid_size = 50.0;
+        let center = rect.center();
+        
+        // Draw grid lines
+        painter.line_segment(
+            [egui::pos2(rect.left(), center.y), egui::pos2(rect.right(), center.y)],
+            egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(100, 100, 100, 100))
+        );
+        painter.line_segment(
+            [egui::pos2(center.x, rect.top()), egui::pos2(center.x, rect.bottom())],
+            egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(100, 100, 100, 100))
+        );
+        
+        // Draw scene objects (simplified 2D representation)
+        for (entity, transform) in self.world.query::<Read<Transform>>().iter() {
+            // Project 3D position to 2D screen coordinates (simple orthographic)
+            let scale = 50.0; // Pixels per world unit
+            let screen_x = center.x + transform.position[0] * scale;
+            let screen_y = center.y - transform.position[2] * scale; // Z becomes Y in screen space
+            let screen_pos = egui::pos2(screen_x, screen_y);
+            
+            // Get entity info
+            let name = self.world.get_component::<Name>(entity)
+                .map(|n| n.name.clone())
+                .unwrap_or_else(|| format!("Entity {}", entity.id()));
+            
+            // Determine object type and color
+            let (color, icon, size) = if self.world.get_component::<Camera>(entity).is_some() {
+                (egui::Color32::BLUE, "📷", 12.0)
+            } else if self.world.get_component::<engine_ecs_core::Mesh>(entity).is_some() {
+                let mesh = self.world.get_component::<engine_ecs_core::Mesh>(entity).unwrap();
+                match mesh.mesh_type {
+                    engine_ecs_core::MeshType::Cube => (egui::Color32::RED, "⬜", 15.0),
+                    engine_ecs_core::MeshType::Sphere => (egui::Color32::GREEN, "⚫", 15.0),
+                    engine_ecs_core::MeshType::Plane => (egui::Color32::GRAY, "▭", 20.0),
+                    _ => (egui::Color32::WHITE, "📦", 10.0),
+                }
+            } else {
+                (egui::Color32::YELLOW, "📍", 8.0)
+            };
+            
+            // Highlight if selected
+            let is_selected = self.selected_entity == Some(entity);
+            let final_color = if is_selected {
+                egui::Color32::YELLOW
+            } else {
+                color
+            };
+            
+            // Draw object
+            painter.circle_filled(screen_pos, size, final_color);
+            
+            // Draw selection outline
+            if is_selected {
+                painter.circle_stroke(
+                    screen_pos,
+                    size + 3.0,
+                    egui::Stroke::new(2.0, egui::Color32::WHITE)
+                );
+            }
+            
+            // Draw label
+            painter.text(
+                screen_pos + egui::vec2(size + 5.0, -size),
+                egui::Align2::LEFT_CENTER,
+                format!("{} {}", icon, name),
+                egui::FontId::proportional(12.0),
+                final_color
+            );
+        }
+        
+        // Draw sprite objects - using safe iteration approach
+        for (entity, _transform) in self.world.query::<Read<Transform>>().iter() {
+            // Check if this entity has a SpriteRenderer component
+            if let Some(sprite_renderer) = self.world.get_component::<SpriteRenderer>(entity) {
+                let transform = _transform; // We already have transform from the query
+                
+                // Project sprite position to 2D screen coordinates
+                let scale = 50.0; // Pixels per world unit
+                let screen_x = center.x + transform.position[0] * scale;
+                let screen_y = center.y - transform.position[2] * scale; // Z becomes Y in screen space
+                let screen_pos = egui::pos2(screen_x, screen_y);
+                
+                // Calculate sprite size in screen space
+                let world_scale = (transform.scale[0] + transform.scale[1]) * 0.5; // Average X and Y scale
+                let sprite_size = egui::vec2(32.0 * world_scale, 32.0 * world_scale); // Base size 32x32 pixels
+                
+                // Get sprite color - simplified for stability
+                let sprite_color = egui::Color32::from_rgba_unmultiplied(
+                    (sprite_renderer.sprite.color[0] * 255.0) as u8,
+                    (sprite_renderer.sprite.color[1] * 255.0) as u8,
+                    (sprite_renderer.sprite.color[2] * 255.0) as u8,
+                    (sprite_renderer.sprite.color[3] * 255.0) as u8,
+                );
+                
+                // Highlight if selected
+                let is_selected = self.selected_entity == Some(entity);
+                let final_color = if is_selected {
+                    egui::Color32::YELLOW
+                } else {
+                    sprite_color
+                };
+                
+                // Draw sprite as a rectangle
+                let sprite_rect = egui::Rect::from_center_size(screen_pos, sprite_size);
+                painter.rect_filled(sprite_rect, egui::Rounding::same(2.0), final_color);
+                
+                // Draw sprite border
+                painter.rect_stroke(
+                    sprite_rect,
+                    egui::Rounding::same(2.0),
+                    egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(0, 0, 0, 100))
+                );
+                
+                // Draw selection outline
+                if is_selected {
+                    painter.rect_stroke(
+                        sprite_rect,
+                        egui::Rounding::same(2.0),
+                        egui::Stroke::new(3.0, egui::Color32::WHITE)
+                    );
+                }
+                
+                // Draw sprite icon and name
+                let name = self.world.get_component::<Name>(entity)
+                    .map(|n| n.name.clone())
+                    .unwrap_or_else(|| format!("Sprite {}", entity.id()));
+                
+                painter.text(
+                    screen_pos + egui::vec2(sprite_size.x * 0.5 + 5.0, -sprite_size.y * 0.5),
+                    egui::Align2::LEFT_CENTER,
+                    format!("🖼️ {}", name),
+                    egui::FontId::proportional(12.0),
+                    final_color
+                );
+            }
+        }
+        
+        // Draw camera view indicator
+        if let Some(camera_entity) = self.selected_entity {
+            if self.world.get_component::<Camera>(camera_entity).is_some() {
+                if let Some(camera_transform) = self.world.get_component::<Transform>(camera_entity) {
+                    let scale = 50.0;
+                    let camera_screen_x = center.x + camera_transform.position[0] * scale;
+                    let camera_screen_y = center.y - camera_transform.position[2] * scale;
+                    let camera_pos = egui::pos2(camera_screen_x, camera_screen_y);
+                    
+                    // Draw camera view frustum (simplified)
+                    let frustum_width = 80.0;
+                    let frustum_height = 60.0;
+                    let frustum_rect = egui::Rect::from_center_size(
+                        camera_pos + egui::vec2(40.0, 0.0),
+                        egui::vec2(frustum_width, frustum_height)
+                    );
+                    
+                    painter.rect_stroke(
+                        frustum_rect,
+                        egui::Rounding::ZERO,
+                        egui::Stroke::new(2.0, egui::Color32::from_rgba_unmultiplied(0, 255, 255, 150))
+                    );
+                    
+                    // Draw view direction line
+                    painter.line_segment(
+                        [camera_pos, frustum_rect.left_center()],
+                        egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 255, 255))
+                    );
+                }
+            }
+        }
+        
+        // Draw info overlay with play state information
+        ui.allocate_ui_at_rect(egui::Rect::from_min_size(rect.min, egui::vec2(350.0, 120.0)), |ui| {
+            ui.vertical(|ui| {
+                // Play state indicator
+                match self.play_state {
+                    PlayState::Editing => {
+                        ui.label("🎨 Scene View (Editor Mode)");
+                    }
+                    PlayState::Playing => {
+                        ui.colored_label(egui::Color32::from_rgb(100, 200, 100), 
+                            format!("▶️ Scene View (Playing - {:.1}s)", self.get_play_time()));
+                        ui.small(format!("Delta: {:.3}ms", self.delta_time * 1000.0));
+                    }
+                    PlayState::Paused => {
+                        ui.colored_label(egui::Color32::from_rgb(200, 200, 100), 
+                            format!("⏸️ Scene View (Paused - {:.1}s)", self.get_play_time()));
+                    }
+                };
+                
+                ui.label(format!("📦 {} objects", self.world.entity_count()));
+                if let Some(entity) = self.selected_entity {
+                    if let Some(transform) = self.world.get_component::<Transform>(entity) {
+                        ui.label(format!("📍 Selected: {:.1}, {:.1}, {:.1}", 
+                            transform.position[0], transform.position[1], transform.position[2]));
+                    }
+                }
+                
+                match self.play_state {
+                    PlayState::Editing => ui.small("Click objects to select • Drag to orbit camera"),
+                    PlayState::Playing => ui.small("Game running • Properties locked in Inspector"),
+                    PlayState::Paused => ui.small("Game paused • Limited editing available"),
+                };
+            });
+        });
+    }
+
+    /// Render the scene from the main camera's perspective
+    fn render_camera_perspective(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
+        let painter = ui.painter();
+        
+        // Draw background
+        painter.rect_filled(
+            rect,
+            egui::Rounding::same(2.0),
+            egui::Color32::from_rgb(25, 25, 35) // Darker background for game view
+        );
+        
+        // Find the main camera
+        let main_camera_entity = self.find_main_camera_entity();
+        
+        if let Some(camera_entity) = main_camera_entity {
+            if let Some(camera_transform) = self.world.get_component::<Transform>(camera_entity).cloned() {
+                if let Some(camera) = self.world.get_component::<Camera>(camera_entity).cloned() {
+                    // Calculate camera projection parameters
+                    let aspect_ratio = rect.width() / rect.height();
+                    let view_center = rect.center();
+                    
+                    // Render objects from camera perspective
+                    self.render_scene_from_camera(ui, rect, &camera_transform, &camera, view_center);
+                    
+                    // Draw camera info overlay
+                    ui.allocate_ui_at_rect(egui::Rect::from_min_size(rect.min, egui::vec2(250.0, 80.0)), |ui| {
+                        ui.vertical(|ui| {
+                            ui.colored_label(egui::Color32::WHITE, 
+                                format!("📷 Camera View (FOV: {:.0}°)", camera.fov));
+                            ui.small(format!("Position: [{:.1}, {:.1}, {:.1}]", 
+                                camera_transform.position[0], 
+                                camera_transform.position[1], 
+                                camera_transform.position[2]));
+                            ui.small(format!("Aspect: {:.2} | Near: {:.1} | Far: {:.0}", 
+                                aspect_ratio, camera.near, camera.far));
+                        });
+                    });
+                } else {
+                    self.show_no_camera_message(ui, rect, "Camera component missing");
+                }
+            } else {
+                self.show_no_camera_message(ui, rect, "Camera transform missing");
+            }
+        } else {
+            self.show_no_camera_message(ui, rect, "No main camera found");
+        }
+    }
+    
+    /// Find the main camera entity in the scene
+    fn find_main_camera_entity(&self) -> Option<EntityV2> {
+        // Look for entity with Camera component that has is_main = true
+        for (entity, _transform) in self.world.query::<Read<Transform>>().iter() {
+            if let Some(camera) = self.world.get_component::<Camera>(entity) {
+                if camera.is_main {
+                    return Some(entity);
+                }
+            }
+        }
+        
+        // If no main camera found, return the first camera entity
+        for (entity, _transform) in self.world.query::<Read<Transform>>().iter() {
+            if self.world.get_component::<Camera>(entity).is_some() {
+                return Some(entity);
+            }
+        }
+        
+        None
+    }
+    
+    /// Render the scene from the camera's perspective using perspective projection
+    fn render_scene_from_camera(&mut self, ui: &mut egui::Ui, rect: egui::Rect, 
+                                camera_transform: &Transform, camera: &Camera, view_center: egui::Pos2) {
+        let painter = ui.painter();
+        
+        // Camera position and view parameters
+        let camera_pos = camera_transform.position;
+        let fov_rad = camera.fov.to_radians();
+        let aspect_ratio = rect.width() / rect.height();
+        
+        // Calculate view frustum dimensions at different depths
+        let render_scale = 100.0; // Scale factor for rendering
+        
+        // Render all entities with transforms
+        for (entity, transform) in self.world.query::<Read<Transform>>().iter() {
+            // Skip the camera itself
+            if let Some(camera_check) = self.world.get_component::<Camera>(entity) {
+                if camera_check.is_main {
+                    continue;
+                }
+            }
+            
+            // Calculate relative position from camera
+            let relative_pos = [
+                transform.position[0] - camera_pos[0],
+                transform.position[1] - camera_pos[1], 
+                transform.position[2] - camera_pos[2]
+            ];
+            
+            // Simple perspective projection (assuming camera looks down -Z axis)
+            let depth = -relative_pos[2]; // Distance from camera
+            
+            // Skip objects behind camera or too far away
+            if depth <= camera.near || depth > camera.far {
+                continue;
+            }
+            
+            // Perspective projection to screen space
+            let proj_x = relative_pos[0] / depth;
+            let proj_y = relative_pos[1] / depth;
+            
+            // Convert to screen coordinates
+            let screen_x = view_center.x + proj_x * render_scale;
+            let screen_y = view_center.y - proj_y * render_scale; // Flip Y for screen space
+            
+            // Check if object is within screen bounds (frustum culling)
+            let screen_pos = egui::pos2(screen_x, screen_y);
+            if !rect.contains(screen_pos) {
+                continue;
+            }
+            
+            // Calculate object size based on depth (perspective scaling)
+            let base_size = 20.0;
+            let size_scale = camera.near / depth; // Objects get smaller with distance
+            let object_size = base_size * size_scale * transform.scale[0];
+            
+            // Get entity info for rendering
+            let name = self.world.get_component::<Name>(entity)
+                .map(|n| n.name.clone())
+                .unwrap_or_else(|| format!("Entity {}", entity.id()));
+            
+            // Determine object color and shape based on components
+            let (color, shape) = if let Some(sprite_renderer) = self.world.get_component::<SpriteRenderer>(entity) {
+                // Render sprite
+                let sprite_color = egui::Color32::from_rgba_unmultiplied(
+                    (sprite_renderer.sprite.color[0] * 255.0) as u8,
+                    (sprite_renderer.sprite.color[1] * 255.0) as u8,
+                    (sprite_renderer.sprite.color[2] * 255.0) as u8,
+                    (sprite_renderer.sprite.color[3] * 255.0) as u8,
+                );
+                (sprite_color, "square") // Sprites as squares
+            } else if let Some(_mesh) = self.world.get_component::<engine_ecs_core::Mesh>(entity) {
+                // Render mesh object
+                (egui::Color32::from_rgb(180, 180, 180), "circle") // Meshes as circles
+            } else {
+                // Default object
+                (egui::Color32::YELLOW, "circle")
+            };
+            
+            // Draw object
+            if shape == "square" {
+                let size_vec = egui::vec2(object_size, object_size);
+                let obj_rect = egui::Rect::from_center_size(screen_pos, size_vec);
+                painter.rect_filled(obj_rect, egui::Rounding::same(2.0), color);
+            } else {
+                painter.circle_filled(screen_pos, object_size * 0.5, color);
+            }
+            
+            // Draw object label (smaller for distant objects)
+            let label_size = (12.0 * size_scale).max(8.0);
+            painter.text(
+                screen_pos + egui::vec2(object_size * 0.5 + 2.0, -object_size * 0.5),
+                egui::Align2::LEFT_CENTER,
+                &name,
+                egui::FontId::proportional(label_size),
+                color
+            );
+        }
+        
+        // Draw depth indication lines for reference
+        self.draw_depth_reference_lines(ui, rect, view_center, render_scale);
+    }
+    
+    /// Draw reference lines to show depth in the camera view
+    fn draw_depth_reference_lines(&self, ui: &mut egui::Ui, rect: egui::Rect, center: egui::Pos2, scale: f32) {
+        let painter = ui.painter();
+        
+        // Draw horizon line
+        painter.line_segment(
+            [egui::pos2(rect.left(), center.y), egui::pos2(rect.right(), center.y)],
+            egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 30))
+        );
+        
+        // Draw vertical center line
+        painter.line_segment(
+            [egui::pos2(center.x, rect.top()), egui::pos2(center.x, rect.bottom())],
+            egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 30))
+        );
+        
+        // Draw perspective grid lines
+        let grid_spacing = scale * 0.3;
+        for i in 1..5 {
+            let offset = grid_spacing * i as f32;
+            
+            // Horizontal grid lines
+            if center.y + offset < rect.bottom() {
+                painter.line_segment(
+                    [egui::pos2(rect.left(), center.y + offset), egui::pos2(rect.right(), center.y + offset)],
+                    egui::Stroke::new(0.5, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 15))
+                );
+            }
+            if center.y - offset > rect.top() {
+                painter.line_segment(
+                    [egui::pos2(rect.left(), center.y - offset), egui::pos2(rect.right(), center.y - offset)],
+                    egui::Stroke::new(0.5, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 15))
+                );
+            }
+        }
+    }
+    
+    /// Show message when no camera is available
+    fn show_no_camera_message(&self, ui: &mut egui::Ui, rect: egui::Rect, message: &str) {
+        ui.allocate_ui_at_rect(rect, |ui| {
+            ui.centered_and_justified(|ui| {
+                ui.vertical_centered(|ui| {
+                    ui.colored_label(egui::Color32::YELLOW, "⚠️ Camera Issue");
+                    ui.label(message);
+                    ui.small("Add a Camera component to an entity");
+                    ui.small("Set 'is_main' to true for main camera");
+                });
+            });
+        });
+    }
+
     fn show_game_view(&mut self, ui: &mut egui::Ui) {
-        self.scene_view_active = false;
-        self.show_scene_view(ui);
+        // Game View header
+        ui.horizontal(|ui| {
+            ui.label("🎮 Game View");
+            
+            ui.separator();
+            
+            // Aspect ratio selector  
+            ui.label("Aspect:");
+            egui::ComboBox::from_id_source("game_view_aspect")
+                .selected_text("16:9")
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut "", "16:9", "16:9");
+                    ui.selectable_value(&mut "", "4:3", "4:3");
+                    ui.selectable_value(&mut "", "Free", "Free Aspect");
+                });
+            
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("🔊").on_hover_text("Audio toggle").clicked() {
+                    self.console_messages.push(ConsoleMessage::info("🔊 Game audio toggled"));
+                }
+                if ui.button("📊").on_hover_text("Stats").clicked() {
+                    self.console_messages.push(ConsoleMessage::info("📊 Game view stats"));
+                }
+            });
+        });
+        
+        ui.separator();
+        
+        // Main game view area
+        let available_size = ui.available_size();
+        let response = ui.allocate_response(available_size, egui::Sense::hover());
+        
+        if self.play_state == PlayState::Editing {
+            // Show "Press Play" message when not in play mode
+            ui.allocate_ui_at_rect(response.rect, |ui| {
+                ui.centered_and_justified(|ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.label("🎮 Game View");
+                        ui.label("Press Play button to see game from camera");
+                        ui.small("This view shows what the player will see");
+                    });
+                });
+            });
+        } else {
+            // Render from main camera perspective when playing
+            self.render_camera_perspective(ui, response.rect);
+        }
     }
     
     fn show_console_panel(&mut self, ui: &mut egui::Ui) {
