@@ -1,5 +1,5 @@
 use engine_geometry_core::{MeshHandle, BufferHandle};
-use engine_materials_core::{texture::TextureHandle, shader::ShaderHandle, TextureUsage};
+use engine_materials_core::{texture::TextureHandle, TextureUsage};
 
 pub trait ResourceManager {
     fn create_buffer(&mut self, descriptor: &BufferDescriptor) -> BufferHandle;
@@ -37,16 +37,6 @@ bitflags::bitflags! {
     }
 }
 
-bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
-    pub struct TextureUsage: u32 {
-        const TEXTURE_BINDING = 1 << 0;
-        const STORAGE_BINDING = 1 << 1;
-        const RENDER_ATTACHMENT = 1 << 2;
-        const COPY_SRC = 1 << 3;
-        const COPY_DST = 1 << 4;
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum MemoryType {

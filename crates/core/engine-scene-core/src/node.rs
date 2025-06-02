@@ -1,6 +1,7 @@
 //! Scene node hierarchy management
 
-use crate::{Transform, Camera, Light};
+use engine_components_core::{Transform, Light};
+use engine_camera_core::Camera;
 use engine_geometry_core::MeshHandle;
 use engine_materials_core::MaterialHandle;
 use serde::{Serialize, Deserialize};

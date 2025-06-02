@@ -27,6 +27,45 @@ impl Default for Transform {
     }
 }
 
+impl Transform {
+    /// Create a new Transform with default values
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    /// Create a transform matrix from this transform
+    pub fn matrix(&self) -> glam::Mat4 {
+        let translation = glam::Vec3::from_array(self.position);
+        let rotation = glam::Quat::from_euler(
+            glam::EulerRot::XYZ,
+            self.rotation[0],
+            self.rotation[1], 
+            self.rotation[2]
+        );
+        let scale = glam::Vec3::from_array(self.scale);
+        
+        glam::Mat4::from_scale_rotation_translation(scale, rotation, translation)
+    }
+    
+    /// Set position
+    pub fn with_position(mut self, x: f32, y: f32, z: f32) -> Self {
+        self.position = [x, y, z];
+        self
+    }
+    
+    /// Set rotation (in radians)
+    pub fn with_rotation(mut self, x: f32, y: f32, z: f32) -> Self {
+        self.rotation = [x, y, z];
+        self
+    }
+    
+    /// Set scale
+    pub fn with_scale(mut self, x: f32, y: f32, z: f32) -> Self {
+        self.scale = [x, y, z];
+        self
+    }
+}
+
 // Component trait implementations will be added by engine-ecs-core
 
 // Mesh component - defines what mesh to render

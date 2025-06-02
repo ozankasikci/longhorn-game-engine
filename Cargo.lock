@@ -956,6 +956,7 @@ dependencies = [
 name = "engine-components-core"
 version = "0.1.0"
 dependencies = [
+ "glam",
  "serde",
 ]
 
@@ -1102,6 +1103,8 @@ dependencies = [
 name = "engine-scene-core"
 version = "0.1.0"
 dependencies = [
+ "engine-camera-core",
+ "engine-components-core",
  "engine-geometry-core",
  "engine-materials-core",
  "engine-renderer-core",
