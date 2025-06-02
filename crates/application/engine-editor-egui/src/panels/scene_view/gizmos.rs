@@ -159,6 +159,118 @@ impl GizmoSystem {
     pub fn get_snap_increment(&self) -> f32 {
         self.snap_increment
     }
+    
+    /// Test if mouse position hits any gizmo component
+    pub fn test_gizmo_hit(&self, mouse_pos: egui::Pos2, gizmo_center: egui::Pos2) -> Option<GizmoComponent> {
+        if !self.move_gizmo.as_ref().map_or(false, |g| g.enabled) {
+            return None;
+        }
+        
+        let hit_radius = 15.0; // Increased hit radius for easier selection
+        let axis_length = 80.0;
+        let plane_size = 20.0;
+        
+        // Test center sphere first (screen-space movement)
+        let center_dist = mouse_pos.distance(gizmo_center);
+        if center_dist < hit_radius {
+            return Some(GizmoComponent::Center);
+        }
+        
+        // Test axis lines
+        let x_end = gizmo_center + egui::vec2(axis_length, 0.0);
+        let y_end = gizmo_center + egui::vec2(0.0, -axis_length);
+        let z_end = gizmo_center + egui::vec2(axis_length * 0.5, -axis_length * 0.5);
+        
+        // Use line distance calculation
+        if self.point_to_line_distance(mouse_pos, gizmo_center, x_end) < hit_radius {
+            return Some(GizmoComponent::Axis(GizmoAxis::X));
+        }
+        if self.point_to_line_distance(mouse_pos, gizmo_center, y_end) < hit_radius {
+            return Some(GizmoComponent::Axis(GizmoAxis::Y));
+        }
+        if self.point_to_line_distance(mouse_pos, gizmo_center, z_end) < hit_radius {
+            return Some(GizmoComponent::Axis(GizmoAxis::Z));
+        }
+        
+        // Test plane handles (positioned at 1/3 of axis length)
+        let plane_offset = axis_length / 3.0;
+        let xy_plane_pos = gizmo_center + egui::vec2(plane_offset, -plane_offset);
+        let xz_plane_pos = gizmo_center + egui::vec2(plane_offset * 1.5, -plane_offset * 0.5);
+        let yz_plane_pos = gizmo_center + egui::vec2(plane_offset * 0.5, -plane_offset * 1.5);
+        
+        if mouse_pos.distance(xy_plane_pos) < plane_size {
+            return Some(GizmoComponent::Plane(GizmoPlane::XY));
+        }
+        if mouse_pos.distance(xz_plane_pos) < plane_size {
+            return Some(GizmoComponent::Plane(GizmoPlane::XZ));
+        }
+        if mouse_pos.distance(yz_plane_pos) < plane_size {
+            return Some(GizmoComponent::Plane(GizmoPlane::YZ));
+        }
+        
+        None
+    }
+    
+    /// Calculate distance from point to line segment
+    fn point_to_line_distance(&self, point: egui::Pos2, line_start: egui::Pos2, line_end: egui::Pos2) -> f32 {
+        let line_vec = line_end - line_start;
+        let point_vec = point - line_start;
+        let line_len_sq = line_vec.length_sq();
+        
+        if line_len_sq < 0.0001 {
+            return point.distance(line_start);
+        }
+        
+        let t = (point_vec.dot(line_vec) / line_len_sq).clamp(0.0, 1.0);
+        let projection = line_start + line_vec * t;
+        point.distance(projection)
+    }
+    
+    /// Calculate new position based on gizmo interaction
+    pub fn calculate_new_position(&self, start_pos: [f32; 3], mouse_delta: egui::Vec2, component: GizmoComponent, scale: f32) -> [f32; 3] {
+        let mut new_pos = start_pos;
+        let movement_scale = 1.0 / scale; // Inverse scale for world space movement
+        
+        match component {
+            GizmoComponent::Axis(axis) => {
+                match axis {
+                    GizmoAxis::X => new_pos[0] = start_pos[0] + mouse_delta.x * movement_scale,
+                    GizmoAxis::Y => new_pos[1] = start_pos[1] - mouse_delta.y * movement_scale,
+                    GizmoAxis::Z => new_pos[2] = start_pos[2] - mouse_delta.y * movement_scale,
+                }
+            }
+            GizmoComponent::Plane(plane) => {
+                match plane {
+                    GizmoPlane::XY => {
+                        new_pos[0] = start_pos[0] + mouse_delta.x * movement_scale;
+                        new_pos[1] = start_pos[1] - mouse_delta.y * movement_scale;
+                    }
+                    GizmoPlane::XZ => {
+                        new_pos[0] = start_pos[0] + mouse_delta.x * movement_scale;
+                        new_pos[2] = start_pos[2] - mouse_delta.y * movement_scale;
+                    }
+                    GizmoPlane::YZ => {
+                        new_pos[1] = start_pos[1] - mouse_delta.y * movement_scale;
+                        new_pos[2] = start_pos[2] - mouse_delta.x * movement_scale * 0.5;
+                    }
+                }
+            }
+            GizmoComponent::Center => {
+                // Screen-space movement
+                new_pos[0] = start_pos[0] + mouse_delta.x * movement_scale;
+                new_pos[2] = start_pos[2] - mouse_delta.y * movement_scale;
+            }
+        }
+        
+        // Apply snapping if enabled
+        if self.snap_enabled {
+            new_pos[0] = (new_pos[0] / self.snap_increment).round() * self.snap_increment;
+            new_pos[1] = (new_pos[1] / self.snap_increment).round() * self.snap_increment;
+            new_pos[2] = (new_pos[2] / self.snap_increment).round() * self.snap_increment;
+        }
+        
+        new_pos
+    }
 }
 
 /// Ray for 3D intersection testing

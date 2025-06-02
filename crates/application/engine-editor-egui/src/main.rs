@@ -19,6 +19,7 @@ use editor_state::{EditorState, GameObject, ConsoleMessage, ConsoleMessageType};
 use scene_renderer::SceneRenderer;
 use types::{PlayState, SceneNavigation, SceneTool, GizmoSystem, GizmoAxis, GizmoPlane, GizmoComponent, GizmoInteractionState, TextureAsset, ProjectAsset, PanelType};
 use panels::scene_view::gizmos::{MoveGizmo, Ray};
+use panels::scene_view::navigation::SceneNavigator;
 use std::io::Write as _IoWrite;
 
 fn main() -> Result<(), eframe::Error> {
@@ -1536,146 +1537,29 @@ impl UnityEditor {
     
     /// Start scene navigation mode
     fn start_scene_navigation(&mut self, mouse_pos: egui::Pos2) {
-        if !self.scene_navigation.enabled {
-            return;
-        }
-        
-        self.scene_navigation.is_navigating = true;
-        self.scene_navigation.last_mouse_pos = Some(mouse_pos);
-        
-        self.console_messages.push(ConsoleMessage::info(&format!(
-            "🎮 Started scene navigation at ({:.1}, {:.1})", 
-            mouse_pos.x, mouse_pos.y
-        )));
+        let messages = SceneNavigator::start_navigation(&mut self.scene_navigation, mouse_pos);
+        self.console_messages.extend(messages);
     }
     
     /// End scene navigation mode
     fn end_scene_navigation(&mut self) {
-        self.scene_navigation.is_navigating = false;
-        self.scene_navigation.last_mouse_pos = None;
-        
-        self.console_messages.push(ConsoleMessage::info("🎮 Ended scene navigation"));
+        let messages = SceneNavigator::end_navigation(&mut self.scene_navigation);
+        self.console_messages.extend(messages);
     }
     
     
     /// Apply mouse movement to camera rotation
     fn apply_mouse_look(&mut self, mouse_delta: egui::Vec2) {
-        let sensitivity = self.scene_navigation.rotation_sensitivity;
-        
-        // Horizontal rotation (Y-axis - yaw)
-        let yaw_delta = -mouse_delta.x * sensitivity;
-        
-        // Vertical rotation (X-axis - pitch)  
-        let pitch_delta = -mouse_delta.y * sensitivity;
-        
-        // Apply rotations to scene camera - no clamping for scene editing
-        self.scene_navigation.scene_camera_transform.rotation[1] += yaw_delta;
-        self.scene_navigation.scene_camera_transform.rotation[0] += pitch_delta;
+        let messages = SceneNavigator::apply_mouse_look(&mut self.scene_navigation, mouse_delta);
+        self.console_messages.extend(messages);
     }
     
     /// Handle WASD movement input during navigation mode
     fn handle_wasd_movement(&mut self, ui: &egui::Ui) {
-        let movement_speed = self.scene_navigation.movement_speed;
-        let delta_time = self.delta_time;
-        let fast_multiplier = if ui.input(|i| i.modifiers.shift) {
-            self.scene_navigation.fast_movement_multiplier
-        } else {
-            1.0
-        };
-        
-        let actual_speed = movement_speed * delta_time * fast_multiplier;
-        let mut movement = [0.0, 0.0, 0.0];
-        let mut any_movement = false;
-        
-        
-        
-        // Check WASD keys
-        ui.input(|i| {
-            if i.key_down(egui::Key::W) {
-                movement[2] -= actual_speed; // Forward (negative Z)
-                any_movement = true;
-            }
-            if i.key_down(egui::Key::S) {
-                movement[2] += actual_speed; // Backward (positive Z)
-                any_movement = true;
-            }
-            if i.key_down(egui::Key::A) {
-                movement[0] -= actual_speed; // Left (negative X)
-                any_movement = true;
-            }
-            if i.key_down(egui::Key::D) {
-                movement[0] += actual_speed; // Right (positive X)
-                any_movement = true;
-            }
-            if i.key_down(egui::Key::Q) {
-                movement[1] -= actual_speed; // Down (negative Y)
-                any_movement = true;
-            }
-            if i.key_down(egui::Key::E) {
-                movement[1] += actual_speed; // Up (positive Y)
-                any_movement = true;
-            }
-        });
-        
-        if any_movement {
-            // Transform movement relative to camera orientation
-            let transformed_movement = self.transform_movement_by_camera(movement);
-            
-            // Apply movement to camera position
-            self.scene_navigation.scene_camera_transform.position[0] += transformed_movement[0];
-            self.scene_navigation.scene_camera_transform.position[1] += transformed_movement[1];
-            self.scene_navigation.scene_camera_transform.position[2] += transformed_movement[2];
-            
-            // Log camera position occasionally (every 10th frame or significant change)
-            static mut MOVEMENT_COUNTER: u32 = 0;
-            unsafe {
-                MOVEMENT_COUNTER += 1;
-                if MOVEMENT_COUNTER % 10 == 0 {
-                    self.console_messages.push(ConsoleMessage::info(&format!(
-                        "🎮 Camera moved to [{:.1}, {:.1}, {:.1}] delta:{:.3}{}",
-                        self.scene_navigation.scene_camera_transform.position[0],
-                        self.scene_navigation.scene_camera_transform.position[1],
-                        self.scene_navigation.scene_camera_transform.position[2],
-                        delta_time,
-                        if fast_multiplier > 1.0 { " (FAST)" } else { "" }
-                    )));
-                }
-            }
-        }
+        let messages = SceneNavigator::handle_wasd_movement(&mut self.scene_navigation, ui, self.delta_time);
+        self.console_messages.extend(messages);
     }
     
-    /// Transform movement vector by camera orientation for relative movement
-    fn transform_movement_by_camera(&self, movement: [f32; 3]) -> [f32; 3] {
-        let rotation = &self.scene_navigation.scene_camera_transform.rotation;
-        let pitch = rotation[0]; // X-axis rotation (up/down)
-        let yaw = rotation[1]; // Y-axis rotation (left/right)
-        
-        // Calculate forward and right vectors based on camera rotation
-        let cos_yaw = yaw.cos();
-        let sin_yaw = yaw.sin();
-        let cos_pitch = pitch.cos();
-        let sin_pitch = pitch.sin();
-        
-        // Forward vector (camera's -Z direction in world space, affected by pitch)
-        let forward = [
-            -sin_yaw * cos_pitch,
-            sin_pitch,
-            -cos_yaw * cos_pitch,
-        ];
-        
-        // Right vector (camera's +X direction in world space, not affected by pitch)
-        let right = [cos_yaw, 0.0, -sin_yaw];
-        
-        // Up vector (always world up for now)
-        let up = [0.0, 1.0, 0.0];
-        
-        // Transform movement vector
-        [
-            movement[0] * right[0] + movement[1] * up[0] + movement[2] * forward[0],
-            movement[0] * right[1] + movement[1] * up[1] + movement[2] * forward[1],
-            movement[0] * right[2] + movement[1] * up[2] + movement[2] * forward[2],
-        ]
-    }
     
     /// Focus the scene camera on the selected object
     fn focus_on_selected_object(&mut self) {
@@ -1732,25 +1616,8 @@ impl UnityEditor {
     
     /// Handle mouse wheel for navigation speed control
     fn handle_navigation_speed_control(&mut self, ui: &egui::Ui) {
-        ui.input(|i| {
-            let scroll_delta = i.raw_scroll_delta.y;
-            if scroll_delta != 0.0 && self.scene_navigation.enabled {
-                let speed_adjustment = scroll_delta * 0.1; // Sensitivity adjustment
-                let old_speed = self.scene_navigation.movement_speed;
-                
-                // Adjust speed with limits
-                self.scene_navigation.movement_speed = 
-                    (self.scene_navigation.movement_speed + speed_adjustment).clamp(0.5, 50.0);
-                
-                if old_speed != self.scene_navigation.movement_speed {
-                    self.console_messages.push(ConsoleMessage::info(&format!(
-                        "🎮 Navigation speed: {:.1} units/sec {}",
-                        self.scene_navigation.movement_speed,
-                        if scroll_delta > 0.0 { "📈" } else { "📉" }
-                    )));
-                }
-            }
-        });
+        let messages = SceneNavigator::handle_navigation_speed_control(&mut self.scene_navigation, ui);
+        self.console_messages.extend(messages);
     }
     
     /// Handle mouse input for scene view including navigation and gizmo interactions
@@ -1817,7 +1684,7 @@ impl UnityEditor {
         // Handle mouse interaction
         if let Some(mouse_pos) = response.hover_pos() {
             // Test for gizmo component hits
-            let hit_component = self.test_gizmo_hit(mouse_pos, gizmo_center);
+            let hit_component = self.gizmo_system.test_gizmo_hit(mouse_pos, gizmo_center);
             
             // DEBUG: Log gizmo hit testing (only when relevant)
             if response.clicked() || hit_component.is_some() {
@@ -1877,7 +1744,7 @@ impl UnityEditor {
                     if let GizmoInteractionState::Dragging { component, start_mouse_pos, start_object_pos } = gizmo.get_interaction_state() {
                         let mouse_delta = mouse_pos - *start_mouse_pos;
                         let delta_vec2 = egui::Vec2::new(mouse_delta.x, mouse_delta.y);
-                        new_position = self.calculate_new_position(*start_object_pos, delta_vec2, *component, scale);
+                        new_position = self.gizmo_system.calculate_new_position(*start_object_pos, delta_vec2, *component, scale);
                         should_update = true;
                         
                         // Debug output
@@ -1957,119 +1824,6 @@ impl UnityEditor {
         }
     }
     
-    /// Test if mouse position hits any gizmo component
-    fn test_gizmo_hit(&self, mouse_pos: egui::Pos2, gizmo_center: egui::Pos2) -> Option<GizmoComponent> {
-        let arrow_length = 40.0;
-        let arrow_width = 8.0; // Slightly wider for easier clicking
-        let square_size = 16.0; // Slightly larger for easier clicking
-        let square_offset = arrow_length * 0.3;
-        let center_radius = 10.0;
-        
-        // Test center handle first (highest priority)
-        if (mouse_pos - gizmo_center).length() <= center_radius {
-            return Some(GizmoComponent::Center);
-        }
-        
-        // Test planar movement squares
-        let xy_square_center = egui::pos2(gizmo_center.x + square_offset, gizmo_center.y - square_offset);
-        let xy_square = egui::Rect::from_center_size(xy_square_center, egui::vec2(square_size, square_size));
-        if xy_square.contains(mouse_pos) {
-            return Some(GizmoComponent::Plane(GizmoPlane::XY));
-        }
-        
-        let xz_square_center = egui::pos2(gizmo_center.x + square_offset, gizmo_center.y + square_offset * 0.5);
-        let xz_square = egui::Rect::from_center_size(xz_square_center, egui::vec2(square_size, square_size));
-        if xz_square.contains(mouse_pos) {
-            return Some(GizmoComponent::Plane(GizmoPlane::XZ));
-        }
-        
-        let yz_square_center = egui::pos2(gizmo_center.x - square_offset * 0.5, gizmo_center.y - square_offset);
-        let yz_square = egui::Rect::from_center_size(yz_square_center, egui::vec2(square_size, square_size));
-        if yz_square.contains(mouse_pos) {
-            return Some(GizmoComponent::Plane(GizmoPlane::YZ));
-        }
-        
-        // Test axis arrows
-        // X-Axis (horizontal right)
-        let x_end = egui::pos2(gizmo_center.x + arrow_length, gizmo_center.y);
-        if self.point_to_line_distance(mouse_pos, gizmo_center, x_end) <= arrow_width {
-            return Some(GizmoComponent::Axis(GizmoAxis::X));
-        }
-        
-        // Y-Axis (vertical up)
-        let y_end = egui::pos2(gizmo_center.x, gizmo_center.y - arrow_length);
-        if self.point_to_line_distance(mouse_pos, gizmo_center, y_end) <= arrow_width {
-            return Some(GizmoComponent::Axis(GizmoAxis::Y));
-        }
-        
-        // Z-Axis (diagonal up-right)
-        let z_offset_x = arrow_length * 0.7;
-        let z_offset_y = -arrow_length * 0.7;
-        let z_end = egui::pos2(gizmo_center.x + z_offset_x, gizmo_center.y + z_offset_y);
-        if self.point_to_line_distance(mouse_pos, gizmo_center, z_end) <= arrow_width {
-            return Some(GizmoComponent::Axis(GizmoAxis::Z));
-        }
-        
-        None
-    }
-    
-    /// Calculate distance from point to line segment
-    fn point_to_line_distance(&self, point: egui::Pos2, line_start: egui::Pos2, line_end: egui::Pos2) -> f32 {
-        let line_vec = line_end - line_start;
-        let point_vec = point - line_start;
-        
-        let line_len_sq = line_vec.length_sq();
-        if line_len_sq < 1e-6 {
-            return (point - line_start).length();
-        }
-        
-        let t = (point_vec.dot(line_vec) / line_len_sq).clamp(0.0, 1.0);
-        let projection = line_start + t * line_vec;
-        (point - projection).length()
-    }
-    
-    /// Calculate new position based on mouse delta and movement constraint
-    fn calculate_new_position(&self, start_pos: [f32; 3], mouse_delta: egui::Vec2, component: GizmoComponent, scale: f32) -> [f32; 3] {
-        let mut new_pos = start_pos;
-        
-        match component {
-            GizmoComponent::Axis(GizmoAxis::X) => {
-                // X-axis movement (horizontal)
-                new_pos[0] = start_pos[0] + mouse_delta.x / scale;
-            }
-            GizmoComponent::Axis(GizmoAxis::Y) => {
-                // Y-axis movement (vertical, inverted because screen Y is flipped)
-                new_pos[1] = start_pos[1] - mouse_delta.y / scale;
-            }
-            GizmoComponent::Axis(GizmoAxis::Z) => {
-                // Z-axis movement (diagonal, using both X and Y mouse movement)
-                let z_movement = (mouse_delta.x - mouse_delta.y) / scale * 0.7; // Scaled for diagonal
-                new_pos[2] = start_pos[2] + z_movement;
-            }
-            GizmoComponent::Plane(GizmoPlane::XY) => {
-                // XY plane movement (Z locked)
-                new_pos[0] = start_pos[0] + mouse_delta.x / scale;
-                new_pos[1] = start_pos[1] - mouse_delta.y / scale;
-            }
-            GizmoComponent::Plane(GizmoPlane::XZ) => {
-                // XZ plane movement (Y locked) 
-                new_pos[0] = start_pos[0] + mouse_delta.x / scale;
-                new_pos[2] = start_pos[2] - mouse_delta.y / scale;
-            }
-            GizmoComponent::Plane(GizmoPlane::YZ) => {
-                // YZ plane movement (X locked)
-                new_pos[1] = start_pos[1] - mouse_delta.y / scale * 0.5; // Reduced sensitivity
-                new_pos[2] = start_pos[2] + mouse_delta.x / scale * 0.5;
-            }
-            GizmoComponent::Center => {
-                // Screen-space movement (maintain world depth)
-                new_pos[0] = start_pos[0] + mouse_delta.x / scale;
-                new_pos[1] = start_pos[1] - mouse_delta.y / scale;
-            }
-        }
-        
-        new_pos
-    }
 
     /// Render the scene from the main camera's perspective
     fn render_camera_perspective(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
