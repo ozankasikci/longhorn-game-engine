@@ -28,7 +28,52 @@ impl InspectorPanel {
         let mut messages = Vec::new();
         
         if let Some(selected_entity) = selected_entity {
-            ui.label(format!("Entity ID: {}", selected_entity.id()));
+            ui.horizontal(|ui| {
+                ui.label(format!("Entity ID: {}", selected_entity.id()));
+                
+                // Copy entity info button
+                if ui.button("📋 Copy Info").on_hover_text("Copy entity information to clipboard").clicked() {
+                    let mut info = String::new();
+                    info.push_str(&format!("=== Entity Information ===\n"));
+                    info.push_str(&format!("Entity ID: {}\n", selected_entity.id()));
+                    
+                    // Get entity name
+                    if let Some(name) = world.get_component::<Name>(selected_entity) {
+                        info.push_str(&format!("Name: {}\n", name.name));
+                    }
+                    
+                    // Get transform
+                    if let Some(transform) = world.get_component::<Transform>(selected_entity) {
+                        info.push_str(&format!("\nTransform:\n"));
+                        info.push_str(&format!("  Position: [{:.2}, {:.2}, {:.2}]\n", 
+                            transform.position[0], transform.position[1], transform.position[2]));
+                        info.push_str(&format!("  Rotation: [{:.2}°, {:.2}°, {:.2}°]\n", 
+                            transform.rotation[0].to_degrees(), 
+                            transform.rotation[1].to_degrees(), 
+                            transform.rotation[2].to_degrees()));
+                        info.push_str(&format!("  Scale: [{:.2}, {:.2}, {:.2}]\n", 
+                            transform.scale[0], transform.scale[1], transform.scale[2]));
+                    }
+                    
+                    // Get mesh info
+                    if let Some(mesh) = world.get_component::<Mesh>(selected_entity) {
+                        info.push_str(&format!("\nMesh: {:?}\n", mesh.mesh_type));
+                    }
+                    
+                    // Get material info
+                    if let Some(material) = world.get_component::<Material>(selected_entity) {
+                        info.push_str(&format!("\nMaterial:\n"));
+                        info.push_str(&format!("  Color: [{:.2}, {:.2}, {:.2}, {:.2}]\n", 
+                            material.color[0], material.color[1], material.color[2], material.color[3]));
+                        info.push_str(&format!("  Metallic: {:.2}\n", material.metallic));
+                        info.push_str(&format!("  Roughness: {:.2}\n", material.roughness));
+                    }
+                    
+                    // Copy to clipboard
+                    ui.output_mut(|o| o.copied_text = info.clone());
+                    messages.push(ConsoleMessage::info("📋 Entity information copied to clipboard"));
+                }
+            });
             ui.separator();
             
             egui::ScrollArea::vertical().show(ui, |ui| {

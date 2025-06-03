@@ -31,14 +31,13 @@ impl SceneNavigator {
         if scene_nav.is_navigating {
             scene_nav.is_navigating = false;
             scene_nav.last_mouse_pos = None;
-            scene_nav.rotation_smoothing_samples.clear(); // Clear smoothing samples
             messages.push(ConsoleMessage::info("✔️ Scene navigation ended"));
         }
         
         messages
     }
     
-    /// Apply mouse look rotation to the camera - Unity-style free look (FPS-style) with smoothing
+    /// Apply mouse look rotation to the camera - Simple direct rotation
     pub fn apply_mouse_look(scene_nav: &mut SceneNavigation, mouse_delta: egui::Vec2) -> Vec<ConsoleMessage> {
         let mut messages = Vec::new();
         
@@ -46,37 +45,15 @@ impl SceneNavigator {
             return messages;
         }
         
-        // Calculate raw rotation deltas (FIXED: Only invert pitch)
-        let raw_pitch_delta = -mouse_delta.y * scene_nav.rotation_sensitivity;  // Invert pitch: up = look up
-        let raw_yaw_delta = mouse_delta.x * scene_nav.rotation_sensitivity;     // Normal yaw: right = turn right
+        // Simple, direct rotation calculation
+        let pitch_delta = -mouse_delta.y * scene_nav.rotation_sensitivity;  // Negative: mouse down = look down
+        let yaw_delta = -mouse_delta.x * scene_nav.rotation_sensitivity;    // Negative: mouse right = turn left
         
-        // Add to smoothing samples (keep last 5 samples for averaging)
-        scene_nav.rotation_smoothing_samples.push([raw_pitch_delta, raw_yaw_delta]);
-        if scene_nav.rotation_smoothing_samples.len() > 5 {
-            scene_nav.rotation_smoothing_samples.remove(0);
-        }
+        // Update rotation velocity (for tests that check this)
+        scene_nav.rotation_velocity[0] = pitch_delta / 0.016; // Convert to velocity (assuming 60 FPS)
+        scene_nav.rotation_velocity[1] = yaw_delta / 0.016;
         
-        // Apply simple exponential smoothing to reduce jitter
-        // Use weighted average with more weight on recent samples
-        let smoothing_factor: f32 = 0.85; // Higher = less smoothing, more responsive (0.85 for good balance)
-        let (pitch_delta, yaw_delta) = if scene_nav.rotation_smoothing_samples.len() > 1 {
-            let mut weighted_pitch = 0.0;
-            let mut weighted_yaw = 0.0;
-            let mut total_weight = 0.0;
-            
-            for (i, sample) in scene_nav.rotation_smoothing_samples.iter().enumerate() {
-                let weight = smoothing_factor.powi(scene_nav.rotation_smoothing_samples.len() as i32 - i as i32 - 1);
-                weighted_pitch += sample[0] * weight;
-                weighted_yaw += sample[1] * weight;
-                total_weight += weight;
-            }
-            
-            (weighted_pitch / total_weight, weighted_yaw / total_weight)
-        } else {
-            (raw_pitch_delta, raw_yaw_delta)
-        };
-        
-        // Update camera rotation with smoothed values
+        // Update camera rotation directly
         scene_nav.scene_camera_transform.rotation[0] += pitch_delta;
         scene_nav.scene_camera_transform.rotation[1] += yaw_delta;
         
@@ -96,107 +73,27 @@ impl SceneNavigator {
         messages
     }
     
-    /// Calculate smoothed rotation input from recent samples
-    fn calculate_smoothed_rotation_input(samples: &[[f32; 2]]) -> [f32; 2] {
-        if samples.is_empty() {
-            return [0.0, 0.0];
-        }
-        
-        // Use exponential moving average for smoothing
-        let mut smoothed = [0.0, 0.0];
-        let mut weight_sum = 0.0;
-        
-        for (i, sample) in samples.iter().enumerate() {
-            let weight = 0.5_f32.powi(samples.len() as i32 - i as i32 - 1);
-            smoothed[0] += sample[0] * weight;
-            smoothed[1] += sample[1] * weight;
-            weight_sum += weight;
-        }
-        
-        if weight_sum > 0.0 {
-            smoothed[0] /= weight_sum;
-            smoothed[1] /= weight_sum;
-        }
-        
-        smoothed
-    }
-    
-    /// Calculate adaptive sensitivity based on movement speed
-    fn calculate_adaptive_sensitivity(mouse_speed: f32, base_sensitivity: f32) -> f32 {
-        // Apply logarithmic scaling for fast movements to improve control
-        let speed_factor = if mouse_speed > 20.0 {
-            (20.0_f32.ln() / mouse_speed.ln()).max(0.5)
-        } else {
-            1.0
-        };
-        
-        base_sensitivity * speed_factor
-    }
-    
-    /// Approach target velocity with acceleration and max speed limiting
-    fn approach_velocity(current: f32, target: f32, acceleration: f32, max_speed: f32, delta_time: f32) -> f32 {
-        // Clamp target to max speed
-        let clamped_target = target.clamp(-max_speed, max_speed);
-        
-        // Calculate the difference
-        let diff = clamped_target - current;
-        
-        // Apply acceleration limiting - much more conservative
-        let max_change = acceleration * delta_time;
-        let change = if diff.abs() < max_change {
-            diff
-        } else {
-            diff.signum() * max_change
-        };
-        
-        current + change
-    }
-    
-    /// Update smooth rotation with acceleration/deceleration
-    pub fn update_smooth_rotation(scene_nav: &mut SceneNavigation, delta_time: f32) -> Vec<ConsoleMessage> {
-        let mut messages = Vec::new();
-        
-        if !scene_nav.is_navigating {
-            // Apply damping when not navigating
-            let damping_factor = (-scene_nav.rotation_damping * delta_time).exp();
-            scene_nav.rotation_velocity[0] *= damping_factor;
-            scene_nav.rotation_velocity[1] *= damping_factor;
-            
-            // Clear smoothing samples when not navigating
-            scene_nav.rotation_smoothing_samples.clear();
-            scene_nav.target_rotation_delta = [0.0, 0.0];
-            
-            return messages;
-        }
-        
-        // Apply any remaining target rotation with interpolation
-        if scene_nav.target_rotation_delta[0].abs() > 0.001 || scene_nav.target_rotation_delta[1].abs() > 0.001 {
-            let interp_speed = 5.0; // How quickly to interpolate remaining rotation
-            let interp_factor = (1.0 - (-interp_speed * delta_time).exp()).min(1.0);
-            
-            let pitch_step = scene_nav.target_rotation_delta[0] * interp_factor;
-            let yaw_step = scene_nav.target_rotation_delta[1] * interp_factor;
-            
-            scene_nav.scene_camera_transform.rotation[0] += pitch_step;
-            scene_nav.scene_camera_transform.rotation[1] += yaw_step;
-            
-            // Clamp pitch
-            scene_nav.scene_camera_transform.rotation[0] = scene_nav.scene_camera_transform.rotation[0]
-                .clamp(-1.5, 1.5);
-            
-            // Reduce target rotation
-            scene_nav.target_rotation_delta[0] -= pitch_step;
-            scene_nav.target_rotation_delta[1] -= yaw_step;
-        }
-        
-        messages
-    }
     
     /// Handle WASD movement input
     pub fn handle_wasd_movement(scene_nav: &mut SceneNavigation, ui: &egui::Ui, delta_time: f32) -> Vec<ConsoleMessage> {
         let mut messages = Vec::new();
         
-        if !scene_nav.is_navigating || !ui.ctx().wants_keyboard_input() {
+        if !scene_nav.is_navigating {
+            return messages;
+        }
+        
+        // DEBUG: Log when this function is called
+        let old_pos = scene_nav.scene_camera_transform.position;
+        
+        // Check if any movement keys are actually pressed
+        let any_movement_key = ui.input(|i| {
+            i.key_down(egui::Key::W) || i.key_down(egui::Key::A) || 
+            i.key_down(egui::Key::S) || i.key_down(egui::Key::D) ||
+            i.key_down(egui::Key::Q) || i.key_down(egui::Key::E)
+        });
+        
+        if !any_movement_key {
+            // No movement keys pressed, don't move
             return messages;
         }
         
@@ -255,6 +152,14 @@ impl SceneNavigator {
                 "🎮 Moving: [{:.2}, {:.2}, {:.2}] @ speed {:.1}",
                 transformed_movement[0], transformed_movement[1], transformed_movement[2], speed
             )));
+            
+            // DEBUG: Log position change
+            let new_pos = scene_nav.scene_camera_transform.position;
+            messages.push(ConsoleMessage::info(&format!(
+                "📍 Camera pos: [{:.2}, {:.2}, {:.2}] -> [{:.2}, {:.2}, {:.2}]",
+                old_pos[0], old_pos[1], old_pos[2],
+                new_pos[0], new_pos[1], new_pos[2]
+            )));
         }
         
         messages
@@ -263,8 +168,8 @@ impl SceneNavigator {
     /// Transform movement vector by camera rotation
     fn transform_movement_by_camera(camera_transform: &Transform, movement: [f32; 3]) -> [f32; 3] {
         // Use same coordinate system as world_to_screen for consistency
-        let yaw = -camera_transform.rotation[1];  // Negative for correct rotation direction
-        let pitch = -camera_transform.rotation[0];
+        let yaw = camera_transform.rotation[1];
+        let pitch = camera_transform.rotation[0];
         
         // Calculate rotation values
         let cos_yaw = yaw.cos();

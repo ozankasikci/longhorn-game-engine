@@ -288,8 +288,9 @@ impl SceneViewRenderer {
         ];
         
         // Apply camera rotation (Unity-style: Y-axis yaw first, then X-axis pitch)
-        let yaw = -camera_rot[1];  // Negative for correct rotation direction
-        let pitch = -camera_rot[0];
+        // Note: We use the rotation values directly now since mouse input already handles the sign
+        let yaw = camera_rot[1];
+        let pitch = camera_rot[0];
         
         // Rotate around Y-axis (yaw)
         let cos_yaw = yaw.cos();
@@ -738,8 +739,9 @@ impl SceneViewRenderer {
         ];
         
         // Apply camera rotation (Unity-style: Y-axis yaw first, then X-axis pitch)
-        let yaw = -camera_rot[1];  // Negative for correct rotation direction
-        let pitch = -camera_rot[0];
+        // Note: We use the rotation values directly now since mouse input already handles the sign
+        let yaw = camera_rot[1];
+        let pitch = camera_rot[0];
         
         // Rotate around Y-axis (yaw)
         let cos_yaw = yaw.cos();

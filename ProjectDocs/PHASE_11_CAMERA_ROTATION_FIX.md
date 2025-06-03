@@ -1,79 +1,99 @@
-# Phase 11: Camera Rotation Fix
+# Phase 11: Camera Rotation Fix Analysis
 
-## Status: Completed
-**Date:** January 2025
+## Issue Summary
+The scene camera rotation in the Longhorn Game Engine editor is not working as expected. The tests indicate that the system should use a velocity-based rotation system with smoothing, acceleration, and adaptive sensitivity, but the current implementation directly applies rotation without these features.
 
-## Problem
-Camera rotation wasn't working in the Scene View when using right-click + drag. The issue was that mouse events were being intercepted by the `egui_dock::DockArea` before reaching the Scene View panel.
+## Current Implementation Issues
 
-## Investigation
-1. **Initial Issue**: Right-click + drag wasn't rotating the camera in the Scene View
-2. **Root Cause**: The egui_dock TabViewer was consuming mouse events before they reached the Scene View
-3. **Debugging Steps**:
-   - Added extensive debug logging to track mouse input detection
-   - Discovered that `response.dragged()` and `response.secondary_clicked()` weren't being triggered
-   - Found that pointer deltas were always zero when using standard response methods
+### 1. Direct Rotation Application
+In `navigation.rs`, the `apply_mouse_look` function directly modifies the camera rotation:
+```rust
+// Current implementation (lines 80-81)
+scene_nav.scene_camera_transform.rotation[0] += pitch_delta;
+scene_nav.scene_camera_transform.rotation[1] += yaw_delta;
+```
 
-## Solution
-1. **Interactive Response**: Used `ui.interact()` to create a proper interactive area that captures mouse events:
-   ```rust
-   // Main view area - allocate space first
-   let available_size = ui.available_size();
-   let (rect, mut response) = ui.allocate_exact_size(available_size, egui::Sense::click_and_drag());
-   
-   // CRITICAL: Create an interactive area that captures mouse events
-   // This ensures the scene view gets mouse input even in a docked panel
-   response = ui.interact(rect, response.id, egui::Sense::click_and_drag());
-   ```
+But the tests expect the system to use `rotation_velocity` for smooth, interpolated movement.
 
-2. **Response-based Navigation**: Updated navigation code to use response's drag detection methods:
-   ```rust
-   // Use the response object's drag detection for reliable input in docked panels
-   let is_dragging = response.dragged_by(egui::PointerButton::Secondary);
-   let drag_started = response.drag_started_by(egui::PointerButton::Secondary);
-   let drag_stopped = response.drag_stopped_by(egui::PointerButton::Secondary);
-   ```
+### 2. Unused Velocity System
+The `SceneNavigation` struct has fields for a velocity-based system that are not being used:
+- `rotation_velocity: [f32; 2]` - Should store current rotation velocity
+- `rotation_acceleration: f32` - Should control how fast rotation speeds up/slows down
+- `rotation_damping: f32` - Should control how rotation slows when input stops
+- `max_rotation_speed: f32` - Should limit maximum rotation speed
 
-3. **Manual Delta Calculation**: Implemented manual mouse delta calculation as a fallback:
-   ```rust
-   // Calculate mouse delta using multiple methods
-   if let Some(current_pos) = pointer_pos {
-       let effective_delta = if let Some(last_pos) = scene_navigation.last_mouse_pos {
-           // Always calculate manual delta
-           let manual_delta = egui::Vec2::new(
-               current_pos.x - last_pos.x,
-               current_pos.y - last_pos.y
-           );
-           
-           // Use manual delta if there's any movement
-           if manual_delta.length() > 0.01 {
-               manual_delta
-           } else {
-               egui::Vec2::ZERO
-           }
-       } else {
-           egui::Vec2::ZERO
-       };
-   ```
+### 3. Missing Features Expected by Tests
+The failing tests indicate these missing features:
+1. **Smooth Acceleration** - Rotation should gradually speed up/slow down
+2. **Adaptive Sensitivity** - Fast mouse movements should be dampened
+3. **Mouse Smoothing** - Jittery input should be smoothed out
+4. **Rotation Interpolation** - Large rotations should be spread over multiple frames
 
-## Files Modified
-1. `/crates/application/engine-editor-egui/src/panels/scene_view/mod.rs`
-   - Added `ui.interact()` call to ensure proper mouse event capture
-   - Removed redundant raw input checking
+### 4. Incorrect Rotation Direction
+One test failure shows the rotation direction is inverted:
+- Test expects: "Camera should rotate left when mouse moves right" (negative yaw)
+- Current behavior: Positive yaw for rightward movement
 
-2. `/crates/application/engine-editor-egui/src/panels/scene_view/navigation.rs`
-   - Updated to use response-based drag detection
-   - Simplified mouse delta calculation
-   - Removed excessive debug logging
+## Root Cause Analysis
 
-3. `/crates/application/engine-editor-egui/src/panels/scene_view/scene_view_impl.rs`
-   - Removed debug rendering logs that were cluttering the view
+The implementation appears to be a simplified "Unity-style direct response" system (as noted in line 407 comment), but the tests expect a more sophisticated velocity-based system with smoothing and acceleration.
 
-## Key Learnings
-1. **egui_dock Event Handling**: Docked panels need special handling to receive mouse events properly
-2. **ui.interact() is Critical**: Creating an interactive response ensures the widget gets input priority
-3. **Response Methods are Reliable**: Using `response.dragged_by()` is more reliable than checking raw input
-4. **Manual Delta Calculation**: Sometimes needed as a fallback when pointer deltas aren't available
+The `update_smooth_rotation` function exists but is commented out (lines 407-410), which would have provided the velocity-based updates.
 
-## Result
-Camera rotation now works correctly with right-click + drag in the Scene View, even when docked in the egui_dock layout.
+## Recommended Fix
+
+To fix the camera rotation system, we need to:
+
+1. **Implement Velocity-Based Rotation**
+   - Update `apply_mouse_look` to set target velocities instead of direct rotation
+   - Enable the `update_smooth_rotation` function to apply velocities each frame
+
+2. **Fix Rotation Direction**
+   - Ensure rightward mouse movement produces negative yaw (turn left)
+   - Ensure downward mouse movement produces negative pitch (look down)
+
+3. **Add Adaptive Sensitivity**
+   - Implement the `calculate_adaptive_sensitivity` function properly
+   - Scale sensitivity based on mouse movement speed
+
+4. **Implement Smoothing**
+   - Use the `rotation_smoothing_samples` buffer effectively
+   - Apply exponential moving average for smooth rotation
+
+5. **Add Acceleration/Deceleration**
+   - Use `rotation_acceleration` to gradually change velocity
+   - Apply `rotation_damping` when input stops
+
+## Code Flow Analysis
+
+Current flow:
+1. Mouse input detected in `scene_input.rs`
+2. `handle_scene_navigation` called in `navigation.rs`
+3. `apply_mouse_look` directly modifies rotation
+4. Rotation immediately applied to camera transform
+
+Expected flow:
+1. Mouse input detected
+2. Calculate target velocity based on input
+3. Apply smoothing and adaptive sensitivity
+4. Update velocity with acceleration limits
+5. Apply velocity to rotation each frame
+6. Dampen velocity when no input
+
+## Test Requirements Summary
+
+From the failing tests:
+- `test_mouse_look_horizontal_rotation`: Right mouse = negative yaw
+- `test_mouse_look_vertical_rotation`: Down mouse = negative pitch  
+- `test_rotation_sensitivity_affects_rotation_speed`: Velocity should scale with sensitivity
+- `test_smooth_rotation_acceleration`: Rotation should vary between frames
+- `test_adaptive_sensitivity_based_on_movement_speed`: Fast movements should be dampened
+- `test_rotation_interpolation_for_smooth_camera`: Large rotations should be capped per frame
+- `test_rotation_consistency_across_frames`: Consistent behavior across multiple frames
+
+## Next Steps
+
+1. Re-enable and fix the velocity-based rotation system
+2. Ensure all test requirements are met
+3. Test the feel of the camera in the actual editor
+4. Fine-tune the acceleration, damping, and sensitivity values for best user experience

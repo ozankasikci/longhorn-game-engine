@@ -32,6 +32,11 @@ fn focus_on_selected_object(
         // Get object position
         let object_pos = transform.position;
         
+        messages.push(ConsoleMessage::info(&format!(
+            "🎯 Focus: Object at [{:.2}, {:.2}, {:.2}]",
+            object_pos[0], object_pos[1], object_pos[2]
+        )));
+        
         // Calculate object bounds - consider scale and any mesh bounds
         let scale = transform.scale;
         let max_scale = scale[0].max(scale[1]).max(scale[2]);
@@ -50,22 +55,60 @@ fn focus_on_selected_object(
             max_scale * 1.0
         };
         
-        // SIMPLIFIED: Just position camera at a good viewing distance
-        let view_distance = (object_radius * 8.0).max(5.0); // Simple distance calculation
+        // Calculate good viewing distance
+        let view_distance = (object_radius * 5.0).max(5.0); // Reasonable distance for viewing
         
-        // Position camera behind and above the object (simple, predictable positioning)
+        messages.push(ConsoleMessage::info(&format!(
+            "📏 Focus: Object radius={:.2}, view_distance={:.2}",
+            object_radius, view_distance
+        )));
+        
+        // Log old camera position before moving
+        let old_pos = scene_navigation.scene_camera_transform.position;
+        let old_rot = scene_navigation.scene_camera_transform.rotation;
+        messages.push(ConsoleMessage::info(&format!(
+            "📷 Focus: OLD Camera pos=[{:.2}, {:.2}, {:.2}], rot=[{:.2}°, {:.2}°, {:.2}°]",
+            old_pos[0], old_pos[1], old_pos[2],
+            old_rot[0].to_degrees(), old_rot[1].to_degrees(), old_rot[2].to_degrees()
+        )));
+        
+        // FIXED: Position camera to properly view the object
+        // In our coordinate system: +Y is up, -Z is forward
+        // So to look at an object, camera should be at higher Z (behind) and look forward (-Z)
         scene_navigation.scene_camera_transform.position = [
-            object_pos[0],              // Same X as object
-            object_pos[1] + 3.0,        // 3 units above object
-            object_pos[2] + view_distance, // Behind object (positive Z)
+            object_pos[0],              // Same X as object  
+            object_pos[1] + view_distance * 0.5,  // Above object (45 degree angle)
+            object_pos[2] + view_distance,        // Behind object in +Z
         ];
         
-        // Reset rotation to look straight at the object
+        // Calculate rotation to look at the object
+        // We need to point the camera toward the object
+        let dx = object_pos[0] - scene_navigation.scene_camera_transform.position[0];
+        let dy = object_pos[1] - scene_navigation.scene_camera_transform.position[1];
+        let dz = object_pos[2] - scene_navigation.scene_camera_transform.position[2];
+        
+        // Calculate pitch (rotation around X axis) - looking down at object
+        let horizontal_dist = (dx * dx + dz * dz).sqrt();
+        let pitch = dy.atan2(horizontal_dist); // Negative because we look down
+        
+        // Calculate yaw (rotation around Y axis) - pointing toward object
+        let yaw = dx.atan2(-dz); // atan2(x, -z) for proper orientation
+        
         scene_navigation.scene_camera_transform.rotation = [
-            -0.2,  // Slight downward pitch to look at object
-            0.0,   // No yaw rotation
-            0.0    // No roll
+            pitch,  // Pitch down to look at object
+            yaw,    // Yaw to face object  
+            0.0     // No roll
         ];
+        
+        messages.push(ConsoleMessage::info(&format!(
+            "📷 Focus: NEW Camera pos=[{:.2}, {:.2}, {:.2}], rot=[{:.2}°, {:.2}°, {:.2}°]",
+            scene_navigation.scene_camera_transform.position[0], 
+            scene_navigation.scene_camera_transform.position[1], 
+            scene_navigation.scene_camera_transform.position[2],
+            scene_navigation.scene_camera_transform.rotation[0].to_degrees(), 
+            scene_navigation.scene_camera_transform.rotation[1].to_degrees(), 
+            scene_navigation.scene_camera_transform.rotation[2].to_degrees()
+        )));
         
         // Get object name for logging
         let name = world.get_component::<Name>(selected_entity)
