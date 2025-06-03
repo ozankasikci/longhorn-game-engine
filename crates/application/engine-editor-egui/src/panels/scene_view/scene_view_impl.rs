@@ -132,6 +132,170 @@ impl SceneViewRenderer {
     }
     
     /// Phase 10.1: Enhanced mesh entity rendering with guaranteed visibility
+    /// Render a proper 3D cube with all vertices transformed
+    fn render_3d_cube(
+        &self,
+        painter: &egui::Painter,
+        world_pos: [f32; 3],
+        size: f32,
+        rotation: [f32; 3],
+        camera_pos: [f32; 3],
+        camera_rot: [f32; 3],
+        rect: egui::Rect,
+        color: egui::Color32,
+        is_selected: bool,
+    ) {
+        let half_size = size * 0.5;
+        
+        // Define cube vertices in local space
+        let vertices = [
+            // Front face
+            [-half_size, -half_size, -half_size], // 0: front bottom left
+            [ half_size, -half_size, -half_size], // 1: front bottom right
+            [ half_size,  half_size, -half_size], // 2: front top right
+            [-half_size,  half_size, -half_size], // 3: front top left
+            // Back face
+            [-half_size, -half_size,  half_size], // 4: back bottom left
+            [ half_size, -half_size,  half_size], // 5: back bottom right
+            [ half_size,  half_size,  half_size], // 6: back top right
+            [-half_size,  half_size,  half_size], // 7: back top left
+        ];
+        
+        // Apply object rotation to vertices
+        let cos_x = rotation[0].cos();
+        let sin_x = rotation[0].sin();
+        let cos_y = rotation[1].cos();
+        let sin_y = rotation[1].sin();
+        let cos_z = rotation[2].cos();
+        let sin_z = rotation[2].sin();
+        
+        let mut transformed_vertices = Vec::new();
+        let mut screen_vertices = Vec::new();
+        let mut depths = Vec::new();
+        
+        for vertex in &vertices {
+            // Apply rotation around Z axis
+            let x1 = vertex[0] * cos_z - vertex[1] * sin_z;
+            let y1 = vertex[0] * sin_z + vertex[1] * cos_z;
+            let z1 = vertex[2];
+            
+            // Apply rotation around Y axis
+            let x2 = x1 * cos_y + z1 * sin_y;
+            let y2 = y1;
+            let z2 = -x1 * sin_y + z1 * cos_y;
+            
+            // Apply rotation around X axis
+            let x3 = x2;
+            let y3 = y2 * cos_x - z2 * sin_x;
+            let z3 = y2 * sin_x + z2 * cos_x;
+            
+            // Translate to world position
+            let world_vertex = [
+                x3 + world_pos[0],
+                y3 + world_pos[1],
+                z3 + world_pos[2],
+            ];
+            
+            transformed_vertices.push(world_vertex);
+            
+            // Project to screen
+            let (screen_pos, depth) = self.world_to_screen_enhanced(
+                world_vertex,
+                camera_pos,
+                camera_rot,
+                rect.center(),
+            );
+            
+            screen_vertices.push(screen_pos);
+            depths.push(depth);
+        }
+        
+        // Define cube faces (indices into vertices array)
+        let faces = [
+            [0, 1, 2, 3], // Front
+            [5, 4, 7, 6], // Back
+            [4, 0, 3, 7], // Left
+            [1, 5, 6, 2], // Right
+            [3, 2, 6, 7], // Top
+            [4, 5, 1, 0], // Bottom
+        ];
+        
+        // Calculate face normals and sort by depth
+        let mut face_depths = Vec::new();
+        for (i, face) in faces.iter().enumerate() {
+            // Calculate face center depth
+            let center_depth = (depths[face[0]] + depths[face[1]] + depths[face[2]] + depths[face[3]]) / 4.0;
+            
+            // Calculate face normal in camera space to determine if it's facing camera
+            let v0 = &transformed_vertices[face[0]];
+            let v1 = &transformed_vertices[face[1]];
+            let v2 = &transformed_vertices[face[2]];
+            
+            // Two edge vectors
+            let edge1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+            let edge2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+            
+            // Cross product for normal
+            let normal = [
+                edge1[1] * edge2[2] - edge1[2] * edge2[1],
+                edge1[2] * edge2[0] - edge1[0] * edge2[2],
+                edge1[0] * edge2[1] - edge1[1] * edge2[0],
+            ];
+            
+            // View vector from face center to camera
+            let face_center = [
+                (v0[0] + v1[0] + v2[0] + transformed_vertices[face[3]][0]) / 4.0,
+                (v0[1] + v1[1] + v2[1] + transformed_vertices[face[3]][1]) / 4.0,
+                (v0[2] + v1[2] + v2[2] + transformed_vertices[face[3]][2]) / 4.0,
+            ];
+            
+            let view_vec = [
+                camera_pos[0] - face_center[0],
+                camera_pos[1] - face_center[1],
+                camera_pos[2] - face_center[2],
+            ];
+            
+            // Dot product to check if face is facing camera
+            let dot = normal[0] * view_vec[0] + normal[1] * view_vec[1] + normal[2] * view_vec[2];
+            
+            if dot > 0.0 {
+                face_depths.push((i, center_depth));
+            }
+        }
+        
+        // Sort faces by depth (far to near)
+        face_depths.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        
+        // Draw faces
+        for (face_idx, _) in face_depths {
+            let face = &faces[face_idx];
+            let face_vertices: Vec<egui::Pos2> = face.iter()
+                .map(|&i| screen_vertices[i])
+                .collect();
+            
+            // Determine face color based on which face it is
+            let face_color = match face_idx {
+                0 | 1 => color, // Front/back
+                2 | 3 => color.gamma_multiply(0.8), // Left/right
+                4 => color.gamma_multiply(0.9), // Top (slightly lighter)
+                5 => color.gamma_multiply(0.6), // Bottom (darker)
+                _ => color,
+            };
+            
+            let final_color = if is_selected {
+                egui::Color32::YELLOW.gamma_multiply(0.8)
+            } else {
+                face_color
+            };
+            
+            painter.add(egui::Shape::convex_polygon(
+                face_vertices,
+                final_color,
+                egui::Stroke::new(1.0, egui::Color32::BLACK),
+            ));
+        }
+    }
+
     fn render_mesh_entity_enhanced(
         &self,
         world: &World,
@@ -196,8 +360,18 @@ impl SceneViewRenderer {
         
         match mesh.mesh_type {
             MeshType::Cube => {
-                // Enhanced cube rendering
-                self.render_enhanced_cube(painter, screen_pos, size, transform.rotation, color, &name);
+                // Use proper 3D cube rendering
+                self.render_3d_cube(
+                    painter,
+                    transform.position,
+                    transform.scale[0], // Use X scale as size
+                    transform.rotation,
+                    camera_pos,
+                    camera_rot,
+                    rect,
+                    base_color,
+                    selected_entity == Some(entity),
+                );
             },
             MeshType::Sphere => {
                 // Enhanced sphere rendering
@@ -214,8 +388,18 @@ impl SceneViewRenderer {
                 );
             },
             MeshType::Custom(_) => {
-                // Default to cube for custom meshes
-                self.render_enhanced_cube(painter, screen_pos, size, transform.rotation, color, &name);
+                // Default to 3D cube for custom meshes
+                self.render_3d_cube(
+                    painter,
+                    transform.position,
+                    transform.scale[0],
+                    transform.rotation,
+                    camera_pos,
+                    camera_rot,
+                    rect,
+                    base_color,
+                    selected_entity == Some(entity),
+                );
             }
         }
         
@@ -278,55 +462,28 @@ impl SceneViewRenderer {
         painter: &egui::Painter,
         center: egui::Pos2,
         size: f32,
-        rotation: [f32; 3],
+        _rotation: [f32; 3],
         color: egui::Color32,
-        name: &str,
+        _name: &str,
     ) {
+        // For now, just draw a simple square to indicate cube position
+        // The real issue is that we need proper 3D vertices transformation
         let half_size = size * 0.5;
         
-        // Simple cube projection with isometric style
-        let front_face = [
-            center + egui::Vec2::new(-half_size, -half_size),
-            center + egui::Vec2::new(half_size, -half_size),
-            center + egui::Vec2::new(half_size, half_size),
-            center + egui::Vec2::new(-half_size, half_size),
-        ];
+        // Draw a square with a cross to indicate it's a cube
+        let rect = egui::Rect::from_center_size(center, egui::Vec2::splat(size));
+        painter.rect_filled(rect, 0.0, color);
+        painter.rect_stroke(rect, 0.0, egui::Stroke::new(2.0, egui::Color32::BLACK));
         
-        // Draw main face
-        painter.add(egui::Shape::convex_polygon(
-            front_face.to_vec(),
-            color,
-            egui::Stroke::new(2.0, egui::Color32::BLACK),
-        ));
-        
-        // Draw isometric edges for 3D effect
-        let depth_offset = half_size * 0.3;
-        let top_right = center + egui::Vec2::new(half_size + depth_offset, -half_size - depth_offset);
-        let bottom_right = center + egui::Vec2::new(half_size + depth_offset, half_size - depth_offset);
-        
-        // Right face
-        painter.add(egui::Shape::convex_polygon(
-            vec![
-                center + egui::Vec2::new(half_size, -half_size),
-                top_right,
-                bottom_right,
-                center + egui::Vec2::new(half_size, half_size),
-            ],
-            color.gamma_multiply(0.7), // Darker for side face
-            egui::Stroke::new(1.0, egui::Color32::BLACK),
-        ));
-        
-        // Top face
-        painter.add(egui::Shape::convex_polygon(
-            vec![
-                center + egui::Vec2::new(-half_size, -half_size),
-                center + egui::Vec2::new(half_size, -half_size),
-                top_right,
-                center + egui::Vec2::new(-half_size + depth_offset, -half_size - depth_offset),
-            ],
-            color.gamma_multiply(0.8), // Lighter for top face
-            egui::Stroke::new(1.0, egui::Color32::BLACK),
-        ));
+        // Draw diagonals to show it's a 3D object placeholder
+        painter.line_segment(
+            [rect.left_top(), rect.right_bottom()],
+            egui::Stroke::new(1.0, egui::Color32::BLACK.gamma_multiply(0.5)),
+        );
+        painter.line_segment(
+            [rect.right_top(), rect.left_bottom()],
+            egui::Stroke::new(1.0, egui::Color32::BLACK.gamma_multiply(0.5)),
+        );
     }
     
     fn draw_grid(&self, painter: &egui::Painter, rect: egui::Rect, camera_pos: [f32; 3], camera_rot: [f32; 3]) {
