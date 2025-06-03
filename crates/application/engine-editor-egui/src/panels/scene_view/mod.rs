@@ -15,7 +15,7 @@ mod camera_movement_tests;
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
-use engine_components_3d::{Transform, Mesh, MeshType};
+use engine_components_3d::{Transform, MeshFilter};
 use engine_components_ui::Name;
 use crate::types::{SceneNavigation, GizmoSystem};
 use crate::editor_state::ConsoleMessage;
@@ -30,56 +30,33 @@ fn focus_on_selected_object(
         // Get object position
         let object_pos = transform.position;
         
-        // Calculate object bounds - consider scale and any mesh bounds
-        let scale = transform.scale;
-        let max_scale = scale[0].max(scale[1]).max(scale[2]);
+        // The camera actually looks in +Z direction when rotation is [0,0,0]
+        // So to look at an object, we need to place the camera in FRONT (negative Z)
         
-        // Try to get mesh bounds for better framing
-        let object_radius = if let Some(mesh) = world.get_component::<Mesh>(selected_entity) {
-            // If we have mesh bounds, use them
-            match &mesh.mesh_type {
-                MeshType::Cube => max_scale * 0.866, // Cube diagonal / 2
-                MeshType::Sphere => max_scale * 0.5,  // Sphere radius
-                MeshType::Plane => max_scale * 1.0,   // Plane size
-                MeshType::Custom(_) => max_scale * 1.0, // Default for custom meshes
-            }
-        } else {
-            // No mesh, use scale as a rough estimate
-            max_scale * 1.0
-        };
-        
-        // Calculate good viewing distance
-        let view_distance = (object_radius * 5.0).max(5.0); // Reasonable distance for viewing
-        
-        // FIXED: Position camera to properly view the object
-        // In our coordinate system: +Y is up, -Z is forward
-        // So to look at an object, camera should be at higher Z (behind) and look forward (-Z)
         scene_navigation.scene_camera_transform.position = [
-            object_pos[0],              // Same X as object  
-            object_pos[1] + view_distance * 0.5,  // Above object (45 degree angle)
-            object_pos[2] + view_distance,        // Behind object in +Z
+            object_pos[0],          // Same X as object
+            object_pos[1] + 1.5,    // 1.5 units above
+            object_pos[2] - 5.0,    // 5 units in FRONT (negative Z)
         ];
         
-        // Calculate rotation to look at the object
-        // We need to point the camera toward the object
-        let dx = object_pos[0] - scene_navigation.scene_camera_transform.position[0];
-        let dy = object_pos[1] - scene_navigation.scene_camera_transform.position[1];
-        let dz = object_pos[2] - scene_navigation.scene_camera_transform.position[2];
+        // With camera in front looking back (+Z direction), no rotation needed
+        scene_navigation.scene_camera_transform.rotation = [0.0, 0.0, 0.0];
         
-        // Calculate pitch (rotation around X axis) - looking down at object
-        let horizontal_dist = (dx * dx + dz * dz).sqrt();
-        let pitch = dy.atan2(horizontal_dist); // Negative because we look down
+        // Debug output
+        let name = world.get_component::<Name>(selected_entity)
+            .map(|n| n.name.clone())
+            .unwrap_or_else(|| format!("Entity {}", selected_entity.id()));
         
-        // Calculate yaw (rotation around Y axis) - pointing toward object
-        let yaw = dx.atan2(-dz); // atan2(x, -z) for proper orientation
-        
-        scene_navigation.scene_camera_transform.rotation = [
-            pitch,  // Pitch down to look at object
-            yaw,    // Yaw to face object  
-            0.0     // No roll
-        ];
+        eprintln!("\n=== FOCUS: Fixed for +Z look direction ===");
+        eprintln!("Object '{}' at: [{:.2}, {:.2}, {:.2}]", 
+            name, object_pos[0], object_pos[1], object_pos[2]);
+        eprintln!("Camera pos: [{:.2}, {:.2}, {:.2}] (in front, looking back)",
+            scene_navigation.scene_camera_transform.position[0],
+            scene_navigation.scene_camera_transform.position[1],
+            scene_navigation.scene_camera_transform.position[2]);
+        eprintln!("Rotation: [0, 0, 0] (looking in +Z direction)");
+        eprintln!("==================\n");
     }
-    // Focus operation complete
 }
 
 /// Scene view panel for 3D scene rendering and manipulation
