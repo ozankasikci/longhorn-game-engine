@@ -60,11 +60,11 @@ pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
     
     messages.push(ConsoleMessage::info("📝 Registered all component types"));
     
-    // Create camera entity with bundle
+    // Create camera entity with bundle - SIMPLIFIED for coordinate system testing
     let camera_entity = world.spawn_bundle(CameraBundle {
         transform: Transform {
-            position: [5.0, 5.0, 15.0],  // Move camera back and up for better view
-            rotation: [-0.2, -0.3, 0.0],  // Slight downward and leftward angle
+            position: [0.0, 2.0, 5.0],  // Camera positioned behind cube, looking straight at it
+            rotation: [0.0, 0.0, 0.0],  // No rotation - looking straight down -Z axis
             scale: [1.0, 1.0, 1.0],
         },
         camera: Camera::default(),
@@ -73,105 +73,28 @@ pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
     
     messages.push(ConsoleMessage::info("✅ Created camera with bundle"));
     
-    // Create multiple 3D objects for camera rotation testing
-    
-    
-    // Red cube
-    let _red_cube_entity = world.spawn_bundle(GameObject3DBundle {
+    // Create a single cube in front of the camera
+    let _cube_entity = world.spawn_bundle(GameObject3DBundle {
         transform: Transform {
-            position: [1.0, 2.0, 6.0],  // Test positive Z (should be in front)
-            rotation: [0.0, 45.0, 0.0],
-            scale: [2.0, 2.0, 2.0],  // Make bigger
+            position: [0.0, 0.5, 0.0],  // At origin, slightly above ground
+            rotation: [0.0, 0.0, 0.0],
+            scale: [1.0, 1.0, 1.0],
         },
         mesh: Mesh {
             mesh_type: MeshType::Cube,
         },
         material: Material {
-            color: [0.8, 0.2, 0.2, 1.0], // Red cube
+            color: [0.8, 0.8, 0.8, 1.0], // Light gray cube
             metallic: 0.0,
             roughness: 0.5,
             emissive: [0.0, 0.0, 0.0],
         },
         visibility: Visibility::default(),
-    }).expect("Failed to create red cube");
+    }).expect("Failed to create cube");
     
-    // Green sphere
-    let _green_sphere_entity = world.spawn_bundle(GameObject3DBundle {
-        transform: Transform {
-            position: [-2.0, 0.5, 5.0],  // Positive Z = in front of camera
-            rotation: [0.0, 0.0, 0.0],
-            scale: [1.2, 1.2, 1.2],
-        },
-        mesh: Mesh {
-            mesh_type: MeshType::Sphere,
-        },
-        material: Material {
-            color: [0.2, 0.8, 0.2, 1.0], // Green sphere
-            metallic: 0.1,
-            roughness: 0.3,
-            emissive: [0.0, 0.0, 0.0],
-        },
-        visibility: Visibility::default(),
-    }).expect("Failed to create green sphere");
+    world.add_component(_cube_entity, Name::new("Cube")).unwrap();
     
-    // Blue cube
-    let _blue_cube_entity = world.spawn_bundle(GameObject3DBundle {
-        transform: Transform {
-            position: [0.0, 2.0, 3.0],  // Still in front but further away
-            rotation: [15.0, 30.0, 0.0],
-            scale: [0.8, 0.8, 0.8],
-        },
-        mesh: Mesh {
-            mesh_type: MeshType::Cube,
-        },
-        material: Material {
-            color: [0.2, 0.4, 0.9, 1.0], // Blue cube
-            metallic: 0.3,
-            roughness: 0.2,
-            emissive: [0.0, 0.0, 0.0],
-        },
-        visibility: Visibility::default(),
-    }).expect("Failed to create blue cube");
-    
-    // Yellow sphere on the right side
-    let _yellow_sphere_entity = world.spawn_bundle(GameObject3DBundle {
-        transform: Transform {
-            position: [3.5, 1.0, 4.0],  // Positive Z = in front of camera
-            rotation: [0.0, 0.0, 0.0],
-            scale: [0.7, 0.7, 0.7],
-        },
-        mesh: Mesh {
-            mesh_type: MeshType::Sphere,
-        },
-        material: Material {
-            color: [0.9, 0.8, 0.1, 1.0], // Yellow sphere
-            metallic: 0.0,
-            roughness: 0.4,
-            emissive: [0.0, 0.0, 0.0],
-        },
-        visibility: Visibility::default(),
-    }).expect("Failed to create yellow sphere");
-    
-    // Large ground plane
-    let _plane_entity = world.spawn_bundle(GameObject3DBundle {
-        transform: Transform {
-            position: [0.0, -1.5, 4.0],  // Positive Z = in front of camera
-            rotation: [0.0, 0.0, 0.0],
-            scale: [8.0, 1.0, 8.0],
-        },
-        mesh: Mesh {
-            mesh_type: MeshType::Plane,
-        },
-        material: Material {
-            color: [0.6, 0.6, 0.6, 1.0], // Gray ground
-            metallic: 0.0,
-            roughness: 0.8,
-            emissive: [0.0, 0.0, 0.0],
-        },
-        visibility: Visibility::default(),
-    }).expect("Failed to create ground plane");
-    
-    messages.push(ConsoleMessage::info("✅ Created 5 3D objects using bundles"));
+    messages.push(ConsoleMessage::info("✅ Created single cube object"));
     messages.push(ConsoleMessage::info("🚀 ECS v2 World with proper multi-component entities!"));
     messages.push(ConsoleMessage::info("🎮 Objects should now render with actual meshes"));
     
@@ -260,19 +183,7 @@ pub fn create_default_hierarchy() -> Vec<crate::types::HierarchyObject> {
     
     vec![
         HierarchyObject::new("📱 Main Camera", ObjectType::Camera),
-        HierarchyObject::new("☀️ Directional Light", ObjectType::Light),
-        HierarchyObject::parent("📦 3D Objects", vec![
-            HierarchyObject::new("🔴 Red Cube", ObjectType::GameObject),
-            HierarchyObject::new("🟢 Green Sphere", ObjectType::GameObject),
-            HierarchyObject::new("🔵 Blue Cube", ObjectType::GameObject),
-            HierarchyObject::new("🟡 Yellow Sphere", ObjectType::GameObject),
-            HierarchyObject::new("⬜ Ground Plane", ObjectType::GameObject),
-        ]),
-        HierarchyObject::parent("🎨 Sprites", vec![
-            HierarchyObject::new("🔴 Red Sprite", ObjectType::GameObject),
-            HierarchyObject::new("🔵 Blue Sprite", ObjectType::GameObject),
-            HierarchyObject::new("🟡 Yellow Sprite", ObjectType::GameObject),
-        ]),
+        HierarchyObject::new("📦 Cube", ObjectType::GameObject),
     ]
 }
 

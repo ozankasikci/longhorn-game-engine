@@ -48,6 +48,12 @@ impl MenuBar {
                     messages.push(ConsoleMessage::info("↷ Redo"));
                     ui.close_menu();
                 }
+                ui.separator();
+                if ui.button("⚙️ Preferences...").clicked() {
+                    messages.push(ConsoleMessage::info("⚙️ Opening settings"));
+                    messages.push(ConsoleMessage::UserAction("open_settings".to_string()));
+                    ui.close_menu();
+                }
             });
             
             ui.menu_button("Window", |ui| {

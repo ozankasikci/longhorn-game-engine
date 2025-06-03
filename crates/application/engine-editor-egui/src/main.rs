@@ -13,6 +13,7 @@ mod play_state;
 mod world_setup;
 mod assets;
 mod editor_coordinator;
+mod settings;
 
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex};
@@ -24,6 +25,8 @@ use scene_renderer::SceneRenderer;
 use types::{PlayState, SceneNavigation, GizmoSystem, TextureAsset, ProjectAsset, PanelType, HierarchyObject};
 use styling::{setup_custom_fonts, setup_custom_style};
 use editor_coordinator::EditorCoordinator;
+use settings::EditorSettings;
+use ui::SettingsDialog;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -96,6 +99,10 @@ pub struct LonghornEditor {
     
     // Phase 10.2: Track entity counts for change detection
     last_rendered_entity_count: usize,
+    
+    // Editor settings
+    settings: EditorSettings,
+    settings_dialog: SettingsDialog,
 }
 
 impl LonghornEditor {
@@ -132,6 +139,16 @@ impl LonghornEditor {
         eprintln!("🔍 MAIN DEBUG: Transform components: {}", world.query_legacy::<Transform>().count());
         eprintln!("🔍 MAIN DEBUG: Mesh components: {}", world.query_legacy::<engine_components_3d::Mesh>().count());
         
+        // Load editor settings
+        let settings = EditorSettings::load();
+        let settings_dialog = SettingsDialog::new(settings.clone());
+        
+        // Create scene navigation with settings applied
+        let mut scene_navigation = SceneNavigation::default();
+        scene_navigation.movement_speed = settings.camera.movement_speed;
+        scene_navigation.fast_movement_multiplier = settings.camera.fast_multiplier;
+        scene_navigation.rotation_sensitivity = settings.camera.rotation_sensitivity;
+        
         Self {
             dock_state,
             world,
@@ -166,10 +183,12 @@ impl LonghornEditor {
             game_view_panel: panels::game_view::GameViewPanel::new(),
             scene_view_panel: panels::scene_view::SceneViewPanel::new(),
             gizmo_system: GizmoSystem::new(),
-            scene_navigation: SceneNavigation::default(),
+            scene_navigation,
             scene_renderer: SceneRenderer::new(),
             scene_view_renderer: panels::scene_view::scene_view_impl::SceneViewRenderer::new(),
             last_rendered_entity_count: 0,
+            settings,
+            settings_dialog,
         }
     }
 }
@@ -187,6 +206,19 @@ impl eframe::App for LonghornEditor {
             ctx.set_style(style);
         } else {
             styling::apply_longhorn_style(ctx);
+        }
+        
+        // Show settings dialog if open
+        self.settings_dialog.show(ctx);
+        
+        // Apply settings to scene navigation if changed
+        if self.settings_dialog.settings.camera.movement_speed != self.settings.camera.movement_speed ||
+           self.settings_dialog.settings.camera.fast_multiplier != self.settings.camera.fast_multiplier ||
+           self.settings_dialog.settings.camera.rotation_sensitivity != self.settings.camera.rotation_sensitivity {
+            self.settings = self.settings_dialog.settings.clone();
+            self.scene_navigation.movement_speed = self.settings.camera.movement_speed;
+            self.scene_navigation.fast_movement_multiplier = self.settings.camera.fast_multiplier;
+            self.scene_navigation.rotation_sensitivity = self.settings.camera.rotation_sensitivity;
         }
         
         // Top menu bar (macOS style)
@@ -233,6 +265,16 @@ impl LonghornEditor {
     pub fn show_menu_bar(&mut self, ui: &mut egui::Ui) {
         // Delegate to the menu bar module
         let messages = self.menu_bar.show(ui, &mut self.dock_state);
+        
+        // Handle special actions
+        for msg in &messages {
+            if let ConsoleMessage::UserAction(action) = msg {
+                if action == "open_settings" {
+                    self.settings_dialog.open = true;
+                }
+            }
+        }
+        
         self.console_messages.extend(messages);
     }
     

@@ -195,8 +195,9 @@ impl SceneRenderer {
         let eye = Vec3::from(camera_transform.position);
         
         // Calculate forward vector from rotation (assuming Y-up, -Z forward)
-        let pitch = camera_transform.rotation[0].to_radians();
-        let yaw = camera_transform.rotation[1].to_radians();
+        // rotation values are already in radians
+        let pitch = camera_transform.rotation[0];
+        let yaw = camera_transform.rotation[1];
         
         let forward = Vec3::new(
             -yaw.sin() * pitch.cos(),

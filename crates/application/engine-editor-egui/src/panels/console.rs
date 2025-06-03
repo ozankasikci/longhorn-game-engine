@@ -46,13 +46,15 @@ impl ConsolePanel {
             .stick_to_bottom(true)
             .show(ui, |ui| {
                 for message in console_messages.iter() {
-                    let color = match message.message_type {
-                        ConsoleMessageType::Info => egui::Color32::WHITE,
-                        ConsoleMessageType::Warning => egui::Color32::YELLOW,
-                        ConsoleMessageType::Error => egui::Color32::RED,
-                    };
-                    
-                    ui.colored_label(color, &message.message);
+                    if let ConsoleMessage::Message { message, message_type, .. } = message {
+                        let color = match message_type {
+                            ConsoleMessageType::Info => egui::Color32::WHITE,
+                            ConsoleMessageType::Warning => egui::Color32::YELLOW,
+                            ConsoleMessageType::Error => egui::Color32::RED,
+                        };
+                        
+                        ui.colored_label(color, message);
+                    }
                 }
             });
     }

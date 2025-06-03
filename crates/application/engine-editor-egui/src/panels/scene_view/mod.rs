@@ -10,16 +10,15 @@ pub mod scene_input;
 
 #[cfg(test)]
 mod navigation_tests;
+#[cfg(test)]
+mod camera_movement_tests;
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
-use engine_components_3d::{Transform, Material, Mesh, MeshType, Light, Visibility};
-use engine_components_2d::{Sprite, SpriteRenderer};
+use engine_components_3d::{Transform, Mesh, MeshType};
 use engine_components_ui::Name;
-use engine_camera::Camera;
-use crate::types::{SceneNavigation, SceneTool, GizmoSystem, GizmoComponent, GizmoInteractionState, GizmoAxis};
+use crate::types::{SceneNavigation, GizmoSystem};
 use crate::editor_state::ConsoleMessage;
-use std::collections::HashMap;
 
 /// Focus the scene camera on the selected object
 fn focus_on_selected_object(
@@ -33,33 +32,39 @@ fn focus_on_selected_object(
         // Get object position
         let object_pos = transform.position;
         
-        // Calculate a good viewing distance based on object scale
-        let avg_scale = (transform.scale[0] + transform.scale[1] + transform.scale[2]) / 3.0;
-        let view_distance = avg_scale * 5.0 + 3.0; // Base distance of 3 units plus scale factor
+        // Calculate object bounds - consider scale and any mesh bounds
+        let scale = transform.scale;
+        let max_scale = scale[0].max(scale[1]).max(scale[2]);
         
-        // Get current camera rotation to maintain viewing angle
-        let camera_rot = scene_navigation.scene_camera_transform.rotation;
-        let pitch = camera_rot[0];
-        let yaw = camera_rot[1];
+        // Try to get mesh bounds for better framing
+        let object_radius = if let Some(mesh) = world.get_component::<Mesh>(selected_entity) {
+            // If we have mesh bounds, use them
+            match &mesh.mesh_type {
+                MeshType::Cube => max_scale * 0.866, // Cube diagonal / 2
+                MeshType::Sphere => max_scale * 0.5,  // Sphere radius
+                MeshType::Plane => max_scale * 1.0,   // Plane size
+                MeshType::Custom(_) => max_scale * 1.0, // Default for custom meshes
+            }
+        } else {
+            // No mesh, use scale as a rough estimate
+            max_scale * 1.0
+        };
         
-        // Calculate camera position offset from object
-        let cos_yaw = yaw.cos();
-        let sin_yaw = yaw.sin();
-        let cos_pitch = pitch.cos();
-        let sin_pitch = pitch.sin();
+        // SIMPLIFIED: Just position camera at a good viewing distance
+        let view_distance = (object_radius * 8.0).max(5.0); // Simple distance calculation
         
-        // Camera looks along -Z, so we position it behind the object along its forward vector
-        let camera_offset = [
-            sin_yaw * cos_pitch * view_distance,
-            -sin_pitch * view_distance,
-            cos_yaw * cos_pitch * view_distance,
+        // Position camera behind and above the object (simple, predictable positioning)
+        scene_navigation.scene_camera_transform.position = [
+            object_pos[0],              // Same X as object
+            object_pos[1] + 3.0,        // 3 units above object
+            object_pos[2] + view_distance, // Behind object (positive Z)
         ];
         
-        // Set new camera position
-        scene_navigation.scene_camera_transform.position = [
-            object_pos[0] + camera_offset[0],
-            object_pos[1] + camera_offset[1],
-            object_pos[2] + camera_offset[2],
+        // Reset rotation to look straight at the object
+        scene_navigation.scene_camera_transform.rotation = [
+            -0.2,  // Slight downward pitch to look at object
+            0.0,   // No yaw rotation
+            0.0    // No roll
         ];
         
         // Get object name for logging
@@ -68,8 +73,8 @@ fn focus_on_selected_object(
             .unwrap_or_else(|| format!("Entity {}", selected_entity.id()));
         
         messages.push(ConsoleMessage::info(&format!(
-            "🔍 Focused on {} at [{:.1}, {:.1}, {:.1}] (distance: {:.1})",
-            name, object_pos[0], object_pos[1], object_pos[2], view_distance
+            "🔍 Focused on {} (radius: {:.1}, distance: {:.1})",
+            name, object_radius, view_distance
         )));
     } else {
         messages.push(ConsoleMessage::info("⚠️ Selected entity has no transform"));

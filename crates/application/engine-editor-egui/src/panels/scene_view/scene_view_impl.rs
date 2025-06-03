@@ -159,7 +159,7 @@ impl SceneViewRenderer {
         self.render_sprites(world, painter, rect, camera_pos, camera_rot, selected_entity);
         
         // Draw grid background (after objects for depth)
-        self.draw_grid(painter, rect, camera_pos);
+        self.draw_grid(painter, rect, camera_pos, camera_rot);
         
         // Draw scene camera indicator
         self.draw_scene_camera_indicator(painter, rect, camera_pos);
@@ -371,24 +371,146 @@ impl SceneViewRenderer {
         ));
     }
     
-    fn draw_grid(&self, painter: &egui::Painter, rect: egui::Rect, camera_pos: [f32; 3]) {
+    fn draw_grid(&self, painter: &egui::Painter, rect: egui::Rect, camera_pos: [f32; 3], camera_rot: [f32; 3]) {
+        // Unity-style grid parameters
+        let grid_size = 1.0; // 1 unit grid
+        let major_grid_interval = 10; // Major lines every 10 units
+        let pixels_per_unit = 50.0; // Scale factor
+        
+        // Draw a larger grid to ensure coverage
+        let grid_extent = 50; // Fixed grid size: 50x50 units
+        
+        // Calculate grid bounds centered on origin for simplicity
+        let grid_left = -grid_extent;
+        let grid_right = grid_extent;
+        let grid_top = -grid_extent;
+        let grid_bottom = grid_extent;
+        
         let view_center = rect.center();
         
-        // Apply camera offset to grid rendering
-        let camera_offset_x = -camera_pos[0] * 50.0; // 50 pixels per world unit
-        let camera_offset_y = camera_pos[2] * 50.0;  // Z becomes Y in screen space
+        // Draw grid lines running along X axis (parallel to X)
+        for z in grid_top..=grid_bottom {
+            let world_z = z as f32 * grid_size;
+            
+            // Start and end points of the line in world space at Y=0
+            let start_world = [grid_left as f32 * grid_size, 0.0, world_z];
+            let end_world = [grid_right as f32 * grid_size, 0.0, world_z];
+            
+            // Transform to screen space
+            let (start_screen, start_depth) = self.world_to_screen(start_world, camera_pos, camera_rot, view_center);
+            let (end_screen, end_depth) = self.world_to_screen(end_world, camera_pos, camera_rot, view_center);
+            
+            // Skip if both points are behind camera
+            if start_depth <= 0.1 && end_depth <= 0.1 {
+                continue;
+            }
+            
+            // Skip lines that would appear too distorted
+            if start_depth <= 0.5 || end_depth <= 0.5 {
+                continue;
+            }
+            
+            // Also skip if line endpoints are too far outside the view
+            if !rect.expand(100.0).contains(start_screen) && !rect.expand(100.0).contains(end_screen) {
+                continue;
+            }
+            
+            // Determine line style
+            let (stroke_width, color) = if z == 0 {
+                // Z-axis line (blue)
+                (2.0, egui::Color32::from_rgba_unmultiplied(100, 100, 200, 180))
+            } else if z % major_grid_interval == 0 {
+                // Major grid lines
+                (1.0, egui::Color32::from_rgba_unmultiplied(120, 120, 120, 120))
+            } else {
+                // Minor grid lines
+                (0.5, egui::Color32::from_rgba_unmultiplied(80, 80, 80, 60))
+            };
+            
+            painter.line_segment(
+                [start_screen, end_screen],
+                egui::Stroke::new(stroke_width, color)
+            );
+        }
         
-        // Draw grid lines with camera offset
-        painter.line_segment(
-            [egui::pos2(rect.left(), view_center.y + camera_offset_y), 
-             egui::pos2(rect.right(), view_center.y + camera_offset_y)],
-            egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(100, 100, 100, 100))
-        );
-        painter.line_segment(
-            [egui::pos2(view_center.x + camera_offset_x, rect.top()), 
-             egui::pos2(view_center.x + camera_offset_x, rect.bottom())],
-            egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(100, 100, 100, 100))
-        );
+        // Draw grid lines running along Z axis (parallel to Z)
+        for x in grid_left..=grid_right {
+            let world_x = x as f32 * grid_size;
+            
+            // Start and end points of the line in world space at Y=0
+            let start_world = [world_x, 0.0, grid_top as f32 * grid_size];
+            let end_world = [world_x, 0.0, grid_bottom as f32 * grid_size];
+            
+            // Transform to screen space
+            let (start_screen, start_depth) = self.world_to_screen(start_world, camera_pos, camera_rot, view_center);
+            let (end_screen, end_depth) = self.world_to_screen(end_world, camera_pos, camera_rot, view_center);
+            
+            // Skip if both points are behind camera
+            if start_depth <= 0.1 && end_depth <= 0.1 {
+                continue;
+            }
+            
+            // Skip lines that would appear too distorted
+            if start_depth <= 0.5 || end_depth <= 0.5 {
+                continue;
+            }
+            
+            // Also skip if line endpoints are too far outside the view
+            if !rect.expand(100.0).contains(start_screen) && !rect.expand(100.0).contains(end_screen) {
+                continue;
+            }
+            
+            // Determine line style
+            let (stroke_width, color) = if x == 0 {
+                // X-axis line (red)
+                (2.0, egui::Color32::from_rgba_unmultiplied(200, 100, 100, 180))
+            } else if x % major_grid_interval == 0 {
+                // Major grid lines
+                (1.0, egui::Color32::from_rgba_unmultiplied(120, 120, 120, 120))
+            } else {
+                // Minor grid lines
+                (0.5, egui::Color32::from_rgba_unmultiplied(80, 80, 80, 60))
+            };
+            
+            painter.line_segment(
+                [start_screen, end_screen],
+                egui::Stroke::new(stroke_width, color)
+            );
+        }
+        
+        // Draw origin marker at (0, 0, 0) if visible
+        let (origin_screen, origin_depth) = self.world_to_screen([0.0, 0.0, 0.0], camera_pos, camera_rot, view_center);
+        
+        if origin_depth > 0.1 && rect.contains(origin_screen) {
+            // Draw a small circle at the origin
+            painter.circle_filled(
+                origin_screen,
+                4.0,
+                egui::Color32::from_rgba_unmultiplied(255, 255, 255, 200)
+            );
+            painter.circle_stroke(
+                origin_screen,
+                4.0,
+                egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(0, 0, 0, 255))
+            );
+            
+            // Draw axis labels near origin
+            let label_offset = 20.0;
+            painter.text(
+                origin_screen + egui::vec2(label_offset, 0.0),
+                egui::Align2::LEFT_CENTER,
+                "X",
+                egui::FontId::proportional(12.0),
+                egui::Color32::from_rgba_unmultiplied(200, 100, 100, 180)
+            );
+            painter.text(
+                origin_screen + egui::vec2(0.0, -label_offset),
+                egui::Align2::CENTER_BOTTOM,
+                "Z",
+                egui::FontId::proportional(12.0),
+                egui::Color32::from_rgba_unmultiplied(100, 100, 200, 180)
+            );
+        }
     }
     
     fn render_entity(

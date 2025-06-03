@@ -35,15 +35,18 @@ pub enum ConsoleMessageType {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConsoleMessage {
-    pub message: String,
-    pub message_type: ConsoleMessageType,
-    pub timestamp: std::time::Instant,
+pub enum ConsoleMessage {
+    Message {
+        message: String,
+        message_type: ConsoleMessageType,
+        timestamp: std::time::Instant,
+    },
+    UserAction(String),
 }
 
 impl ConsoleMessage {
     pub fn info(message: &str) -> Self {
-        Self {
+        Self::Message {
             message: message.to_string(),
             message_type: ConsoleMessageType::Info,
             timestamp: std::time::Instant::now(),
@@ -51,7 +54,7 @@ impl ConsoleMessage {
     }
 
     pub fn warning(message: &str) -> Self {
-        Self {
+        Self::Message {
             message: message.to_string(),
             message_type: ConsoleMessageType::Warning,
             timestamp: std::time::Instant::now(),
@@ -59,7 +62,7 @@ impl ConsoleMessage {
     }
 
     pub fn error(message: &str) -> Self {
-        Self {
+        Self::Message {
             message: message.to_string(),
             message_type: ConsoleMessageType::Error,
             timestamp: std::time::Instant::now(),
@@ -68,9 +71,14 @@ impl ConsoleMessage {
 
     pub fn get_all_logs_as_string(messages: &[ConsoleMessage]) -> String {
         messages.iter()
-            .map(|msg| {
-                let timestamp = msg.timestamp.elapsed().as_secs();
-                format!("[{}s] {:?}: {}", timestamp, msg.message_type, msg.message)
+            .filter_map(|msg| {
+                match msg {
+                    ConsoleMessage::Message { message, message_type, timestamp } => {
+                        let elapsed = timestamp.elapsed().as_secs();
+                        Some(format!("[{}s] {:?}: {}", elapsed, message_type, message))
+                    },
+                    ConsoleMessage::UserAction(_) => None,
+                }
             })
             .collect::<Vec<_>>()
             .join("\n")

@@ -26,6 +26,8 @@ egui_dock = { workspace = true }
 # Utilities
 serde = { workspace = true }
 env_logger = { workspace = true }
+toml = "0.8"
+dirs = "5.0"
 
 # WGPU integration
 wgpu = { workspace = true }

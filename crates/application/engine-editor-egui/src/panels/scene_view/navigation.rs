@@ -46,9 +46,9 @@ impl SceneNavigator {
             return messages;
         }
         
-        // Calculate raw rotation deltas
-        let raw_pitch_delta = -mouse_delta.y * scene_nav.rotation_sensitivity;
-        let raw_yaw_delta = -mouse_delta.x * scene_nav.rotation_sensitivity;
+        // Calculate raw rotation deltas (FIXED: Only invert pitch)
+        let raw_pitch_delta = -mouse_delta.y * scene_nav.rotation_sensitivity;  // Invert pitch: up = look up
+        let raw_yaw_delta = mouse_delta.x * scene_nav.rotation_sensitivity;     // Normal yaw: right = turn right
         
         // Add to smoothing samples (keep last 5 samples for averaging)
         scene_nav.rotation_smoothing_samples.push([raw_pitch_delta, raw_yaw_delta]);
@@ -207,18 +207,18 @@ impl SceneNavigator {
             scene_nav.movement_speed
         };
         
-        // WASD movement - Fixed: W moves forward, S moves backward
+        // WASD movement - Fixed: Swap W/S to fix direction issue
         if ui.input(|i| i.key_down(egui::Key::W)) {
-            movement[2] += 1.0;  // Forward is positive Z in local space
+            movement[2] -= 1.0;  // W moves forward (swapped)
         }
         if ui.input(|i| i.key_down(egui::Key::S)) {
-            movement[2] -= 1.0;  // Backward is negative Z in local space
+            movement[2] += 1.0;  // S moves backward (swapped)
         }
         if ui.input(|i| i.key_down(egui::Key::A)) {
-            movement[0] -= 1.0;
+            movement[0] += 1.0;  // Left is positive X in local space
         }
         if ui.input(|i| i.key_down(egui::Key::D)) {
-            movement[0] += 1.0;
+            movement[0] -= 1.0;  // Right is negative X in local space
         }
         
         // Vertical movement (Q/E)
@@ -262,41 +262,40 @@ impl SceneNavigator {
     
     /// Transform movement vector by camera rotation
     fn transform_movement_by_camera(camera_transform: &Transform, movement: [f32; 3]) -> [f32; 3] {
-        let yaw = camera_transform.rotation[1];
-        let pitch = camera_transform.rotation[0];
+        // Use same coordinate system as world_to_screen for consistency
+        let yaw = -camera_transform.rotation[1];  // Negative for correct rotation direction
+        let pitch = -camera_transform.rotation[0];
         
-        // Apply yaw rotation
+        // Calculate rotation values
         let cos_yaw = yaw.cos();
         let sin_yaw = yaw.sin();
-        
-        // Apply pitch for forward/backward movement
         let cos_pitch = pitch.cos();
         let sin_pitch = pitch.sin();
         
-        // Transform the movement vector
-        let mut transformed = [0.0; 3];
+        // Calculate camera basis vectors for FPS-style movement
+        // Forward vector (horizontal only - ignore pitch for W/S movement)
+        // FIXED: Use negative to move toward what you're looking at
+        let forward_x = -sin_yaw;
+        let forward_y = 0.0;  // Keep movement horizontal
+        let forward_z = -cos_yaw;
         
-        // First, handle strafe movement (only affected by yaw, not pitch)
-        transformed[0] = movement[0] * cos_yaw;
-        transformed[2] = -movement[0] * sin_yaw;
+        // Right vector (perpendicular to forward, horizontal only)
+        // Cross product of up × forward = (0,1,0) × (-sin(yaw), 0, -cos(yaw)) = (cos(yaw), 0, -sin(yaw))
+        let right_x = cos_yaw;
+        let right_y = 0.0;
+        let right_z = -sin_yaw;
         
-        // Then, handle forward/backward movement (affected by both yaw and pitch)
-        if movement[2].abs() > 0.001 {
-            // Calculate forward direction based on yaw
-            let forward_x = movement[2] * sin_yaw;
-            let forward_z = movement[2] * cos_yaw;
-            
-            // Apply pitch: when looking up/down, forward movement includes vertical component
-            // and horizontal movement is reduced
-            transformed[0] += forward_x * cos_pitch;
-            transformed[2] += forward_z * cos_pitch;
-            transformed[1] += movement[2] * sin_pitch;
-        }
+        // Up vector is always world up
+        let up_x = 0.0;
+        let up_y = 1.0;
+        let up_z = 0.0;
         
-        // Direct up/down movement (Q/E) is not affected by rotation
-        transformed[1] += movement[1];
+        // Transform movement from local camera space to world space
+        let transformed_x = movement[0] * right_x + movement[1] * up_x + movement[2] * forward_x;
+        let transformed_y = movement[0] * right_y + movement[1] * up_y + movement[2] * forward_y;
+        let transformed_z = movement[0] * right_z + movement[1] * up_z + movement[2] * forward_z;
         
-        transformed
+        [transformed_x, transformed_y, transformed_z]
     }
     
     /// Handle navigation speed control with scroll wheel
@@ -436,12 +435,12 @@ mod tests {
             scale: [1.0, 1.0, 1.0],
         };
         
-        // W key now produces movement[2] = +1.0 (after fix)
+        // W key now produces movement[2] = +1.0 (correct forward movement)
         let movement = [0.0, 0.0, 1.0];
         let transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, movement);
         
-        // Camera should move forward in world space (positive Z because of how transform works)
-        assert!(transformed[2] > 0.0, "W key with no rotation should move +Z");
+        // Camera should move forward in world space (negative Z for forward)
+        assert!(transformed[2] < 0.0, "W key with no rotation should move -Z");
         
         // Test 2: Camera rotated 180 degrees (looking down +Z)
         let camera_transform_180 = Transform {
@@ -452,8 +451,8 @@ mod tests {
         
         let transformed_180 = SceneNavigator::transform_movement_by_camera(&camera_transform_180, movement);
         
-        // When rotated 180, W should move us backward in world space (-Z)
-        assert!(transformed_180[2] < 0.0, "W key when rotated 180 should move -Z");
+        // When rotated 180, W should move us backward in world space (+Z)
+        assert!(transformed_180[2] > 0.0, "W key when rotated 180 should move +Z");
     }
     
     #[test]
@@ -465,12 +464,12 @@ mod tests {
             scale: [1.0, 1.0, 1.0],
         };
         
-        // When moving forward (W key now produces +1.0)
+        // When moving forward (W key produces +1.0)
         let movement = [0.0, 0.0, 1.0];
         let transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, movement);
         
-        // Then camera should move along +X axis
-        assert!(transformed[0] > 0.9, "Forward movement should be along +X when rotated right");
+        // Then camera should move along -X axis (looking left when rotated right)
+        assert!(transformed[0] < -0.9, "Forward movement should be along -X when rotated right");
         assert!(transformed[2].abs() < 0.1, "Minimal Z movement expected");
         assert_eq!(transformed[1], 0.0, "No Y movement expected");
     }
@@ -484,14 +483,14 @@ mod tests {
             scale: [1.0, 1.0, 1.0],
         };
         
-        // When moving forward (W key now produces +1.0)
+        // When moving forward (W key produces +1.0)
         let movement = [0.0, 0.0, 1.0];
         let transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, movement);
         
-        // Then camera should move forward and up
-        assert!(transformed[2] > 0.0, "Should still move forward");
+        // Then camera should move forward (negative Z) and up
+        assert!(transformed[2] < 0.0, "Should still move forward (negative Z)");
         assert!(transformed[1] > 0.0, "Should also move up when pitched up");
-        assert_eq!(transformed[0], 0.0, "No X movement expected");
+        assert!(transformed[0].abs() < 0.001, "No X movement expected");
     }
     
     #[test]
@@ -503,7 +502,7 @@ mod tests {
             scale: [1.0, 1.0, 1.0],
         };
         
-        // When moving forward and backward (with fixed directions)
+        // When moving forward and backward (correct directions)
         let forward_movement = [0.0, 0.0, 1.0];   // W key
         let backward_movement = [0.0, 0.0, -1.0]; // S key
         
