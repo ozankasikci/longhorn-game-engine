@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use engine_component_traits::{Component, ComponentClone, ComponentTicks, Tick, Bundle};
+use crate::error::{EcsError, EcsResult};
 
 // Component Registry for dynamic component array creation
 type ComponentArrayFactory = Arc<dyn Fn() -> Box<dyn ComponentArrayTrait> + Send + Sync>;
@@ -109,7 +110,7 @@ pub trait ComponentArrayTrait: Send + Sync {
     fn get_ticks_at(&self, index: usize) -> Option<ComponentTicks>;
     
     /// Push a cloned component
-    fn push_cloned(&mut self, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> Result<(), &'static str>;
+    fn push_cloned(&mut self, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> EcsResult<()>;
 }
 
 /// Storage for a single component type within an archetype
@@ -234,7 +235,7 @@ impl<T: Component> ComponentArrayTrait for ComponentArray<T> {
         self.ticks.get(index).cloned()
     }
     
-    fn push_cloned(&mut self, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> Result<(), &'static str> {
+    fn push_cloned(&mut self, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> EcsResult<()> {
         // Downcast the component to the correct type
         let component_any = component.into_any();
         if let Ok(component_boxed) = component_any.downcast::<T>() {
@@ -242,7 +243,10 @@ impl<T: Component> ComponentArrayTrait for ComponentArray<T> {
             self.ticks.push(ticks);
             Ok(())
         } else {
-            Err("Type mismatch when pushing cloned component")
+            Err(EcsError::TypeMismatch {
+                expected: std::any::type_name::<T>(),
+                found: "unknown",
+            })
         }
     }
 }
@@ -261,16 +265,22 @@ impl ErasedComponentArray {
         }
     }
     
-    pub fn push<T: Component>(&mut self, component: T, ticks: ComponentTicks) -> Result<(), &'static str> {
+    pub fn push<T: Component>(&mut self, component: T, ticks: ComponentTicks) -> EcsResult<()> {
         if self.type_id != TypeId::of::<T>() {
-            return Err("Type mismatch");
+            return Err(EcsError::TypeMismatch {
+                expected: std::any::type_name::<T>(),
+                found: "unknown",
+            });
         }
         
         if let Some(array) = self.array.as_any_mut().downcast_mut::<ComponentArray<T>>() {
             array.push(component, ticks);
             Ok(())
         } else {
-            Err("Downcast failed")
+            Err(EcsError::TypeMismatch {
+                expected: std::any::type_name::<T>(),
+                found: "unknown",
+            })
         }
     }
     
@@ -332,16 +342,22 @@ impl ErasedComponentArray {
             .get_ticks(index)
     }
     
-    pub fn mark_changed<T: Component>(&mut self, index: usize, tick: Tick) -> Result<(), &'static str> {
+    pub fn mark_changed<T: Component>(&mut self, index: usize, tick: Tick) -> EcsResult<()> {
         if self.type_id != TypeId::of::<T>() {
-            return Err("Type mismatch");
+            return Err(EcsError::TypeMismatch {
+                expected: std::any::type_name::<T>(),
+                found: "unknown",
+            });
         }
         
         if let Some(array) = self.array.as_any_mut().downcast_mut::<ComponentArray<T>>() {
             array.mark_changed(index, tick);
             Ok(())
         } else {
-            Err("Downcast failed")
+            Err(EcsError::TypeMismatch {
+                expected: std::any::type_name::<T>(),
+                found: "unknown",
+            })
         }
     }
     
@@ -365,7 +381,7 @@ impl ErasedComponentArray {
     }
     
     /// Add a cloned component
-    pub fn push_cloned(&mut self, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> Result<(), &'static str> {
+    pub fn push_cloned(&mut self, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> EcsResult<()> {
         self.array.push_cloned(component, ticks)
     }
     
@@ -457,8 +473,8 @@ impl Archetype {
     }
     
     /// Clone a component at a specific index
-    pub fn clone_component_at(&self, type_id: TypeId, index: usize) -> Result<Option<Box<dyn ComponentClone>>, &'static str> {
-        let array = self.components.get(&type_id).ok_or("Component type not found")?;
+    pub fn clone_component_at(&self, type_id: TypeId, index: usize) -> EcsResult<Option<Box<dyn ComponentClone>>> {
+        let array = self.components.get(&type_id).ok_or(EcsError::ComponentNotRegistered(type_id))?;
         Ok(array.clone_component_at(index))
     }
     
@@ -468,7 +484,7 @@ impl Archetype {
     }
     
     /// Add a component from a cloned box
-    pub fn add_component_cloned(&mut self, type_id: TypeId, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> Result<(), &'static str> {
+    pub fn add_component_cloned(&mut self, type_id: TypeId, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> EcsResult<()> {
         if let Some(array) = self.components.get_mut(&type_id) {
             array.push_cloned(component, ticks)
         } else {
@@ -481,7 +497,7 @@ impl Archetype {
                 });
                 Ok(())
             } else {
-                Err("Component type not registered")
+                Err(EcsError::ComponentNotRegistered(type_id))
             }
         }
     }
@@ -526,9 +542,9 @@ impl World {
         &self,
         _entity: Entity,
         location: &EntityLocation
-    ) -> Result<Vec<(TypeId, Box<dyn ComponentClone>, ComponentTicks)>, &'static str> {
+    ) -> EcsResult<Vec<(TypeId, Box<dyn ComponentClone>, ComponentTicks)>> {
         let archetype = self.archetypes.get(&location.archetype_id)
-            .ok_or("Archetype not found")?;
+            .ok_or(EcsError::ArchetypeNotFound)?;
             
         let mut components = Vec::new();
         
@@ -538,7 +554,10 @@ impl World {
             // For now, we'll need to handle this in the archetype
             if let Some(component) = archetype.clone_component_at(*type_id, location.index)? {
                 let ticks = archetype.get_component_ticks_at(*type_id, location.index)
-                    .ok_or("Component ticks not found")?;
+                    .ok_or(EcsError::ComponentNotFound {
+                        entity: _entity,
+                        component_type: "ComponentTicks",
+                    })?;
                 components.push((*type_id, component, ticks.clone()));
             }
         }
@@ -554,7 +573,7 @@ impl World {
         target_archetype_id: ArchetypeId, 
         new_component: T, 
         new_component_ticks: ComponentTicks
-    ) -> Result<(), &'static str> {
+    ) -> EcsResult<()> {
         // Phase 11 Implementation: Full component migration with registry
         
         // 1. Clone all existing components from old archetype
@@ -589,7 +608,7 @@ impl World {
         // 4. Add entity to new archetype and update location
         let new_index = {
             let target_archetype = self.archetypes.get_mut(&target_archetype_id)
-                .ok_or("Target archetype not found")?;
+                .ok_or(EcsError::ArchetypeNotFound)?;
             target_archetype.add_entity(entity)
         };
         
@@ -601,7 +620,7 @@ impl World {
         
         // 5. Add all cloned components to new archetype
         let target_archetype = self.archetypes.get_mut(&target_archetype_id)
-            .ok_or("Target archetype not found")?;
+            .ok_or(EcsError::ArchetypeNotFound)?;
             
         for (type_id, component, ticks) in components_to_migrate {
             target_archetype.add_component_cloned(type_id, component, ticks)?;
@@ -631,7 +650,7 @@ impl World {
     }
     
     /// Add a component to an entity
-    pub fn add_component<T: Component>(&mut self, entity: Entity, component: T) -> Result<(), &'static str> {
+    pub fn add_component<T: Component>(&mut self, entity: Entity, component: T) -> EcsResult<()> {
         let current_tick = self.change_tick();
         let ticks = ComponentTicks::new(current_tick);
         
@@ -1048,15 +1067,15 @@ impl World {
     }
     
     /// Remove a component from an entity
-    pub fn remove_component<T: Component>(&mut self, entity: Entity) -> Result<Option<T>, &'static str> {
+    pub fn remove_component<T: Component>(&mut self, entity: Entity) -> EcsResult<Option<T>> {
         // Get current location
         let old_location = self.entity_locations.get(&entity)
-            .ok_or("Entity not found")?
+            .ok_or(EcsError::EntityNotFound(entity))?
             .clone();
             
         // Get current archetype
         let old_archetype = self.archetypes.get(&old_location.archetype_id)
-            .ok_or("Archetype not found")?;
+            .ok_or(EcsError::ArchetypeNotFound)?;
             
         // Check if entity has the component
         if !old_archetype.has_component::<T>() {
@@ -1070,7 +1089,10 @@ impl World {
             if let Ok(typed_box) = any_box.downcast::<T>() {
                 Some(*typed_box)
             } else {
-                return Err("Failed to downcast component");
+                return Err(EcsError::TypeMismatch {
+                    expected: std::any::type_name::<T>(),
+                    found: "unknown",
+                });
             }
         } else {
             None
@@ -1097,7 +1119,10 @@ impl World {
             if *type_id != TypeId::of::<T>() {
                 if let Some(component) = old_archetype.clone_component_at(*type_id, old_location.index)? {
                     let ticks = old_archetype.get_component_ticks_at(*type_id, old_location.index)
-                        .ok_or("Component ticks not found")?;
+                        .ok_or(EcsError::ComponentNotFound {
+                            entity,
+                            component_type: "ComponentTicks",
+                        })?;
                     components_to_migrate.push((*type_id, component, ticks));
                 }
             }
@@ -1130,7 +1155,7 @@ impl World {
         // Add entity to new archetype
         let new_index = {
             let target_archetype = self.archetypes.get_mut(&new_archetype_id)
-                .ok_or("Target archetype not found")?;
+                .ok_or(EcsError::ArchetypeNotFound)?;
             target_archetype.add_entity(entity)
         };
         
@@ -1142,7 +1167,7 @@ impl World {
         
         // Add all migrated components
         let target_archetype = self.archetypes.get_mut(&new_archetype_id)
-            .ok_or("Target archetype not found")?;
+            .ok_or(EcsError::ArchetypeNotFound)?;
             
         for (type_id, component, ticks) in components_to_migrate {
             target_archetype.add_component_cloned(type_id, component, ticks)?;
@@ -1166,7 +1191,7 @@ impl Default for World {
 
 impl World {
     /// Spawn an entity with a bundle of components
-    pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> Result<Entity, &'static str> {
+    pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> EcsResult<Entity> {
         let entity = self.spawn();
         
         // Get component types and create archetype ID
@@ -1181,7 +1206,7 @@ impl World {
         
         // Get archetype and add all components
         let archetype = self.archetypes.get_mut(&archetype_id)
-            .ok_or("Failed to get archetype")?;
+            .ok_or(EcsError::ArchetypeNotFound)?;
             
         // Add all components from the bundle
         for (type_id, component) in bundle.into_components() {

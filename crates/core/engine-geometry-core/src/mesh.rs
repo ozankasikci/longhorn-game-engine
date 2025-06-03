@@ -1,7 +1,7 @@
 //! Mesh data structures and management
 
-use crate::{Vertex, VertexData, BoundingBox};
-use glam::Mat4;
+use crate::{Vertex, VertexData, BoundingBox, Result, GeometryError};
+use glam::{Mat4, Vec3};
 use serde::{Serialize, Deserialize};
 
 /// Handle for mesh resources
@@ -53,15 +53,7 @@ pub enum PrimitiveTopology {
     PointList,
 }
 
-/// Mesh validation result
-#[derive(Debug, Clone)]
-pub enum MeshValidationError {
-    InvalidIndices(String),
-    InvalidTopology(String),
-    InvalidVertexData(String),
-    EmptyMesh,
-    BoundsError(String),
-}
+// MeshValidationError removed - using GeometryError instead
 
 impl Default for Mesh {
     fn default() -> Self {
@@ -108,7 +100,7 @@ impl Mesh {
     }
     
     /// Add a vertex to the mesh (only works with Standard vertex data)
-    pub fn add_vertex(&mut self, vertex: Vertex) -> Result<u32, &'static str> {
+    pub fn add_vertex(&mut self, vertex: Vertex) -> Result<u32> {
         match &mut self.vertex_data {
             VertexData::Standard(vertices) => {
                 let index = vertices.len() as u32;
@@ -116,21 +108,27 @@ impl Mesh {
                 self.update_bounds();
                 Ok(index)
             }
-            _ => Err("Can only add vertices to Standard vertex data"),
+            _ => Err(GeometryError::InvalidMeshData(
+                "Can only add vertices to Standard vertex data".to_string()
+            )),
         }
     }
     
     /// Add a triangle to the mesh
-    pub fn add_triangle(&mut self, v0: u32, v1: u32, v2: u32) -> Result<(), &'static str> {
+    pub fn add_triangle(&mut self, v0: u32, v1: u32, v2: u32) -> Result<()> {
         let vertex_count = self.vertex_count() as u32;
         
         if v0 >= vertex_count || v1 >= vertex_count || v2 >= vertex_count {
-            return Err("Vertex index out of bounds");
+            return Err(GeometryError::InvalidMeshData(
+                "Vertex index out of bounds".to_string()
+            ));
         }
         
         let indices = match &mut self.index_buffer {
             Some(IndexBuffer::U32(ref mut indices)) => indices,
-            Some(IndexBuffer::U16(_)) => return Err("Cannot add to U16 index buffer"),
+            Some(IndexBuffer::U16(_)) => return Err(GeometryError::InvalidMeshData(
+                "Cannot add to U16 index buffer".to_string()
+            )),
             None => {
                 self.index_buffer = Some(IndexBuffer::U32(Vec::new()));
                 match &mut self.index_buffer {
@@ -243,10 +241,10 @@ impl Mesh {
     }
     
     /// Validate mesh data
-    pub fn validate(&self) -> Result<(), MeshValidationError> {
+    pub fn validate(&self) -> Result<()> {
         // Check for empty mesh
         if self.vertex_count() == 0 {
-            return Err(MeshValidationError::EmptyMesh);
+            return Err(GeometryError::InvalidMeshData("Empty mesh".to_string()));
         }
         
         // Validate indices
@@ -257,7 +255,7 @@ impl Mesh {
                 IndexBuffer::U16(indices) => {
                     for &index in indices {
                         if index as u32 >= vertex_count {
-                            return Err(MeshValidationError::InvalidIndices(
+                            return Err(GeometryError::InvalidMeshData(
                                 format!("Index {} out of bounds for {} vertices", index, vertex_count)
                             ));
                         }
@@ -266,7 +264,7 @@ impl Mesh {
                 IndexBuffer::U32(indices) => {
                     for &index in indices {
                         if index >= vertex_count {
-                            return Err(MeshValidationError::InvalidIndices(
+                            return Err(GeometryError::InvalidMeshData(
                                 format!("Index {} out of bounds for {} vertices", index, vertex_count)
                             ));
                         }
@@ -279,28 +277,28 @@ impl Mesh {
             match self.topology {
                 PrimitiveTopology::TriangleList => {
                     if index_count % 3 != 0 {
-                        return Err(MeshValidationError::InvalidTopology(
+                        return Err(GeometryError::InvalidMeshData(
                             "Triangle list must have index count divisible by 3".to_string()
                         ));
                     }
                 }
                 PrimitiveTopology::TriangleStrip | PrimitiveTopology::TriangleFan => {
                     if index_count < 3 {
-                        return Err(MeshValidationError::InvalidTopology(
+                        return Err(GeometryError::InvalidMeshData(
                             "Triangle strip/fan must have at least 3 indices".to_string()
                         ));
                     }
                 }
                 PrimitiveTopology::LineList => {
                     if index_count % 2 != 0 {
-                        return Err(MeshValidationError::InvalidTopology(
+                        return Err(GeometryError::InvalidMeshData(
                             "Line list must have index count divisible by 2".to_string()
                         ));
                     }
                 }
                 PrimitiveTopology::LineStrip => {
                     if index_count < 2 {
-                        return Err(MeshValidationError::InvalidTopology(
+                        return Err(GeometryError::InvalidMeshData(
                             "Line strip must have at least 2 indices".to_string()
                         ));
                     }
@@ -313,7 +311,7 @@ impl Mesh {
         
         // Validate bounds
         if !self.bounds.is_valid() && self.vertex_count() > 0 {
-            return Err(MeshValidationError::BoundsError(
+            return Err(GeometryError::InvalidMeshData(
                 "Invalid bounding box for non-empty mesh".to_string()
             ));
         }
@@ -322,7 +320,7 @@ impl Mesh {
     }
     
     /// Calculate face normals and update vertex normals
-    pub fn calculate_normals(&mut self) -> Result<(), &'static str> {
+    pub fn calculate_normals(&mut self) -> Result<()> {
         if let VertexData::Standard(ref mut vertices) = self.vertex_data {
             // Reset normals
             for vertex in vertices.iter_mut() {
@@ -366,7 +364,9 @@ impl Mesh {
             
             Ok(())
         } else {
-            Err("Can only calculate normals for Standard vertex data")
+            Err(GeometryError::InvalidMeshData(
+                "Can only calculate normals for Standard vertex data".to_string()
+            ))
         }
     }
     
@@ -407,10 +407,12 @@ impl Mesh {
     }
     
     /// Merge another mesh into this one
-    pub fn merge(&mut self, other: &Mesh) -> Result<(), &'static str> {
+    pub fn merge(&mut self, other: &Mesh) -> Result<()> {
         if !matches!((&self.vertex_data, &other.vertex_data), 
                     (VertexData::Standard(_), VertexData::Standard(_))) {
-            return Err("Can only merge meshes with Standard vertex data");
+            return Err(GeometryError::InvalidMeshData(
+                "Can only merge meshes with Standard vertex data".to_string()
+            ));
         }
         
         let vertex_offset = self.vertex_count() as u32;
@@ -566,7 +568,7 @@ mod tests {
 
         // Test empty mesh
         let empty_mesh = Mesh::new("empty");
-        assert!(matches!(empty_mesh.validate(), Err(MeshValidationError::EmptyMesh)));
+        assert!(empty_mesh.validate().is_err());
     }
 
     #[test]

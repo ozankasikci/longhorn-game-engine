@@ -4,11 +4,14 @@ pub mod ecs;    // Legacy ECS (for comparison)
 pub mod ecs_v2; // Data-oriented ECS
 pub mod time;
 pub mod memory;
+pub mod error;
 
 // Re-export ECS types
 pub use ecs_v2::{Entity, World, ArchetypeId, Query, QueryMut, Read, Write, Changed, register_component};
 // Re-export component traits
 pub use engine_component_traits::{Component, ComponentClone, ComponentTicks, Tick, Bundle};
+// Re-export error types
+pub use error::{EcsError, EcsResult};
 
 
 #[cfg(test)]

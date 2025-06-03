@@ -3,6 +3,7 @@
 
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
+use crate::error::EcsResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Entity(u32);
@@ -28,7 +29,7 @@ impl World {
         entity
     }
     
-    pub fn add_component<T: Component + Send + Sync + 'static>(&mut self, entity: Entity, component: T) -> Result<(), &'static str> {
+    pub fn add_component<T: Component + Send + Sync + 'static>(&mut self, entity: Entity, component: T) -> EcsResult<()> {
         self.components
             .entry(TypeId::of::<T>())
             .or_insert_with(HashMap::new)
