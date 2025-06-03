@@ -27,6 +27,14 @@ pub struct SceneNavigation {
     pub fast_movement_multiplier: f32,
     pub last_mouse_pos: Option<egui::Pos2>,
     pub scene_camera_transform: Transform,
+    
+    // Smooth rotation enhancement fields
+    pub rotation_velocity: [f32; 2],          // Current rotation velocity [pitch, yaw] in rad/s
+    pub rotation_acceleration: f32,           // How quickly rotation ramps up/down
+    pub rotation_damping: f32,                // How quickly rotation slows down
+    pub max_rotation_speed: f32,              // Maximum rotation velocity
+    pub rotation_smoothing_samples: Vec<[f32; 2]>, // Recent rotation inputs for smoothing
+    pub target_rotation_delta: [f32; 2],     // Target rotation for interpolation
 }
 
 impl Default for SceneNavigation {
@@ -39,10 +47,18 @@ impl Default for SceneNavigation {
             fast_movement_multiplier: 3.0,          // Shift speed boost
             last_mouse_pos: None,
             scene_camera_transform: Transform {
-                position: [0.0, 2.0, 5.0],          // Default camera position
+                position: [0.0, 2.0, 8.0],          // Move camera further back to see objects
                 rotation: [0.0, 0.0, 0.0],          // Looking forward
                 scale: [1.0, 1.0, 1.0],
             },
+            
+            // Smooth rotation defaults - tuned for responsive feel
+            rotation_velocity: [0.0, 0.0],
+            rotation_acceleration: 20.0,            // Rad/s^2 - faster for responsive feel
+            rotation_damping: 12.0,                 // How quickly rotation slows down
+            max_rotation_speed: 10.0,               // Higher max speed for responsiveness
+            rotation_smoothing_samples: Vec::new(),
+            target_rotation_delta: [0.0, 0.0],
         }
     }
 }

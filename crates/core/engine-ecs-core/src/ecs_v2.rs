@@ -493,33 +493,10 @@ impl World {
         // TEMPORARY: Allow migration by removing from old archetype
         // This is not efficient but works for the editor
         
-        // Remove entity from old archetype
-        if let Some(old_archetype) = self.archetypes.get_mut(&old_location.archetype_id) {
-            if let Some(swapped_entity) = old_archetype.remove_entity(old_location.index) {
-                // Update location of entity that was moved due to swap_remove
-                if swapped_entity != entity && old_location.index < old_archetype.entities.len() {
-                    let moved_entity = old_archetype.entities[old_location.index];
-                    if let Some(moved_location) = self.entity_locations.get_mut(&moved_entity) {
-                        moved_location.index = old_location.index;
-                    }
-                }
-            }
-        }
-        
-        // Add entity to new archetype
-        let target_archetype = self.archetypes.get_mut(&target_archetype_id).unwrap();
-        let new_index = target_archetype.add_entity(entity);
-        
-        // Add the new component
-        target_archetype.add_component(new_component, new_component_ticks);
-        
-        // Update entity location
-        self.entity_locations.insert(entity, EntityLocation {
-            archetype_id: target_archetype_id,
-            index: new_index,
-        });
-        
-        Ok(())
+        // CRITICAL FIX: We need to skip migration for now since we can't generically copy components
+        // For now, return an error to indicate migration is not supported
+        // This will force single-archetype entities
+        Err("Component migration not yet implemented")
     }
     
     /// Get the current change tick

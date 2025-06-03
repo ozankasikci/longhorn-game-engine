@@ -127,6 +127,11 @@ impl LonghornEditor {
         // Initialize world with default entities
         let (world, camera_entity, init_messages) = world_setup::create_default_world();
         
+        // DEBUG: Verify world has entities immediately after creation
+        eprintln!("🔍 MAIN DEBUG: World created with {} entities", world.entity_count());
+        eprintln!("🔍 MAIN DEBUG: Transform components: {}", world.query_legacy::<Transform>().count());
+        eprintln!("🔍 MAIN DEBUG: Mesh components: {}", world.query_legacy::<engine_components_3d::Mesh>().count());
+        
         Self {
             dock_state,
             world,

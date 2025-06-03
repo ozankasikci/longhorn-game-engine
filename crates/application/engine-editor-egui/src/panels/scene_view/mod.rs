@@ -8,6 +8,9 @@ pub mod object_renderer;
 pub mod scene_view_impl;
 pub mod scene_input;
 
+#[cfg(test)]
+mod navigation_tests;
+
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
 use engine_components_3d::{Transform, Material, Mesh, MeshType, Light, Visibility};
