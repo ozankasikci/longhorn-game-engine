@@ -43,6 +43,9 @@ pub fn apply_unity_style(ctx: &egui::Context) {
     style.visuals.window_shadow = egui::epaint::Shadow::NONE;
     style.visuals.popup_shadow = egui::epaint::Shadow::NONE;
     
+    // Fix extreme dark/light colors (like pure black)
+    style.visuals.extreme_bg_color = egui::Color32::from_rgb(56, 56, 56);
+    
     // Widget styling
     style.visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(65, 65, 65);
     style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(48, 48, 48));

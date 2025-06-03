@@ -4,7 +4,7 @@
 //! Material, Light, and Visibility components.
 
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 
 // Transform component - fundamental for all spatial objects
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -63,9 +63,8 @@ impl Transform {
     }
 }
 
-// Component trait implementations
+// Component trait implementation
 impl Component for Transform {}
-impl ComponentV2 for Transform {}
 
 // Mesh component - defines what mesh to render
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -81,9 +80,8 @@ pub enum MeshType {
     Custom(String), // Asset path for custom meshes
 }
 
-// Component trait implementations
+// Component trait implementation
 impl Component for Mesh {}
-impl ComponentV2 for Mesh {}
 
 impl Default for Mesh {
     fn default() -> Self {
@@ -102,9 +100,8 @@ pub struct Material {
     pub emissive: [f32; 3], // RGB emissive color
 }
 
-// Component trait implementations
+// Component trait implementation
 impl Component for Material {}
-impl ComponentV2 for Material {}
 
 impl Default for Material {
     fn default() -> Self {
@@ -132,9 +129,8 @@ pub enum LightType {
     Spot { range: f32, angle: f32 },
 }
 
-// Component trait implementations
+// Component trait implementation
 impl Component for Light {}
-impl ComponentV2 for Light {}
 
 impl Default for Light {
     fn default() -> Self {
@@ -152,9 +148,8 @@ pub struct Visibility {
     pub visible: bool,
 }
 
-// Component trait implementations
+// Component trait implementation
 impl Component for Visibility {}
-impl ComponentV2 for Visibility {}
 
 impl Default for Visibility {
     fn default() -> Self {

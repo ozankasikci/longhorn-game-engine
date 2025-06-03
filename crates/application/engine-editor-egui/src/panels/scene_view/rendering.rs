@@ -72,7 +72,7 @@ impl SceneRenderer {
     /// Find the main camera entity in the scene
     pub fn find_main_camera_entity(world: &World) -> Option<Entity> {
         // Look for entity with Camera component that has is_main = true
-        for (entity, _transform) in world.query::<Transform>() {
+        for (entity, _transform) in world.query_legacy::<Transform>() {
             if let Some(camera) = world.get_component::<Camera>(entity) {
                 if camera.is_main {
                     return Some(entity);
@@ -81,7 +81,7 @@ impl SceneRenderer {
         }
         
         // If no main camera found, return the first camera entity
-        for (entity, _transform) in world.query::<Transform>() {
+        for (entity, _transform) in world.query_legacy::<Transform>() {
             if world.get_component::<Camera>(entity).is_some() {
                 return Some(entity);
             }
@@ -111,7 +111,7 @@ impl SceneRenderer {
         let render_scale = 100.0; // Scale factor for rendering
         
         // Render all entities with transforms
-        for (entity, transform) in world.query::<Transform>() {
+        for (entity, transform) in world.query_legacy::<Transform>() {
             // Skip the camera itself
             if let Some(camera_check) = world.get_component::<Camera>(entity) {
                 if camera_check.is_main {

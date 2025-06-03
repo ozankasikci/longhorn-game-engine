@@ -1,7 +1,7 @@
 //! Audio source abstractions
 
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 
 /// Handle to an audio asset/resource
 pub type AudioHandle = u64;
@@ -50,7 +50,7 @@ impl Default for AudioSource {
 }
 
 impl Component for AudioSource {}
-impl ComponentV2 for AudioSource {}
+
 
 /// Audio playback states
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -3,7 +3,7 @@
 //! This crate provides UI-specific components for canvas rendering and layout.
 
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 
 // Canvas Component for UI rendering
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -32,9 +32,8 @@ impl Default for Canvas {
     }
 }
 
-// Component trait implementations
+// Component trait implementation
 impl Component for Canvas {}
-impl ComponentV2 for Canvas {}
 
 // Name component - for identifying objects (shared utility component)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -42,9 +41,8 @@ pub struct Name {
     pub name: String,
 }
 
-// Component trait implementations
+// Component trait implementation
 impl Component for Name {}
-impl ComponentV2 for Name {}
 
 impl Name {
     pub fn new(name: impl Into<String>) -> Self {

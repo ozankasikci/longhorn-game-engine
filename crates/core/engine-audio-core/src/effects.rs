@@ -1,7 +1,7 @@
 //! Audio effects and processing abstractions
 
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 
 /// Audio effects component for entities
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -27,7 +27,7 @@ impl Default for AudioEffects {
 }
 
 impl Component for AudioEffects {}
-impl ComponentV2 for AudioEffects {}
+
 
 /// Audio effect types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

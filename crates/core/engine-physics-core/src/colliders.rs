@@ -2,7 +2,7 @@
 
 use glam::{Vec2, Vec3};
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 
 /// Handle to a physics collider
 pub type ColliderHandle = u32;
@@ -51,7 +51,7 @@ impl Default for Collider {
 }
 
 impl Component for Collider {}
-impl ComponentV2 for Collider {}
+
 
 /// 2D collider component
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -97,7 +97,7 @@ impl Default for Collider2D {
 }
 
 impl Component for Collider2D {}
-impl ComponentV2 for Collider2D {}
+
 
 /// 3D collider shapes
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -298,9 +298,8 @@ impl Default for CameraComponent {
     }
 }
 
-// ECS v2 integration
+// ECS integration
 impl engine_ecs_core::Component for CameraComponent {}
-impl engine_ecs_core::ecs_v2::Component for CameraComponent {}
 
 /// Camera uniform data for GPU shaders
 #[repr(C)]

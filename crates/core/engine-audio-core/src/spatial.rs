@@ -2,7 +2,7 @@
 
 use glam::Vec3;
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 
 /// Spatial audio listener component (typically on camera)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -40,7 +40,7 @@ impl Default for AudioListener {
 }
 
 impl Component for AudioListener {}
-impl ComponentV2 for AudioListener {}
+
 
 /// Spatial audio source component
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -86,7 +86,7 @@ impl Default for SpatialAudioSource {
 }
 
 impl Component for SpatialAudioSource {}
-impl ComponentV2 for SpatialAudioSource {}
+
 
 /// Audio rolloff models for distance attenuation
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

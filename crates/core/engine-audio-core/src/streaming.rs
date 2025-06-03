@@ -1,7 +1,7 @@
 //! Audio streaming abstractions
 
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 use crate::AudioHandle;
 
 /// Streaming audio source component for large audio files
@@ -52,7 +52,7 @@ impl Default for StreamingAudioSource {
 }
 
 impl Component for StreamingAudioSource {}
-impl ComponentV2 for StreamingAudioSource {}
+
 
 /// Streaming audio states
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

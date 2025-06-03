@@ -2,7 +2,7 @@
 
 use glam::Vec3;
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 
 /// Physics joint component
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ pub struct Joint {
 }
 
 impl Component for Joint {}
-impl ComponentV2 for Joint {}
+
 
 /// Types of physics joints
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

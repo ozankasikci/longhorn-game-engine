@@ -42,7 +42,7 @@ impl SceneViewRenderer {
         self.draw_grid(painter, rect, camera_pos);
         
         // Draw scene objects
-        let entities_with_transforms: Vec<_> = world.entities_with_component::<Transform>();
+        let entities_with_transforms: Vec<_> = world.query_legacy::<Transform>().map(|(entity, _)| entity).collect();
         
         // Track entity changes
         let current_entity_count = entities_with_transforms.len();
@@ -260,7 +260,7 @@ impl SceneViewRenderer {
         camera_rot: [f32; 3],
         selected_entity: Option<Entity>,
     ) {
-        for (entity, _transform) in world.query::<Transform>() {
+        for (entity, _transform) in world.query_legacy::<Transform>() {
             if let Some(sprite_renderer) = world.get_component::<SpriteRenderer>(entity) {
                 let transform = _transform;
                 

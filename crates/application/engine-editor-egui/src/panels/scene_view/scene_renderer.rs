@@ -50,7 +50,7 @@ pub fn draw_simple_scene_view(
     // Draw scene objects (simplified 2D representation with camera transform)
     // Phase 10.2: Query entities with both Transform AND Mesh components
     // This is the ECS-to-renderer bridge implementation
-    let entities_with_transforms: Vec<_> = world.entities_with_component::<Transform>();
+    let entities_with_transforms: Vec<_> = world.query_legacy::<Transform>().map(|(entity, _)| entity).collect();
     
     // Track entity changes for Phase 10.2
     let current_entity_count = entities_with_transforms.len();

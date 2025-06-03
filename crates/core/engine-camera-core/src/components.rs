@@ -1,7 +1,7 @@
 //! ECS Camera Components - Unified camera system for all camera types
 
 use crate::{CameraType, Viewport};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 use serde::{Serialize, Deserialize};
 
 /// Basic 3D Camera Component - simple ECS camera for perspective rendering
@@ -48,9 +48,8 @@ impl Camera {
     }
 }
 
-// ECS component implementations
+// ECS component implementation
 impl Component for Camera {}
-impl ComponentV2 for Camera {}
 
 /// 2D Camera Component - specialized for 2D rendering
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -106,9 +105,8 @@ impl Camera2D {
     }
 }
 
-// ECS component implementations
+// ECS component implementation
 impl Component for Camera2D {}
-impl ComponentV2 for Camera2D {}
 
 #[cfg(test)]
 mod tests {

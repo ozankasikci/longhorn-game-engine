@@ -1,7 +1,7 @@
 //! Event system integration and ECS components
 
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 use crate::{EventDispatcher, EventQueue, EventFilter, EventHandlerTrait, Result, EventError};
 
 /// Event emitter component for entities that can generate events
@@ -20,7 +20,6 @@ pub struct EventEmitter {
 }
 
 impl Component for EventEmitter {}
-impl ComponentV2 for EventEmitter {}
 
 impl Default for EventEmitter {
     fn default() -> Self {
@@ -91,7 +90,6 @@ pub struct EventListener {
 }
 
 impl Component for EventListener {}
-impl ComponentV2 for EventListener {}
 
 impl Default for EventListener {
     fn default() -> Self {

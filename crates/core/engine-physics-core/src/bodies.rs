@@ -2,7 +2,7 @@
 
 use glam::{Vec2, Vec3, Quat};
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::{Component, ComponentV2};
+use engine_ecs_core::Component;
 
 /// Handle to a physics body
 pub type BodyHandle = u32;
@@ -67,7 +67,7 @@ impl Default for RigidBody {
 }
 
 impl Component for RigidBody {}
-impl ComponentV2 for RigidBody {}
+
 
 /// 2D rigid body component (for 2D physics)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -125,7 +125,7 @@ impl Default for RigidBody2D {
 }
 
 impl Component for RigidBody2D {}
-impl ComponentV2 for RigidBody2D {}
+
 
 /// Types of rigid bodies
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

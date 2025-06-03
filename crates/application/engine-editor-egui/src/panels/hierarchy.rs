@@ -34,8 +34,7 @@ impl HierarchyPanel {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("➕").on_hover_text("Create new entity").clicked() {
                     // Create new entity with ECS v2
-                    let entity = world.create_entity();
-                    world.add_component(entity, Transform::default()).unwrap();
+                    let entity = world.spawn_with(Transform::default());
                     self.console_messages.push(ConsoleMessage::info(&format!("➕ Created Entity {:?}", entity)));
                 }
             });
@@ -48,7 +47,7 @@ impl HierarchyPanel {
         
         egui::ScrollArea::vertical().show(ui, |ui| {
             // Show all entities with Transform components using ECS v2 query
-            for (entity, _transform) in world.query::<Transform>() {
+            for (entity, _transform) in world.query_legacy::<Transform>() {
                 let selected = *selected_entity == Some(entity);
                 
                 // Build component indicator string

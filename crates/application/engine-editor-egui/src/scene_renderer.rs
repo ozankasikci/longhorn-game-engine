@@ -273,7 +273,7 @@ impl SceneRenderer {
         render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         
         // Query and render all entities with Transform + Mesh components
-        let entities: Vec<_> = world.entities_with_component::<Transform>();
+        let entities: Vec<_> = world.query_legacy::<Transform>().map(|(entity, _)| entity).collect();
         for entity in entities {
             if let Some(transform) = world.get_component::<Transform>(entity) {
                 if let Some(_mesh) = world.get_component::<Mesh>(entity) {
