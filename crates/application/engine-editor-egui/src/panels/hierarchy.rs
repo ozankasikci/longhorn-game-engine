@@ -6,17 +6,19 @@ use engine_components_3d::{Transform, Material, Mesh, Light, Visibility};
 use engine_components_2d::{SpriteRenderer};
 use engine_components_ui::{Canvas, Name};
 use engine_camera::{Camera, Camera2D, CameraComponent};
-use crate::types::SceneTool;
+use crate::types::{SceneTool, HierarchyObject};
 use crate::editor_state::ConsoleMessage;
 
 pub struct HierarchyPanel {
     console_messages: Vec<ConsoleMessage>,
+    selected_object: Option<String>,
 }
 
 impl HierarchyPanel {
     pub fn new() -> Self {
         Self {
             console_messages: Vec::new(),
+            selected_object: None,
         }
     }
 
@@ -93,36 +95,59 @@ impl HierarchyPanel {
         messages.append(&mut self.console_messages);
         messages
     }
-}
-
-// Legacy hierarchy object structure (not currently used but kept for future reference)
-#[derive(Debug, Clone)]
-pub struct HierarchyObject {
-    pub name: String,
-    pub object_type: ObjectType,
-    pub children: Option<Vec<HierarchyObject>>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ObjectType {
-    Empty,
-    Cube,
-    Sphere,
-    Light,
-    Camera,
-}
-
-impl HierarchyObject {
-    pub fn new(name: &str, object_type: ObjectType) -> Self {
-        Self {
-            name: name.to_string(),
-            object_type,
-            children: None,
+    
+    /// Display a hierarchy object tree recursively
+    pub fn show_hierarchy_object(&mut self, ui: &mut egui::Ui, object: &HierarchyObject) -> Vec<ConsoleMessage> {
+        let mut messages = Vec::new();
+        
+        match &object.children {
+            Some(children) => {
+                // Parent object with children
+                ui.collapsing(&object.name, |ui| {
+                    for child in children {
+                        let child_messages = self.show_hierarchy_object(ui, child);
+                        messages.extend(child_messages);
+                    }
+                });
+            }
+            None => {
+                // Leaf object
+                let selected = self.selected_object.as_ref() == Some(&object.name);
+                if ui.selectable_label(selected, &object.name).clicked() {
+                    self.selected_object = Some(object.name.clone());
+                    messages.push(ConsoleMessage::info(&format!("🎯 Selected: {}", object.name)));
+                }
+            }
         }
+        
+        messages
     }
     
-    pub fn with_children(mut self, children: Vec<HierarchyObject>) -> Self {
-        self.children = Some(children);
-        self
+    /// Show hierarchy objects in the panel (legacy view mode)
+    pub fn show_hierarchy_objects(
+        &mut self,
+        ui: &mut egui::Ui,
+        hierarchy_objects: &[HierarchyObject],
+    ) -> Vec<ConsoleMessage> {
+        let mut messages = Vec::new();
+        
+        ui.horizontal(|ui| {
+            ui.label("Scene Hierarchy");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("⚙️").on_hover_text("Hierarchy settings").clicked() {
+                    messages.push(ConsoleMessage::info("🔧 Hierarchy settings not implemented"));
+                }
+            });
+        });
+        ui.separator();
+        
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            for object in hierarchy_objects {
+                let obj_messages = self.show_hierarchy_object(ui, object);
+                messages.extend(obj_messages);
+            }
+        });
+        
+        messages
     }
 }

@@ -147,5 +147,38 @@ pub enum PanelType {
     Project,
 }
 
+/// Hierarchy object representation
+#[derive(Clone)]
+pub struct HierarchyObject {
+    pub name: String,
+    pub object_type: ObjectType,
+    pub children: Option<Vec<HierarchyObject>>,
+}
+
+impl HierarchyObject {
+    pub fn new(name: &str, object_type: ObjectType) -> Self {
+        Self {
+            name: name.to_string(),
+            object_type,
+            children: None,
+        }
+    }
+    
+    pub fn parent(name: &str, children: Vec<HierarchyObject>) -> Self {
+        Self {
+            name: name.to_string(),
+            object_type: ObjectType::GameObject,
+            children: Some(children),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum ObjectType {
+    GameObject,
+    Camera,
+    Light,
+}
+
 // Re-export GizmoSystem from the proper module
 pub use crate::panels::scene_view::gizmos::GizmoSystem;

@@ -182,4 +182,66 @@ impl SceneNavigator {
         
         messages
     }
+    
+    /// Handle scene navigation (right mouse button + WASD)
+    pub fn handle_scene_navigation(
+        scene_navigation: &mut SceneNavigation,
+        ui: &egui::Ui,
+        response: &egui::Response,
+        rect: egui::Rect,
+    ) -> Vec<ConsoleMessage> {
+        let mut console_messages = Vec::new();
+        
+        // Check for right mouse button to start navigation
+        let (rmb_down, pointer_pos, pointer_delta) = ui.input(|i| {
+            (i.pointer.secondary_down(), 
+             i.pointer.hover_pos(),
+             i.pointer.delta())
+        });
+        
+        // Only handle navigation if mouse is within the scene view
+        let mouse_in_rect = pointer_pos.map_or(false, |pos| rect.contains(pos));
+        
+        // Start navigation if RMB is pressed (not just down) and mouse is in rect
+        if ui.input(|i| i.pointer.secondary_pressed()) && mouse_in_rect && !scene_navigation.is_navigating {
+            if let Some(mouse_pos) = pointer_pos {
+                console_messages.push(ConsoleMessage::info(&format!(
+                    "🎮 Starting navigation at ({:.1}, {:.1})", mouse_pos.x, mouse_pos.y
+                )));
+                let messages = Self::start_navigation(scene_navigation, mouse_pos);
+                console_messages.extend(messages);
+                
+                // Capture mouse to prevent interference from other UI elements
+                ui.ctx().set_cursor_icon(egui::CursorIcon::None);
+            }
+        }
+        
+        // Check for right mouse button release
+        if !rmb_down && scene_navigation.is_navigating {
+            let messages = Self::end_navigation(scene_navigation);
+            console_messages.extend(messages);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
+        }
+        
+        // Handle navigation input during active navigation
+        if scene_navigation.is_navigating && rmb_down {
+            // Use pointer delta for more accurate mouse movement tracking
+            if pointer_delta != egui::Vec2::ZERO {
+                let messages = Self::apply_mouse_look(scene_navigation, pointer_delta);
+                console_messages.extend(messages);
+            }
+            
+            // Handle WASD movement
+            // Note: delta_time should be passed in from the parent
+            let delta_time = ui.input(|i| i.stable_dt);
+            let messages = Self::handle_wasd_movement(scene_navigation, ui, delta_time);
+            console_messages.extend(messages);
+        }
+        
+        // Handle scroll wheel for speed adjustment (even when not actively navigating)
+        let messages = Self::handle_navigation_speed_control(scene_navigation, ui);
+        console_messages.extend(messages);
+        
+        console_messages
+    }
 }
