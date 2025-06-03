@@ -1,34 +1,34 @@
-// Widget-specific styling for Unity-style editor
+// Widget-specific styling for Longhorn-style editor
 
 use eframe::egui;
-use super::colors::UnityColors;
+use super::colors::LonghornColors;
 
-/// Apply Unity-style widget styling
-pub fn apply_unity_widget_styles(style: &mut egui::Style) {
+/// Apply Longhorn-style widget styling
+pub fn apply_longhorn_widget_styles(style: &mut egui::Style) {
     // Widget styling with better gray hierarchy
-    style.visuals.widgets.noninteractive.bg_fill = UnityColors::BG_WIDGET_DEFAULT;
-    style.visuals.widgets.noninteractive.bg_stroke = UnityColors::stroke_default();
+    style.visuals.widgets.noninteractive.bg_fill = LonghornColors::BG_WIDGET_DEFAULT;
+    style.visuals.widgets.noninteractive.bg_stroke = LonghornColors::stroke_default();
     
-    style.visuals.widgets.inactive.bg_fill = UnityColors::BG_WIDGET_INACTIVE;
-    style.visuals.widgets.inactive.bg_stroke = UnityColors::stroke_default();
+    style.visuals.widgets.inactive.bg_fill = LonghornColors::BG_WIDGET_INACTIVE;
+    style.visuals.widgets.inactive.bg_stroke = LonghornColors::stroke_default();
     
-    style.visuals.widgets.hovered.bg_fill = UnityColors::BG_WIDGET_HOVERED;
-    style.visuals.widgets.hovered.bg_stroke = UnityColors::stroke_hovered();
+    style.visuals.widgets.hovered.bg_fill = LonghornColors::BG_WIDGET_HOVERED;
+    style.visuals.widgets.hovered.bg_stroke = LonghornColors::stroke_hovered();
     
-    style.visuals.widgets.active.bg_fill = UnityColors::ACTIVE_BG;
-    style.visuals.widgets.active.bg_stroke = UnityColors::stroke_active();
+    style.visuals.widgets.active.bg_fill = LonghornColors::ACTIVE_BG;
+    style.visuals.widgets.active.bg_stroke = LonghornColors::stroke_active();
     
     // Button styling
     style.visuals.button_frame = true;
     
     // Separators and lines
-    style.visuals.widgets.noninteractive.fg_stroke = UnityColors::stroke_dark();
+    style.visuals.widgets.noninteractive.fg_stroke = LonghornColors::stroke_dark();
 }
 
-/// Unity-style button configuration
-pub struct UnityButton;
+/// Longhorn-style button configuration
+pub struct LonghornButton;
 
-impl UnityButton {
+impl LonghornButton {
     pub fn small() -> egui::Vec2 {
         egui::vec2(60.0, 20.0)
     }
@@ -42,10 +42,10 @@ impl UnityButton {
     }
 }
 
-/// Unity-style panel configuration
-pub struct UnityPanel;
+/// Longhorn-style panel configuration
+pub struct LonghornPanel;
 
-impl UnityPanel {
+impl LonghornPanel {
     pub fn default_margin() -> egui::Margin {
         egui::Margin::same(4.0)
     }

@@ -1,11 +1,11 @@
-// Unity-style spacing and layout constants
+// Longhorn-style spacing and layout constants
 
 use eframe::egui;
 
-/// Unity-inspired spacing configuration
-pub struct UnitySpacing;
+/// Longhorn-inspired spacing configuration
+pub struct LonghornSpacing;
 
-impl UnitySpacing {
+impl LonghornSpacing {
     // Item spacing
     pub const ITEM_SPACING: egui::Vec2 = egui::vec2(8.0, 4.0);
     
@@ -25,9 +25,9 @@ impl UnitySpacing {
     pub const WINDOW_MARGIN: egui::Margin = egui::Margin::same(8.0);
 }
 
-/// Apply Unity spacing to egui style
-pub fn apply_unity_spacing(style: &mut egui::Style) {
-    style.spacing.item_spacing = UnitySpacing::ITEM_SPACING;
-    style.spacing.button_padding = UnitySpacing::BUTTON_PADDING;
-    style.spacing.indent = UnitySpacing::INDENT;
+/// Apply Longhorn spacing to egui style
+pub fn apply_longhorn_spacing(style: &mut egui::Style) {
+    style.spacing.item_spacing = LonghornSpacing::ITEM_SPACING;
+    style.spacing.button_padding = LonghornSpacing::BUTTON_PADDING;
+    style.spacing.indent = LonghornSpacing::INDENT;
 }

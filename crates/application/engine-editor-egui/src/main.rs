@@ -1,5 +1,5 @@
-// Unity-style game editor built with EGUI and dockable panels
-// Provides a modern, responsive Unity-like interface with drag-and-drop docking
+// Longhorn Game Engine editor built with EGUI and dockable panels
+// Provides a modern, responsive interface with drag-and-drop docking
 
 mod editor_state;
 mod scene_renderer;
@@ -31,25 +31,25 @@ fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1600.0, 1000.0])
-            .with_title("Unity Editor - Mobile Game Engine (EGUI + Docking)"),
+            .with_title("Longhorn Game Engine Editor (EGUI + Docking)"),
         ..Default::default()
     };
 
     eframe::run_native(
-        "Unity Editor",
+        "Longhorn Game Engine Editor",
         options,
         Box::new(|cc| {
             // Load custom design constraints if available
             setup_custom_fonts(&cc.egui_ctx);
             setup_custom_style(&cc.egui_ctx);
             
-            Ok(Box::new(UnityEditor::new(cc)))
+            Ok(Box::new(LonghornEditor::new(cc)))
         }),
     )
 }
 
-/// Unity-style editor application with dockable panels
-pub struct UnityEditor {
+/// Longhorn Game Engine editor application with dockable panels
+pub struct LonghornEditor {
     // Docking system
     dock_state: DockState<PanelType>,
     
@@ -98,9 +98,9 @@ pub struct UnityEditor {
     last_rendered_entity_count: usize,
 }
 
-impl UnityEditor {
+impl LonghornEditor {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        // Create Unity-style dock layout with Scene and Game views
+        // Create Longhorn-style dock layout with Scene and Game views
         let mut dock_state = DockState::new(vec![PanelType::SceneView, PanelType::GameView]);
         
         // Add Hierarchy to the left
@@ -134,7 +134,7 @@ impl UnityEditor {
             selected_object: None,
             console_messages: {
                 let mut messages = vec![
-                    ConsoleMessage::info("🎮 Unity Editor initialized with dockable panels"),
+                    ConsoleMessage::info("🎮 Longhorn Editor initialized with dockable panels"),
                     ConsoleMessage::info("✅ EGUI docking system active"),
                 ];
                 messages.extend(init_messages);
@@ -169,19 +169,19 @@ impl UnityEditor {
     }
 }
 
-impl eframe::App for UnityEditor {
+impl eframe::App for LonghornEditor {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Update play state timing
         self.coordinator.update_delta_time();
         
         // Apply custom styling based on play state
         if self.coordinator.get_play_state() != PlayState::Editing {
-            // Apply Unity-style play mode tint (subtle blue)
+            // Apply Longhorn-style play mode tint (subtle blue)
             let mut style = (*ctx.style()).clone();
             style.visuals.panel_fill = egui::Color32::from_rgba_unmultiplied(45, 45, 55, 240);
             ctx.set_style(style);
         } else {
-            styling::apply_unity_style(ctx);
+            styling::apply_longhorn_style(ctx);
         }
         
         // Top menu bar (macOS style)
@@ -189,7 +189,7 @@ impl eframe::App for UnityEditor {
             self.show_menu_bar(ui);
         });
         
-        // Unity toolbar
+        // Longhorn toolbar
         egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
             self.show_toolbar(ui);
         });
@@ -198,7 +198,7 @@ impl eframe::App for UnityEditor {
         egui::CentralPanel::default().show(ctx, |ui| {
             let style = {
                 let mut style = egui_dock::Style::from_egui(ui.style());
-                // Customize docking appearance to match Unity
+                // Customize docking appearance to match Longhorn
                 style.tab.active.bg_fill = egui::Color32::from_rgb(0, 122, 255);
                 style.tab.active.text_color = egui::Color32::WHITE;
                 style.tab.inactive.text_color = egui::Color32::from_rgb(180, 180, 180);
@@ -224,7 +224,7 @@ impl eframe::App for UnityEditor {
     }
 }
 
-impl UnityEditor {
+impl LonghornEditor {
     pub fn show_menu_bar(&mut self, ui: &mut egui::Ui) {
         // Delegate to the menu bar module
         let messages = self.menu_bar.show(ui, &mut self.dock_state);

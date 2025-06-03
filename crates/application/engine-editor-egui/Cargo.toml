@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "unity-editor-egui"
+name = "longhorn-editor"
 path = "src/main.rs"
 
 [dependencies]

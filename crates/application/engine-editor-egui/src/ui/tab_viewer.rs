@@ -4,11 +4,11 @@ use eframe::egui;
 use egui_dock::{TabViewer, NodeIndex, SurfaceIndex};
 use crate::types::PanelType;
 use crate::editor_state::ConsoleMessage;
-use crate::UnityEditor;
+use crate::LonghornEditor;
 
 /// Wrapper to avoid borrowing conflicts when using TabViewer
 pub struct EditorTabViewer<'a> {
-    pub editor: &'a mut UnityEditor,
+    pub editor: &'a mut LonghornEditor,
 }
 
 impl<'a> TabViewer for EditorTabViewer<'a> {

@@ -1,4 +1,4 @@
-// Editor State - Application-specific state management for the Unity-style editor
+// Editor State - Application-specific state management for the Longhorn-style editor
 
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};

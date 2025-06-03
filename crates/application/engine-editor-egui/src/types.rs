@@ -17,7 +17,7 @@ impl Default for PlayState {
     }
 }
 
-/// Scene navigation state for Unity/Unreal style camera controls
+/// Scene navigation state for Longhorn/Unreal style camera controls
 #[derive(Debug, Clone)]
 pub struct SceneNavigation {
     pub enabled: bool,

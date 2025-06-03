@@ -1,11 +1,11 @@
-// Font configuration for Unity-style editor
+// Font configuration for Longhorn-style editor
 
 use eframe::egui;
 
 /// Font sizes used throughout the editor
-pub struct UnityFonts;
+pub struct LonghornFonts;
 
-impl UnityFonts {
+impl LonghornFonts {
     pub const SMALL: f32 = 10.0;
     pub const MEDIUM: f32 = 12.0;
     pub const LARGE: f32 = 14.0;
@@ -13,12 +13,12 @@ impl UnityFonts {
     pub const TITLE: f32 = 18.0;
 }
 
-/// Setup custom fonts for Unity-like appearance
+/// Setup custom fonts for Longhorn-like appearance
 pub fn setup_custom_fonts(ctx: &egui::Context) {
     let fonts = egui::FontDefinitions::default();
     
     // For now, use default fonts with adjusted sizes
-    // TODO: Add custom Unity-like fonts later
+    // TODO: Add custom Longhorn-like fonts later
     // Could add fonts like:
     // - Inter for UI text
     // - JetBrains Mono for code
@@ -28,7 +28,7 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
 }
 
 /// Apply font styling to egui style
-pub fn apply_unity_font_styles(style: &mut egui::Style) {
+pub fn apply_longhorn_font_styles(style: &mut egui::Style) {
     // Font styling can be added here when custom fonts are implemented
     // For now, rely on default font configuration
 }

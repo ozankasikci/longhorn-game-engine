@@ -1,4 +1,4 @@
-// Toolbar - Unity-style editor toolbar with scene tools and play controls
+// Toolbar - Longhorn-style editor toolbar with scene tools and play controls
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};

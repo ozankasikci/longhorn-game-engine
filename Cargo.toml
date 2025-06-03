@@ -38,7 +38,11 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/yourusername/mobile-game-engine"
+repository = "https://github.com/yourusername/longhorn-game-engine"
+description = "Longhorn Game Engine - A modular mobile-first game engine built in Rust"
+authors = ["Your Name <email@example.com>"]
+keywords = ["game-engine", "mobile", "rust", "gamedev", "longhorn"]
+categories = ["game-engines", "graphics", "simulation"]
 
 [workspace.dependencies]
 # Math and utilities

@@ -1,4 +1,4 @@
-// Styling module for Unity-style editor theme
+// Styling module for Longhorn-style editor theme
 //
 // This module organizes all styling-related functionality into logical components:
 // - colors: Color palette definitions
@@ -14,5 +14,5 @@ pub mod theme;
 pub mod widgets;
 
 // Re-export main styling functions for convenience
-pub use theme::{apply_unity_style, setup_custom_style};
+pub use theme::{apply_longhorn_style, setup_custom_style};
 pub use fonts::setup_custom_fonts;

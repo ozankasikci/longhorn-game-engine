@@ -58,7 +58,7 @@ pub fn render_cube(
     // Apply object rotation to vertices
     let mut rotated_vertices = [[0.0; 3]; 8];
     for (i, vertex) in vertices.iter().enumerate() {
-        // Apply rotations in order: Y -> X -> Z (Unity-style)
+        // Apply rotations in order: Y -> X -> Z (Longhorn-style)
         // Y rotation (yaw)
         let cos_y = obj_rot_y.cos();
         let sin_y = obj_rot_y.sin();

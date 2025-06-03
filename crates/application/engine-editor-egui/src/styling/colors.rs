@@ -1,11 +1,11 @@
-// Unity-style color palette definitions
+// Longhorn Game Engine color palette definitions
 
 use eframe::egui;
 
-/// Unity-inspired color palette with multiple shades of gray
-pub struct UnityColors;
+/// Longhorn Game Engine color palette with multiple shades of gray
+pub struct LonghornColors;
 
-impl UnityColors {
+impl LonghornColors {
     // Text colors
     pub const TEXT_PRIMARY: egui::Color32 = egui::Color32::from_gray(200);
     
@@ -23,15 +23,15 @@ impl UnityColors {
     pub const STROKE_HOVERED: egui::Color32 = egui::Color32::from_gray(80); // Hovered borders
     pub const STROKE_ACTIVE: egui::Color32 = egui::Color32::from_gray(120); // Active/pressed borders
     
-    // Selection colors - Unity-style blue
+    // Selection colors - Longhorn blue
     pub const SELECTION_BG: egui::Color32 = egui::Color32::from_rgb(44, 93, 135);
     
     // Active state colors
     pub const ACTIVE_BG: egui::Color32 = egui::Color32::from_gray(45);
 }
 
-/// Create stroke with Unity colors
-impl UnityColors {
+/// Create stroke with Longhorn colors
+impl LonghornColors {
     pub fn stroke_default() -> egui::Stroke {
         egui::Stroke::new(1.0, Self::STROKE_DEFAULT)
     }

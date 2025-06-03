@@ -1,4 +1,4 @@
-// Menu bar - Unity-style editor menu bar
+// Menu bar - Longhorn-style editor menu bar
 
 use eframe::egui;
 use egui_dock::{DockState, NodeIndex};
@@ -80,7 +80,7 @@ impl MenuBar {
                 }
                 ui.separator();
                 if ui.button("Reset Layout").clicked() {
-                    // Reset to Unity-style layout with Scene and Game views
+                    // Reset to Longhorn-style layout with Scene and Game views
                     let mut new_dock_state = DockState::new(vec![PanelType::SceneView, PanelType::GameView]);
                     
                     // Add Hierarchy to the left
@@ -105,7 +105,7 @@ impl MenuBar {
                     );
                     
                     *dock_state = new_dock_state;
-                    messages.push(ConsoleMessage::info("🔄 Layout reset to Unity default"));
+                    messages.push(ConsoleMessage::info("🔄 Layout reset to Longhorn default"));
                     ui.close_menu();
                 }
             });
