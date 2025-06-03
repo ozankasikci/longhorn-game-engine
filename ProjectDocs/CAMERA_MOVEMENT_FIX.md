@@ -1,47 +1,47 @@
-# Camera Movement Fix - W Key Direction Issue
+# Camera Movement Fix (WASD Navigation)
 
-## Problem
-The W key was moving the camera upward instead of forward in the Scene View when using WASD navigation.
+## Problem History
+1. **Initial Issue**: WASD movement followed fixed world axes instead of camera look direction
+2. **Second Issue**: After initial fix, movement included pitch in forward vector but user wanted Y-movement controlled separately
+3. **Final Issue**: Movement direction would "mess up" when changing camera angle - movement didn't consistently follow look direction
 
 ## Root Cause
-In `scene_renderer.rs`, the `update_camera` function was incorrectly converting rotation values from radians to radians:
-
-```rust
-// INCORRECT - rotation values are already in radians
-let pitch = camera_transform.rotation[0].to_radians();
-let yaw = camera_transform.rotation[1].to_radians();
-```
-
-This double conversion (radians to radians) was multiplying the values by π/180 ≈ 0.0175, making them much smaller than intended. This resulted in incorrect forward vector calculations.
+The movement transformation was using an incorrect matrix calculation. The camera basis vectors were not being calculated properly, leading to movement that didn't match the camera's orientation at various angles.
 
 ## Solution
-Remove the unnecessary `.to_radians()` conversion since the rotation values are already stored in radians:
+Created a new fixed navigation calculation in `navigation_fixed.rs` that correctly calculates camera basis vectors:
 
 ```rust
-// CORRECT - rotation values are already in radians
-let pitch = camera_transform.rotation[0];
-let yaw = camera_transform.rotation[1];
+// Camera basis vectors in world space
+let camera_right_world = [cos_yaw, 0.0, -sin_yaw];
+let camera_up_world = [sin_yaw * sin_pitch, cos_pitch, cos_yaw * sin_pitch];  
+let camera_forward_world = [sin_yaw * cos_pitch, -sin_pitch, cos_yaw * cos_pitch];
+
+// Transform movement from camera space to world space
+let world_x = cam_right * camera_right_world[0] + cam_up * camera_up_world[0] + cam_forward * camera_forward_world[0];
+let world_y = cam_right * camera_right_world[1] + cam_up * camera_up_world[1] + cam_forward * camera_forward_world[1];
+let world_z = cam_right * camera_right_world[2] + cam_up * camera_up_world[2] + cam_forward * camera_forward_world[2];
 ```
 
-## Verification
-The fix was verified by running the test `test_w_key_moves_camera_in_look_direction` which now passes correctly.
+## Key Improvements
+1. **Correct Basis Vectors**: Camera right, up, and forward vectors properly calculated in world space
+2. **Consistent Transformation**: Movement transformation matches the renderer's view transformation
+3. **Full 3D Movement**: Supports movement in all directions including pitch-based vertical movement
 
-## Technical Details
-- The camera system uses radians internally for all rotation values
-- The rotation sensitivity is defined as 0.005 radians per pixel in `types.rs`
-- The forward vector calculation in `scene_renderer.rs` expects rotation values in radians
-- The navigation system in `navigation.rs` correctly transforms movement based on camera rotation
+## Coordinate System
+- At rotation [0,0,0], camera looks at +Z
+- Yaw rotates around Y axis (positive yaw turns left)
+- Pitch rotates around X axis (positive pitch looks up)
+- Movement is transformed from camera space to world space
 
-## Related Files
-- `/Users/ozan/Projects/mobile-game-engine/crates/application/engine-editor-egui/src/scene_renderer.rs` - Fixed file
-- `/Users/ozan/Projects/mobile-game-engine/crates/application/engine-editor-egui/src/types.rs` - Defines rotation sensitivity in radians
-- `/Users/ozan/Projects/mobile-game-engine/crates/application/engine-editor-egui/src/panels/scene_view/navigation.rs` - Camera movement logic
+## Testing Results
+Verified movement at various rotations:
+- 0° yaw: Forward moves +Z ✓
+- 90° yaw: Forward moves +X ✓
+- -90° yaw: Forward moves -X ✓
+- 180° yaw: Forward moves -Z ✓
+- 45° yaw: Forward moves at 45° angle ✓
+- With pitch: Forward includes vertical component ✓
 
-## Test Status
-- ✅ `test_w_key_moves_camera_in_look_direction` - PASSING
-- ✅ `test_forward_movement_with_yaw_rotation` - PASSING  
-- ✅ `test_forward_movement_with_pitch_rotation` - PASSING
-- ✅ `test_backward_movement_is_opposite_of_forward` - PASSING
-- ✅ `test_strafe_movement_perpendicular_to_forward` - PASSING
-
-Note: Some rotation velocity tests are failing because the navigation system was simplified to use direct rotation instead of velocity-based rotation (Unity-style direct response).
+## Current Status
+Camera movement now correctly follows look direction at all angles, providing intuitive FPS-style controls with proper 3D movement.

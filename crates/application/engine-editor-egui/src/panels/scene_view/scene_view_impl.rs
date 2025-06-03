@@ -144,7 +144,7 @@ impl SceneViewRenderer {
         self.draw_scene_camera_indicator(painter, rect, camera_pos);
         
         // Draw scene overlay info
-        self.draw_scene_overlay(ui, rect, world, selected_entity, play_state);
+        self.draw_scene_overlay(ui, rect, world, selected_entity, play_state, scene_navigation);
         // Scene drawn
     }
     
@@ -921,6 +921,7 @@ impl SceneViewRenderer {
         world: &World,
         selected_entity: Option<Entity>,
         play_state: PlayState,
+        scene_navigation: &SceneNavigation,
     ) {
         // Scene info overlay
         ui.allocate_ui_at_rect(egui::Rect::from_min_size(rect.min, egui::vec2(300.0, 120.0)), |ui| {

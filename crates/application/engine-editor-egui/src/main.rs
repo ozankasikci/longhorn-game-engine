@@ -236,7 +236,7 @@ impl eframe::App for LonghornEditor {
             
             DockArea::new(&mut dock_state)
                 .style(style)
-                .show_inside(ui, &mut ui::EditorTabViewer { editor: self });
+                .show_inside(ui, &mut ui::tab_viewer::EditorTabViewer { editor: self });
             
             // Put dock_state back
             self.dock_state = dock_state;
@@ -310,7 +310,7 @@ impl LonghornEditor {
     }
     
     pub fn show_scene_view(&mut self, ui: &mut egui::Ui) {
-        self.scene_view_panel.show(
+        let console_messages = self.scene_view_panel.show(
             ui,
             &mut self.world,
             self.selected_entity,
@@ -319,6 +319,11 @@ impl LonghornEditor {
             &mut self.scene_view_renderer,
             self.coordinator.get_play_state(),
         );
+        
+        // Add camera logging messages to console
+        if !console_messages.is_empty() {
+            self.console_panel.add_messages(console_messages);
+        }
     }
 
     /// Render the scene from the main camera's perspective
@@ -340,7 +345,10 @@ impl LonghornEditor {
     }
     
     pub fn show_console_panel(&mut self, ui: &mut egui::Ui) {
-        self.console_panel.show(ui, &mut Vec::new());
+        // Use the internal console messages
+        let mut console_messages = std::mem::take(&mut self.console_panel.console_messages);
+        self.console_panel.show(ui, &mut console_messages);
+        self.console_panel.console_messages = console_messages;
     }
     
     pub fn show_project_panel(&mut self, ui: &mut egui::Ui) {

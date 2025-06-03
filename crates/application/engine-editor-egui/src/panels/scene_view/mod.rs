@@ -2,11 +2,13 @@
 
 pub mod rendering;
 pub mod navigation;
+pub mod camera_movement;
 pub mod gizmos;
 pub mod scene_renderer;
 pub mod object_renderer;
 pub mod scene_view_impl;
 pub mod scene_input;
+pub mod debug_overlay;
 
 #[cfg(test)]
 mod navigation_tests;
@@ -81,7 +83,7 @@ impl SceneViewPanel {
         gizmo_system: &mut GizmoSystem,
         scene_renderer: &mut scene_view_impl::SceneViewRenderer,
         play_state: crate::types::PlayState,
-    ) {
+    ) -> Vec<crate::editor_state::ConsoleMessage> {
         // Scene view toolbar
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.scene_view_active, true, "Scene");
@@ -112,7 +114,7 @@ impl SceneViewPanel {
         }
         
         // Handle scene navigation FIRST before drawing
-        scene_input::handle_scene_input(
+        let console_messages = scene_input::handle_scene_input(
             world,
             ui,
             &response,
@@ -146,6 +148,9 @@ impl SceneViewPanel {
                     selected_entity,
                     play_state,
                 );
+                
+                // Draw debug overlay
+                debug_overlay::draw_movement_debug_overlay(ui, rect, scene_navigation);
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.vertical_centered(|ui| {
@@ -166,6 +171,7 @@ impl SceneViewPanel {
                 }
             }
         });
-        // Scene view rendered
+        
+        console_messages
     }
 }

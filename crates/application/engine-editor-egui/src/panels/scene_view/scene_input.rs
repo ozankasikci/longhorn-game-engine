@@ -16,12 +16,12 @@ pub fn handle_scene_input(
     scene_navigation: &mut SceneNavigation,
     gizmo_system: &mut GizmoSystem,
     selected_entity: Option<Entity>,
-) {
+) -> Vec<ConsoleMessage> {
     // Check for hover position
     let hover_pos = response.hover_pos();
     
     // Handle scene navigation (right mouse button + WASD)
-    super::navigation::SceneNavigator::handle_scene_navigation(
+    let mut console_messages = super::navigation::SceneNavigator::handle_scene_navigation(
         scene_navigation,
         ui,
         response,
@@ -30,20 +30,20 @@ pub fn handle_scene_input(
     
     // Skip gizmo interaction if we're in navigation mode
     if scene_navigation.is_navigating {
-        return;
+        return console_messages;
     }
     
     // Only handle input if we have a selected entity and move tool is active
     if gizmo_system.get_active_tool() != SceneTool::Move {
-        return;
+        return console_messages;
     }
     
     let Some(selected_entity) = selected_entity else {
-        return;
+        return console_messages;
     };
     
     let Some(transform) = world.get_component::<Transform>(selected_entity).cloned() else {
-        return;
+        return console_messages;
     };
     
     
@@ -100,7 +100,8 @@ pub fn handle_scene_input(
             }
         }
     }
-    // Input handled
+    
+    console_messages
 }
 
 fn handle_gizmo_dragging(

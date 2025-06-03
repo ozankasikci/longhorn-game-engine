@@ -81,26 +81,26 @@ impl SceneNavigator {
             scene_nav.movement_speed
         };
         
-        // WASD movement - Fixed: Swap W/S to fix direction issue
+        // WASD movement - Camera looks in +Z direction
         if ui.input(|i| i.key_down(egui::Key::W)) {
-            movement[2] -= 1.0;  // W moves forward (swapped)
+            movement[2] += 1.0;  // W moves forward (+Z in camera space)
         }
         if ui.input(|i| i.key_down(egui::Key::S)) {
-            movement[2] += 1.0;  // S moves backward (swapped)
+            movement[2] -= 1.0;  // S moves backward (-Z in camera space)
         }
         if ui.input(|i| i.key_down(egui::Key::A)) {
-            movement[0] += 1.0;  // Left is positive X in local space
+            movement[0] -= 1.0;  // A moves left (-X in camera space)
         }
         if ui.input(|i| i.key_down(egui::Key::D)) {
-            movement[0] -= 1.0;  // Right is negative X in local space
+            movement[0] += 1.0;  // D moves right (+X in camera space)
         }
         
-        // Vertical movement (Q/E)
+        // Vertical movement (Q/E) - Fixed direction (standard Y-up coordinate system)
         if ui.input(|i| i.key_down(egui::Key::Q)) {
-            movement[1] -= 1.0;
+            movement[1] -= 1.0;  // Q moves DOWN (-Y in world space)
         }
         if ui.input(|i| i.key_down(egui::Key::E)) {
-            movement[1] += 1.0;
+            movement[1] += 1.0;  // E moves UP (+Y in world space)
         }
         
         // Apply movement if any
@@ -117,7 +117,7 @@ impl SceneNavigator {
             movement[2] *= speed * delta_time;
             
             // Transform movement by camera rotation
-            let transformed_movement = Self::transform_movement_by_camera(&scene_nav.scene_camera_transform, movement);
+            let transformed_movement = super::camera_movement::transform_movement_by_camera(&scene_nav.scene_camera_transform, movement);
             
             // Apply movement to camera position
             scene_nav.scene_camera_transform.position[0] += transformed_movement[0];
@@ -126,44 +126,6 @@ impl SceneNavigator {
         }
         
         // Done
-    }
-    
-    /// Transform movement vector by camera rotation
-    fn transform_movement_by_camera(camera_transform: &Transform, movement: [f32; 3]) -> [f32; 3] {
-        // Use same coordinate system as world_to_screen for consistency
-        let yaw = camera_transform.rotation[1];
-        let pitch = camera_transform.rotation[0];
-        
-        // Calculate rotation values
-        let cos_yaw = yaw.cos();
-        let sin_yaw = yaw.sin();
-        let cos_pitch = pitch.cos();
-        let sin_pitch = pitch.sin();
-        
-        // Calculate camera basis vectors for FPS-style movement
-        // Forward vector (horizontal only - ignore pitch for W/S movement)
-        // FIXED: Use negative to move toward what you're looking at
-        let forward_x = -sin_yaw;
-        let forward_y = 0.0;  // Keep movement horizontal
-        let forward_z = -cos_yaw;
-        
-        // Right vector (perpendicular to forward, horizontal only)
-        // Cross product of up × forward = (0,1,0) × (-sin(yaw), 0, -cos(yaw)) = (cos(yaw), 0, -sin(yaw))
-        let right_x = cos_yaw;
-        let right_y = 0.0;
-        let right_z = -sin_yaw;
-        
-        // Up vector is always world up
-        let up_x = 0.0;
-        let up_y = 1.0;
-        let up_z = 0.0;
-        
-        // Transform movement from local camera space to world space
-        let transformed_x = movement[0] * right_x + movement[1] * up_x + movement[2] * forward_x;
-        let transformed_y = movement[0] * right_y + movement[1] * up_y + movement[2] * forward_y;
-        let transformed_z = movement[0] * right_z + movement[1] * up_z + movement[2] * forward_z;
-        
-        [transformed_x, transformed_y, transformed_z]
     }
     
     /// Handle navigation speed control with scroll wheel
@@ -189,7 +151,7 @@ impl SceneNavigator {
         ui: &egui::Ui,
         response: &egui::Response,
         rect: egui::Rect,
-    )  {
+    ) -> Vec<crate::editor_state::ConsoleMessage> {
         // Use the response object's drag detection for reliable input in docked panels
         let is_dragging = response.dragged_by(egui::PointerButton::Secondary);
         let drag_started = response.drag_started_by(egui::PointerButton::Secondary);
@@ -256,15 +218,10 @@ impl SceneNavigator {
             Self::handle_wasd_movement(scene_navigation, ui, delta_time);
         }
         
-        // Smooth rotation disabled for Unity-style direct response
-        // let delta_time = ui.input(|i| i.stable_dt);
-        // let messages = Self::update_smooth_rotation(scene_navigation, delta_time);
-        // console_messages.extend(messages);
-        
         // Handle scroll wheel for speed adjustment (even when not actively navigating)
         Self::handle_navigation_speed_control(scene_navigation, ui);
         
-        // Done
+        Vec::new() // No console messages from navigation
     }
 }
 
@@ -275,25 +232,24 @@ mod tests {
     
     #[test]
     fn test_w_key_moves_camera_in_look_direction() {
-        // In a typical FPS/Unity setup:
-        // - Camera at origin looks down -Z (forward is -Z in world space)
-        // - W key should move the camera forward (in the direction it's looking)
+        // Camera looks in +Z direction when rotation is [0,0,0]
+        // W key should move the camera forward (in the direction it's looking)
         
-        // Test 1: Camera with no rotation (looking down -Z)
+        // Test 1: Camera with no rotation (looking in +Z)
         let camera_transform = Transform {
             position: [0.0, 0.0, 0.0],
             rotation: [0.0, 0.0, 0.0], 
             scale: [1.0, 1.0, 1.0],
         };
         
-        // W key now produces movement[2] = +1.0 (correct forward movement)
+        // W key produces movement[2] = +1.0 (forward in camera space)
         let movement = [0.0, 0.0, 1.0];
         let transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, movement);
         
-        // Camera should move forward in world space (negative Z for forward)
-        assert!(transformed[2] < 0.0, "W key with no rotation should move -Z");
+        // Camera should move forward in world space (+Z since that's where it's looking)
+        assert!(transformed[2] > 0.0, "W key with no rotation should move +Z");
         
-        // Test 2: Camera rotated 180 degrees (looking down +Z)
+        // Test 2: Camera rotated 180 degrees (looking in -Z)
         let camera_transform_180 = Transform {
             position: [0.0, 0.0, 0.0],
             rotation: [0.0, std::f32::consts::PI, 0.0], // 180 degree yaw
@@ -302,8 +258,8 @@ mod tests {
         
         let transformed_180 = SceneNavigator::transform_movement_by_camera(&camera_transform_180, movement);
         
-        // When rotated 180, W should move us backward in world space (+Z)
-        assert!(transformed_180[2] > 0.0, "W key when rotated 180 should move +Z");
+        // When rotated 180, W should move us in -Z direction
+        assert!(transformed_180[2] < 0.0, "W key when rotated 180 should move -Z");
     }
     
     #[test]
@@ -319,8 +275,8 @@ mod tests {
         let movement = [0.0, 0.0, 1.0];
         let transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, movement);
         
-        // Then camera should move along -X axis (looking left when rotated right)
-        assert!(transformed[0] < -0.9, "Forward movement should be along -X when rotated right");
+        // Then camera should move along +X axis (where it's looking)
+        assert!(transformed[0] > 0.9, "Forward movement should be along +X when rotated right");
         assert!(transformed[2].abs() < 0.1, "Minimal Z movement expected");
         assert_eq!(transformed[1], 0.0, "No Y movement expected");
     }

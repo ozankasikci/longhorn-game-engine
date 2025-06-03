@@ -4,7 +4,7 @@ use eframe::egui;
 use crate::editor_state::{ConsoleMessage, ConsoleMessageType};
 
 pub struct ConsolePanel {
-    console_messages: Vec<ConsoleMessage>,
+    pub console_messages: Vec<ConsoleMessage>,
 }
 
 impl ConsolePanel {
@@ -12,6 +12,10 @@ impl ConsolePanel {
         Self {
             console_messages: Vec::new(),
         }
+    }
+    
+    pub fn add_messages(&mut self, mut messages: Vec<ConsoleMessage>) {
+        self.console_messages.append(&mut messages);
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, console_messages: &mut Vec<ConsoleMessage>) {
