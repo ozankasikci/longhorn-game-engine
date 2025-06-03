@@ -16,3 +16,6 @@ engine-component-traits = { path = "../engine-component-traits" }
 [dev-dependencies]
 tokio-test = { workspace = true }
 criterion = { workspace = true }
+engine-components-3d = { path = "../engine-components-3d" }
+engine-resource-core = { path = "../engine-resource-core" }
+engine-geometry-core = { path = "../engine-geometry-core" }

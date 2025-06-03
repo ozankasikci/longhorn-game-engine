@@ -17,6 +17,10 @@ engine-components-2d = { workspace = true }
 engine-components-ui = { workspace = true }
 engine-camera = { workspace = true }
 engine-renderer-wgpu = { workspace = true }
+engine-geometry-core = { workspace = true }
+engine-geometry-impl = { workspace = true }
+engine-resource-core = { workspace = true }
+engine-materials-core = { workspace = true }
 
 # EGUI and platform integration
 egui = { workspace = true }

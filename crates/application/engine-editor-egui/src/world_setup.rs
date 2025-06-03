@@ -1,11 +1,15 @@
 // World initialization and default entity creation
 
 use engine_ecs_core::{World, Entity};
-use engine_components_3d::{Transform, Visibility, Material, Mesh, MeshType, GameObject3DBundle};
+use engine_components_3d::{Transform, Visibility, Material, MeshFilter, MeshRenderer};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
 use engine_camera::Camera;
 use engine_component_traits::{Bundle, ComponentClone};
+use engine_geometry_impl::primitives::MeshPrimitives;
+use engine_geometry_core::{MeshData, Vertex};
+use engine_resource_core::{ResourceId, ResourceHandle};
+use glam::{Vec3, Vec2};
 
 /// Bundle for camera entities
 pub struct CameraBundle {
@@ -50,11 +54,12 @@ pub fn create_default_world() -> (World, Entity) {
     engine_ecs_core::register_component::<Transform>();
     engine_ecs_core::register_component::<Camera>();
     engine_ecs_core::register_component::<Name>();
-    engine_ecs_core::register_component::<Mesh>();
     engine_ecs_core::register_component::<Material>();
     engine_ecs_core::register_component::<Visibility>();
     engine_ecs_core::register_component::<Sprite>();
     engine_ecs_core::register_component::<SpriteRenderer>();
+    engine_ecs_core::register_component::<MeshFilter>();
+    engine_ecs_core::register_component::<MeshRenderer>();
     
     
     // Create camera entity with bundle - SIMPLIFIED for coordinate system testing
@@ -69,26 +74,38 @@ pub fn create_default_world() -> (World, Entity) {
     }).expect("Failed to create camera entity");
     
     
-    // Create a single cube in front of the camera
-    let _cube_entity = world.spawn_bundle(GameObject3DBundle {
-        transform: Transform {
-            position: [0.0, 0.5, 0.0],  // At origin, slightly above ground
-            rotation: [0.0, 0.0, 0.0],
-            scale: [1.0, 1.0, 1.0],
-        },
-        mesh: Mesh {
-            mesh_type: MeshType::Cube,
-        },
-        material: Material {
-            color: [0.8, 0.8, 0.8, 1.0], // Light gray cube
-            metallic: 0.0,
-            roughness: 0.5,
-            emissive: [0.0, 0.0, 0.0],
-        },
-        visibility: Visibility::default(),
-    }).expect("Failed to create cube");
+    // Create a cube with the new mesh component system
+    let cube_entity = world.spawn();
     
-    world.add_component(_cube_entity, Name::new("Cube")).unwrap();
+    // Add transform
+    world.add_component(cube_entity, Transform {
+        position: [0.0, 0.5, 0.0],  // At origin, slightly above ground
+        rotation: [0.0, 0.0, 0.0],
+        scale: [1.0, 1.0, 1.0],
+    }).unwrap();
+    
+    // Generate cube mesh data directly
+    let mesh_data = create_cube_mesh_data(1.0);
+    
+    // Create mesh handle (in a real system, this would be managed by a resource manager)
+    let mesh_handle = ResourceHandle::<MeshData>::new(ResourceId::new(1));
+    
+    // Add MeshFilter component
+    world.add_component(cube_entity, MeshFilter::new(mesh_handle)).unwrap();
+    
+    // Add MeshRenderer component with default material
+    world.add_component(cube_entity, MeshRenderer::default()).unwrap();
+    
+    // Add material component
+    world.add_component(cube_entity, Material {
+        color: [0.8, 0.8, 0.8, 1.0], // Light gray cube
+        metallic: 0.0,
+        roughness: 0.5,
+        emissive: [0.0, 0.0, 0.0],
+    }).unwrap();
+    
+    world.add_component(cube_entity, Visibility::default()).unwrap();
+    world.add_component(cube_entity, Name::new("Cube")).unwrap();
     
     
     
@@ -104,7 +121,7 @@ pub fn create_default_world() -> (World, Entity) {
     // FINAL DEBUG: Verify entities exist
     let final_count = world.entity_count();
     let mesh_entities: Vec<_> = world.query_legacy::<Transform>()
-        .filter(|(e, _)| world.get_component::<Mesh>(*e).is_some())
+        .filter(|(e, _)| world.get_component::<MeshFilter>(*e).is_some())
         .collect();
     
     
@@ -190,4 +207,63 @@ pub fn create_default_project_assets() -> Vec<crate::types::ProjectAsset> {
             ProjectAsset::file("🖼️ sky_gradient.png"),
         ]),
     ]
+}
+
+/// Create cube mesh data
+fn create_cube_mesh_data(size: f32) -> MeshData {
+    let half_size = size * 0.5;
+    let vertices = vec![
+        // Front face
+        Vertex::new(Vec3::new(-half_size, -half_size, half_size)).with_normal(Vec3::Z).with_uv(Vec2::new(0.0, 0.0)),
+        Vertex::new(Vec3::new(half_size, -half_size, half_size)).with_normal(Vec3::Z).with_uv(Vec2::new(1.0, 0.0)),
+        Vertex::new(Vec3::new(half_size, half_size, half_size)).with_normal(Vec3::Z).with_uv(Vec2::new(1.0, 1.0)),
+        Vertex::new(Vec3::new(-half_size, half_size, half_size)).with_normal(Vec3::Z).with_uv(Vec2::new(0.0, 1.0)),
+        
+        // Back face
+        Vertex::new(Vec3::new(half_size, -half_size, -half_size)).with_normal(Vec3::NEG_Z).with_uv(Vec2::new(0.0, 0.0)),
+        Vertex::new(Vec3::new(-half_size, -half_size, -half_size)).with_normal(Vec3::NEG_Z).with_uv(Vec2::new(1.0, 0.0)),
+        Vertex::new(Vec3::new(-half_size, half_size, -half_size)).with_normal(Vec3::NEG_Z).with_uv(Vec2::new(1.0, 1.0)),
+        Vertex::new(Vec3::new(half_size, half_size, -half_size)).with_normal(Vec3::NEG_Z).with_uv(Vec2::new(0.0, 1.0)),
+        
+        // Left face
+        Vertex::new(Vec3::new(-half_size, -half_size, -half_size)).with_normal(Vec3::NEG_X).with_uv(Vec2::new(0.0, 0.0)),
+        Vertex::new(Vec3::new(-half_size, -half_size, half_size)).with_normal(Vec3::NEG_X).with_uv(Vec2::new(1.0, 0.0)),
+        Vertex::new(Vec3::new(-half_size, half_size, half_size)).with_normal(Vec3::NEG_X).with_uv(Vec2::new(1.0, 1.0)),
+        Vertex::new(Vec3::new(-half_size, half_size, -half_size)).with_normal(Vec3::NEG_X).with_uv(Vec2::new(0.0, 1.0)),
+        
+        // Right face
+        Vertex::new(Vec3::new(half_size, -half_size, half_size)).with_normal(Vec3::X).with_uv(Vec2::new(0.0, 0.0)),
+        Vertex::new(Vec3::new(half_size, -half_size, -half_size)).with_normal(Vec3::X).with_uv(Vec2::new(1.0, 0.0)),
+        Vertex::new(Vec3::new(half_size, half_size, -half_size)).with_normal(Vec3::X).with_uv(Vec2::new(1.0, 1.0)),
+        Vertex::new(Vec3::new(half_size, half_size, half_size)).with_normal(Vec3::X).with_uv(Vec2::new(0.0, 1.0)),
+        
+        // Top face
+        Vertex::new(Vec3::new(-half_size, half_size, half_size)).with_normal(Vec3::Y).with_uv(Vec2::new(0.0, 0.0)),
+        Vertex::new(Vec3::new(half_size, half_size, half_size)).with_normal(Vec3::Y).with_uv(Vec2::new(1.0, 0.0)),
+        Vertex::new(Vec3::new(half_size, half_size, -half_size)).with_normal(Vec3::Y).with_uv(Vec2::new(1.0, 1.0)),
+        Vertex::new(Vec3::new(-half_size, half_size, -half_size)).with_normal(Vec3::Y).with_uv(Vec2::new(0.0, 1.0)),
+        
+        // Bottom face
+        Vertex::new(Vec3::new(-half_size, -half_size, -half_size)).with_normal(Vec3::NEG_Y).with_uv(Vec2::new(0.0, 0.0)),
+        Vertex::new(Vec3::new(half_size, -half_size, -half_size)).with_normal(Vec3::NEG_Y).with_uv(Vec2::new(1.0, 0.0)),
+        Vertex::new(Vec3::new(half_size, -half_size, half_size)).with_normal(Vec3::NEG_Y).with_uv(Vec2::new(1.0, 1.0)),
+        Vertex::new(Vec3::new(-half_size, -half_size, half_size)).with_normal(Vec3::NEG_Y).with_uv(Vec2::new(0.0, 1.0)),
+    ];
+    
+    let indices = vec![
+        // Front face
+        0, 1, 2, 0, 2, 3,
+        // Back face
+        4, 5, 6, 4, 6, 7,
+        // Left face
+        8, 9, 10, 8, 10, 11,
+        // Right face
+        12, 13, 14, 12, 14, 15,
+        // Top face
+        16, 17, 18, 16, 18, 19,
+        // Bottom face
+        20, 21, 22, 20, 22, 23,
+    ];
+    
+    MeshData::new("Cube".to_string(), vertices, indices)
 }

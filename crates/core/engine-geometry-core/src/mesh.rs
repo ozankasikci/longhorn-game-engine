@@ -3,6 +3,7 @@
 use crate::{Vertex, VertexData, BoundingBox, Result, GeometryError};
 use glam::{Mat4, Vec3};
 use serde::{Serialize, Deserialize};
+use engine_resource_core::Resource;
 
 /// Handle for mesh resources
 pub type MeshHandle = u64;
@@ -34,12 +35,90 @@ pub struct MaterialSlot {
     pub index_count: u32,
 }
 
-/// Mesh data for creation
+/// Mesh data for creation and storage
 #[derive(Debug, Clone)]
 pub struct MeshData {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
     pub name: String,
+    pub submeshes: Vec<SubMesh>,
+    pub bounds: BoundingBox,
+}
+
+/// Submesh definition for multi-material support
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubMesh {
+    /// Start index in the index buffer
+    pub start_index: u32,
+    /// Number of indices in this submesh
+    pub index_count: u32,
+    /// Material slot index for this submesh
+    pub material_index: u32,
+}
+
+impl MeshData {
+    /// Create new mesh data with single submesh
+    pub fn new(name: String, vertices: Vec<Vertex>, indices: Vec<u32>) -> Self {
+        let mut mesh_data = Self {
+            name,
+            vertices,
+            indices: indices.clone(),
+            submeshes: vec![SubMesh {
+                start_index: 0,
+                index_count: indices.len() as u32,
+                material_index: 0,
+            }],
+            bounds: BoundingBox::empty(),
+        };
+        mesh_data.calculate_bounds();
+        mesh_data
+    }
+    
+    /// Calculate bounds from vertices
+    pub fn calculate_bounds(&mut self) {
+        if self.vertices.is_empty() {
+            self.bounds = BoundingBox::empty();
+            return;
+        }
+        
+        let mut min = self.vertices[0].position;
+        let mut max = self.vertices[0].position;
+        
+        for vertex in &self.vertices {
+            min = min.min(vertex.position);
+            max = max.max(vertex.position);
+        }
+        
+        self.bounds = BoundingBox::new(min, max);
+    }
+    
+    /// Get vertex count
+    pub fn vertex_count(&self) -> usize {
+        self.vertices.len()
+    }
+    
+    /// Get index count
+    pub fn index_count(&self) -> usize {
+        self.indices.len()
+    }
+    
+    /// Calculate memory usage
+    pub fn memory_usage(&self) -> usize {
+        let vertex_size = self.vertices.len() * std::mem::size_of::<Vertex>();
+        let index_size = self.indices.len() * std::mem::size_of::<u32>();
+        let submesh_size = self.submeshes.len() * std::mem::size_of::<SubMesh>();
+        vertex_size + index_size + submesh_size
+    }
+}
+
+impl Resource for MeshData {
+    fn resource_type_name() -> &'static str {
+        "MeshData"
+    }
+    
+    fn memory_size(&self) -> usize {
+        self.memory_usage()
+    }
 }
 
 /// Primitive topology for mesh rendering
@@ -76,8 +155,17 @@ impl Mesh {
     
     /// Create a mesh from vertex and index data
     pub fn from_data(data: MeshData) -> Self {
-        let index_count = data.indices.len() as u32;
-        let mut mesh = Self {
+        // Convert submeshes to material slots
+        let material_slots = data.submeshes.iter().map(|submesh| {
+            MaterialSlot {
+                name: format!("Material_{}", submesh.material_index),
+                material_index: submesh.material_index,
+                start_index: submesh.start_index,
+                index_count: submesh.index_count,
+            }
+        }).collect();
+        
+        Self {
             name: data.name,
             vertex_data: VertexData::Standard(data.vertices),
             index_buffer: if data.indices.is_empty() {
@@ -85,18 +173,10 @@ impl Mesh {
             } else {
                 Some(IndexBuffer::U32(data.indices))
             },
-            bounds: BoundingBox::empty(),
+            bounds: data.bounds,
             topology: PrimitiveTopology::TriangleList,
-            material_slots: vec![MaterialSlot {
-                name: "Default".to_string(),
-                material_index: 0,
-                start_index: 0,
-                index_count,
-            }],
-        };
-        
-        mesh.update_bounds();
-        mesh
+            material_slots,
+        }
     }
     
     /// Add a vertex to the mesh (only works with Standard vertex data)
@@ -528,11 +608,11 @@ mod tests {
         let vertices = create_triangle_vertices();
         let indices = vec![0, 1, 2];
         
-        let mesh_data = MeshData {
-            name: "test_triangle".to_string(),
+        let mesh_data = MeshData::new(
+            "test_triangle".to_string(),
             vertices,
             indices,
-        };
+        );
         let mesh = Mesh::from_data(mesh_data);
         
         assert_eq!(mesh.name, "test_triangle");
@@ -548,21 +628,21 @@ mod tests {
         let vertices = create_triangle_vertices();
         let indices = vec![0, 1, 2];
         
-        let mesh_data = MeshData {
-            name: "test_triangle".to_string(),
+        let mesh_data = MeshData::new(
+            "test_triangle".to_string(),
             vertices,
             indices,
-        };
+        );
         let mesh = Mesh::from_data(mesh_data);
         assert!(mesh.validate().is_ok());
 
         // Test invalid indices
         let invalid_indices = vec![0, 1, 5]; // Index 5 is out of bounds
-        let invalid_mesh_data = MeshData {
-            name: "invalid".to_string(),
-            vertices: create_triangle_vertices(),
-            indices: invalid_indices,
-        };
+        let invalid_mesh_data = MeshData::new(
+            "invalid".to_string(),
+            create_triangle_vertices(),
+            invalid_indices,
+        );
         let invalid_mesh = Mesh::from_data(invalid_mesh_data);
         assert!(invalid_mesh.validate().is_err());
 
@@ -588,11 +668,11 @@ mod tests {
             },
         ];
 
-        let mesh_data = MeshData {
-            name: "bounds_test".to_string(),
+        let mesh_data = MeshData::new(
+            "bounds_test".to_string(),
             vertices,
-            indices: vec![],
-        };
+            vec![],
+        );
         let mesh = Mesh::from_data(mesh_data);
         
         assert_eq!(mesh.bounds.min, Vec3::new(-1.0, -1.0, -1.0));
@@ -603,11 +683,11 @@ mod tests {
     #[test]
     fn test_mesh_transform() {
         let vertices = create_triangle_vertices();
-        let mesh_data = MeshData {
-            name: "transform_test".to_string(),
+        let mesh_data = MeshData::new(
+            "transform_test".to_string(),
             vertices,
-            indices: vec![],
-        };
+            vec![],
+        );
         let mut mesh = Mesh::from_data(mesh_data);
         
         let original_bounds = mesh.bounds;
@@ -626,19 +706,19 @@ mod tests {
     #[test]
     fn test_mesh_merge() {
         let vertices1 = create_triangle_vertices();
-        let mesh_data1 = MeshData {
-            name: "mesh1".to_string(),
-            vertices: vertices1,
-            indices: vec![0, 1, 2],
-        };
+        let mesh_data1 = MeshData::new(
+            "mesh1".to_string(),
+            vertices1,
+            vec![0, 1, 2],
+        );
         let mut mesh1 = Mesh::from_data(mesh_data1);
         
         let vertices2 = create_triangle_vertices();
-        let mesh_data2 = MeshData {
-            name: "mesh2".to_string(),
-            vertices: vertices2,
-            indices: vec![0, 1, 2],
-        };
+        let mesh_data2 = MeshData::new(
+            "mesh2".to_string(),
+            vertices2,
+            vec![0, 1, 2],
+        );
         let mesh2 = Mesh::from_data(mesh_data2);
         
         let original_vertex_count = mesh1.vertex_count();
@@ -688,34 +768,150 @@ mod tests {
     }
 
     #[test]
+    fn test_mesh_data_creation() {
+        let vertices = create_triangle_vertices();
+        let indices = vec![0, 1, 2];
+        
+        let mesh_data = MeshData::new(
+            "test_mesh".to_string(),
+            vertices.clone(),
+            indices.clone(),
+        );
+        
+        assert_eq!(mesh_data.name, "test_mesh");
+        assert_eq!(mesh_data.vertex_count(), 3);
+        assert_eq!(mesh_data.index_count(), 3);
+        assert_eq!(mesh_data.submeshes.len(), 1);
+        assert_eq!(mesh_data.submeshes[0].start_index, 0);
+        assert_eq!(mesh_data.submeshes[0].index_count, 3);
+        assert_eq!(mesh_data.submeshes[0].material_index, 0);
+        assert!(mesh_data.bounds.is_valid());
+    }
+    
+    #[test]
+    fn test_mesh_data_bounds_calculation() {
+        let vertices = vec![
+            Vertex {
+                position: Vec3::new(-2.0, -3.0, -4.0),
+                normal: Vec3::Y,
+                uv: Vec2::ZERO,
+                color: [1.0; 4],
+            },
+            Vertex {
+                position: Vec3::new(5.0, 6.0, 7.0),
+                normal: Vec3::Y,
+                uv: Vec2::ONE,
+                color: [1.0; 4],
+            },
+        ];
+        
+        let mesh_data = MeshData::new(
+            "bounds_test".to_string(),
+            vertices,
+            vec![0, 1],
+        );
+        
+        assert_eq!(mesh_data.bounds.min, Vec3::new(-2.0, -3.0, -4.0));
+        assert_eq!(mesh_data.bounds.max, Vec3::new(5.0, 6.0, 7.0));
+    }
+    
+    #[test]
+    fn test_mesh_data_memory_usage() {
+        let vertices = create_triangle_vertices();
+        let indices = vec![0, 1, 2];
+        
+        let mesh_data = MeshData::new(
+            "memory_test".to_string(),
+            vertices,
+            indices,
+        );
+        
+        let expected_vertex_size = 3 * std::mem::size_of::<Vertex>();
+        let expected_index_size = 3 * std::mem::size_of::<u32>();
+        let expected_submesh_size = 1 * std::mem::size_of::<SubMesh>();
+        let expected_total = expected_vertex_size + expected_index_size + expected_submesh_size;
+        
+        assert_eq!(mesh_data.memory_usage(), expected_total);
+        assert_eq!(mesh_data.memory_size(), expected_total);
+    }
+    
+    #[test]
+    fn test_mesh_data_resource_trait() {
+        let mesh_data = MeshData::new(
+            "resource_test".to_string(),
+            vec![],
+            vec![],
+        );
+        
+        assert_eq!(MeshData::resource_type_name(), "MeshData");
+        assert_eq!(mesh_data.memory_size(), mesh_data.memory_usage());
+    }
+    
+    #[test]
+    fn test_mesh_from_mesh_data_with_submeshes() {
+        let vertices = create_triangle_vertices();
+        let indices = vec![0, 1, 2, 0, 2, 1]; // Two triangles
+        
+        let mut mesh_data = MeshData::new(
+            "submesh_test".to_string(),
+            vertices,
+            indices,
+        );
+        
+        // Define two submeshes
+        mesh_data.submeshes = vec![
+            SubMesh {
+                start_index: 0,
+                index_count: 3,
+                material_index: 0,
+            },
+            SubMesh {
+                start_index: 3,
+                index_count: 3,
+                material_index: 1,
+            },
+        ];
+        
+        let mesh = Mesh::from_data(mesh_data);
+        
+        assert_eq!(mesh.material_slots.len(), 2);
+        assert_eq!(mesh.material_slots[0].material_index, 0);
+        assert_eq!(mesh.material_slots[0].start_index, 0);
+        assert_eq!(mesh.material_slots[0].index_count, 3);
+        assert_eq!(mesh.material_slots[1].material_index, 1);
+        assert_eq!(mesh.material_slots[1].start_index, 3);
+        assert_eq!(mesh.material_slots[1].index_count, 3);
+    }
+    
+    #[test]
     fn test_primitive_topology_validation() {
         let vertices = create_triangle_vertices();
         
         // Valid triangle list (3 indices)
-        let triangle_mesh_data = MeshData {
-            name: "triangles".to_string(),
-            vertices: vertices.clone(),
-            indices: vec![0, 1, 2],
-        };
+        let triangle_mesh_data = MeshData::new(
+            "triangles".to_string(),
+            vertices.clone(),
+            vec![0, 1, 2],
+        );
         let triangle_mesh = Mesh::from_data(triangle_mesh_data);
         assert!(triangle_mesh.validate().is_ok());
 
         // Invalid triangle list (4 indices - not divisible by 3)
-        let invalid_mesh_data = MeshData {
-            name: "invalid_triangles".to_string(),
-            vertices: vertices.clone(),
-            indices: vec![0, 1, 2, 1],
-        };
+        let invalid_mesh_data = MeshData::new(
+            "invalid_triangles".to_string(),
+            vertices.clone(),
+            vec![0, 1, 2, 1],
+        );
         let mut invalid_triangle_mesh = Mesh::from_data(invalid_mesh_data);
         invalid_triangle_mesh.topology = PrimitiveTopology::TriangleList;
         assert!(invalid_triangle_mesh.validate().is_err());
 
         // Valid line list (2 indices)
-        let line_mesh_data = MeshData {
-            name: "lines".to_string(),
+        let line_mesh_data = MeshData::new(
+            "lines".to_string(),
             vertices,
-            indices: vec![0, 1],
-        };
+            vec![0, 1],
+        );
         let mut line_mesh = Mesh::from_data(line_mesh_data);
         line_mesh.topology = PrimitiveTopology::LineList;
         assert!(line_mesh.validate().is_ok());

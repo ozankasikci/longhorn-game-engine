@@ -11,7 +11,7 @@ pub mod primitives;
 pub mod vertex;
 
 // Re-export core types
-pub use mesh::{Mesh, MeshHandle, IndexBuffer, MeshData};
+pub use mesh::{Mesh, MeshHandle, IndexBuffer, MeshData, SubMesh};
 pub use bounds::{BoundingBox, BoundingSphere, Bounds};
 pub use spatial::{Ray, Plane, Frustum, SpatialQuery};
 pub use primitives::*;

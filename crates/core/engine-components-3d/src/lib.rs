@@ -5,6 +5,8 @@
 
 use serde::{Serialize, Deserialize};
 use engine_component_traits::Component;
+use engine_resource_core::ResourceHandle;
+use engine_geometry_core::MeshData;
 
 // Transform component - fundamental for all spatial objects
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -158,6 +160,90 @@ impl Default for Visibility {
 }
 
 // ============================================================================
+// NEW MESH COMPONENTS - Unity-style separation
+// ============================================================================
+
+/// MeshFilter component - holds reference to mesh data
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MeshFilter {
+    /// Handle to the mesh resource
+    pub mesh: ResourceHandle<MeshData>,
+}
+
+impl Component for MeshFilter {}
+
+impl MeshFilter {
+    /// Create a new MeshFilter with the given mesh handle
+    pub fn new(mesh: ResourceHandle<MeshData>) -> Self {
+        Self { mesh }
+    }
+}
+
+/// MeshRenderer component - handles rendering properties and materials
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MeshRenderer {
+    /// Materials for each submesh (or single material for entire mesh)
+    pub materials: Vec<engine_materials_core::MaterialHandle>,
+    
+    /// Whether this renderer casts shadows
+    pub cast_shadows: bool,
+    
+    /// Whether this renderer receives shadows
+    pub receive_shadows: bool,
+    
+    /// Layer mask for culling and rendering layers
+    pub layer_mask: u32,
+    
+    /// Whether this renderer is enabled
+    pub enabled: bool,
+}
+
+impl Component for MeshRenderer {}
+
+impl Default for MeshRenderer {
+    fn default() -> Self {
+        Self {
+            materials: vec![0], // Default material handle (0 = default material)
+            cast_shadows: true,
+            receive_shadows: true,
+            layer_mask: 0xFFFFFFFF, // Render on all layers by default
+            enabled: true,
+        }
+    }
+}
+
+impl MeshRenderer {
+    /// Create a new MeshRenderer with a single material
+    pub fn new(material: engine_materials_core::MaterialHandle) -> Self {
+        Self {
+            materials: vec![material],
+            ..Default::default()
+        }
+    }
+    
+    /// Create a new MeshRenderer with multiple materials for submeshes
+    pub fn with_materials(materials: Vec<engine_materials_core::MaterialHandle>) -> Self {
+        Self {
+            materials,
+            ..Default::default()
+        }
+    }
+    
+    /// Set shadow casting
+    pub fn with_shadows(mut self, cast: bool, receive: bool) -> Self {
+        self.cast_shadows = cast;
+        self.receive_shadows = receive;
+        self
+    }
+    
+    /// Set layer mask
+    pub fn with_layer_mask(mut self, mask: u32) -> Self {
+        self.layer_mask = mask;
+        self
+    }
+}
+
+// ============================================================================
 // COMPONENT BUNDLES - Quick solution for multi-component entities
 // ============================================================================
 
@@ -205,6 +291,7 @@ impl Default for GameObject3DBundle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use engine_resource_core::ResourceId;
     
     #[test]
     fn test_transform_default() {
@@ -229,5 +316,110 @@ mod tests {
         assert_eq!(light.color, [1.0, 1.0, 1.0]);
         assert_eq!(light.intensity, 1.0);
         assert!(matches!(light.light_type, LightType::Directional));
+    }
+    
+    #[test]
+    fn test_mesh_filter_creation() {
+        let mesh_handle = ResourceHandle::<MeshData>::new(ResourceId::new(123));
+        let mesh_filter = MeshFilter::new(mesh_handle.clone());
+        
+        assert_eq!(mesh_filter.mesh.id(), mesh_handle.id());
+    }
+    
+    #[test]
+    fn test_mesh_filter_component_trait() {
+        // Verify MeshFilter implements Component trait
+        let mesh_handle = ResourceHandle::<MeshData>::new(ResourceId::new(456));
+        let mesh_filter = MeshFilter::new(mesh_handle);
+        
+        // This will only compile if MeshFilter implements Component
+        fn assert_is_component<T: Component>(_: &T) {}
+        assert_is_component(&mesh_filter);
+    }
+    
+    #[test]
+    fn test_mesh_renderer_default() {
+        let renderer = MeshRenderer::default();
+        
+        assert_eq!(renderer.materials.len(), 1);
+        assert_eq!(renderer.materials[0], 0); // Default material handle
+        assert!(renderer.cast_shadows);
+        assert!(renderer.receive_shadows);
+        assert_eq!(renderer.layer_mask, 0xFFFFFFFF);
+        assert!(renderer.enabled);
+    }
+    
+    #[test]
+    fn test_mesh_renderer_with_single_material() {
+        let material_handle = 42;
+        let renderer = MeshRenderer::new(material_handle);
+        
+        assert_eq!(renderer.materials.len(), 1);
+        assert_eq!(renderer.materials[0], material_handle);
+        assert!(renderer.cast_shadows);
+        assert!(renderer.receive_shadows);
+        assert!(renderer.enabled);
+    }
+    
+    #[test]
+    fn test_mesh_renderer_with_multiple_materials() {
+        let materials = vec![1, 2, 3, 4];
+        let renderer = MeshRenderer::with_materials(materials.clone());
+        
+        assert_eq!(renderer.materials, materials);
+    }
+    
+    #[test]
+    fn test_mesh_renderer_builder_pattern() {
+        let renderer = MeshRenderer::new(5)
+            .with_shadows(false, true)
+            .with_layer_mask(0x00FF00FF);
+        
+        assert_eq!(renderer.materials[0], 5);
+        assert!(!renderer.cast_shadows);
+        assert!(renderer.receive_shadows);
+        assert_eq!(renderer.layer_mask, 0x00FF00FF);
+    }
+    
+    #[test]
+    fn test_mesh_renderer_component_trait() {
+        let renderer = MeshRenderer::default();
+        
+        // This will only compile if MeshRenderer implements Component
+        fn assert_is_component<T: Component>(_: &T) {}
+        assert_is_component(&renderer);
+    }
+    
+    #[test]
+    fn test_mesh_filter_serialization() {
+        let mesh_handle = ResourceHandle::<MeshData>::new(ResourceId::new(789));
+        let mesh_filter = MeshFilter::new(mesh_handle);
+        
+        // Serialize
+        let serialized = serde_json::to_string(&mesh_filter).unwrap();
+        
+        // Deserialize
+        let deserialized: MeshFilter = serde_json::from_str(&serialized).unwrap();
+        
+        assert_eq!(mesh_filter.mesh.id(), deserialized.mesh.id());
+    }
+    
+    #[test]
+    fn test_mesh_renderer_serialization() {
+        let renderer = MeshRenderer::with_materials(vec![10, 20, 30])
+            .with_shadows(false, false)
+            .with_layer_mask(0x12345678);
+        
+        // Serialize
+        let serialized = serde_json::to_string(&renderer).unwrap();
+        
+        // Deserialize
+        let deserialized: MeshRenderer = serde_json::from_str(&serialized).unwrap();
+        
+        assert_eq!(renderer.materials, deserialized.materials);
+        assert_eq!(renderer.cast_shadows, deserialized.cast_shadows);
+        assert_eq!(renderer.receive_shadows, deserialized.receive_shadows);
+        assert_eq!(renderer.layer_mask, deserialized.layer_mask);
+        assert_eq!(renderer.enabled, deserialized.enabled);
     }
 }

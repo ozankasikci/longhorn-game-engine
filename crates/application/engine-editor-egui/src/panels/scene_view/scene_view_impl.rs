@@ -2,7 +2,7 @@
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
-use engine_components_3d::{Transform, Mesh, MeshType, Material, Light, Visibility};
+use engine_components_3d::{Transform, Mesh, MeshType, Material, Light, Visibility, MeshFilter, MeshRenderer};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
 use engine_camera::Camera;
@@ -48,7 +48,7 @@ impl SceneViewRenderer {
         
         // SUPER DEBUG: Check specific component counts
         let transform_count = world.query_legacy::<Transform>().count();
-        let mesh_count_direct = world.query_legacy::<Mesh>().count();
+        let mesh_count_direct = world.query_legacy::<MeshFilter>().count();
         let material_count = world.query_legacy::<Material>().count();
         
         
@@ -83,15 +83,32 @@ impl SceneViewRenderer {
                     let name = world.get_component::<engine_components_ui::Name>(*entity)
                         .map(|n| n.name.clone())
                         .unwrap_or_else(|| format!("Entity {}", entity.id()));
-                    let has_mesh = world.get_component::<Mesh>(*entity).is_some();
+                    let has_mesh = world.get_component::<MeshFilter>(*entity).is_some();
                     debug_entity_info.push(format!("{}: Mesh={}, Pos=[{:.1},{:.1},{:.1}]", 
                         name, has_mesh, transform.position[0], transform.position[1], transform.position[2]));
                 }
             }
             
-            if world.get_component::<Mesh>(*entity).is_some() {
+            // Check for new mesh components (MeshFilter + MeshRenderer)
+            if let Some(mesh_filter) = world.get_component::<MeshFilter>(*entity) {
+                if let Some(mesh_renderer) = world.get_component::<MeshRenderer>(*entity) {
+                    if mesh_renderer.enabled {
+                        mesh_count += 1;
+                        // Phase 10.1: Render with enhanced visibility
+                        self.render_mesh_entity_enhanced(
+                            world,
+                            painter,
+                            rect,
+                            *entity,
+                            camera_pos,
+                            camera_rot,
+                            selected_entity,
+                        );
+                    }
+                }
+            } else if world.get_component::<Mesh>(*entity).is_some() {
+                // Fallback for old Mesh component (will be removed)
                 mesh_count += 1;
-                // Phase 10.1: Render with enhanced visibility
                 self.render_mesh_entity_enhanced(
                     world,
                     painter,
@@ -307,7 +324,17 @@ impl SceneViewRenderer {
         selected_entity: Option<Entity>,
     ) {
         let Some(transform) = world.get_component::<Transform>(entity) else { return; };
-        let Some(mesh) = world.get_component::<Mesh>(entity) else { return; };
+        
+        // Determine mesh type - check new components first, then fall back to old
+        let mesh_type = if let Some(_mesh_filter) = world.get_component::<MeshFilter>(entity) {
+            // TODO: In the future, get mesh type from resource handle
+            // For now, default to Cube for all MeshFilter entities
+            MeshType::Cube
+        } else if let Some(mesh) = world.get_component::<Mesh>(entity) {
+            mesh.mesh_type.clone()
+        } else {
+            return; // No mesh component found
+        };
         
         // Enhanced world-to-screen projection for better visibility
         let (screen_pos, depth) = self.world_to_screen_enhanced(
@@ -358,7 +385,7 @@ impl SceneViewRenderer {
         let perspective_scale = 100.0 / (distance_from_camera + 1.0).max(1.0);
         let size = base_size * transform.scale[0] * perspective_scale.max(0.5); // Minimum scale
         
-        match mesh.mesh_type {
+        match mesh_type {
             MeshType::Cube => {
                 // Use proper 3D cube rendering
                 self.render_3d_cube(
@@ -663,19 +690,6 @@ impl SceneViewRenderer {
         // Render based on entity type
         if world.get_component::<Camera>(entity).is_some() {
             object_renderer::render_camera(painter, screen_pos, &name, is_selected);
-        } else if let Some(mesh) = world.get_component::<Mesh>(entity) {
-            self.render_mesh(
-                world,
-                painter,
-                entity,
-                mesh,
-                transform,
-                screen_pos,
-                depth,
-                camera_rot,
-                &name,
-                is_selected,
-            );
         } else {
             // Default object rendering
             let color = if is_selected { 

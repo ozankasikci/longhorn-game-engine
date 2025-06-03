@@ -59,4 +59,25 @@ impl World {
         }
         entities.len()
     }
+    
+    pub fn get_component<T: Component + 'static>(&self, entity: Entity) -> Option<&T> {
+        self.components
+            .get(&TypeId::of::<T>())
+            .and_then(|storage| storage.get(&entity))
+            .and_then(|component| component.downcast_ref::<T>())
+    }
+    
+    pub fn get_component_mut<T: Component + 'static>(&mut self, entity: Entity) -> Option<&mut T> {
+        self.components
+            .get_mut(&TypeId::of::<T>())
+            .and_then(|storage| storage.get_mut(&entity))
+            .and_then(|component| component.downcast_mut::<T>())
+    }
+    
+    pub fn remove_component<T: Component + 'static>(&mut self, entity: Entity) -> EcsResult<()> {
+        if let Some(storage) = self.components.get_mut(&TypeId::of::<T>()) {
+            storage.remove(&entity);
+        }
+        Ok(())
+    }
 }

@@ -72,11 +72,11 @@ impl MeshPrimitives {
             20, 21, 22, 20, 22, 23,
         ];
         
-        Mesh::from_data(MeshData {
-            name: "Cube".to_string(),
+        Mesh::from_data(MeshData::new(
+            "Cube".to_string(),
             vertices,
             indices,
-        })
+        ))
     }
     
     /// Create a quad mesh (single-sided plane)
@@ -90,11 +90,11 @@ impl MeshPrimitives {
         
         let indices = vec![0, 1, 2, 0, 2, 3];
         
-        Mesh::from_data(MeshData {
-            name: "Quad".to_string(),
+        Mesh::from_data(MeshData::new(
+            "Quad".to_string(),
             vertices,
             indices,
-        })
+        ))
     }
     
     /// Create a sphere mesh
@@ -136,11 +136,11 @@ impl MeshPrimitives {
             }
         }
         
-        Mesh::from_data(MeshData {
-            name: "Sphere".to_string(),
+        Mesh::from_data(MeshData::new(
+            "Sphere".to_string(),
             vertices,
             indices,
-        })
+        ))
     }
     
     /// Create a cylinder mesh
@@ -182,11 +182,11 @@ impl MeshPrimitives {
             indices.extend([top_next, bottom_current, bottom_next]);
         }
         
-        Mesh::from_data(MeshData {
-            name: "Cylinder".to_string(),
+        Mesh::from_data(MeshData::new(
+            "Cylinder".to_string(),
             vertices,
             indices,
-        })
+        ))
     }
     
     /// Create a plane mesh with subdivisions
@@ -224,11 +224,11 @@ impl MeshPrimitives {
             }
         }
         
-        Mesh::from_data(MeshData {
-            name: "Plane".to_string(),
+        Mesh::from_data(MeshData::new(
+            "Plane".to_string(),
             vertices,
             indices,
-        })
+        ))
     }
     
     /// Create a triangle mesh
@@ -241,11 +241,11 @@ impl MeshPrimitives {
         
         let indices = vec![0, 1, 2];
         
-        Mesh::from_data(MeshData {
-            name: "Triangle".to_string(),
+        Mesh::from_data(MeshData::new(
+            "Triangle".to_string(),
             vertices,
             indices,
-        })
+        ))
     }
     
     /// Create a cone mesh
@@ -280,11 +280,11 @@ impl MeshPrimitives {
             indices.extend([0, i + 1, i + 2]);
         }
         
-        Mesh::from_data(MeshData {
-            name: "Cone".to_string(),
+        Mesh::from_data(MeshData::new(
+            "Cone".to_string(),
             vertices,
             indices,
-        })
+        ))
     }
     
     /// Generate mesh for the given primitive type

@@ -2,7 +2,7 @@
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
-use engine_components_3d::{Transform, Material, Mesh, Light, Visibility};
+use engine_components_3d::{Transform, Material, Light, Visibility, MeshFilter, MeshRenderer};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::{Canvas, Name};
 use engine_camera::{Camera, Camera2D, CameraComponent, CameraType};
@@ -51,8 +51,8 @@ impl InspectorPanel {
                     }
                     
                     // Get mesh info
-                    if let Some(mesh) = world.get_component::<Mesh>(selected_entity) {
-                        info.push_str(&format!("\nMesh: {:?}\n", mesh.mesh_type));
+                    if world.get_component::<MeshFilter>(selected_entity).is_some() {
+                        info.push_str(&format!("\nMesh: MeshFilter + MeshRenderer\n"));
                     }
                     
                     // Get material info
@@ -140,6 +140,111 @@ impl InspectorPanel {
                 if let Some(visibility) = world.get_component::<Visibility>(selected_entity) {
                     ui.collapsing("👁️ Visibility", |ui| {
                         ui.label(format!("Visible: {}", visibility.visible));
+                    });
+                }
+                
+                // MeshFilter Component
+                if let Some(mesh_filter) = world.get_component::<MeshFilter>(selected_entity) {
+                    ui.collapsing("🔧 Mesh Filter", |ui| {
+                        ui.label(format!("Mesh Handle ID: {}", mesh_filter.mesh.id().get()));
+                        ui.label("Contains reference to mesh data");
+                    });
+                }
+                
+                // MeshRenderer Component
+                if let Some(mesh_renderer) = world.get_component::<MeshRenderer>(selected_entity).cloned() {
+                    ui.collapsing("🎨 Mesh Renderer", |ui| {
+                        let mut enabled = mesh_renderer.enabled;
+                        let mut cast_shadows = mesh_renderer.cast_shadows;
+                        let mut receive_shadows = mesh_renderer.receive_shadows;
+                        let mut layer_mask = mesh_renderer.layer_mask;
+                        
+                        let mut changed = false;
+                        
+                        egui::Grid::new("mesh_renderer_grid").show(ui, |ui| {
+                            ui.label("Enabled:");
+                            changed |= ui.checkbox(&mut enabled, "").changed();
+                            ui.end_row();
+                            
+                            ui.label("Cast Shadows:");
+                            changed |= ui.checkbox(&mut cast_shadows, "").changed();
+                            ui.end_row();
+                            
+                            ui.label("Receive Shadows:");
+                            changed |= ui.checkbox(&mut receive_shadows, "").changed();
+                            ui.end_row();
+                            
+                            ui.label("Layer Mask:");
+                            changed |= ui.add(egui::DragValue::new(&mut layer_mask).hexadecimal(8, false, true)).changed();
+                            ui.end_row();
+                            
+                            ui.label("Materials:");
+                            ui.label(format!("{} material(s)", mesh_renderer.materials.len()));
+                            ui.end_row();
+                        });
+                        
+                        if changed {
+                            if let Some(renderer_mut) = world.get_component_mut::<MeshRenderer>(selected_entity) {
+                                renderer_mut.enabled = enabled;
+                                renderer_mut.cast_shadows = cast_shadows;
+                                renderer_mut.receive_shadows = receive_shadows;
+                                renderer_mut.layer_mask = layer_mask;
+                            }
+                        }
+                    });
+                }
+                
+                // Material Component
+                if let Some(material) = world.get_component::<Material>(selected_entity).cloned() {
+                    ui.collapsing("🎨 Material", |ui| {
+                        let mut color = material.color;
+                        let mut metallic = material.metallic;
+                        let mut roughness = material.roughness;
+                        let mut emissive = material.emissive;
+                        
+                        let mut changed = false;
+                        
+                        egui::Grid::new("material_grid").show(ui, |ui| {
+                            ui.label("Color:");
+                            ui.end_row();
+                            
+                            ui.label("R:");
+                            changed |= ui.add(egui::DragValue::new(&mut color[0]).speed(0.01).clamp_range(0.0..=1.0)).changed();
+                            ui.label("G:");
+                            changed |= ui.add(egui::DragValue::new(&mut color[1]).speed(0.01).clamp_range(0.0..=1.0)).changed();
+                            ui.label("B:");
+                            changed |= ui.add(egui::DragValue::new(&mut color[2]).speed(0.01).clamp_range(0.0..=1.0)).changed();
+                            ui.label("A:");
+                            changed |= ui.add(egui::DragValue::new(&mut color[3]).speed(0.01).clamp_range(0.0..=1.0)).changed();
+                            ui.end_row();
+                            
+                            ui.label("Metallic:");
+                            changed |= ui.add(egui::DragValue::new(&mut metallic).speed(0.01).clamp_range(0.0..=1.0)).changed();
+                            ui.end_row();
+                            
+                            ui.label("Roughness:");
+                            changed |= ui.add(egui::DragValue::new(&mut roughness).speed(0.01).clamp_range(0.0..=1.0)).changed();
+                            ui.end_row();
+                            
+                            ui.label("Emissive:");
+                            ui.end_row();
+                            ui.label("R:");
+                            changed |= ui.add(egui::DragValue::new(&mut emissive[0]).speed(0.01).clamp_range(0.0..=10.0)).changed();
+                            ui.label("G:");
+                            changed |= ui.add(egui::DragValue::new(&mut emissive[1]).speed(0.01).clamp_range(0.0..=10.0)).changed();
+                            ui.label("B:");
+                            changed |= ui.add(egui::DragValue::new(&mut emissive[2]).speed(0.01).clamp_range(0.0..=10.0)).changed();
+                            ui.end_row();
+                        });
+                        
+                        if changed {
+                            if let Some(material_mut) = world.get_component_mut::<Material>(selected_entity) {
+                                material_mut.color = color;
+                                material_mut.metallic = metallic;
+                                material_mut.roughness = roughness;
+                                material_mut.emissive = emissive;
+                            }
+                        }
                     });
                 }
                 
@@ -451,6 +556,18 @@ impl InspectorPanel {
                     if world.get_component::<CameraComponent>(selected_entity).is_some() {
                         component_count += 1;
                         component_list.push("CameraComponent");
+                    }
+                    if world.get_component::<MeshFilter>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("MeshFilter");
+                    }
+                    if world.get_component::<MeshRenderer>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("MeshRenderer");
+                    }
+                    if world.get_component::<Material>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("Material");
                     }
                     
                     ui.label(format!("Component Count: {}", component_count));

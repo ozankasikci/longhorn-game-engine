@@ -6,5 +6,11 @@ license.workspace = true
 
 [dependencies]
 engine-component-traits = { path = "../engine-component-traits" }
+engine-resource-core = { path = "../engine-resource-core" }
+engine-geometry-core = { path = "../engine-geometry-core" }
+engine-materials-core = { path = "../engine-materials-core" }
 serde = { workspace = true }
 glam = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
