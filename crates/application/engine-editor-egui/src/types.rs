@@ -43,7 +43,7 @@ impl Default for SceneNavigation {
             enabled: true,
             is_navigating: false,
             movement_speed: 5.0,                    // Units per second
-            rotation_sensitivity: 0.002,            // Radians per pixel - reduced for smoother control
+            rotation_sensitivity: 0.005,            // Radians per pixel - Unity-like direct response
             fast_movement_multiplier: 3.0,          // Shift speed boost
             last_mouse_pos: None,
             scene_camera_transform: Transform {

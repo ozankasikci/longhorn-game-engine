@@ -6,7 +6,7 @@ use std::collections::{HashMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
-// Generic ECS implementation - no specific component dependencies
+use engine_component_traits::{Component, ComponentClone, ComponentTicks, Tick, Bundle};
 
 // Component Registry for dynamic component array creation
 type ComponentArrayFactory = Arc<dyn Fn() -> Box<dyn ComponentArrayTrait> + Send + Sync>;
@@ -53,54 +53,6 @@ impl Entity {
     }
 }
 
-/// Component trait - marker for types that can be stored as components
-pub trait Component: 'static + Send + Sync + ComponentClone {
-    fn type_id() -> TypeId where Self: Sized {
-        TypeId::of::<Self>()
-    }
-}
-
-/// Helper trait for component cloning with type erasure
-pub trait ComponentClone {
-    /// Clone this component as a type-erased box
-    fn clone_boxed(&self) -> Box<dyn ComponentClone>;
-    
-    /// Get as Any for downcasting
-    fn as_any(&self) -> &dyn Any;
-    
-    /// Get as mutable Any for downcasting
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-    
-    /// Convert boxed self to boxed Any
-    fn into_any(self: Box<Self>) -> Box<dyn Any>;
-}
-
-/// Blanket implementation for cloneable types
-impl<T: Clone + Component + 'static> ComponentClone for T {
-    fn clone_boxed(&self) -> Box<dyn ComponentClone> {
-        Box::new(self.clone())
-    }
-    
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-    
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-}
-
-/// Macro to implement Component trait for types that already implement Clone
-#[macro_export]
-macro_rules! impl_component {
-    ($type:ty) => {
-        impl $crate::Component for $type {}
-    };
-}
 
 /// Archetype ID - uniquely identifies a combination of component types
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -535,54 +487,6 @@ impl Archetype {
     }
 }
 
-/// Change detection tick - tracks when components are modified
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Tick(u32);
-
-impl Tick {
-    pub fn new(value: u32) -> Self {
-        Self(value)
-    }
-    
-    pub fn get(&self) -> u32 {
-        self.0
-    }
-    
-    pub fn is_newer_than(&self, other: Tick) -> bool {
-        // Handle wrap-around for u32 tick values
-        self.0.wrapping_sub(other.0) < u32::MAX / 2
-    }
-}
-
-/// Component change tracking information
-#[derive(Debug, Clone)]
-pub struct ComponentTicks {
-    /// Tick when component was added
-    pub added: Tick,
-    /// Tick when component was last modified
-    pub changed: Tick,
-}
-
-impl ComponentTicks {
-    pub fn new(tick: Tick) -> Self {
-        Self {
-            added: tick,
-            changed: tick,
-        }
-    }
-    
-    pub fn mark_changed(&mut self, tick: Tick) {
-        self.changed = tick;
-    }
-    
-    pub fn is_added(&self, last_run: Tick) -> bool {
-        self.added.is_newer_than(last_run)
-    }
-    
-    pub fn is_changed(&self, last_run: Tick) -> bool {
-        self.changed.is_newer_than(last_run)
-    }
-}
 
 /// Entity location within an archetype
 #[derive(Debug, Clone)]
@@ -1259,16 +1163,31 @@ impl Default for World {
 // ============================================================================
 
 /// A bundle is a collection of components that can be added to an entity together
-pub trait Bundle: Send + Sync {
-    /// Insert all components from this bundle into the entity
-    fn insert(self, entity: Entity, world: &mut World) -> Result<(), &'static str>;
-}
 
 impl World {
     /// Spawn an entity with a bundle of components
     pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> Result<Entity, &'static str> {
         let entity = self.spawn();
-        bundle.insert(entity, self)?;
+        
+        // Get component types and create archetype ID
+        let component_ids = B::component_ids();
+        let archetype_id = ArchetypeId::from_types(component_ids.clone());
+        
+        // Add entity to archetype
+        let _index = self.add_entity_to_archetype(entity, archetype_id.clone());
+        
+        // Get current tick
+        let tick = self.change_tick();
+        
+        // Get archetype and add all components
+        let archetype = self.archetypes.get_mut(&archetype_id)
+            .ok_or("Failed to get archetype")?;
+            
+        // Add all components from the bundle
+        for (type_id, component) in bundle.into_components() {
+            archetype.add_component_cloned(type_id, component, ComponentTicks::new(tick))?;
+        }
+        
         Ok(entity)
     }
     

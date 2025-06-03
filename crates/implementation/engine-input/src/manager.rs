@@ -1,6 +1,6 @@
 //! Input manager for coordinating all input systems
 
-use crate::{InputResult, InputError};
+use crate::InputResult;
 
 /// Central input manager
 pub struct InputManager {

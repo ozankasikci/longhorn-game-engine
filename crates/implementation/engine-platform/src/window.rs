@@ -1,6 +1,6 @@
 //! Window management and abstraction
 
-use crate::{PlatformResult, PlatformError};
+use crate::PlatformResult;
 
 /// Window events
 #[derive(Debug, Clone)]

@@ -40,10 +40,11 @@ impl SceneViewRenderer {
         let camera_pos = scene_navigation.scene_camera_transform.position;
         let camera_rot = scene_navigation.scene_camera_transform.rotation;
         
-        // DEBUG: Log camera rotation to verify it's being used
+        // Log camera state for debugging
         if camera_rot[0].abs() > 0.01 || camera_rot[1].abs() > 0.01 {
             console_messages.push(ConsoleMessage::info(&format!(
-                "🎥 Rendering with camera rot: pitch={:.2}°, yaw={:.2}°",
+                "🎥 Camera: pos=[{:.1}, {:.1}, {:.1}], rot=[pitch={:.1}°, yaw={:.1}°]",
+                camera_pos[0], camera_pos[1], camera_pos[2],
                 camera_rot[0].to_degrees(), camera_rot[1].to_degrees()
             )));
         }
@@ -283,20 +284,20 @@ impl SceneViewRenderer {
         let relative_pos = [
             world_pos[0] - camera_pos[0],
             world_pos[1] - camera_pos[1], 
-            camera_pos[2] - world_pos[2]  // Flip Z: camera looks down -Z axis
+            world_pos[2] - camera_pos[2]
         ];
         
-        // Apply camera rotation
-        let yaw = camera_rot[1];
-        let pitch = camera_rot[0];
+        // Apply camera rotation (Unity-style: Y-axis yaw first, then X-axis pitch)
+        let yaw = -camera_rot[1];  // Negative for correct rotation direction
+        let pitch = -camera_rot[0];
         
         // Rotate around Y-axis (yaw)
         let cos_yaw = yaw.cos();
         let sin_yaw = yaw.sin();
-        let rotated_x = relative_pos[0] * cos_yaw - relative_pos[2] * sin_yaw;
-        let rotated_z = relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
+        let rotated_x = relative_pos[0] * cos_yaw + relative_pos[2] * sin_yaw;
+        let rotated_z = -relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
         
-        // Rotate around X-axis (pitch)
+        // Apply pitch rotation around X-axis
         let cos_pitch = pitch.cos();
         let sin_pitch = pitch.sin();
         let final_y = relative_pos[1] * cos_pitch - rotated_z * sin_pitch;
@@ -607,29 +608,28 @@ impl SceneViewRenderer {
         camera_rot: [f32; 3],
         view_center: egui::Pos2,
     ) -> (egui::Pos2, f32) {
-        // Calculate relative position from camera  
-        // In our coordinate system: +Z is forward from camera, -Z is backward
+        // Calculate relative position from camera
         let relative_pos = [
             world_pos[0] - camera_pos[0],
             world_pos[1] - camera_pos[1], 
-            camera_pos[2] - world_pos[2]  // Flip Z: camera looks down -Z axis
+            world_pos[2] - camera_pos[2]
         ];
         
-        // Apply camera rotation
-        let yaw = camera_rot[1];
-        let pitch = camera_rot[0];
+        // Apply camera rotation (Unity-style: Y-axis yaw first, then X-axis pitch)
+        let yaw = -camera_rot[1];  // Negative for correct rotation direction
+        let pitch = -camera_rot[0];
         
         // Rotate around Y-axis (yaw)
         let cos_yaw = yaw.cos();
         let sin_yaw = yaw.sin();
-        let rotated_x = relative_pos[0] * cos_yaw - relative_pos[2] * sin_yaw;
-        let rotated_z = relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
+        let rotated_x = relative_pos[0] * cos_yaw + relative_pos[2] * sin_yaw;
+        let rotated_z = -relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
         
-        // Apply pitch rotation
+        // Apply pitch rotation around X-axis
         let cos_pitch = pitch.cos();
         let sin_pitch = pitch.sin();
-        let final_y = relative_pos[1] * cos_pitch + rotated_z * sin_pitch;
-        let final_z = -relative_pos[1] * sin_pitch + rotated_z * cos_pitch;
+        let final_y = relative_pos[1] * cos_pitch - rotated_z * sin_pitch;
+        let final_z = relative_pos[1] * sin_pitch + rotated_z * cos_pitch;
         
         // Simple perspective projection
         let depth = final_z;

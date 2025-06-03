@@ -6,7 +6,7 @@ pub enum Platform {
     Windows,
     MacOS,
     Linux,
-    iOS,
+    Ios,
     Android,
     Web,
 }
@@ -42,7 +42,7 @@ impl SystemInfo {
         return Platform::Linux;
         
         #[cfg(target_os = "ios")]
-        return Platform::iOS;
+        return Platform::Ios;
         
         #[cfg(target_os = "android")]
         return Platform::Android;

@@ -1,7 +1,7 @@
 //! ECS Camera Components - Unified camera system for all camera types
 
 use crate::{CameraType, Viewport};
-use engine_ecs_core::Component;
+use engine_component_traits::Component;
 use serde::{Serialize, Deserialize};
 
 /// Basic 3D Camera Component - simple ECS camera for perspective rendering

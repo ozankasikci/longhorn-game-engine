@@ -1,6 +1,6 @@
 //! Physics-specific mathematical calculations
 
-use glam::{Vec2, Vec3, Quat, Mat3};
+use glam::{Vec2, Vec3};
 
 /// Calculate the moment of inertia for a solid sphere
 pub fn sphere_moment_of_inertia(mass: f32, radius: f32) -> f32 {

@@ -31,13 +31,14 @@ impl SceneNavigator {
         if scene_nav.is_navigating {
             scene_nav.is_navigating = false;
             scene_nav.last_mouse_pos = None;
+            scene_nav.rotation_smoothing_samples.clear(); // Clear smoothing samples
             messages.push(ConsoleMessage::info("✔️ Scene navigation ended"));
         }
         
         messages
     }
     
-    /// Apply mouse look rotation to the camera with smooth interpolation
+    /// Apply mouse look rotation to the camera - Unity-style free look (FPS-style) with smoothing
     pub fn apply_mouse_look(scene_nav: &mut SceneNavigation, mouse_delta: egui::Vec2) -> Vec<ConsoleMessage> {
         let mut messages = Vec::new();
         
@@ -45,94 +46,52 @@ impl SceneNavigator {
             return messages;
         }
         
-        // Calculate raw rotation input
+        // Calculate raw rotation deltas
         let raw_pitch_delta = -mouse_delta.y * scene_nav.rotation_sensitivity;
         let raw_yaw_delta = -mouse_delta.x * scene_nav.rotation_sensitivity;
         
-        // Add to smoothing samples for jitter reduction
+        // Add to smoothing samples (keep last 5 samples for averaging)
         scene_nav.rotation_smoothing_samples.push([raw_pitch_delta, raw_yaw_delta]);
-        
-        // Keep only recent samples (last 5 frames)
         if scene_nav.rotation_smoothing_samples.len() > 5 {
             scene_nav.rotation_smoothing_samples.remove(0);
         }
         
-        // Calculate smoothed input using exponential moving average
-        let smoothed_input = Self::calculate_smoothed_rotation_input(&scene_nav.rotation_smoothing_samples);
-        
-        // Apply adaptive sensitivity based on movement speed
-        let adaptive_sensitivity = Self::calculate_adaptive_sensitivity(mouse_delta.length(), scene_nav.rotation_sensitivity);
-        
-        // Calculate target velocity from input
-        let target_velocity = [
-            smoothed_input[0] * adaptive_sensitivity * 60.0, // Convert to rad/s (assuming 60fps)
-            smoothed_input[1] * adaptive_sensitivity * 60.0,
-        ];
-        
-        // Update rotation velocity with acceleration towards target
-        let delta_time = 1.0 / 60.0; // Assume 60fps for consistent behavior
-        scene_nav.rotation_velocity[0] = Self::approach_velocity(
-            scene_nav.rotation_velocity[0],
-            target_velocity[0],
-            scene_nav.rotation_acceleration,
-            scene_nav.max_rotation_speed,
-            delta_time
-        );
-        scene_nav.rotation_velocity[1] = Self::approach_velocity(
-            scene_nav.rotation_velocity[1], 
-            target_velocity[1],
-            scene_nav.rotation_acceleration,
-            scene_nav.max_rotation_speed,
-            delta_time
-        );
-        
-        // Calculate rotation delta from velocity
-        let velocity_pitch_delta = scene_nav.rotation_velocity[0] * delta_time;
-        let velocity_yaw_delta = scene_nav.rotation_velocity[1] * delta_time;
-        
-        // For large rotations, add them to target delta for interpolation
-        scene_nav.target_rotation_delta[0] += velocity_pitch_delta;
-        scene_nav.target_rotation_delta[1] += velocity_yaw_delta;
-        
-        // Use final deltas for immediate application
-        let final_pitch_delta = velocity_pitch_delta;
-        let final_yaw_delta = velocity_yaw_delta;
-        
-        // Apply rotation with interpolation for large movements
-        let max_single_frame_rotation = 0.1; // Radians per frame
-        
-        let pitch_delta = if final_pitch_delta.abs() > max_single_frame_rotation {
-            final_pitch_delta.signum() * max_single_frame_rotation
+        // Apply simple exponential smoothing to reduce jitter
+        // Use weighted average with more weight on recent samples
+        let smoothing_factor: f32 = 0.85; // Higher = less smoothing, more responsive (0.85 for good balance)
+        let (pitch_delta, yaw_delta) = if scene_nav.rotation_smoothing_samples.len() > 1 {
+            let mut weighted_pitch = 0.0;
+            let mut weighted_yaw = 0.0;
+            let mut total_weight = 0.0;
+            
+            for (i, sample) in scene_nav.rotation_smoothing_samples.iter().enumerate() {
+                let weight = smoothing_factor.powi(scene_nav.rotation_smoothing_samples.len() as i32 - i as i32 - 1);
+                weighted_pitch += sample[0] * weight;
+                weighted_yaw += sample[1] * weight;
+                total_weight += weight;
+            }
+            
+            (weighted_pitch / total_weight, weighted_yaw / total_weight)
         } else {
-            final_pitch_delta
+            (raw_pitch_delta, raw_yaw_delta)
         };
         
-        let yaw_delta = if final_yaw_delta.abs() > max_single_frame_rotation {
-            final_yaw_delta.signum() * max_single_frame_rotation
-        } else {
-            final_yaw_delta
-        };
-        
-        // Apply rotation to camera
+        // Update camera rotation with smoothed values
         scene_nav.scene_camera_transform.rotation[0] += pitch_delta;
         scene_nav.scene_camera_transform.rotation[1] += yaw_delta;
-        
-        // DEBUG: Log rotation changes - ALWAYS log to debug rotation issue
-        messages.push(ConsoleMessage::info(&format!(
-            "🔄 Camera rotation: pitch_delta={:.4}, yaw_delta={:.4}, new_rot=[{:.2}, {:.2}]°, mouse_delta=[{:.1}, {:.1}]",
-            pitch_delta.to_degrees(), yaw_delta.to_degrees(),
-            scene_nav.scene_camera_transform.rotation[0].to_degrees(),
-            scene_nav.scene_camera_transform.rotation[1].to_degrees(),
-            mouse_delta.x, mouse_delta.y
-        )));
         
         // Clamp pitch to prevent camera flipping
         scene_nav.scene_camera_transform.rotation[0] = scene_nav.scene_camera_transform.rotation[0]
             .clamp(-1.5, 1.5); // ~85 degrees
         
-        // Update target rotation delta (subtract what we applied)
-        scene_nav.target_rotation_delta[0] -= pitch_delta;
-        scene_nav.target_rotation_delta[1] -= yaw_delta;
+        // Only log significant rotations
+        if pitch_delta.abs() > 0.01 || yaw_delta.abs() > 0.01 {
+            messages.push(ConsoleMessage::info(&format!(
+                "🔄 Free look: pitch={:.1}°, yaw={:.1}°",
+                scene_nav.scene_camera_transform.rotation[0].to_degrees(),
+                scene_nav.scene_camera_transform.rotation[1].to_degrees()
+            )));
+        }
         
         messages
     }
@@ -248,12 +207,12 @@ impl SceneNavigator {
             scene_nav.movement_speed
         };
         
-        // WASD movement
+        // WASD movement - Fixed: W moves forward, S moves backward
         if ui.input(|i| i.key_down(egui::Key::W)) {
-            movement[2] -= 1.0;
+            movement[2] += 1.0;  // Forward is positive Z in local space
         }
         if ui.input(|i| i.key_down(egui::Key::S)) {
-            movement[2] += 1.0;
+            movement[2] -= 1.0;  // Backward is negative Z in local space
         }
         if ui.input(|i| i.key_down(egui::Key::A)) {
             movement[0] -= 1.0;
@@ -317,21 +276,25 @@ impl SceneNavigator {
         // Transform the movement vector
         let mut transformed = [0.0; 3];
         
-        // Right/left movement (strafing) - only affected by yaw
-        transformed[0] = movement[0] * cos_yaw - movement[2] * sin_yaw;
-        transformed[2] = movement[0] * sin_yaw + movement[2] * cos_yaw;
+        // First, handle strafe movement (only affected by yaw, not pitch)
+        transformed[0] = movement[0] * cos_yaw;
+        transformed[2] = -movement[0] * sin_yaw;
         
-        // Up/down movement - not affected by rotation
-        transformed[1] = movement[1];
-        
-        // Apply pitch to forward/backward movement
+        // Then, handle forward/backward movement (affected by both yaw and pitch)
         if movement[2].abs() > 0.001 {
-            let forward_horizontal = transformed[2] * cos_pitch;
-            let forward_vertical = -transformed[2] * sin_pitch;
+            // Calculate forward direction based on yaw
+            let forward_x = movement[2] * sin_yaw;
+            let forward_z = movement[2] * cos_yaw;
             
-            transformed[2] = forward_horizontal;
-            transformed[1] += forward_vertical;
+            // Apply pitch: when looking up/down, forward movement includes vertical component
+            // and horizontal movement is reduced
+            transformed[0] += forward_x * cos_pitch;
+            transformed[2] += forward_z * cos_pitch;
+            transformed[1] += movement[2] * sin_pitch;
         }
+        
+        // Direct up/down movement (Q/E) is not affected by rotation
+        transformed[1] += movement[1];
         
         transformed
     }
@@ -369,37 +332,20 @@ impl SceneNavigator {
     ) -> Vec<ConsoleMessage> {
         let mut console_messages = Vec::new();
         
-        // Check for secondary mouse button click on the response
-        if response.secondary_clicked() {
-            console_messages.push(ConsoleMessage::info("🖱️ Response detected secondary click!"));
-        }
+        // Use the response object's drag detection for reliable input in docked panels
+        let is_dragging = response.dragged_by(egui::PointerButton::Secondary);
+        let drag_started = response.drag_started_by(egui::PointerButton::Secondary);
+        let drag_stopped = response.drag_stopped_by(egui::PointerButton::Secondary);
         
-        // Check for right mouse button to start navigation - use ctx directly for dock compatibility
+        // Get pointer position from context
         let ctx = ui.ctx();
-        let (rmb_down, rmb_pressed, pointer_pos, pointer_delta) = ctx.input(|i| {
-            (i.pointer.secondary_down(), 
-             i.pointer.secondary_pressed(),
-             i.pointer.hover_pos(),
-             i.pointer.delta())
-        });
+        let pointer_pos = ctx.input(|i| i.pointer.hover_pos());
         
-        // Alternative: Check response for drag with secondary button
-        let is_dragging_secondary = response.dragged_by(egui::PointerButton::Secondary);
-        
-        // Only handle navigation if mouse is within the scene view
+        // Check if mouse is in rect
         let mouse_in_rect = pointer_pos.map_or(false, |pos| rect.contains(pos));
         
-        // DEBUG: Log mouse rect check
-        if rmb_pressed || response.secondary_clicked() {
-            console_messages.push(ConsoleMessage::info(&format!(
-                "🖱️ RMB pressed - mouse_in_rect: {}, pointer_pos: {:?}, rect: {:?}, is_navigating: {}, rmb_pressed: {}",
-                mouse_in_rect, pointer_pos, rect, scene_navigation.is_navigating, rmb_pressed
-            )));
-        }
-        
-        // Start navigation if RMB is pressed (not just down) and mouse is in rect
-        if (rmb_pressed || response.drag_started_by(egui::PointerButton::Secondary)) 
-            && mouse_in_rect && !scene_navigation.is_navigating {
+        // Start navigation on drag start
+        if drag_started && mouse_in_rect && !scene_navigation.is_navigating {
             if let Some(mouse_pos) = pointer_pos {
                 console_messages.push(ConsoleMessage::info(&format!(
                     "🎮 Starting navigation at ({:.1}, {:.1})", mouse_pos.x, mouse_pos.y
@@ -407,29 +353,49 @@ impl SceneNavigator {
                 let messages = Self::start_navigation(scene_navigation, mouse_pos);
                 console_messages.extend(messages);
                 
-                // Capture mouse to prevent interference from other UI elements
+                // Hide cursor during navigation
                 ui.ctx().set_cursor_icon(egui::CursorIcon::None);
             }
         }
         
-        // Check for right mouse button release or drag end
-        if (!rmb_down && scene_navigation.is_navigating) || 
-           (scene_navigation.is_navigating && response.drag_stopped_by(egui::PointerButton::Secondary)) {
+        // End navigation on drag stop
+        if drag_stopped && scene_navigation.is_navigating {
             let messages = Self::end_navigation(scene_navigation);
             console_messages.extend(messages);
             ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
         }
         
         // Handle navigation input during active navigation
-        if scene_navigation.is_navigating && (rmb_down || is_dragging_secondary) {
-            // Use pointer delta for more accurate mouse movement tracking
-            if pointer_delta != egui::Vec2::ZERO {
-                console_messages.push(ConsoleMessage::info(&format!(
-                    "🖱️ Mouse delta: ({:.2}, {:.2}), dragging_secondary: {}",
-                    pointer_delta.x, pointer_delta.y, is_dragging_secondary
-                )));
-                let messages = Self::apply_mouse_look(scene_navigation, pointer_delta);
-                console_messages.extend(messages);
+        if scene_navigation.is_navigating && is_dragging {
+            // Calculate mouse delta using multiple methods
+            if let Some(current_pos) = pointer_pos {
+                let effective_delta = if let Some(last_pos) = scene_navigation.last_mouse_pos {
+                    // Always calculate manual delta
+                    let manual_delta = egui::Vec2::new(
+                        current_pos.x - last_pos.x,
+                        current_pos.y - last_pos.y
+                    );
+                    
+                    // Filter out tiny movements to reduce jitter
+                    // Only process movement if it's above a small threshold
+                    if manual_delta.length() > 0.2 {  // Small threshold to filter micro-movements
+                        manual_delta
+                    } else {
+                        egui::Vec2::ZERO
+                    }
+                } else {
+                    // First frame of navigation, no delta yet
+                    egui::Vec2::ZERO
+                };
+                
+                // Apply rotation if there's movement
+                if effective_delta.length() > 0.0 {  // Process any non-zero delta since we already filtered
+                    let messages = Self::apply_mouse_look(scene_navigation, effective_delta);
+                    console_messages.extend(messages);
+                }
+                
+                // Update last mouse position
+                scene_navigation.last_mouse_pos = Some(current_pos);
             }
             
             // Handle WASD movement
@@ -439,15 +405,133 @@ impl SceneNavigator {
             console_messages.extend(messages);
         }
         
-        // Always update smooth rotation (for interpolation and damping)
-        let delta_time = ui.input(|i| i.stable_dt);
-        let messages = Self::update_smooth_rotation(scene_navigation, delta_time);
-        console_messages.extend(messages);
+        // Smooth rotation disabled for Unity-style direct response
+        // let delta_time = ui.input(|i| i.stable_dt);
+        // let messages = Self::update_smooth_rotation(scene_navigation, delta_time);
+        // console_messages.extend(messages);
         
         // Handle scroll wheel for speed adjustment (even when not actively navigating)
         let messages = Self::handle_navigation_speed_control(scene_navigation, ui);
         console_messages.extend(messages);
         
         console_messages
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use engine_components_3d::Transform;
+    
+    #[test]
+    fn test_w_key_moves_camera_in_look_direction() {
+        // In a typical FPS/Unity setup:
+        // - Camera at origin looks down -Z (forward is -Z in world space)
+        // - W key should move the camera forward (in the direction it's looking)
+        
+        // Test 1: Camera with no rotation (looking down -Z)
+        let camera_transform = Transform {
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0], 
+            scale: [1.0, 1.0, 1.0],
+        };
+        
+        // W key now produces movement[2] = +1.0 (after fix)
+        let movement = [0.0, 0.0, 1.0];
+        let transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, movement);
+        
+        // Camera should move forward in world space (positive Z because of how transform works)
+        assert!(transformed[2] > 0.0, "W key with no rotation should move +Z");
+        
+        // Test 2: Camera rotated 180 degrees (looking down +Z)
+        let camera_transform_180 = Transform {
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, std::f32::consts::PI, 0.0], // 180 degree yaw
+            scale: [1.0, 1.0, 1.0],
+        };
+        
+        let transformed_180 = SceneNavigator::transform_movement_by_camera(&camera_transform_180, movement);
+        
+        // When rotated 180, W should move us backward in world space (-Z)
+        assert!(transformed_180[2] < 0.0, "W key when rotated 180 should move -Z");
+    }
+    
+    #[test]
+    fn test_forward_movement_with_yaw_rotation() {
+        // Given a camera rotated 90 degrees to the right (looking along +X)
+        let camera_transform = Transform {
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, std::f32::consts::PI / 2.0, 0.0], // 90 degrees yaw
+            scale: [1.0, 1.0, 1.0],
+        };
+        
+        // When moving forward (W key now produces +1.0)
+        let movement = [0.0, 0.0, 1.0];
+        let transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, movement);
+        
+        // Then camera should move along +X axis
+        assert!(transformed[0] > 0.9, "Forward movement should be along +X when rotated right");
+        assert!(transformed[2].abs() < 0.1, "Minimal Z movement expected");
+        assert_eq!(transformed[1], 0.0, "No Y movement expected");
+    }
+    
+    #[test]
+    fn test_forward_movement_with_pitch_rotation() {
+        // Given a camera looking up 45 degrees
+        let camera_transform = Transform {
+            position: [0.0, 0.0, 0.0],
+            rotation: [std::f32::consts::PI / 4.0, 0.0, 0.0], // 45 degrees pitch up
+            scale: [1.0, 1.0, 1.0],
+        };
+        
+        // When moving forward (W key now produces +1.0)
+        let movement = [0.0, 0.0, 1.0];
+        let transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, movement);
+        
+        // Then camera should move forward and up
+        assert!(transformed[2] > 0.0, "Should still move forward");
+        assert!(transformed[1] > 0.0, "Should also move up when pitched up");
+        assert_eq!(transformed[0], 0.0, "No X movement expected");
+    }
+    
+    #[test]
+    fn test_backward_movement_is_opposite_of_forward() {
+        // Given a camera with some rotation
+        let camera_transform = Transform {
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.2, 0.5, 0.0],
+            scale: [1.0, 1.0, 1.0],
+        };
+        
+        // When moving forward and backward (with fixed directions)
+        let forward_movement = [0.0, 0.0, 1.0];   // W key
+        let backward_movement = [0.0, 0.0, -1.0]; // S key
+        
+        let forward_transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, forward_movement);
+        let backward_transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, backward_movement);
+        
+        // Then backward should be opposite of forward
+        assert!((forward_transformed[0] + backward_transformed[0]).abs() < 0.001);
+        assert!((forward_transformed[1] + backward_transformed[1]).abs() < 0.001);
+        assert!((forward_transformed[2] + backward_transformed[2]).abs() < 0.001);
+    }
+    
+    #[test]
+    fn test_strafe_movement_perpendicular_to_forward() {
+        // Given a camera looking forward
+        let camera_transform = Transform {
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: [1.0, 1.0, 1.0],
+        };
+        
+        // When strafing right
+        let movement = [1.0, 0.0, 0.0];
+        let transformed = SceneNavigator::transform_movement_by_camera(&camera_transform, movement);
+        
+        // Then should move along +X axis
+        assert!(transformed[0] > 0.9, "Right strafe should be +X");
+        assert_eq!(transformed[1], 0.0, "No Y movement expected");
+        assert_eq!(transformed[2], 0.0, "No Z movement expected");
     }
 }

@@ -9,12 +9,10 @@ glam = { workspace = true }
 serde = { workspace = true }
 log = { workspace = true }
 bytemuck = { workspace = true }
-rayon = "1.8"
-once_cell = "1.19"
+rayon = { workspace = true }
+once_cell = { workspace = true }
+engine-component-traits = { path = "../engine-component-traits" }
 
 [dev-dependencies]
-tokio-test = "0.4"
-criterion = { version = "0.5", features = ["html_reports"] }
-engine-components-3d = { path = "../engine-components-3d" }
-engine-camera-core = { path = "../engine-camera-core" }
-engine-components-ui = { path = "../engine-components-ui" }
+tokio-test = { workspace = true }
+criterion = { workspace = true }

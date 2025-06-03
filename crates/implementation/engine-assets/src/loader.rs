@@ -1,6 +1,6 @@
 //! Asset loading functionality
 
-use crate::{AssetResult, AssetError, AssetId, AssetType};
+use crate::{AssetResult, AssetType};
 
 /// Asset loader trait
 pub trait AssetLoader<T> {

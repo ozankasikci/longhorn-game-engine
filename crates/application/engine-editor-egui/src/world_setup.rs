@@ -4,13 +4,61 @@ use engine_ecs_core::{World, Entity};
 use engine_components_3d::{Transform, Visibility, Material, Mesh, MeshType, GameObject3DBundle};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
-use engine_camera::{Camera, CameraBundle};
+use engine_camera::Camera;
+use engine_component_traits::{Bundle, ComponentClone};
 use crate::editor_state::ConsoleMessage;
+
+/// Bundle for camera entities
+pub struct CameraBundle {
+    pub transform: Transform,
+    pub camera: Camera,
+    pub name: Name,
+}
+
+impl Bundle for CameraBundle {
+    fn component_ids() -> Vec<std::any::TypeId> where Self: Sized {
+        vec![
+            std::any::TypeId::of::<Transform>(),
+            std::any::TypeId::of::<Camera>(),
+            std::any::TypeId::of::<Name>(),
+        ]
+    }
+    
+    fn into_components(self) -> Vec<(std::any::TypeId, Box<dyn ComponentClone>)> {
+        vec![
+            (std::any::TypeId::of::<Transform>(), Box::new(self.transform)),
+            (std::any::TypeId::of::<Camera>(), Box::new(self.camera)),
+            (std::any::TypeId::of::<Name>(), Box::new(self.name)),
+        ]
+    }
+}
+
+impl Default for CameraBundle {
+    fn default() -> Self {
+        Self {
+            transform: Transform::default(),
+            camera: Camera::default(),
+            name: Name::new("Camera"),
+        }
+    }
+}
 
 /// Creates a default world with sample entities for the editor
 pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
     let mut world = World::new();
     let mut messages = Vec::new();
+    
+    // Register all component types
+    engine_ecs_core::register_component::<Transform>();
+    engine_ecs_core::register_component::<Camera>();
+    engine_ecs_core::register_component::<Name>();
+    engine_ecs_core::register_component::<Mesh>();
+    engine_ecs_core::register_component::<Material>();
+    engine_ecs_core::register_component::<Visibility>();
+    engine_ecs_core::register_component::<Sprite>();
+    engine_ecs_core::register_component::<SpriteRenderer>();
+    
+    messages.push(ConsoleMessage::info("📝 Registered all component types"));
     
     // Create camera entity with bundle
     let camera_entity = world.spawn_bundle(CameraBundle {
@@ -27,24 +75,6 @@ pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
     
     // Create multiple 3D objects for camera rotation testing
     
-    // BRIGHT GREEN CUBE - RIGHT IN FRONT OF CAMERA FOR VISIBILITY TEST
-    let _test_cube_entity = world.spawn_bundle(GameObject3DBundle {
-        transform: Transform {
-            position: [0.0, 2.0, 5.0],  // Same Y as camera, 3 units in front
-            rotation: [0.0, 0.0, 0.0],  // No rotation
-            scale: [3.0, 3.0, 3.0],     // Very large and visible
-        },
-        mesh: Mesh {
-            mesh_type: MeshType::Cube,
-        },
-        material: Material {
-            color: [0.0, 1.0, 0.0, 1.0], // Bright green - very visible
-            metallic: 0.0,
-            roughness: 0.3,
-            emissive: [0.1, 0.3, 0.1],   // Slight green glow
-        },
-        visibility: Visibility::default(),
-    }).expect("Failed to create green cube");
     
     // Red cube
     let _red_cube_entity = world.spawn_bundle(GameObject3DBundle {
@@ -141,7 +171,7 @@ pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
         visibility: Visibility::default(),
     }).expect("Failed to create ground plane");
     
-    messages.push(ConsoleMessage::info("✅ Created 6 3D objects using bundles"));
+    messages.push(ConsoleMessage::info("✅ Created 5 3D objects using bundles"));
     messages.push(ConsoleMessage::info("🚀 ECS v2 World with proper multi-component entities!"));
     messages.push(ConsoleMessage::info("🎮 Objects should now render with actual meshes"));
     
@@ -232,13 +262,10 @@ pub fn create_default_hierarchy() -> Vec<crate::types::HierarchyObject> {
         HierarchyObject::new("📱 Main Camera", ObjectType::Camera),
         HierarchyObject::new("☀️ Directional Light", ObjectType::Light),
         HierarchyObject::parent("📦 3D Objects", vec![
-            HierarchyObject::new("🟢 BRIGHT GREEN TEST CUBE", ObjectType::GameObject),
             HierarchyObject::new("🔴 Red Cube", ObjectType::GameObject),
             HierarchyObject::new("🟢 Green Sphere", ObjectType::GameObject),
             HierarchyObject::new("🔵 Blue Cube", ObjectType::GameObject),
             HierarchyObject::new("🟡 Yellow Sphere", ObjectType::GameObject),
-            HierarchyObject::new("🟣 Purple Cube", ObjectType::GameObject),
-            HierarchyObject::new("🟠 Center Reference", ObjectType::GameObject),
             HierarchyObject::new("⬜ Ground Plane", ObjectType::GameObject),
         ]),
         HierarchyObject::parent("🎨 Sprites", vec![

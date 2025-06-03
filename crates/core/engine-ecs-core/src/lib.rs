@@ -6,7 +6,9 @@ pub mod time;
 pub mod memory;
 
 // Re-export ECS types
-pub use ecs_v2::{Entity, Component, World, ArchetypeId, Query, QueryMut, Read, Write, Changed, Tick, Bundle, ComponentTicks, register_component};
+pub use ecs_v2::{Entity, World, ArchetypeId, Query, QueryMut, Read, Write, Changed, register_component};
+// Re-export component traits
+pub use engine_component_traits::{Component, ComponentClone, ComponentTicks, Tick, Bundle};
 
 
 #[cfg(test)]

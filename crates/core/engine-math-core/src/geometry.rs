@@ -1,6 +1,6 @@
 //! Geometric calculations and collision detection utilities
 
-use glam::{Vec2, Vec3, Vec4};
+use glam::{Vec2, Vec3};
 
 /// 2D Ray structure
 #[derive(Debug, Clone, Copy)]

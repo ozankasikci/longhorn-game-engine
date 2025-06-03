@@ -122,29 +122,17 @@ impl SceneViewPanel {
         
         ui.separator();
         
-        // Main view area - allocate space and check raw input
+        // Main view area - allocate space first
         let available_size = ui.available_size();
-        let (rect, response) = ui.allocate_exact_size(available_size, egui::Sense::click_and_drag());
+        let (rect, mut response) = ui.allocate_exact_size(available_size, egui::Sense::click_and_drag());
         
-        // Check raw input to bypass dock area event handling
-        let (pointer_pos, primary_down, secondary_down) = ui.input(|i| {
-            (i.pointer.hover_pos(), i.pointer.primary_down(), i.pointer.secondary_down())
-        });
+        // CRITICAL: Create an interactive area that captures mouse events
+        // This ensures the scene view gets mouse input even in a docked panel
+        response = ui.interact(rect, response.id, egui::Sense::click_and_drag());
         
-        // Check if pointer is inside our rect
-        let pointer_in_rect = pointer_pos.map_or(false, |pos| rect.contains(pos));
-        
-        // Force the scene view to claim focus when mouse is over it
-        if pointer_in_rect && response.hovered() {
+        // Force focus when hovering to ensure we get input priority
+        if response.hovered() {
             response.request_focus();
-        }
-        
-        // Debug: Check raw input
-        if pointer_in_rect && primary_down {
-            console_messages.push(ConsoleMessage::info("✅ Scene View: RAW LEFT CLICK DETECTED!"));
-        }
-        if pointer_in_rect && secondary_down {
-            console_messages.push(ConsoleMessage::info("✅ Scene View: RAW RIGHT CLICK DETECTED!"));
         }
         
         // Handle scene navigation FIRST before drawing

@@ -7,7 +7,7 @@ repository.workspace = true
 
 [dependencies]
 # Core engine integration
-engine-ecs-core = { workspace = true }
+engine-component-traits = { workspace = true }
 engine-components-3d = { workspace = true }
 engine-components-ui = { workspace = true }
 

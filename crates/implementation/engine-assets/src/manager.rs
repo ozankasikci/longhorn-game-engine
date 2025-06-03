@@ -1,6 +1,6 @@
 //! Asset manager for coordinating asset loading and caching
 
-use crate::{AssetResult, AssetError, AssetId, AssetType};
+use crate::{AssetResult, AssetError, AssetId};
 
 /// Central asset manager
 pub struct AssetManager {

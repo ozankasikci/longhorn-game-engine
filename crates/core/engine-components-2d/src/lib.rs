@@ -3,7 +3,7 @@
 //! This crate provides 2D-specific components including Sprite and SpriteRenderer.
 
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::Component;
+use engine_component_traits::Component;
 
 // 2D Sprite Component
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

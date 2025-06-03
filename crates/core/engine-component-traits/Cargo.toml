@@ -1,10 +1,9 @@
 [package]
-name = "engine-components-3d"
+name = "engine-component-traits"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-engine-component-traits = { path = "../engine-component-traits" }
 serde = { workspace = true }
-glam = { workspace = true }
+bytemuck = { workspace = true }

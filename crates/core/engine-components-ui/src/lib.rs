@@ -3,7 +3,7 @@
 //! This crate provides UI-specific components for canvas rendering and layout.
 
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::Component;
+use engine_component_traits::Component;
 
 // Canvas Component for UI rendering
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

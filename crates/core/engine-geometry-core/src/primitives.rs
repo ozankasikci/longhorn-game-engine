@@ -3,7 +3,7 @@
 //! This module defines the core abstractions for primitive shapes.
 //! Concrete implementations are provided by implementation crates.
 
-use crate::{Mesh, MeshData};
+use crate::Mesh;
 use serde::{Serialize, Deserialize};
 
 /// Primitive shape types

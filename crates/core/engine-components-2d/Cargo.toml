@@ -1,8 +1,9 @@
 [package]
 name = "engine-components-2d"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-engine-ecs-core = { path = "../engine-ecs-core" }
-serde = { version = "1.0", features = ["derive"] }
+engine-component-traits = { path = "../engine-component-traits" }
+serde = { workspace = true }

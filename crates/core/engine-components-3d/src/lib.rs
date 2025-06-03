@@ -4,7 +4,7 @@
 //! Material, Light, and Visibility components.
 
 use serde::{Serialize, Deserialize};
-use engine_ecs_core::Component;
+use engine_component_traits::Component;
 
 // Transform component - fundamental for all spatial objects
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -161,7 +161,7 @@ impl Default for Visibility {
 // COMPONENT BUNDLES - Quick solution for multi-component entities
 // ============================================================================
 
-use engine_ecs_core::{Bundle, Entity, World, ArchetypeId, ComponentTicks};
+use engine_component_traits::Bundle;
 
 /// Bundle for standard 3D game objects
 pub struct GameObject3DBundle {
@@ -172,30 +172,22 @@ pub struct GameObject3DBundle {
 }
 
 impl Bundle for GameObject3DBundle {
-    fn insert(self, entity: Entity, world: &mut World) -> Result<(), &'static str> {
-        // Create archetype ID with all components
-        let archetype_id = ArchetypeId::new()
-            .with_component::<Transform>()
-            .with_component::<Mesh>()
-            .with_component::<Material>()
-            .with_component::<Visibility>();
-            
-        // Add entity to archetype
-        let _index = world.add_entity_to_archetype(entity, archetype_id.clone());
-        
-        // Get tick before borrowing archetype
-        let tick = world.change_tick();
-        
-        // Get the archetype and add all components
-        let archetype = world.archetypes_mut().get_mut(&archetype_id)
-            .ok_or("Failed to get archetype")?;
-            
-        archetype.add_component(self.transform, ComponentTicks::new(tick));
-        archetype.add_component(self.mesh, ComponentTicks::new(tick));
-        archetype.add_component(self.material, ComponentTicks::new(tick));
-        archetype.add_component(self.visibility, ComponentTicks::new(tick));
-        
-        Ok(())
+    fn component_ids() -> Vec<std::any::TypeId> where Self: Sized {
+        vec![
+            std::any::TypeId::of::<Transform>(),
+            std::any::TypeId::of::<Mesh>(),
+            std::any::TypeId::of::<Material>(),
+            std::any::TypeId::of::<Visibility>(),
+        ]
+    }
+    
+    fn into_components(self) -> Vec<(std::any::TypeId, Box<dyn engine_component_traits::ComponentClone>)> {
+        vec![
+            (std::any::TypeId::of::<Transform>(), Box::new(self.transform)),
+            (std::any::TypeId::of::<Mesh>(), Box::new(self.mesh)),
+            (std::any::TypeId::of::<Material>(), Box::new(self.material)),
+            (std::any::TypeId::of::<Visibility>(), Box::new(self.visibility)),
+        ]
     }
 }
 

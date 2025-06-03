@@ -1,7 +1,7 @@
 //! Platform filesystem abstraction
 
 use std::path::PathBuf;
-use crate::{PlatformResult, PlatformError};
+use crate::PlatformResult;
 
 /// Platform-specific file system operations
 pub struct FileSystem;
