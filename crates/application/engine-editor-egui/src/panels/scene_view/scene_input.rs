@@ -20,12 +20,46 @@ pub fn handle_scene_input(
     let mut console_messages = Vec::new();
     
     // DEBUG: Log basic input state
-    if let Some(mouse_pos) = response.hover_pos() {
+    let hover_pos = response.hover_pos();
+    let hovered = response.hovered();
+    let has_focus = response.has_focus();
+    
+    // Check for any pointer activity
+    let (primary_down, secondary_down, secondary_pressed) = ui.input(|i| {
+        (i.pointer.primary_down(), i.pointer.secondary_down(), i.pointer.secondary_pressed())
+    });
+    
+    // Log response state
+    if secondary_pressed || secondary_down || response.clicked() {
+        console_messages.push(ConsoleMessage::info(&format!(
+            "🎯 Response state: hovered={}, has_focus={}, hover_pos={:?}, rect={:?}",
+            hovered, has_focus, hover_pos, response.rect
+        )));
+    }
+    
+    // Simple test: log any click and check if we're using ui.interact response
+    if response.clicked() {
+        console_messages.push(ConsoleMessage::info("✅ LEFT CLICK DETECTED via ui.interact!"));
+    }
+    if response.secondary_clicked() {
+        console_messages.push(ConsoleMessage::info("✅ RIGHT CLICK DETECTED via ui.interact!"));
+    }
+    
+    // Also check if we're detecting drags
+    if response.dragged() {
+        console_messages.push(ConsoleMessage::info(&format!(
+            "🖱️ DRAG DETECTED: by={:?}, delta={:?}", 
+            response.drag_started_by(egui::PointerButton::Primary) || response.drag_started_by(egui::PointerButton::Secondary),
+            response.drag_delta()
+        )));
+    }
+    
+    if let Some(mouse_pos) = hover_pos {
         // Only log occasionally to avoid spam
-        if response.clicked() || response.dragged() || response.drag_stopped() || response.secondary_clicked() {
+        if response.clicked() || response.dragged() || response.drag_stopped() || secondary_down || secondary_pressed {
             console_messages.push(ConsoleMessage::info(&format!(
-                "🖱️ Mouse input: pos=({:.1}, {:.1}), clicked={}, dragged={}, drag_stopped={}, secondary_clicked={}",
-                mouse_pos.x, mouse_pos.y, response.clicked(), response.dragged(), response.drag_stopped(), response.secondary_clicked()
+                "🖱️ Mouse input: pos=({:.1}, {:.1}), clicked={}, dragged={}, drag_stopped={}, secondary_down={}, secondary_pressed={}",
+                mouse_pos.x, mouse_pos.y, response.clicked(), response.dragged(), response.drag_stopped(), secondary_down, secondary_pressed
             )));
         }
     }

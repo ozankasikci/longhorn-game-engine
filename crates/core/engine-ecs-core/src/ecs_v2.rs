@@ -3,9 +3,34 @@
 
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, BTreeSet};
-// Removed unused imports
+use std::sync::{Arc, Mutex};
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
 // Generic ECS implementation - no specific component dependencies
+
+// Component Registry for dynamic component array creation
+type ComponentArrayFactory = Arc<dyn Fn() -> Box<dyn ComponentArrayTrait> + Send + Sync>;
+
+/// Global component registry
+static COMPONENT_REGISTRY: Lazy<Mutex<HashMap<TypeId, ComponentArrayFactory>>> = 
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// Register a component type in the global registry
+pub fn register_component<T: Component>() {
+    let type_id = TypeId::of::<T>();
+    let factory: ComponentArrayFactory = Arc::new(|| {
+        Box::new(ComponentArray::<T>::new())
+    });
+    
+    COMPONENT_REGISTRY.lock().unwrap().insert(type_id, factory);
+}
+
+/// Create a new component array for the given type
+fn create_component_array(type_id: TypeId) -> Option<Box<dyn ComponentArrayTrait>> {
+    COMPONENT_REGISTRY.lock().unwrap()
+        .get(&type_id)
+        .map(|factory| factory())
+}
 
 /// Entity is just an index into component arrays
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -29,10 +54,52 @@ impl Entity {
 }
 
 /// Component trait - marker for types that can be stored as components
-pub trait Component: 'static + Send + Sync {
+pub trait Component: 'static + Send + Sync + ComponentClone {
     fn type_id() -> TypeId where Self: Sized {
         TypeId::of::<Self>()
     }
+}
+
+/// Helper trait for component cloning with type erasure
+pub trait ComponentClone {
+    /// Clone this component as a type-erased box
+    fn clone_boxed(&self) -> Box<dyn ComponentClone>;
+    
+    /// Get as Any for downcasting
+    fn as_any(&self) -> &dyn Any;
+    
+    /// Get as mutable Any for downcasting
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    
+    /// Convert boxed self to boxed Any
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+}
+
+/// Blanket implementation for cloneable types
+impl<T: Clone + Component + 'static> ComponentClone for T {
+    fn clone_boxed(&self) -> Box<dyn ComponentClone> {
+        Box::new(self.clone())
+    }
+    
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+    
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+
+/// Macro to implement Component trait for types that already implement Clone
+#[macro_export]
+macro_rules! impl_component {
+    ($type:ty) => {
+        impl $crate::Component for $type {}
+    };
 }
 
 /// Archetype ID - uniquely identifies a combination of component types
@@ -82,6 +149,15 @@ pub trait ComponentArrayTrait: Send + Sync {
     
     /// Downcast to Any for type-specific mutable operations
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    
+    /// Clone a component at the given index
+    fn clone_component_at(&self, index: usize) -> Option<Box<dyn ComponentClone>>;
+    
+    /// Get component ticks at the given index
+    fn get_ticks_at(&self, index: usize) -> Option<ComponentTicks>;
+    
+    /// Push a cloned component
+    fn push_cloned(&mut self, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> Result<(), &'static str>;
 }
 
 /// Storage for a single component type within an archetype
@@ -197,6 +273,26 @@ impl<T: Component> ComponentArrayTrait for ComponentArray<T> {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+    
+    fn clone_component_at(&self, index: usize) -> Option<Box<dyn ComponentClone>> {
+        self.data.get(index).map(|component| component.clone_boxed())
+    }
+    
+    fn get_ticks_at(&self, index: usize) -> Option<ComponentTicks> {
+        self.ticks.get(index).cloned()
+    }
+    
+    fn push_cloned(&mut self, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> Result<(), &'static str> {
+        // Downcast the component to the correct type
+        let component_any = component.into_any();
+        if let Ok(component_boxed) = component_any.downcast::<T>() {
+            self.data.push(*component_boxed);
+            self.ticks.push(ticks);
+            Ok(())
+        } else {
+            Err("Type mismatch when pushing cloned component")
+        }
+    }
 }
 
 /// Type-erased component storage
@@ -310,6 +406,21 @@ impl ErasedComponentArray {
     pub fn type_id(&self) -> TypeId {
         self.type_id
     }
+    
+    /// Clone a component at the given index
+    pub fn clone_component_at(&self, index: usize) -> Option<Box<dyn ComponentClone>> {
+        self.array.clone_component_at(index)
+    }
+    
+    /// Add a cloned component
+    pub fn push_cloned(&mut self, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> Result<(), &'static str> {
+        self.array.push_cloned(component, ticks)
+    }
+    
+    /// Get component ticks at the given index (non-generic)
+    pub fn get_ticks_at(&self, index: usize) -> Option<ComponentTicks> {
+        self.array.get_ticks_at(index)
+    }
 }
 
 /// Archetype - stores entities with the same component signature
@@ -392,6 +503,36 @@ impl Archetype {
     pub fn entities(&self) -> &[Entity] {
         &self.entities
     }
+    
+    /// Clone a component at a specific index
+    pub fn clone_component_at(&self, type_id: TypeId, index: usize) -> Result<Option<Box<dyn ComponentClone>>, &'static str> {
+        let array = self.components.get(&type_id).ok_or("Component type not found")?;
+        Ok(array.clone_component_at(index))
+    }
+    
+    /// Get component ticks at a specific index
+    pub fn get_component_ticks_at(&self, type_id: TypeId, index: usize) -> Option<ComponentTicks> {
+        self.components.get(&type_id)?.get_ticks_at(index)
+    }
+    
+    /// Add a component from a cloned box
+    pub fn add_component_cloned(&mut self, type_id: TypeId, component: Box<dyn ComponentClone>, ticks: ComponentTicks) -> Result<(), &'static str> {
+        if let Some(array) = self.components.get_mut(&type_id) {
+            array.push_cloned(component, ticks)
+        } else {
+            // Try to create new array from registry
+            if let Some(mut new_array) = create_component_array(type_id) {
+                new_array.push_cloned(component, ticks)?;
+                self.components.insert(type_id, ErasedComponentArray {
+                    array: new_array,
+                    type_id,
+                });
+                Ok(())
+            } else {
+                Err("Component type not registered")
+            }
+        }
+    }
 }
 
 /// Change detection tick - tracks when components are modified
@@ -470,6 +611,37 @@ impl World {
         }
     }
     
+    /// Get mutable access to archetypes (for bundle system)
+    pub fn archetypes_mut(&mut self) -> &mut HashMap<ArchetypeId, Archetype> {
+        &mut self.archetypes
+    }
+    
+    /// Clone all components from an entity in an archetype
+    #[allow(dead_code)]
+    fn clone_entity_components(
+        &self,
+        _entity: Entity,
+        location: &EntityLocation
+    ) -> Result<Vec<(TypeId, Box<dyn ComponentClone>, ComponentTicks)>, &'static str> {
+        let archetype = self.archetypes.get(&location.archetype_id)
+            .ok_or("Archetype not found")?;
+            
+        let mut components = Vec::new();
+        
+        // Clone each component from the archetype
+        for (type_id, _array) in &archetype.components {
+            // We need to add a method to clone components from ErasedComponentArray
+            // For now, we'll need to handle this in the archetype
+            if let Some(component) = archetype.clone_component_at(*type_id, location.index)? {
+                let ticks = archetype.get_component_ticks_at(*type_id, location.index)
+                    .ok_or("Component ticks not found")?;
+                components.push((*type_id, component, ticks.clone()));
+            }
+        }
+        
+        Ok(components)
+    }
+    
     /// Migrate an entity from one archetype to another when adding components
     fn migrate_entity_to_new_archetype<T: Component>(
         &mut self, 
@@ -479,24 +651,62 @@ impl World {
         new_component: T, 
         new_component_ticks: ComponentTicks
     ) -> Result<(), &'static str> {
-        // TODO: Implement generic archetype migration
-        // For now, this is a simplified implementation that only supports 
-        // adding components to entities without existing components
+        // Phase 11 Implementation: Full component migration with registry
         
-        // Create target archetype if it doesn't exist
-        if !self.archetypes.contains_key(&target_archetype_id) {
-            self.archetypes.insert(target_archetype_id.clone(), Archetype::new(target_archetype_id.clone()));
+        // 1. Clone all existing components from old archetype
+        let components_to_migrate = self.clone_entity_components(entity, &old_location)?;
+        
+        // 2. Remove entity from old archetype and update swapped entity location
+        if let Some(old_archetype) = self.archetypes.get_mut(&old_location.archetype_id) {
+            // If there's an entity that will be swapped into the removed position, track it
+            let swapped_entity = if old_location.index < old_archetype.entities.len() - 1 {
+                // The last entity will be swapped into this position
+                Some(old_archetype.entities[old_archetype.entities.len() - 1])
+            } else {
+                None
+            };
+            
+            // Remove the entity
+            old_archetype.remove_entity(old_location.index);
+            
+            // Update the swapped entity's location if one was swapped
+            if let Some(swapped) = swapped_entity {
+                if swapped != entity {
+                    if let Some(swapped_location) = self.entity_locations.get_mut(&swapped) {
+                        swapped_location.index = old_location.index;
+                    }
+                }
+            }
         }
         
-        // For now, we'll only support simple migrations where the entity
-        // doesn't have existing components (to avoid the hardcoded component issue)
-        // TEMPORARY: Allow migration by removing from old archetype
-        // This is not efficient but works for the editor
+        // 3. Create target archetype if it doesn't exist
+        self.ensure_archetype_exists(target_archetype_id.clone());
         
-        // CRITICAL FIX: We need to skip migration for now since we can't generically copy components
-        // For now, return an error to indicate migration is not supported
-        // This will force single-archetype entities
-        Err("Component migration not yet implemented")
+        // 4. Add entity to new archetype and update location
+        let new_index = {
+            let target_archetype = self.archetypes.get_mut(&target_archetype_id)
+                .ok_or("Target archetype not found")?;
+            target_archetype.add_entity(entity)
+        };
+        
+        // Update entity location
+        self.entity_locations.insert(entity, EntityLocation {
+            archetype_id: target_archetype_id.clone(),
+            index: new_index,
+        });
+        
+        // 5. Add all cloned components to new archetype
+        let target_archetype = self.archetypes.get_mut(&target_archetype_id)
+            .ok_or("Target archetype not found")?;
+            
+        for (type_id, component, ticks) in components_to_migrate {
+            target_archetype.add_component_cloned(type_id, component, ticks)?;
+        }
+        
+        // 6. Add the new component
+        target_archetype.add_component(new_component, new_component_ticks);
+        
+        Ok(())
     }
     
     /// Get the current change tick
@@ -684,6 +894,7 @@ impl<T: Component> QueryData for Write<T> {
 
 /// Change detection query filter - only includes entities with components changed after last_run
 pub struct Changed<T: Component> {
+    #[allow(dead_code)]
     last_run: Tick,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -931,11 +1142,155 @@ impl World {
         self.add_component(entity, component).unwrap();
         entity
     }
+    
+    /// Remove a component from an entity
+    pub fn remove_component<T: Component>(&mut self, entity: Entity) -> Result<Option<T>, &'static str> {
+        // Get current location
+        let old_location = self.entity_locations.get(&entity)
+            .ok_or("Entity not found")?
+            .clone();
+            
+        // Get current archetype
+        let old_archetype = self.archetypes.get(&old_location.archetype_id)
+            .ok_or("Archetype not found")?;
+            
+        // Check if entity has the component
+        if !old_archetype.has_component::<T>() {
+            return Ok(None);
+        }
+        
+        // Clone the component value before migration using the clone infrastructure
+        let component_value = if let Some(cloned) = old_archetype.clone_component_at(TypeId::of::<T>(), old_location.index)? {
+            // Downcast the cloned component back to T
+            let any_box = cloned.into_any();
+            if let Ok(typed_box) = any_box.downcast::<T>() {
+                Some(*typed_box)
+            } else {
+                return Err("Failed to downcast component");
+            }
+        } else {
+            None
+        };
+        
+        // Create new archetype ID without this component
+        let mut new_types = BTreeSet::new();
+        for (type_id, _) in &old_archetype.components {
+            if *type_id != TypeId::of::<T>() {
+                new_types.insert(*type_id);
+            }
+        }
+        let new_archetype_id = ArchetypeId::from_types(new_types);
+        
+        // If archetype would be empty, just remove the entity
+        if new_archetype_id.0.is_empty() {
+            self.remove_entity(entity);
+            return Ok(component_value);
+        }
+        
+        // Clone all components except the one being removed
+        let mut components_to_migrate = Vec::new();
+        for (type_id, _) in &old_archetype.components {
+            if *type_id != TypeId::of::<T>() {
+                if let Some(component) = old_archetype.clone_component_at(*type_id, old_location.index)? {
+                    let ticks = old_archetype.get_component_ticks_at(*type_id, old_location.index)
+                        .ok_or("Component ticks not found")?;
+                    components_to_migrate.push((*type_id, component, ticks));
+                }
+            }
+        }
+        
+        // Remove entity from old archetype
+        if let Some(old_archetype) = self.archetypes.get_mut(&old_location.archetype_id) {
+            // Track entity that will be swapped
+            let swapped_entity = if old_location.index < old_archetype.entities.len() - 1 {
+                Some(old_archetype.entities[old_archetype.entities.len() - 1])
+            } else {
+                None
+            };
+            
+            old_archetype.remove_entity(old_location.index);
+            
+            // Update swapped entity location
+            if let Some(swapped) = swapped_entity {
+                if swapped != entity {
+                    if let Some(swapped_location) = self.entity_locations.get_mut(&swapped) {
+                        swapped_location.index = old_location.index;
+                    }
+                }
+            }
+        }
+        
+        // Create target archetype if needed
+        self.ensure_archetype_exists(new_archetype_id.clone());
+        
+        // Add entity to new archetype
+        let new_index = {
+            let target_archetype = self.archetypes.get_mut(&new_archetype_id)
+                .ok_or("Target archetype not found")?;
+            target_archetype.add_entity(entity)
+        };
+        
+        // Update entity location
+        self.entity_locations.insert(entity, EntityLocation {
+            archetype_id: new_archetype_id.clone(),
+            index: new_index,
+        });
+        
+        // Add all migrated components
+        let target_archetype = self.archetypes.get_mut(&new_archetype_id)
+            .ok_or("Target archetype not found")?;
+            
+        for (type_id, component, ticks) in components_to_migrate {
+            target_archetype.add_component_cloned(type_id, component, ticks)?;
+        }
+        
+        Ok(component_value)
+    }
 }
 
 impl Default for World {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ============================================================================
+// BUNDLE SYSTEM - Quick solution for multi-component entities
+// ============================================================================
+
+/// A bundle is a collection of components that can be added to an entity together
+pub trait Bundle: Send + Sync {
+    /// Insert all components from this bundle into the entity
+    fn insert(self, entity: Entity, world: &mut World) -> Result<(), &'static str>;
+}
+
+impl World {
+    /// Spawn an entity with a bundle of components
+    pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> Result<Entity, &'static str> {
+        let entity = self.spawn();
+        bundle.insert(entity, self)?;
+        Ok(entity)
+    }
+    
+    /// Internal helper to ensure an archetype exists
+    pub(crate) fn ensure_archetype_exists(&mut self, archetype_id: ArchetypeId) {
+        if !self.archetypes.contains_key(&archetype_id) {
+            self.archetypes.insert(archetype_id.clone(), Archetype::new(archetype_id));
+        }
+    }
+    
+    /// Helper to add entity to archetype with location tracking
+    pub fn add_entity_to_archetype(&mut self, entity: Entity, archetype_id: ArchetypeId) -> usize {
+        self.ensure_archetype_exists(archetype_id.clone());
+        let archetype = self.archetypes.get_mut(&archetype_id).unwrap();
+        let index = archetype.add_entity(entity);
+        
+        self.entity_locations.insert(entity, EntityLocation {
+            archetype_id,
+            index,
+        });
+        
+        index
     }
 }
 
@@ -956,6 +1311,7 @@ mod tests {
         scale: [f32; 3],
     }
     impl Component for MockTransform {}
+    impl crate::ecs::Component for MockTransform {} // For old ECS
     impl Default for MockTransform {
         fn default() -> Self {
             Self {
@@ -975,7 +1331,7 @@ mod tests {
         assert!(archetype_id.has_component::<MockTransform>());
         assert!(archetype_id.has_component::<TestComponent>());
         // Test with a component type that wasn't added
-        #[derive(Debug)]
+        #[derive(Debug, Clone)]
         struct UnusedComponent;
         impl Component for UnusedComponent {}
         
@@ -1227,7 +1583,7 @@ mod tests {
     #[test]
     fn test_performance_characteristics() {
         use std::time::Instant;
-        use crate::ecs::{World as OldWorld};
+        use crate::ecs::World as OldWorld;
         
         println!("\n=== ECS Performance Comparison ===");
         

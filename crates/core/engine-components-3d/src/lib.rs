@@ -157,6 +157,59 @@ impl Default for Visibility {
     }
 }
 
+// ============================================================================
+// COMPONENT BUNDLES - Quick solution for multi-component entities
+// ============================================================================
+
+use engine_ecs_core::{Bundle, Entity, World, ArchetypeId, ComponentTicks};
+
+/// Bundle for standard 3D game objects
+pub struct GameObject3DBundle {
+    pub transform: Transform,
+    pub mesh: Mesh,
+    pub material: Material,
+    pub visibility: Visibility,
+}
+
+impl Bundle for GameObject3DBundle {
+    fn insert(self, entity: Entity, world: &mut World) -> Result<(), &'static str> {
+        // Create archetype ID with all components
+        let archetype_id = ArchetypeId::new()
+            .with_component::<Transform>()
+            .with_component::<Mesh>()
+            .with_component::<Material>()
+            .with_component::<Visibility>();
+            
+        // Add entity to archetype
+        let _index = world.add_entity_to_archetype(entity, archetype_id.clone());
+        
+        // Get tick before borrowing archetype
+        let tick = world.change_tick();
+        
+        // Get the archetype and add all components
+        let archetype = world.archetypes_mut().get_mut(&archetype_id)
+            .ok_or("Failed to get archetype")?;
+            
+        archetype.add_component(self.transform, ComponentTicks::new(tick));
+        archetype.add_component(self.mesh, ComponentTicks::new(tick));
+        archetype.add_component(self.material, ComponentTicks::new(tick));
+        archetype.add_component(self.visibility, ComponentTicks::new(tick));
+        
+        Ok(())
+    }
+}
+
+impl Default for GameObject3DBundle {
+    fn default() -> Self {
+        Self {
+            transform: Transform::default(),
+            mesh: Mesh::default(),
+            material: Material::default(),
+            visibility: Visibility::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

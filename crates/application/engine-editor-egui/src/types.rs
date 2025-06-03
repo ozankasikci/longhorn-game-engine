@@ -47,8 +47,8 @@ impl Default for SceneNavigation {
             fast_movement_multiplier: 3.0,          // Shift speed boost
             last_mouse_pos: None,
             scene_camera_transform: Transform {
-                position: [0.0, 2.0, 8.0],          // Move camera further back to see objects
-                rotation: [0.0, 0.0, 0.0],          // Looking forward
+                position: [5.0, 5.0, 15.0],         // Move camera back and up for better view
+                rotation: [-0.2, -0.3, 0.0],        // Slight downward and leftward angle
                 scale: [1.0, 1.0, 1.0],
             },
             

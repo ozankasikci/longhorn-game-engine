@@ -122,25 +122,63 @@ impl SceneViewPanel {
         
         ui.separator();
         
-        // Main view area
+        // Main view area - allocate space and check raw input
         let available_size = ui.available_size();
-        let response = ui.allocate_response(available_size, egui::Sense::click_and_drag());
+        let (rect, response) = ui.allocate_exact_size(available_size, egui::Sense::click_and_drag());
+        
+        // Check raw input to bypass dock area event handling
+        let (pointer_pos, primary_down, secondary_down) = ui.input(|i| {
+            (i.pointer.hover_pos(), i.pointer.primary_down(), i.pointer.secondary_down())
+        });
+        
+        // Check if pointer is inside our rect
+        let pointer_in_rect = pointer_pos.map_or(false, |pos| rect.contains(pos));
+        
+        // Force the scene view to claim focus when mouse is over it
+        if pointer_in_rect && response.hovered() {
+            response.request_focus();
+        }
+        
+        // Debug: Check raw input
+        if pointer_in_rect && primary_down {
+            console_messages.push(ConsoleMessage::info("✅ Scene View: RAW LEFT CLICK DETECTED!"));
+        }
+        if pointer_in_rect && secondary_down {
+            console_messages.push(ConsoleMessage::info("✅ Scene View: RAW RIGHT CLICK DETECTED!"));
+        }
+        
+        // Handle scene navigation FIRST before drawing
+        let nav_messages = scene_input::handle_scene_input(
+            world,
+            ui,
+            &response,
+            rect,
+            scene_navigation,
+            gizmo_system,
+            selected_entity,
+        );
+        console_messages.extend(nav_messages);
+        
+        // Get painter from UI
+        let painter = ui.painter();
         
         // Draw background
-        ui.painter().rect_filled(
-            response.rect,
+        painter.rect_filled(
+            rect,
             egui::Rounding::same(2.0),
             egui::Color32::from_rgb(35, 35, 35)
         );
         
+        
         // Scene content
-        ui.allocate_ui_at_rect(response.rect, |ui| {
+        ui.allocate_ui_at_rect(rect, |ui| {
             if self.scene_view_active {
                 // Draw 3D scene
                 let messages = scene_renderer.draw_scene(
                     world,
                     ui,
-                    response.rect,
+                    rect,
+                    &response,
                     scene_navigation,
                     selected_entity,
                     play_state,
@@ -167,18 +205,6 @@ impl SceneViewPanel {
                 }
             }
         });
-        
-        // Handle gizmo and scene interactions
-        let messages = scene_input::handle_scene_input(
-            world,
-            ui,
-            &response,
-            response.rect,
-            scene_navigation,
-            gizmo_system,
-            selected_entity,
-        );
-        console_messages.extend(messages);
         
         console_messages
     }

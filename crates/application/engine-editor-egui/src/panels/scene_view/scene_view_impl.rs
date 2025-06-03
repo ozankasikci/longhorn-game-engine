@@ -27,38 +27,27 @@ impl SceneViewRenderer {
         world: &World,
         ui: &mut egui::Ui,
         rect: egui::Rect,
-        scene_navigation: &SceneNavigation,
+        response: &egui::Response,
+        scene_navigation: &mut SceneNavigation,
         selected_entity: Option<Entity>,
         play_state: PlayState,
     ) -> Vec<ConsoleMessage> {
         let mut console_messages = Vec::new();
         let painter = ui.painter();
         
-        // DEBUG: Print first entity details
-        if let Some((first_entity, first_transform)) = world.query_legacy::<Transform>().next() {
-            let has_mesh = world.get_component::<Mesh>(first_entity).is_some();
-            let has_name = world.get_component::<Name>(first_entity).is_some();
-            painter.text(
-                rect.center() + egui::Vec2::new(0.0, -100.0),
-                egui::Align2::CENTER_CENTER,
-                &format!("First Entity: id={}, has_mesh={}, has_name={}, pos={:?}", 
-                    first_entity.id(), has_mesh, has_name, first_transform.position),
-                egui::FontId::proportional(12.0),
-                egui::Color32::from_rgb(0, 255, 255),
-            );
-        } else {
-            painter.text(
-                rect.center() + egui::Vec2::new(0.0, -100.0),
-                egui::Align2::CENTER_CENTER,
-                "NO ENTITIES WITH TRANSFORM FOUND!",
-                egui::FontId::proportional(16.0),
-                egui::Color32::RED,
-            );
-        }
         
         // Get camera position and rotation for view transformation
         let camera_pos = scene_navigation.scene_camera_transform.position;
         let camera_rot = scene_navigation.scene_camera_transform.rotation;
+        
+        // DEBUG: Log camera rotation to verify it's being used
+        if camera_rot[0].abs() > 0.01 || camera_rot[1].abs() > 0.01 {
+            console_messages.push(ConsoleMessage::info(&format!(
+                "🎥 Rendering with camera rot: pitch={:.2}°, yaw={:.2}°",
+                camera_rot[0].to_degrees(), camera_rot[1].to_degrees()
+            )));
+        }
+        
         
         // Draw scene objects using FAKE 2D PROJECTION (Temporary Phase 10 approach)
         let entities_with_transforms: Vec<_> = world.query_legacy::<Transform>().map(|(entity, _)| entity).collect();
@@ -71,15 +60,6 @@ impl SceneViewRenderer {
         let mesh_count_direct = world.query_legacy::<Mesh>().count();
         let material_count = world.query_legacy::<Material>().count();
         
-        // IMMEDIATE DEBUG: Show entity count on screen
-        painter.text(
-            rect.left_top() + egui::Vec2::new(10.0, 10.0),
-            egui::Align2::LEFT_TOP,
-            &format!("Entities: {} total | {} Transform | {} Mesh | {} Material", 
-                total_entity_count, transform_count, mesh_count_direct, material_count),
-            egui::FontId::proportional(16.0),
-            egui::Color32::YELLOW,
-        );
         
         // Track entity changes and debug object positions
         let current_entity_count = entities_with_transforms.len();
@@ -111,8 +91,6 @@ impl SceneViewRenderer {
             self.last_rendered_entity_count = current_entity_count;
         }
         
-        // Phase 10.1: Enable real 3D rendering for mesh entities
-        console_messages.push(ConsoleMessage::info("🔧 Phase 10.1: Starting 3D mesh rendering..."));
         
         // COMMENTED OUT: Force debug cube
         /*
@@ -159,56 +137,22 @@ impl SceneViewRenderer {
                     console_messages.extend(messages);
                 }
             } else {
-                // TEMPORARY: Render Transform-only entities as debug cubes
-                if let Some(transform) = world.get_component::<Transform>(*entity) {
-                    let (screen_pos, depth) = self.world_to_screen_enhanced(
-                        transform.position,
-                        camera_pos,
-                        camera_rot,
-                        rect.center(),
-                    );
-                    
-                    // Render as a magenta debug cube for Transform-only entities
-                    self.render_enhanced_cube(
-                        painter,
-                        screen_pos,
-                        40.0 * transform.scale[0],
-                        transform.rotation,
-                        egui::Color32::from_rgb(255, 0, 255), // Magenta for debug
-                        &format!("Transform Entity {}", entity.id()),
-                    );
-                    
-                    // Don't spam console with render messages
+                // Non-mesh entities (cameras, lights, etc)
+                if let Some(messages) = self.render_entity(
+                    world,
+                    painter,
+                    rect,
+                    *entity,
+                    camera_pos,
+                    camera_rot,
+                    selected_entity,
+                ) {
+                    console_messages.extend(messages);
                 }
             }
         }
         
-        // DEBUG: Show entity info on screen
-        for (i, info) in debug_entity_info.iter().enumerate() {
-            painter.text(
-                rect.left_top() + egui::Vec2::new(10.0, 40.0 + i as f32 * 20.0),
-                egui::Align2::LEFT_TOP,
-                info,
-                egui::FontId::proportional(14.0),
-                egui::Color32::LIGHT_BLUE,
-            );
-        }
         
-        // Display entity count info
-        if mesh_count > 0 {
-            console_messages.push(ConsoleMessage::info(&format!(
-                "✅ Phase 10.1: Rendered {} mesh entities!",
-                mesh_count
-            )));
-        } else if entities_with_transforms.len() > 0 {
-            painter.text(
-                rect.center() + egui::Vec2::new(0.0, 150.0),
-                egui::Align2::CENTER_CENTER,
-                &format!("{} Transform-only entities (rendered as magenta cubes)", entities_with_transforms.len()),
-                egui::FontId::proportional(16.0),
-                egui::Color32::from_rgb(255, 0, 255),
-            );
-        }
         
         // Render sprites separately (they need different handling)
         self.render_sprites(world, painter, rect, camera_pos, camera_rot, selected_entity);
@@ -251,7 +195,7 @@ impl SceneViewRenderer {
             .map(|n| n.name.clone())
             .unwrap_or_else(|| format!("Entity {}", entity.id()));
         
-        let mut debug_messages = Vec::new();
+        let debug_messages = Vec::new();
         
         // Always render mesh entities - no culling for Phase 10 debugging
         // Force render at center for first entity to test
@@ -261,11 +205,6 @@ impl SceneViewRenderer {
             screen_pos
         };
         
-        debug_messages.push(ConsoleMessage::info(&format!(
-            "🎯 RENDERING {}: depth={:.2}, screen=({:.0}, {:.0}), world=[{:.1}, {:.1}, {:.1}]",
-            name, depth, screen_pos.x, screen_pos.y,
-            transform.position[0], transform.position[1], transform.position[2]
-        )));
         
         // Get material color with enhanced visibility
         let base_color = if let Some(material) = world.get_component::<Material>(entity) {
@@ -476,21 +415,9 @@ impl SceneViewRenderer {
             .map(|n| n.name.clone())
             .unwrap_or_else(|| format!("Entity {}", entity.id()));
             
-        // DEBUG: Always log depth calculation for visibility
-        let mut debug_messages = Vec::new();
-        debug_messages.push(ConsoleMessage::info(&format!(
-            "🔍 {}: depth={:.3}, screen_pos=({:.1}, {:.1}), world_pos=[{:.1}, {:.1}, {:.1}], camera_pos=[{:.1}, {:.1}, {:.1}]",
-            name, depth, screen_pos.x, screen_pos.y, 
-            transform.position[0], transform.position[1], transform.position[2],
-            camera_pos[0], camera_pos[1], camera_pos[2]
-        )));
         
         if depth <= 0.001 {  // Much smaller threshold
-            debug_messages.push(ConsoleMessage::info(&format!(
-                "❌ {} CULLED: depth={:.3} too small",
-                name, depth
-            )));
-            return Some(debug_messages);
+            return None;
         }
         
         let is_selected = selected_entity == Some(entity);
@@ -528,13 +455,7 @@ impl SceneViewRenderer {
             );
         }
         
-        // Debug: Log successful rendering
-        let mut debug_messages = Vec::new();
-        debug_messages.push(ConsoleMessage::info(&format!(
-            "✅ {} RENDERED: screen=({:.0}, {:.0}), depth={:.2}", 
-            name, screen_pos.x, screen_pos.y, depth
-        )));
-        Some(debug_messages)
+        None
     }
     
     fn render_mesh(
@@ -701,8 +622,8 @@ impl SceneViewRenderer {
         // Rotate around Y-axis (yaw)
         let cos_yaw = yaw.cos();
         let sin_yaw = yaw.sin();
-        let rotated_x = relative_pos[0] * cos_yaw + relative_pos[2] * sin_yaw;
-        let rotated_z = -relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
+        let rotated_x = relative_pos[0] * cos_yaw - relative_pos[2] * sin_yaw;
+        let rotated_z = relative_pos[0] * sin_yaw + relative_pos[2] * cos_yaw;
         
         // Apply pitch rotation
         let cos_pitch = pitch.cos();

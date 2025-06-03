@@ -1,10 +1,10 @@
 // World initialization and default entity creation
 
 use engine_ecs_core::{World, Entity};
-use engine_components_3d::{Transform, Visibility, Material, Mesh, MeshType};
+use engine_components_3d::{Transform, Visibility, Material, Mesh, MeshType, GameObject3DBundle};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
-use engine_camera::Camera;
+use engine_camera::{Camera, CameraBundle};
 use crate::editor_state::ConsoleMessage;
 
 /// Creates a default world with sample entities for the editor
@@ -12,155 +12,138 @@ pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
     let mut world = World::new();
     let mut messages = Vec::new();
     
-    // SIMPLE TEST: Create one entity with just Transform
-    let simple_entity = world.spawn_with(Transform {
-        position: [0.0, 0.0, 0.0],
-        rotation: [0.0, 0.0, 0.0],
-        scale: [2.0, 2.0, 2.0],
-    });
+    // Create camera entity with bundle
+    let camera_entity = world.spawn_bundle(CameraBundle {
+        transform: Transform {
+            position: [5.0, 5.0, 15.0],  // Move camera back and up for better view
+            rotation: [-0.2, -0.3, 0.0],  // Slight downward and leftward angle
+            scale: [1.0, 1.0, 1.0],
+        },
+        camera: Camera::default(),
+        name: Name::new("Main Camera"),
+    }).expect("Failed to create camera entity");
     
-    // Create camera entity - TRANSFORM ONLY for now
-    let camera_entity = world.spawn_with(Transform {
-        position: [0.0, 2.0, 8.0],  // Move camera back to see objects
-        rotation: [0.0, 0.0, 0.0],
-        scale: [1.0, 1.0, 1.0],
-    });
+    messages.push(ConsoleMessage::info("✅ Created camera with bundle"));
     
     // Create multiple 3D objects for camera rotation testing
     
     // BRIGHT GREEN CUBE - RIGHT IN FRONT OF CAMERA FOR VISIBILITY TEST
-    let test_cube_entity = world.spawn_with(Transform {
-        position: [0.0, 2.0, 5.0],  // Same Y as camera, 3 units in front
-        rotation: [0.0, 0.0, 0.0],  // No rotation
-        scale: [3.0, 3.0, 3.0],     // Very large and visible
-    });
+    let _test_cube_entity = world.spawn_bundle(GameObject3DBundle {
+        transform: Transform {
+            position: [0.0, 2.0, 5.0],  // Same Y as camera, 3 units in front
+            rotation: [0.0, 0.0, 0.0],  // No rotation
+            scale: [3.0, 3.0, 3.0],     // Very large and visible
+        },
+        mesh: Mesh {
+            mesh_type: MeshType::Cube,
+        },
+        material: Material {
+            color: [0.0, 1.0, 0.0, 1.0], // Bright green - very visible
+            metallic: 0.0,
+            roughness: 0.3,
+            emissive: [0.1, 0.3, 0.1],   // Slight green glow
+        },
+        visibility: Visibility::default(),
+    }).expect("Failed to create green cube");
     
-    // Red cube - TRANSFORM ONLY
-    let cube_entity = world.spawn_with(Transform {
-        position: [1.0, 2.0, 6.0],  // Test positive Z (should be in front)
-        rotation: [0.0, 45.0, 0.0],
-        scale: [2.0, 2.0, 2.0],  // Make bigger
-    });
+    // Red cube
+    let _red_cube_entity = world.spawn_bundle(GameObject3DBundle {
+        transform: Transform {
+            position: [1.0, 2.0, 6.0],  // Test positive Z (should be in front)
+            rotation: [0.0, 45.0, 0.0],
+            scale: [2.0, 2.0, 2.0],  // Make bigger
+        },
+        mesh: Mesh {
+            mesh_type: MeshType::Cube,
+        },
+        material: Material {
+            color: [0.8, 0.2, 0.2, 1.0], // Red cube
+            metallic: 0.0,
+            roughness: 0.5,
+            emissive: [0.0, 0.0, 0.0],
+        },
+        visibility: Visibility::default(),
+    }).expect("Failed to create red cube");
     
-    // SKIP other complex entities for now due to migration issue
-    /*
+    // Green sphere
+    let _green_sphere_entity = world.spawn_bundle(GameObject3DBundle {
+        transform: Transform {
+            position: [-2.0, 0.5, 5.0],  // Positive Z = in front of camera
+            rotation: [0.0, 0.0, 0.0],
+            scale: [1.2, 1.2, 1.2],
+        },
+        mesh: Mesh {
+            mesh_type: MeshType::Sphere,
+        },
+        material: Material {
+            color: [0.2, 0.8, 0.2, 1.0], // Green sphere
+            metallic: 0.1,
+            roughness: 0.3,
+            emissive: [0.0, 0.0, 0.0],
+        },
+        visibility: Visibility::default(),
+    }).expect("Failed to create green sphere");
     
-    // Blue cube elevated behind
-    let blue_cube_entity = world.spawn_with(Transform {
-        position: [0.0, 2.0, 3.0],  // Still in front but further away
-        rotation: [15.0, 30.0, 0.0],
-        scale: [0.8, 0.8, 0.8],
-    });
-    world.add_component(blue_cube_entity, Name::new("Blue Cube")).unwrap();
-    world.add_component(blue_cube_entity, Mesh {
-        mesh_type: MeshType::Cube,
-    }).unwrap();
-    world.add_component(blue_cube_entity, Material {
-        color: [0.2, 0.4, 0.9, 1.0], // Blue cube
-        metallic: 0.3,
-        roughness: 0.2,
-        emissive: [0.0, 0.0, 0.0],
-    }).unwrap();
-    world.add_component(blue_cube_entity, Visibility::default()).unwrap();
+    // Blue cube
+    let _blue_cube_entity = world.spawn_bundle(GameObject3DBundle {
+        transform: Transform {
+            position: [0.0, 2.0, 3.0],  // Still in front but further away
+            rotation: [15.0, 30.0, 0.0],
+            scale: [0.8, 0.8, 0.8],
+        },
+        mesh: Mesh {
+            mesh_type: MeshType::Cube,
+        },
+        material: Material {
+            color: [0.2, 0.4, 0.9, 1.0], // Blue cube
+            metallic: 0.3,
+            roughness: 0.2,
+            emissive: [0.0, 0.0, 0.0],
+        },
+        visibility: Visibility::default(),
+    }).expect("Failed to create blue cube");
     
     // Yellow sphere on the right side
-    let yellow_sphere_entity = world.spawn_with(Transform {
-        position: [3.5, 1.0, 4.0],  // Positive Z = in front of camera
-        rotation: [0.0, 0.0, 0.0],
-        scale: [0.7, 0.7, 0.7],
-    });
-    world.add_component(yellow_sphere_entity, Name::new("Yellow Sphere")).unwrap();
-    world.add_component(yellow_sphere_entity, Mesh {
-        mesh_type: MeshType::Sphere,
-    }).unwrap();
-    world.add_component(yellow_sphere_entity, Material {
-        color: [0.9, 0.8, 0.1, 1.0], // Yellow sphere
-        metallic: 0.0,
-        roughness: 0.4,
-        emissive: [0.0, 0.0, 0.0],
-    }).unwrap();
-    world.add_component(yellow_sphere_entity, Visibility::default()).unwrap();
-    
-    // Purple cube on the left side  
-    let purple_cube_entity = world.spawn_with(Transform {
-        position: [-3.0, 0.5, 6.0],  // Positive Z = in front of camera
-        rotation: [0.0, -20.0, 10.0],
-        scale: [1.3, 0.6, 1.3],
-    });
-    world.add_component(purple_cube_entity, Name::new("Purple Cube")).unwrap();
-    world.add_component(purple_cube_entity, Mesh {
-        mesh_type: MeshType::Cube,
-    }).unwrap();
-    world.add_component(purple_cube_entity, Material {
-        color: [0.7, 0.3, 0.8, 1.0], // Purple cube
-        metallic: 0.2,
-        roughness: 0.6,
-        emissive: [0.0, 0.0, 0.0],
-    }).unwrap();
-    world.add_component(purple_cube_entity, Visibility::default()).unwrap();
+    let _yellow_sphere_entity = world.spawn_bundle(GameObject3DBundle {
+        transform: Transform {
+            position: [3.5, 1.0, 4.0],  // Positive Z = in front of camera
+            rotation: [0.0, 0.0, 0.0],
+            scale: [0.7, 0.7, 0.7],
+        },
+        mesh: Mesh {
+            mesh_type: MeshType::Sphere,
+        },
+        material: Material {
+            color: [0.9, 0.8, 0.1, 1.0], // Yellow sphere
+            metallic: 0.0,
+            roughness: 0.4,
+            emissive: [0.0, 0.0, 0.0],
+        },
+        visibility: Visibility::default(),
+    }).expect("Failed to create yellow sphere");
     
     // Large ground plane
-    let plane_entity = world.spawn_with(Transform {
-        position: [0.0, -1.5, 4.0],  // Positive Z = in front of camera
-        rotation: [0.0, 0.0, 0.0],
-        scale: [8.0, 1.0, 8.0],
-    });
-    world.add_component(plane_entity, Name::new("Ground Plane")).unwrap();
-    world.add_component(plane_entity, Mesh {
-        mesh_type: MeshType::Plane,
-    }).unwrap();
-    world.add_component(plane_entity, Material {
-        color: [0.6, 0.6, 0.6, 1.0], // Gray ground
-        metallic: 0.0,
-        roughness: 0.8,
-        emissive: [0.0, 0.0, 0.0],
-    }).unwrap();
-    world.add_component(plane_entity, Visibility::default()).unwrap();
+    let _plane_entity = world.spawn_bundle(GameObject3DBundle {
+        transform: Transform {
+            position: [0.0, -1.5, 4.0],  // Positive Z = in front of camera
+            rotation: [0.0, 0.0, 0.0],
+            scale: [8.0, 1.0, 8.0],
+        },
+        mesh: Mesh {
+            mesh_type: MeshType::Plane,
+        },
+        material: Material {
+            color: [0.6, 0.6, 0.6, 1.0], // Gray ground
+            metallic: 0.0,
+            roughness: 0.8,
+            emissive: [0.0, 0.0, 0.0],
+        },
+        visibility: Visibility::default(),
+    }).expect("Failed to create ground plane");
     
-    // TEST CUBE - AT SAME POSITION AS CAMERA
-    let center_cube_entity = world.spawn_with(Transform {
-        position: [0.0, 2.0, 8.0],  // EXACTLY same as camera position
-        rotation: [0.0, 0.0, 0.0],
-        scale: [5.0, 5.0, 5.0],  // HUGE cube
-    });
-    world.add_component(center_cube_entity, Name::new("Center Reference")).unwrap();
-    world.add_component(center_cube_entity, Mesh {
-        mesh_type: MeshType::Cube,
-    }).unwrap();
-    world.add_component(center_cube_entity, Material {
-        color: [1.0, 0.5, 0.1, 1.0], // Orange cube
-        metallic: 0.1,
-        roughness: 0.3,
-        emissive: [0.1, 0.05, 0.0], // Slight glow
-    }).unwrap();
-    world.add_component(center_cube_entity, Visibility::default()).unwrap();
-    
-    // Create sprite entities
-    create_test_sprites(&mut world);
-    
-    // SIMPLE TEST: Create one guaranteed cube
-    let simple_test_entity = world.spawn();
-    world.add_component(simple_test_entity, Transform {
-        position: [0.0, 0.0, 0.0],
-        rotation: [0.0, 0.0, 0.0],
-        scale: [1.0, 1.0, 1.0],
-    }).unwrap();
-    world.add_component(simple_test_entity, Name::new("SIMPLE TEST CUBE")).unwrap();
-    world.add_component(simple_test_entity, Mesh {
-        mesh_type: MeshType::Cube,
-    }).unwrap();
-    world.add_component(simple_test_entity, Material {
-        color: [1.0, 0.0, 1.0, 1.0], // Magenta
-        metallic: 0.0,
-        roughness: 0.5,
-        emissive: [0.0, 0.0, 0.0],
-    }).unwrap();
-    world.add_component(simple_test_entity, Visibility::default()).unwrap();
-    */
-    
-    messages.push(ConsoleMessage::info("⚠️ Component migration not implemented - using Transform-only entities"));
-    messages.push(ConsoleMessage::info("🚀 ECS v2 World created with 4 Transform-only entities"));
-    messages.push(ConsoleMessage::info("🎮 These should now be visible in queries"));
+    messages.push(ConsoleMessage::info("✅ Created 6 3D objects using bundles"));
+    messages.push(ConsoleMessage::info("🚀 ECS v2 World with proper multi-component entities!"));
+    messages.push(ConsoleMessage::info("🎮 Objects should now render with actual meshes"));
     
     // DEBUG: Force log all entities that were just created
     messages.push(ConsoleMessage::info(&format!("🔍 DEBUG: World has {} entities total", world.entity_count())));

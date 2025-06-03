@@ -9,6 +9,7 @@ repository.workspace = true
 # Core engine integration
 engine-ecs-core = { workspace = true }
 engine-components-3d = { workspace = true }
+engine-components-ui = { workspace = true }
 
 # Math and graphics
 glam = { workspace = true }

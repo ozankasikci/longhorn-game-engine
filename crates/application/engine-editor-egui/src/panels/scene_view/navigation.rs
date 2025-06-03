@@ -117,6 +117,15 @@ impl SceneNavigator {
         scene_nav.scene_camera_transform.rotation[0] += pitch_delta;
         scene_nav.scene_camera_transform.rotation[1] += yaw_delta;
         
+        // DEBUG: Log rotation changes - ALWAYS log to debug rotation issue
+        messages.push(ConsoleMessage::info(&format!(
+            "🔄 Camera rotation: pitch_delta={:.4}, yaw_delta={:.4}, new_rot=[{:.2}, {:.2}]°, mouse_delta=[{:.1}, {:.1}]",
+            pitch_delta.to_degrees(), yaw_delta.to_degrees(),
+            scene_nav.scene_camera_transform.rotation[0].to_degrees(),
+            scene_nav.scene_camera_transform.rotation[1].to_degrees(),
+            mouse_delta.x, mouse_delta.y
+        )));
+        
         // Clamp pitch to prevent camera flipping
         scene_nav.scene_camera_transform.rotation[0] = scene_nav.scene_camera_transform.rotation[0]
             .clamp(-1.5, 1.5); // ~85 degrees
@@ -360,18 +369,37 @@ impl SceneNavigator {
     ) -> Vec<ConsoleMessage> {
         let mut console_messages = Vec::new();
         
-        // Check for right mouse button to start navigation
-        let (rmb_down, pointer_pos, pointer_delta) = ui.input(|i| {
+        // Check for secondary mouse button click on the response
+        if response.secondary_clicked() {
+            console_messages.push(ConsoleMessage::info("🖱️ Response detected secondary click!"));
+        }
+        
+        // Check for right mouse button to start navigation - use ctx directly for dock compatibility
+        let ctx = ui.ctx();
+        let (rmb_down, rmb_pressed, pointer_pos, pointer_delta) = ctx.input(|i| {
             (i.pointer.secondary_down(), 
+             i.pointer.secondary_pressed(),
              i.pointer.hover_pos(),
              i.pointer.delta())
         });
         
+        // Alternative: Check response for drag with secondary button
+        let is_dragging_secondary = response.dragged_by(egui::PointerButton::Secondary);
+        
         // Only handle navigation if mouse is within the scene view
         let mouse_in_rect = pointer_pos.map_or(false, |pos| rect.contains(pos));
         
+        // DEBUG: Log mouse rect check
+        if rmb_pressed || response.secondary_clicked() {
+            console_messages.push(ConsoleMessage::info(&format!(
+                "🖱️ RMB pressed - mouse_in_rect: {}, pointer_pos: {:?}, rect: {:?}, is_navigating: {}, rmb_pressed: {}",
+                mouse_in_rect, pointer_pos, rect, scene_navigation.is_navigating, rmb_pressed
+            )));
+        }
+        
         // Start navigation if RMB is pressed (not just down) and mouse is in rect
-        if ui.input(|i| i.pointer.secondary_pressed()) && mouse_in_rect && !scene_navigation.is_navigating {
+        if (rmb_pressed || response.drag_started_by(egui::PointerButton::Secondary)) 
+            && mouse_in_rect && !scene_navigation.is_navigating {
             if let Some(mouse_pos) = pointer_pos {
                 console_messages.push(ConsoleMessage::info(&format!(
                     "🎮 Starting navigation at ({:.1}, {:.1})", mouse_pos.x, mouse_pos.y
@@ -384,17 +412,22 @@ impl SceneNavigator {
             }
         }
         
-        // Check for right mouse button release
-        if !rmb_down && scene_navigation.is_navigating {
+        // Check for right mouse button release or drag end
+        if (!rmb_down && scene_navigation.is_navigating) || 
+           (scene_navigation.is_navigating && response.drag_stopped_by(egui::PointerButton::Secondary)) {
             let messages = Self::end_navigation(scene_navigation);
             console_messages.extend(messages);
             ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
         }
         
         // Handle navigation input during active navigation
-        if scene_navigation.is_navigating && rmb_down {
+        if scene_navigation.is_navigating && (rmb_down || is_dragging_secondary) {
             // Use pointer delta for more accurate mouse movement tracking
             if pointer_delta != egui::Vec2::ZERO {
+                console_messages.push(ConsoleMessage::info(&format!(
+                    "🖱️ Mouse delta: ({:.2}, {:.2}), dragging_secondary: {}",
+                    pointer_delta.x, pointer_delta.y, is_dragging_secondary
+                )));
                 let messages = Self::apply_mouse_look(scene_navigation, pointer_delta);
                 console_messages.extend(messages);
             }
