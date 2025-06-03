@@ -6,6 +6,7 @@ mod scene_renderer;
 mod types;
 mod panels;
 mod ui;
+mod styling;
 mod bridge;
 mod utils;
 mod play_state;
@@ -21,7 +22,7 @@ use engine_components_ui::Name;
 use editor_state::ConsoleMessage;
 use scene_renderer::SceneRenderer;
 use types::{PlayState, SceneNavigation, GizmoSystem, TextureAsset, ProjectAsset, PanelType, HierarchyObject};
-use ui::style::{setup_custom_fonts, setup_custom_style};
+use styling::{setup_custom_fonts, setup_custom_style};
 use editor_coordinator::EditorCoordinator;
 
 fn main() -> Result<(), eframe::Error> {
@@ -180,7 +181,7 @@ impl eframe::App for UnityEditor {
             style.visuals.panel_fill = egui::Color32::from_rgba_unmultiplied(45, 45, 55, 240);
             ctx.set_style(style);
         } else {
-            ui::style::apply_unity_style(ctx);
+            styling::apply_unity_style(ctx);
         }
         
         // Top menu bar (macOS style)
