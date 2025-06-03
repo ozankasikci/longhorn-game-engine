@@ -5,15 +5,11 @@ use egui_dock::{DockState, NodeIndex};
 use crate::editor_state::ConsoleMessage;
 use crate::types::PanelType;
 
-pub struct MenuBar {
-    console_messages: Vec<ConsoleMessage>,
-}
+pub struct MenuBar {}
 
 impl MenuBar {
     pub fn new() -> Self {
-        Self {
-            console_messages: Vec::new(),
-        }
+        Self {}
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, dock_state: &mut DockState<PanelType>) -> Vec<ConsoleMessage> {
@@ -22,15 +18,15 @@ impl MenuBar {
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("New Scene").clicked() {
-                    messages.push(ConsoleMessage::info("📄 Created new scene"));
+                    // New scene created
                     ui.close_menu();
                 }
                 if ui.button("Open Scene").clicked() {
-                    messages.push(ConsoleMessage::info("📂 Opening scene..."));
+                    // Opening scene
                     ui.close_menu();
                 }
                 if ui.button("Save Scene").clicked() {
-                    messages.push(ConsoleMessage::info("💾 Scene saved"));
+                    // Scene saved
                     ui.close_menu();
                 }
                 ui.separator();
@@ -41,16 +37,16 @@ impl MenuBar {
             
             ui.menu_button("Edit", |ui| {
                 if ui.button("Undo").clicked() {
-                    messages.push(ConsoleMessage::info("↶ Undo"));
+                    // Undo
                     ui.close_menu();
                 }
                 if ui.button("Redo").clicked() {
-                    messages.push(ConsoleMessage::info("↷ Redo"));
+                    // Redo
                     ui.close_menu();
                 }
                 ui.separator();
                 if ui.button("⚙️ Preferences...").clicked() {
-                    messages.push(ConsoleMessage::info("⚙️ Opening settings"));
+                    // Opening settings
                     messages.push(ConsoleMessage::UserAction("open_settings".to_string()));
                     ui.close_menu();
                 }
@@ -61,27 +57,27 @@ impl MenuBar {
                 ui.separator();
                 if ui.button("Add Hierarchy Panel").clicked() {
                     dock_state.add_window(vec![PanelType::Hierarchy]);
-                    messages.push(ConsoleMessage::info("➕ Added Hierarchy panel"));
+                    // Added Hierarchy panel
                     ui.close_menu();
                 }
                 if ui.button("Add Inspector Panel").clicked() {
                     dock_state.add_window(vec![PanelType::Inspector]);
-                    messages.push(ConsoleMessage::info("➕ Added Inspector panel"));
+                    // Added Inspector panel
                     ui.close_menu();
                 }
                 if ui.button("Add Console Panel").clicked() {
                     dock_state.add_window(vec![PanelType::Console]);
-                    messages.push(ConsoleMessage::info("➕ Added Console panel"));
+                    // Added Console panel
                     ui.close_menu();
                 }
                 if ui.button("Add Project Panel").clicked() {
                     dock_state.add_window(vec![PanelType::Project]);
-                    messages.push(ConsoleMessage::info("➕ Added Project panel"));
+                    // Added Project panel
                     ui.close_menu();
                 }
                 if ui.button("Add Game View Panel").clicked() {
                     dock_state.add_window(vec![PanelType::GameView]);
-                    messages.push(ConsoleMessage::info("➕ Added Game View panel"));
+                    // Added Game View panel
                     ui.close_menu();
                 }
                 ui.separator();
@@ -111,7 +107,7 @@ impl MenuBar {
                     );
                     
                     *dock_state = new_dock_state;
-                    messages.push(ConsoleMessage::info("🔄 Layout reset to Longhorn default"));
+                    // Layout reset
                     ui.close_menu();
                 }
             });

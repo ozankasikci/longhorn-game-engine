@@ -31,23 +31,13 @@ impl SceneViewRenderer {
         scene_navigation: &mut SceneNavigation,
         selected_entity: Option<Entity>,
         play_state: PlayState,
-    ) -> Vec<ConsoleMessage> {
-        let mut console_messages = Vec::new();
+    ) {
         let painter = ui.painter();
         
         
         // Get camera position and rotation for view transformation
         let camera_pos = scene_navigation.scene_camera_transform.position;
         let camera_rot = scene_navigation.scene_camera_transform.rotation;
-        
-        // Log camera state for debugging
-        if camera_rot[0].abs() > 0.01 || camera_rot[1].abs() > 0.01 {
-            console_messages.push(ConsoleMessage::info(&format!(
-                "🎥 Camera: pos=[{:.1}, {:.1}, {:.1}], rot=[pitch={:.1}°, yaw={:.1}°]",
-                camera_pos[0], camera_pos[1], camera_pos[2],
-                camera_rot[0].to_degrees(), camera_rot[1].to_degrees()
-            )));
-        }
         
         
         // Draw scene objects using FAKE 2D PROJECTION (Temporary Phase 10 approach)
@@ -62,33 +52,9 @@ impl SceneViewRenderer {
         let material_count = world.query_legacy::<Material>().count();
         
         
-        // Track entity changes and debug object positions
+        // Track entity changes
         let current_entity_count = entities_with_transforms.len();
         if current_entity_count != self.last_rendered_entity_count {
-            console_messages.push(ConsoleMessage::info(&format!(
-                "🚀 Phase 10: WGPU Integration Ready! {} entities | Camera at [{:.1}, {:.1}, {:.1}]",
-                current_entity_count, camera_pos[0], camera_pos[1], camera_pos[2]
-            )));
-            
-            // Debug: List entities with mesh components
-            for entity in entities_with_transforms.iter().take(5) {
-                if let Some(transform) = world.get_component::<Transform>(*entity) {
-                    let name = world.get_component::<engine_components_ui::Name>(*entity)
-                        .map(|n| n.name.clone())
-                        .unwrap_or_else(|| format!("Entity {}", entity.id()));
-                    
-                    let has_mesh = world.get_component::<Mesh>(*entity).is_some();
-                    let has_material = world.get_component::<Material>(*entity).is_some();
-                    let has_visibility = world.get_component::<Visibility>(*entity).is_some();
-                    
-                    console_messages.push(ConsoleMessage::info(&format!(
-                        "  📦 {}: pos=[{:.1}, {:.1}, {:.1}] | Mesh: {} | Material: {} | Visible: {}",
-                        name, transform.position[0], transform.position[1], transform.position[2],
-                        has_mesh, has_material, has_visibility
-                    )));
-                }
-            }
-            
             self.last_rendered_entity_count = current_entity_count;
         }
         
@@ -126,7 +92,7 @@ impl SceneViewRenderer {
             if world.get_component::<Mesh>(*entity).is_some() {
                 mesh_count += 1;
                 // Phase 10.1: Render with enhanced visibility
-                if let Some(messages) = self.render_mesh_entity_enhanced(
+                self.render_mesh_entity_enhanced(
                     world,
                     painter,
                     rect,
@@ -134,12 +100,10 @@ impl SceneViewRenderer {
                     camera_pos,
                     camera_rot,
                     selected_entity,
-                ) {
-                    console_messages.extend(messages);
-                }
+                );
             } else {
                 // Non-mesh entities (cameras, lights, etc)
-                if let Some(messages) = self.render_entity(
+                self.render_entity(
                     world,
                     painter,
                     rect,
@@ -147,9 +111,7 @@ impl SceneViewRenderer {
                     camera_pos,
                     camera_rot,
                     selected_entity,
-                ) {
-                    console_messages.extend(messages);
-                }
+                );
             }
         }
         
@@ -166,8 +128,7 @@ impl SceneViewRenderer {
         
         // Draw scene overlay info
         self.draw_scene_overlay(ui, rect, world, selected_entity, play_state);
-        
-        console_messages
+        // Scene drawn
     }
     
     /// Phase 10.1: Enhanced mesh entity rendering with guaranteed visibility
@@ -180,9 +141,9 @@ impl SceneViewRenderer {
         camera_pos: [f32; 3],
         camera_rot: [f32; 3],
         selected_entity: Option<Entity>,
-    ) -> Option<Vec<ConsoleMessage>> {
-        let transform = world.get_component::<Transform>(entity)?;
-        let mesh = world.get_component::<Mesh>(entity)?;
+    ) {
+        let Some(transform) = world.get_component::<Transform>(entity) else { return; };
+        let Some(mesh) = world.get_component::<Mesh>(entity) else { return; };
         
         // Enhanced world-to-screen projection for better visibility
         let (screen_pos, depth) = self.world_to_screen_enhanced(
@@ -195,8 +156,6 @@ impl SceneViewRenderer {
         let name = world.get_component::<engine_components_ui::Name>(entity)
             .map(|n| n.name.clone())
             .unwrap_or_else(|| format!("Entity {}", entity.id()));
-        
-        let debug_messages = Vec::new();
         
         // Always render mesh entities - no culling for Phase 10 debugging
         // Force render at center for first entity to test
@@ -268,8 +227,6 @@ impl SceneViewRenderer {
             egui::FontId::proportional(12.0),
             egui::Color32::WHITE,
         );
-        
-        Some(debug_messages)
     }
     
     /// Enhanced world-to-screen projection that never culls objects
@@ -523,8 +480,8 @@ impl SceneViewRenderer {
         camera_pos: [f32; 3],
         camera_rot: [f32; 3],
         selected_entity: Option<Entity>,
-    ) -> Option<Vec<ConsoleMessage>> {
-        let transform = world.get_component::<Transform>(entity)?;
+    ) {
+        let Some(transform) = world.get_component::<Transform>(entity) else { return; };
         
         // Calculate screen position
         let (screen_pos, depth) = self.world_to_screen(
@@ -541,7 +498,7 @@ impl SceneViewRenderer {
             
         
         if depth <= 0.001 {  // Much smaller threshold
-            return None;
+            return;
         }
         
         let is_selected = selected_entity == Some(entity);
@@ -578,8 +535,6 @@ impl SceneViewRenderer {
                 color
             );
         }
-        
-        None
     }
     
     fn render_mesh(

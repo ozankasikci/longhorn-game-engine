@@ -10,15 +10,11 @@ use crate::editor_state::ConsoleMessage;
 use engine_components_ui::Name;
 
 /// Helper for rendering 3D scenes in the editor
-pub struct SceneRenderer {
-    console_messages: Vec<ConsoleMessage>,
-}
+pub struct SceneRenderer {}
 
 impl SceneRenderer {
     pub fn new() -> Self {
-        Self {
-            console_messages: Vec::new(),
-        }
+        Self {}
     }
     
     /// Draw depth reference lines in the scene view
@@ -98,8 +94,7 @@ impl SceneRenderer {
         camera_transform: &Transform, 
         camera: &Camera, 
         view_center: egui::Pos2
-    ) -> Vec<ConsoleMessage> {
-        let mut console_messages = Vec::new();
+    ) {
         let painter = ui.painter();
         
         // Camera position and view parameters
@@ -198,8 +193,6 @@ impl SceneRenderer {
         
         // Draw depth indication lines for reference
         Self::draw_depth_reference_lines(ui, rect, view_center, render_scale);
-        
-        console_messages
     }
     
     /// Render the scene from the main camera's perspective
@@ -207,8 +200,7 @@ impl SceneRenderer {
         world: &World,
         ui: &mut egui::Ui, 
         rect: egui::Rect
-    ) -> Vec<ConsoleMessage> {
-        let mut console_messages = Vec::new();
+    ) {
         let painter = ui.painter();
         
         // Draw background
@@ -229,10 +221,9 @@ impl SceneRenderer {
                     let view_center = rect.center();
                     
                     // Render objects from camera perspective
-                    let messages = Self::render_scene_from_camera(
+                    Self::render_scene_from_camera(
                         world, ui, rect, &camera_transform, &camera, view_center
                     );
-                    console_messages.extend(messages);
                     
                     // Draw camera info overlay
                     ui.allocate_ui_at_rect(egui::Rect::from_min_size(rect.min, egui::vec2(250.0, 80.0)), |ui| {
@@ -256,7 +247,5 @@ impl SceneRenderer {
         } else {
             Self::show_no_camera_message(ui, rect, "No main camera found");
         }
-        
-        console_messages
     }
 }

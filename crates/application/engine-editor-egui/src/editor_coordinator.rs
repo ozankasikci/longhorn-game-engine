@@ -17,27 +17,25 @@ impl EditorCoordinator {
     }
     
     /// Transition to playing state
-    pub fn start_play(&mut self) -> Vec<ConsoleMessage> {
+    pub fn start_play(&mut self) {
         if self.play_state_manager.play_state == PlayState::Editing {
-            self.play_state_manager.start_play()
-        } else {
-            vec![]
+            self.play_state_manager.start_play();
         }
     }
     
     /// Pause the game (only from playing state)
-    pub fn pause_play(&mut self) -> Vec<ConsoleMessage> {
-        self.play_state_manager.pause_play()
+    pub fn pause_play(&mut self) {
+        self.play_state_manager.pause_play();
     }
     
     /// Resume from paused state
-    pub fn resume_play(&mut self) -> Vec<ConsoleMessage> {
-        self.play_state_manager.resume_play()
+    pub fn resume_play(&mut self) {
+        self.play_state_manager.resume_play();
     }
     
     /// Stop play mode and return to editing
-    pub fn stop_play(&mut self) -> Vec<ConsoleMessage> {
-        self.play_state_manager.stop_play()
+    pub fn stop_play(&mut self) {
+        self.play_state_manager.stop_play();
     }
     
     /// Update delta time for game loop

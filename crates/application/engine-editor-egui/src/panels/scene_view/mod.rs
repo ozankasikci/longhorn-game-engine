@@ -25,17 +25,10 @@ fn focus_on_selected_object(
     world: &World,
     selected_entity: Entity,
     scene_navigation: &mut SceneNavigation,
-) -> Vec<ConsoleMessage> {
-    let mut messages = Vec::new();
-    
+) {
     if let Some(transform) = world.get_component::<Transform>(selected_entity) {
         // Get object position
         let object_pos = transform.position;
-        
-        messages.push(ConsoleMessage::info(&format!(
-            "🎯 Focus: Object at [{:.2}, {:.2}, {:.2}]",
-            object_pos[0], object_pos[1], object_pos[2]
-        )));
         
         // Calculate object bounds - consider scale and any mesh bounds
         let scale = transform.scale;
@@ -57,20 +50,6 @@ fn focus_on_selected_object(
         
         // Calculate good viewing distance
         let view_distance = (object_radius * 5.0).max(5.0); // Reasonable distance for viewing
-        
-        messages.push(ConsoleMessage::info(&format!(
-            "📏 Focus: Object radius={:.2}, view_distance={:.2}",
-            object_radius, view_distance
-        )));
-        
-        // Log old camera position before moving
-        let old_pos = scene_navigation.scene_camera_transform.position;
-        let old_rot = scene_navigation.scene_camera_transform.rotation;
-        messages.push(ConsoleMessage::info(&format!(
-            "📷 Focus: OLD Camera pos=[{:.2}, {:.2}, {:.2}], rot=[{:.2}°, {:.2}°, {:.2}°]",
-            old_pos[0], old_pos[1], old_pos[2],
-            old_rot[0].to_degrees(), old_rot[1].to_degrees(), old_rot[2].to_degrees()
-        )));
         
         // FIXED: Position camera to properly view the object
         // In our coordinate system: +Y is up, -Z is forward
@@ -99,44 +78,19 @@ fn focus_on_selected_object(
             yaw,    // Yaw to face object  
             0.0     // No roll
         ];
-        
-        messages.push(ConsoleMessage::info(&format!(
-            "📷 Focus: NEW Camera pos=[{:.2}, {:.2}, {:.2}], rot=[{:.2}°, {:.2}°, {:.2}°]",
-            scene_navigation.scene_camera_transform.position[0], 
-            scene_navigation.scene_camera_transform.position[1], 
-            scene_navigation.scene_camera_transform.position[2],
-            scene_navigation.scene_camera_transform.rotation[0].to_degrees(), 
-            scene_navigation.scene_camera_transform.rotation[1].to_degrees(), 
-            scene_navigation.scene_camera_transform.rotation[2].to_degrees()
-        )));
-        
-        // Get object name for logging
-        let name = world.get_component::<Name>(selected_entity)
-            .map(|n| n.name.clone())
-            .unwrap_or_else(|| format!("Entity {}", selected_entity.id()));
-        
-        messages.push(ConsoleMessage::info(&format!(
-            "🔍 Focused on {} (radius: {:.1}, distance: {:.1})",
-            name, object_radius, view_distance
-        )));
-    } else {
-        messages.push(ConsoleMessage::info("⚠️ Selected entity has no transform"));
     }
-    
-    messages
+    // Focus operation complete
 }
 
 /// Scene view panel for 3D scene rendering and manipulation
 pub struct SceneViewPanel {
     pub scene_view_active: bool,
-    console_messages: Vec<ConsoleMessage>,
 }
 
 impl SceneViewPanel {
     pub fn new() -> Self {
         Self {
             scene_view_active: true,
-            console_messages: Vec::new(),
         }
     }
 
@@ -150,9 +104,7 @@ impl SceneViewPanel {
         gizmo_system: &mut GizmoSystem,
         scene_renderer: &mut scene_view_impl::SceneViewRenderer,
         play_state: crate::types::PlayState,
-    ) -> Vec<ConsoleMessage> {
-        let mut console_messages = Vec::new();
-        
+    ) {
         // Scene view toolbar
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.scene_view_active, true, "Scene");
@@ -162,8 +114,7 @@ impl SceneViewPanel {
             
             if ui.button("🔍").on_hover_text("Focus on selected (F)").clicked() {
                 if let Some(entity) = selected_entity {
-                    let messages = focus_on_selected_object(world, entity, scene_navigation);
-                    console_messages.extend(messages);
+                    focus_on_selected_object(world, entity, scene_navigation);
                 }
             }
         });
@@ -184,7 +135,7 @@ impl SceneViewPanel {
         }
         
         // Handle scene navigation FIRST before drawing
-        let nav_messages = scene_input::handle_scene_input(
+        scene_input::handle_scene_input(
             world,
             ui,
             &response,
@@ -193,7 +144,6 @@ impl SceneViewPanel {
             gizmo_system,
             selected_entity,
         );
-        console_messages.extend(nav_messages);
         
         // Get painter from UI
         let painter = ui.painter();
@@ -210,7 +160,7 @@ impl SceneViewPanel {
         ui.allocate_ui_at_rect(rect, |ui| {
             if self.scene_view_active {
                 // Draw 3D scene
-                let messages = scene_renderer.draw_scene(
+                scene_renderer.draw_scene(
                     world,
                     ui,
                     rect,
@@ -219,7 +169,6 @@ impl SceneViewPanel {
                     selected_entity,
                     play_state,
                 );
-                console_messages.extend(messages);
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.vertical_centered(|ui| {
@@ -236,12 +185,10 @@ impl SceneViewPanel {
             // F key to focus on selected object
             if i.key_pressed(egui::Key::F) && selected_entity.is_some() {
                 if let Some(entity) = selected_entity {
-                    let messages = focus_on_selected_object(world, entity, scene_navigation);
-                    console_messages.extend(messages);
+                    focus_on_selected_object(world, entity, scene_navigation);
                 }
             }
         });
-        
-        console_messages
+        // Scene view rendered
     }
 }

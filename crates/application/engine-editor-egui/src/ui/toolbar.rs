@@ -6,15 +6,11 @@ use engine_components_3d::Transform;
 use crate::types::{PlayState, SceneTool, GizmoSystem};
 use crate::editor_state::ConsoleMessage;
 
-pub struct Toolbar {
-    console_messages: Vec<ConsoleMessage>,
-}
+pub struct Toolbar {}
 
 impl Toolbar {
     pub fn new() -> Self {
-        Self {
-            console_messages: Vec::new(),
-        }
+        Self {}
     }
 
     pub fn show(
@@ -47,7 +43,7 @@ impl Toolbar {
             if select_pressed {
                 gizmo_system.set_active_tool(SceneTool::Select);
                 gizmo_system.disable_move_gizmo();
-                actions.messages.push(ConsoleMessage::info("🎯 Selection tool activated"));
+                // Selection tool activated
             }
             
             // Move tool (W)
@@ -68,7 +64,7 @@ impl Toolbar {
                         gizmo_system.enable_move_gizmo(transform.position);
                     }
                 }
-                actions.messages.push(ConsoleMessage::info("🔗 Move tool activated"));
+                // Move tool activated
             }
             
             // Rotate tool (E) - Future implementation
@@ -83,7 +79,7 @@ impl Toolbar {
             
             if rotate_pressed {
                 gizmo_system.set_active_tool(SceneTool::Rotate);
-                actions.messages.push(ConsoleMessage::info("🔄 Rotate tool - coming soon!"));
+                // Rotate tool - coming soon
             }
             
             // Scale tool (R) - Future implementation
@@ -98,7 +94,7 @@ impl Toolbar {
             
             if scale_pressed {
                 gizmo_system.set_active_tool(SceneTool::Scale);
-                actions.messages.push(ConsoleMessage::info("📐 Scale tool - coming soon!"));
+                // Scale tool - coming soon
             }
             
             ui.separator();
@@ -157,7 +153,7 @@ impl Toolbar {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("🎯 Focus Selected").on_hover_text("Focus camera on selected object").clicked() {
                     if let Some(ref obj) = selected_object {
-                        actions.messages.push(ConsoleMessage::info(&format!("🎯 Focused on {}", obj)));
+                        // Focused on object
                     }
                 }
                 
@@ -186,5 +182,4 @@ pub struct ToolbarActions {
     pub resume_play: bool,
     pub stop_play: bool,
     pub test_move: bool,
-    pub messages: Vec<ConsoleMessage>,
 }

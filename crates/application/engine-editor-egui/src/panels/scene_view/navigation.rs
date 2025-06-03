@@ -2,7 +2,6 @@
 
 use eframe::egui;
 use crate::types::SceneNavigation;
-use crate::editor_state::ConsoleMessage;
 use engine_components_3d::Transform;
 
 /// Scene navigation helper that manages camera movement in the editor
@@ -10,39 +9,31 @@ pub struct SceneNavigator;
 
 impl SceneNavigator {
     /// Start scene navigation (right mouse button pressed)
-    pub fn start_navigation(scene_nav: &mut SceneNavigation, mouse_pos: egui::Pos2) -> Vec<ConsoleMessage> {
-        let mut messages = Vec::new();
-        
+    pub fn start_navigation(scene_nav: &mut SceneNavigation, mouse_pos: egui::Pos2)  {
         if !scene_nav.enabled {
-            return messages;
+            return;
         }
         
         scene_nav.is_navigating = true;
         scene_nav.last_mouse_pos = Some(mouse_pos);
-        messages.push(ConsoleMessage::info("🔄 Scene navigation started (WASD + Mouse)"));
         
-        messages
+        // Done
     }
     
     /// End scene navigation (right mouse button released)
-    pub fn end_navigation(scene_nav: &mut SceneNavigation) -> Vec<ConsoleMessage> {
-        let mut messages = Vec::new();
-        
+    pub fn end_navigation(scene_nav: &mut SceneNavigation)  {
         if scene_nav.is_navigating {
             scene_nav.is_navigating = false;
             scene_nav.last_mouse_pos = None;
-            messages.push(ConsoleMessage::info("✔️ Scene navigation ended"));
         }
         
-        messages
+        // Done
     }
     
     /// Apply mouse look rotation to the camera - Simple direct rotation
-    pub fn apply_mouse_look(scene_nav: &mut SceneNavigation, mouse_delta: egui::Vec2) -> Vec<ConsoleMessage> {
-        let mut messages = Vec::new();
-        
+    pub fn apply_mouse_look(scene_nav: &mut SceneNavigation, mouse_delta: egui::Vec2)  {
         if !scene_nav.is_navigating {
-            return messages;
+            return;
         }
         
         // Simple, direct rotation calculation
@@ -61,29 +52,15 @@ impl SceneNavigator {
         scene_nav.scene_camera_transform.rotation[0] = scene_nav.scene_camera_transform.rotation[0]
             .clamp(-1.5, 1.5); // ~85 degrees
         
-        // Only log significant rotations
-        if pitch_delta.abs() > 0.01 || yaw_delta.abs() > 0.01 {
-            messages.push(ConsoleMessage::info(&format!(
-                "🔄 Free look: pitch={:.1}°, yaw={:.1}°",
-                scene_nav.scene_camera_transform.rotation[0].to_degrees(),
-                scene_nav.scene_camera_transform.rotation[1].to_degrees()
-            )));
-        }
-        
-        messages
+        // Done
     }
     
     
     /// Handle WASD movement input
-    pub fn handle_wasd_movement(scene_nav: &mut SceneNavigation, ui: &egui::Ui, delta_time: f32) -> Vec<ConsoleMessage> {
-        let mut messages = Vec::new();
-        
+    pub fn handle_wasd_movement(scene_nav: &mut SceneNavigation, ui: &egui::Ui, delta_time: f32)  {
         if !scene_nav.is_navigating {
-            return messages;
+            return;
         }
-        
-        // DEBUG: Log when this function is called
-        let old_pos = scene_nav.scene_camera_transform.position;
         
         // Check if any movement keys are actually pressed
         let any_movement_key = ui.input(|i| {
@@ -94,7 +71,7 @@ impl SceneNavigator {
         
         if !any_movement_key {
             // No movement keys pressed, don't move
-            return messages;
+            return;
         }
         
         let mut movement = [0.0, 0.0, 0.0];
@@ -146,23 +123,9 @@ impl SceneNavigator {
             scene_nav.scene_camera_transform.position[0] += transformed_movement[0];
             scene_nav.scene_camera_transform.position[1] += transformed_movement[1];
             scene_nav.scene_camera_transform.position[2] += transformed_movement[2];
-            
-            // Log movement for debugging
-            messages.push(ConsoleMessage::info(&format!(
-                "🎮 Moving: [{:.2}, {:.2}, {:.2}] @ speed {:.1}",
-                transformed_movement[0], transformed_movement[1], transformed_movement[2], speed
-            )));
-            
-            // DEBUG: Log position change
-            let new_pos = scene_nav.scene_camera_transform.position;
-            messages.push(ConsoleMessage::info(&format!(
-                "📍 Camera pos: [{:.2}, {:.2}, {:.2}] -> [{:.2}, {:.2}, {:.2}]",
-                old_pos[0], old_pos[1], old_pos[2],
-                new_pos[0], new_pos[1], new_pos[2]
-            )));
         }
         
-        messages
+        // Done
     }
     
     /// Transform movement vector by camera rotation
@@ -204,11 +167,9 @@ impl SceneNavigator {
     }
     
     /// Handle navigation speed control with scroll wheel
-    pub fn handle_navigation_speed_control(scene_nav: &mut SceneNavigation, ui: &egui::Ui) -> Vec<ConsoleMessage> {
-        let mut messages = Vec::new();
-        
+    pub fn handle_navigation_speed_control(scene_nav: &mut SceneNavigation, ui: &egui::Ui)  {
         if !scene_nav.is_navigating {
-            return messages;
+            return;
         }
         
         let scroll_delta = ui.input(|i| i.raw_scroll_delta.y);
@@ -217,14 +178,9 @@ impl SceneNavigator {
             let speed_multiplier = if scroll_delta > 0.0 { 1.1 } else { 0.9 };
             scene_nav.movement_speed = (scene_nav.movement_speed * speed_multiplier)
                 .clamp(0.5, 50.0);
-            
-            messages.push(ConsoleMessage::info(&format!(
-                "🌍 Navigation speed: {:.1} units/sec",
-                scene_nav.movement_speed
-            )));
         }
         
-        messages
+        // Done
     }
     
     /// Handle scene navigation (right mouse button + WASD)
@@ -233,9 +189,7 @@ impl SceneNavigator {
         ui: &egui::Ui,
         response: &egui::Response,
         rect: egui::Rect,
-    ) -> Vec<ConsoleMessage> {
-        let mut console_messages = Vec::new();
-        
+    )  {
         // Use the response object's drag detection for reliable input in docked panels
         let is_dragging = response.dragged_by(egui::PointerButton::Secondary);
         let drag_started = response.drag_started_by(egui::PointerButton::Secondary);
@@ -251,11 +205,7 @@ impl SceneNavigator {
         // Start navigation on drag start
         if drag_started && mouse_in_rect && !scene_navigation.is_navigating {
             if let Some(mouse_pos) = pointer_pos {
-                console_messages.push(ConsoleMessage::info(&format!(
-                    "🎮 Starting navigation at ({:.1}, {:.1})", mouse_pos.x, mouse_pos.y
-                )));
-                let messages = Self::start_navigation(scene_navigation, mouse_pos);
-                console_messages.extend(messages);
+                Self::start_navigation(scene_navigation, mouse_pos);
                 
                 // Hide cursor during navigation
                 ui.ctx().set_cursor_icon(egui::CursorIcon::None);
@@ -264,8 +214,7 @@ impl SceneNavigator {
         
         // End navigation on drag stop
         if drag_stopped && scene_navigation.is_navigating {
-            let messages = Self::end_navigation(scene_navigation);
-            console_messages.extend(messages);
+            Self::end_navigation(scene_navigation);
             ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
         }
         
@@ -294,8 +243,7 @@ impl SceneNavigator {
                 
                 // Apply rotation if there's movement
                 if effective_delta.length() > 0.0 {  // Process any non-zero delta since we already filtered
-                    let messages = Self::apply_mouse_look(scene_navigation, effective_delta);
-                    console_messages.extend(messages);
+                    Self::apply_mouse_look(scene_navigation, effective_delta);
                 }
                 
                 // Update last mouse position
@@ -305,8 +253,7 @@ impl SceneNavigator {
             // Handle WASD movement
             // Note: delta_time should be passed in from the parent
             let delta_time = ui.input(|i| i.stable_dt);
-            let messages = Self::handle_wasd_movement(scene_navigation, ui, delta_time);
-            console_messages.extend(messages);
+            Self::handle_wasd_movement(scene_navigation, ui, delta_time);
         }
         
         // Smooth rotation disabled for Unity-style direct response
@@ -315,10 +262,9 @@ impl SceneNavigator {
         // console_messages.extend(messages);
         
         // Handle scroll wheel for speed adjustment (even when not actively navigating)
-        let messages = Self::handle_navigation_speed_control(scene_navigation, ui);
-        console_messages.extend(messages);
+        Self::handle_navigation_speed_control(scene_navigation, ui);
         
-        console_messages
+        // Done
     }
 }
 

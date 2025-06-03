@@ -142,7 +142,7 @@ impl EditorState {
         self.scene_objects.insert(self.next_object_id, light);
         self.next_object_id += 1;
         
-        self.log_info("Scene initialized with default objects");
+        // Scene initialized with default objects
     }
     
     pub fn create_object(&mut self, name: String) -> u32 {
@@ -150,13 +150,13 @@ impl EditorState {
         let id = self.next_object_id;
         self.scene_objects.insert(id, obj);
         self.next_object_id += 1;
-        self.log_info(&format!("Created object: {}", name));
+        // Object created
         id
     }
     
     pub fn delete_object(&mut self, id: u32) -> bool {
         if let Some(obj) = self.scene_objects.remove(&id) {
-            self.log_info(&format!("Deleted object: {}", obj.name));
+            // Object deleted
             if self.selected_object == Some(id) {
                 self.selected_object = None;
             }
@@ -170,7 +170,7 @@ impl EditorState {
         if self.scene_objects.contains_key(&id) {
             self.selected_object = Some(id);
             if let Some(obj) = self.scene_objects.get(&id) {
-                self.log_info(&format!("Selected: {}", obj.name));
+                // Object selected
             }
             true
         } else {
@@ -186,21 +186,21 @@ impl EditorState {
         self.scene_objects.get_mut(&id)
     }
     
-    pub fn log_info(&mut self, message: &str) {
-        self.console_messages.push(ConsoleMessage::info(message));
+    pub fn log_info(&mut self, _message: &str) {
+        // Logging disabled
     }
     
-    pub fn log_warning(&mut self, message: &str) {
-        self.console_messages.push(ConsoleMessage::warning(message));
+    pub fn log_warning(&mut self, _message: &str) {
+        // Logging disabled
     }
     
-    pub fn log_error(&mut self, message: &str) {
-        self.console_messages.push(ConsoleMessage::error(message));
+    pub fn log_error(&mut self, _message: &str) {
+        // Logging disabled
     }
     
     pub fn clear_console(&mut self) {
         self.console_messages.clear();
-        self.log_info("Console cleared");
+        // Console cleared
     }
     
     pub fn object_count(&self) -> usize {

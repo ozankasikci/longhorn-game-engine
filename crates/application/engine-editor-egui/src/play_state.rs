@@ -23,44 +23,29 @@ impl PlayStateManager {
     }
     
     /// Start playing the game
-    pub fn start_play(&mut self) -> Vec<ConsoleMessage> {
-        let mut messages = vec![];
+    pub fn start_play(&mut self) {
         self.play_state = PlayState::Playing;
         self.game_start_time = Some(Instant::now());
-        messages.push(ConsoleMessage::info("▶️ Game started"));
-        messages.push(ConsoleMessage::info(&format!("🎮 Play mode active at {:.1} FPS", 1.0 / self.delta_time.max(0.001))));
-        messages
     }
     
     /// Pause the game
-    pub fn pause_play(&mut self) -> Vec<ConsoleMessage> {
-        let mut messages = vec![];
+    pub fn pause_play(&mut self) {
         if self.play_state == PlayState::Playing {
             self.play_state = PlayState::Paused;
-            messages.push(ConsoleMessage::info(&format!("⏸️ Game paused at {:.1}s", self.get_play_time())));
         }
-        messages
     }
     
     /// Resume the game from pause
-    pub fn resume_play(&mut self) -> Vec<ConsoleMessage> {
-        let mut messages = vec![];
+    pub fn resume_play(&mut self) {
         if self.play_state == PlayState::Paused {
             self.play_state = PlayState::Playing;
-            messages.push(ConsoleMessage::info(&format!("▶️ Game resumed at {:.1}s", self.get_play_time())));
         }
-        messages
     }
     
     /// Stop playing and return to edit mode
-    pub fn stop_play(&mut self) -> Vec<ConsoleMessage> {
-        let mut messages = vec![];
+    pub fn stop_play(&mut self) {
         self.play_state = PlayState::Editing;
-        let play_time = self.get_play_time();
         self.game_start_time = None;
-        messages.push(ConsoleMessage::info(&format!("⏹️ Game stopped after {:.1}s", play_time)));
-        messages.push(ConsoleMessage::info("🎨 Returned to edit mode"));
-        messages
     }
     
     /// Update delta time calculation

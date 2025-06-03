@@ -4,15 +4,11 @@ use eframe::egui;
 use crate::types::PlayState;
 use crate::editor_state::ConsoleMessage;
 
-pub struct GameViewPanel {
-    console_messages: Vec<ConsoleMessage>,
-}
+pub struct GameViewPanel {}
 
 impl GameViewPanel {
     pub fn new() -> Self {
-        Self {
-            console_messages: Vec::new(),
-        }
+        Self {}
     }
 
     pub fn show(
@@ -40,10 +36,10 @@ impl GameViewPanel {
             
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("🔊").on_hover_text("Audio toggle").clicked() {
-                    messages.push(ConsoleMessage::info("🔊 Game audio toggled"));
+                    // Audio toggled
                 }
                 if ui.button("📊").on_hover_text("Stats").clicked() {
-                    messages.push(ConsoleMessage::info("📊 Game view stats"));
+                    // Stats clicked
                 }
             });
         });

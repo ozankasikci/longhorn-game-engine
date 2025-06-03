@@ -6,26 +6,21 @@ use engine_components_3d::{Transform, Material, Mesh, Light, Visibility};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::{Canvas, Name};
 use engine_camera::{Camera, Camera2D, CameraComponent, CameraType};
-use crate::editor_state::ConsoleMessage;
 
 pub struct InspectorPanel {
     show_add_component_dialog: bool,
-    console_messages: Vec<ConsoleMessage>,
 }
 
 impl InspectorPanel {
     pub fn new() -> Self {
         Self {
             show_add_component_dialog: false,
-            console_messages: Vec::new(),
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, world: &mut World, selected_entity: Option<Entity>) -> Vec<ConsoleMessage> {
+    pub fn show(&mut self, ui: &mut egui::Ui, world: &mut World, selected_entity: Option<Entity>) {
         ui.label("Entity Inspector");
         ui.separator();
-        
-        let mut messages = Vec::new();
         
         if let Some(selected_entity) = selected_entity {
             ui.horizontal(|ui| {
@@ -71,7 +66,6 @@ impl InspectorPanel {
                     
                     // Copy to clipboard
                     ui.output_mut(|o| o.copied_text = info.clone());
-                    messages.push(ConsoleMessage::info("📋 Entity information copied to clipboard"));
                 }
             });
             ui.separator();
@@ -406,7 +400,6 @@ impl InspectorPanel {
                                 
                                 // Update projection matrix if camera type changed
                                 if let Err(e) = camera_mut.camera.update_projection_matrix() {
-                                    messages.push(ConsoleMessage::info(&format!("⚠️ Camera update error: {}", e)));
                                 }
                             }
                         }
@@ -471,21 +464,16 @@ impl InspectorPanel {
                 
                 // Add Component Dialog
                 if self.show_add_component_dialog {
-                    self.show_add_component_dialog(ui, world, selected_entity, &mut messages);
+                    self.show_add_component_dialog(ui, world, selected_entity);
                 }
             });
         } else {
             ui.label("No entity selected");
             ui.label("Select an entity in the Hierarchy to view its components.");
         }
-        
-        // Return any console messages
-        let mut final_messages = self.console_messages.drain(..).collect::<Vec<_>>();
-        final_messages.append(&mut messages);
-        final_messages
     }
     
-    fn show_add_component_dialog(&mut self, ui: &mut egui::Ui, world: &mut World, entity: Entity, messages: &mut Vec<ConsoleMessage>) {
+    fn show_add_component_dialog(&mut self, ui: &mut egui::Ui, world: &mut World, entity: Entity) {
         let mut dialog_open = self.show_add_component_dialog;
         egui::Window::new("Add Component")
             .open(&mut dialog_open)
@@ -499,11 +487,9 @@ impl InspectorPanel {
                 if ui.button("📝 Name Component").clicked() {
                     match world.add_component(entity, Name::new("New Object")) {
                         Ok(_) => {
-                            messages.push(ConsoleMessage::info("✅ Added Name component"));
                             self.show_add_component_dialog = false;
                         }
                         Err(e) => {
-                            messages.push(ConsoleMessage::info(&format!("❌ Failed to add Name: {}", e)));
                         }
                     }
                 }
@@ -512,11 +498,9 @@ impl InspectorPanel {
                 if ui.button("👁️ Visibility Component").clicked() {
                     match world.add_component(entity, Visibility::default()) {
                         Ok(_) => {
-                            messages.push(ConsoleMessage::info("✅ Added Visibility component"));
                             self.show_add_component_dialog = false;
                         }
                         Err(e) => {
-                            messages.push(ConsoleMessage::info(&format!("❌ Failed to add Visibility: {}", e)));
                         }
                     }
                 }
@@ -525,11 +509,9 @@ impl InspectorPanel {
                 if ui.button("📷 Camera Component").clicked() {
                     match world.add_component(entity, Camera::default()) {
                         Ok(_) => {
-                            messages.push(ConsoleMessage::info("✅ Added Camera component"));
                             self.show_add_component_dialog = false;
                         }
                         Err(e) => {
-                            messages.push(ConsoleMessage::info(&format!("❌ Failed to add Camera: {}", e)));
                         }
                     }
                 }
@@ -538,11 +520,9 @@ impl InspectorPanel {
                 if ui.button("💡 Light Component").clicked() {
                     match world.add_component(entity, Light::default()) {
                         Ok(_) => {
-                            messages.push(ConsoleMessage::info("✅ Added Light component"));
                             self.show_add_component_dialog = false;
                         }
                         Err(e) => {
-                            messages.push(ConsoleMessage::info(&format!("❌ Failed to add Light: {}", e)));
                         }
                     }
                 }
@@ -554,17 +534,14 @@ impl InspectorPanel {
                 if ui.button("📷 3D Camera Component").clicked() {
                     // Check if entity already has a camera component
                     if world.get_component::<Camera>(entity).is_some() {
-                        messages.push(ConsoleMessage::info("⚠️ Entity already has a Camera component"));
                     } else {
                         let camera = Camera::new().with_fov(60.0);
                         
                         match world.add_component(entity, camera) {
                             Ok(_) => {
-                                messages.push(ConsoleMessage::info("✅ Added 3D Camera component"));
                                 self.show_add_component_dialog = false;
                             }
                             Err(e) => {
-                                messages.push(ConsoleMessage::info(&format!("❌ Failed to add 3D Camera: {}", e)));
                             }
                         }
                     }
@@ -574,17 +551,14 @@ impl InspectorPanel {
                 if ui.button("🎥 Main Camera Component").clicked() {
                     // Check if entity already has a camera component
                     if world.get_component::<Camera>(entity).is_some() {
-                        messages.push(ConsoleMessage::info("⚠️ Entity already has a Camera component"));
                     } else {
                         let camera = Camera::main_camera();
                         
                         match world.add_component(entity, camera) {
                             Ok(_) => {
-                                messages.push(ConsoleMessage::info("✅ Added Main Camera component"));
                                 self.show_add_component_dialog = false;
                             }
                             Err(e) => {
-                                messages.push(ConsoleMessage::info(&format!("❌ Failed to add Main Camera: {}", e)));
                             }
                         }
                     }
@@ -597,11 +571,9 @@ impl InspectorPanel {
                 if ui.button("🖼️ Sprite Renderer Component").clicked() {
                     match world.add_component(entity, SpriteRenderer::default()) {
                         Ok(_) => {
-                            messages.push(ConsoleMessage::info("✅ Added Sprite Renderer component"));
                             self.show_add_component_dialog = false;
                         }
                         Err(e) => {
-                            messages.push(ConsoleMessage::info(&format!("❌ Failed to add Sprite Renderer: {}", e)));
                         }
                     }
                 }
@@ -610,11 +582,9 @@ impl InspectorPanel {
                 if ui.button("🎨 Canvas Component").clicked() {
                     match world.add_component(entity, Canvas::default()) {
                         Ok(_) => {
-                            messages.push(ConsoleMessage::info("✅ Added Canvas component"));
                             self.show_add_component_dialog = false;
                         }
                         Err(e) => {
-                            messages.push(ConsoleMessage::info(&format!("❌ Failed to add Canvas: {}", e)));
                         }
                     }
                 }
@@ -623,11 +593,9 @@ impl InspectorPanel {
                 if ui.button("📷 Camera 2D Component").clicked() {
                     match world.add_component(entity, Camera2D::default()) {
                         Ok(_) => {
-                            messages.push(ConsoleMessage::info("✅ Added Camera 2D component"));
                             self.show_add_component_dialog = false;
                         }
                         Err(e) => {
-                            messages.push(ConsoleMessage::info(&format!("❌ Failed to add Camera 2D: {}", e)));
                         }
                     }
                 }

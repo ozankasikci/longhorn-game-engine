@@ -38,12 +38,12 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
 
     fn context_menu(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab, _surface: SurfaceIndex, _node: NodeIndex) {
         if ui.button("Close Tab").clicked() {
-            self.editor.console_messages.push(ConsoleMessage::info(&format!("🗑️ Closed {:?} panel", tab)));
+            // Panel closed
             ui.close_menu();
         }
         if ui.button("Duplicate Tab").clicked() {
             // Note: We can't modify dock_state here since it's already borrowed
-            self.editor.console_messages.push(ConsoleMessage::info(&format!("📋 Duplicated {:?} panel", tab)));
+            // Panel duplicated
             ui.close_menu();
         }
     }

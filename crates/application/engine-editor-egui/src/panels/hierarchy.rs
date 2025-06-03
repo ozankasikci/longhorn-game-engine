@@ -10,14 +10,12 @@ use crate::types::{SceneTool, HierarchyObject};
 use crate::editor_state::ConsoleMessage;
 
 pub struct HierarchyPanel {
-    console_messages: Vec<ConsoleMessage>,
     selected_object: Option<String>,
 }
 
 impl HierarchyPanel {
     pub fn new() -> Self {
         Self {
-            console_messages: Vec::new(),
             selected_object: None,
         }
     }
@@ -35,7 +33,7 @@ impl HierarchyPanel {
                 if ui.button("➕").on_hover_text("Create new entity").clicked() {
                     // Create new entity with ECS v2
                     let entity = world.spawn_with(Transform::default());
-                    self.console_messages.push(ConsoleMessage::info(&format!("➕ Created Entity {:?}", entity)));
+                    // Entity created
                 }
             });
         });
@@ -77,7 +75,7 @@ impl HierarchyPanel {
                 
                 if ui.selectable_label(selected, &label).clicked() {
                     *selected_entity = Some(entity);
-                    self.console_messages.push(ConsoleMessage::info(&format!("🎯 Selected Entity {:?}", entity)));
+                    // Entity selected
                     
                     // Update gizmo position if move tool is active
                     if gizmo_system.get_active_tool() == SceneTool::Move {
@@ -89,10 +87,8 @@ impl HierarchyPanel {
             }
         });
         
-        // Return any console messages
-        let mut messages = Vec::new();
-        messages.append(&mut self.console_messages);
-        messages
+        // Return empty messages
+        Vec::new()
     }
     
     /// Display a hierarchy object tree recursively
@@ -114,7 +110,7 @@ impl HierarchyPanel {
                 let selected = self.selected_object.as_ref() == Some(&object.name);
                 if ui.selectable_label(selected, &object.name).clicked() {
                     self.selected_object = Some(object.name.clone());
-                    messages.push(ConsoleMessage::info(&format!("🎯 Selected: {}", object.name)));
+                    // Object selected
                 }
             }
         }
@@ -134,7 +130,7 @@ impl HierarchyPanel {
             ui.label("Scene Hierarchy");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("⚙️").on_hover_text("Hierarchy settings").clicked() {
-                    messages.push(ConsoleMessage::info("🔧 Hierarchy settings not implemented"));
+                    // Settings clicked
                 }
             });
         });

@@ -6,7 +6,6 @@ use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
 use engine_camera::Camera;
 use engine_component_traits::{Bundle, ComponentClone};
-use crate::editor_state::ConsoleMessage;
 
 /// Bundle for camera entities
 pub struct CameraBundle {
@@ -44,9 +43,8 @@ impl Default for CameraBundle {
 }
 
 /// Creates a default world with sample entities for the editor
-pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
+pub fn create_default_world() -> (World, Entity) {
     let mut world = World::new();
-    let mut messages = Vec::new();
     
     // Register all component types
     engine_ecs_core::register_component::<Transform>();
@@ -58,7 +56,6 @@ pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
     engine_ecs_core::register_component::<Sprite>();
     engine_ecs_core::register_component::<SpriteRenderer>();
     
-    messages.push(ConsoleMessage::info("📝 Registered all component types"));
     
     // Create camera entity with bundle - SIMPLIFIED for coordinate system testing
     let camera_entity = world.spawn_bundle(CameraBundle {
@@ -71,7 +68,6 @@ pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
         name: Name::new("Main Camera"),
     }).expect("Failed to create camera entity");
     
-    messages.push(ConsoleMessage::info("✅ Created camera with bundle"));
     
     // Create a single cube in front of the camera
     let _cube_entity = world.spawn_bundle(GameObject3DBundle {
@@ -94,25 +90,15 @@ pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
     
     world.add_component(_cube_entity, Name::new("Cube")).unwrap();
     
-    messages.push(ConsoleMessage::info("✅ Created single cube object"));
-    messages.push(ConsoleMessage::info("🚀 ECS v2 World with proper multi-component entities!"));
-    messages.push(ConsoleMessage::info("🎮 Objects should now render with actual meshes"));
     
-    // DEBUG: Force log all entities that were just created
-    messages.push(ConsoleMessage::info(&format!("🔍 DEBUG: World has {} entities total", world.entity_count())));
     
     // Try to get all entities with Transform components
     let entities_with_transforms: Vec<_> = world.query_legacy::<Transform>().collect();
-    messages.push(ConsoleMessage::info(&format!("🔍 DEBUG: Found {} entities with Transform", entities_with_transforms.len())));
     
     for (entity, transform) in entities_with_transforms.iter().take(5) {
         let name = world.get_component::<engine_components_ui::Name>(*entity)
             .map(|n| n.name.clone())
             .unwrap_or_else(|| format!("Entity {}", entity.id()));
-        messages.push(ConsoleMessage::info(&format!(
-            "  📦 Entity: {} at [{:.1}, {:.1}, {:.1}]",
-            name, transform.position[0], transform.position[1], transform.position[2]
-        )));
     }
     
     // FINAL DEBUG: Verify entities exist
@@ -121,12 +107,8 @@ pub fn create_default_world() -> (World, Entity, Vec<ConsoleMessage>) {
         .filter(|(e, _)| world.get_component::<Mesh>(*e).is_some())
         .collect();
     
-    messages.push(ConsoleMessage::info(&format!(
-        "🎯 WORLD SETUP COMPLETE: {} total entities, {} with mesh components",
-        final_count, mesh_entities.len()
-    )));
     
-    (world, camera_entity, messages)
+    (world, camera_entity)
 }
 
 /// Creates test sprite entities

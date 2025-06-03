@@ -62,7 +62,6 @@ pub struct LonghornEditor {
     
     // Editor state
     selected_object: Option<String>,
-    pub console_messages: Vec<ConsoleMessage>,
     
     // Panel data
     hierarchy_objects: Vec<HierarchyObject>,
@@ -132,12 +131,9 @@ impl LonghornEditor {
         );
         
         // Initialize world with default entities
-        let (world, camera_entity, init_messages) = world_setup::create_default_world();
+        let (world, camera_entity) = world_setup::create_default_world();
         
-        // DEBUG: Verify world has entities immediately after creation
-        eprintln!("🔍 MAIN DEBUG: World created with {} entities", world.entity_count());
-        eprintln!("🔍 MAIN DEBUG: Transform components: {}", world.query_legacy::<Transform>().count());
-        eprintln!("🔍 MAIN DEBUG: Mesh components: {}", world.query_legacy::<engine_components_3d::Mesh>().count());
+        // Verify world has entities immediately after creation
         
         // Load editor settings
         let settings = EditorSettings::load();
@@ -154,19 +150,6 @@ impl LonghornEditor {
             world,
             selected_entity: Some(camera_entity),
             selected_object: None,
-            console_messages: {
-                let mut messages = vec![
-                    ConsoleMessage::info("🎮 Longhorn Editor initialized with dockable panels"),
-                    ConsoleMessage::info("✅ EGUI docking system active"),
-                ];
-                messages.extend(init_messages);
-                messages.extend(vec![
-                    ConsoleMessage::info("📝 Debug logs are being written to debug_console.log"),
-                    ConsoleMessage::info("💡 Use 📋 Copy All or 💾 Export buttons to get logs"),
-                    ConsoleMessage::info("🔧 Select an entity and use the move tool to test gizmos"),
-                ]);
-                messages
-            },
             hierarchy_objects: world_setup::create_default_hierarchy(),
             project_assets: world_setup::create_default_project_assets(),
             texture_assets: assets::create_default_textures(),
@@ -274,8 +257,6 @@ impl LonghornEditor {
                 }
             }
         }
-        
-        self.console_messages.extend(messages);
     }
     
     pub fn show_toolbar(&mut self, ui: &mut egui::Ui) {
@@ -291,20 +272,16 @@ impl LonghornEditor {
         
         // Handle toolbar actions
         if actions.start_play {
-            let messages = self.coordinator.start_play();
-            self.console_messages.extend(messages);
+            self.coordinator.start_play();
         }
         if actions.pause_play {
-            let messages = self.coordinator.pause_play();
-            self.console_messages.extend(messages);
+            self.coordinator.pause_play();
         }
         if actions.resume_play {
-            let messages = self.coordinator.resume_play();
-            self.console_messages.extend(messages);
+            self.coordinator.resume_play();
         }
         if actions.stop_play {
-            let messages = self.coordinator.stop_play();
-            self.console_messages.extend(messages);
+            self.coordinator.stop_play();
         }
         
         // Handle test move action
@@ -313,35 +290,27 @@ impl LonghornEditor {
                 if let Some(transform_mut) = self.world.get_component_mut::<Transform>(selected_entity) {
                     let old_pos = transform_mut.position;
                     transform_mut.position[0] += 1.0; // Move 1 unit in X
-                    self.console_messages.push(ConsoleMessage::info(&format!(
-                        "🔧 TEST: Moved object from [{:.2}, {:.2}, {:.2}] to [{:.2}, {:.2}, {:.2}]",
-                        old_pos[0], old_pos[1], old_pos[2],
-                        transform_mut.position[0], transform_mut.position[1], transform_mut.position[2]
-                    )));
+                    // Object moved successfully
                 } else {
-                    self.console_messages.push(ConsoleMessage::info("🔧 TEST: Failed to get mutable transform"));
+                    // Failed to get mutable transform
                 }
             } else {
-                self.console_messages.push(ConsoleMessage::info("🔧 TEST: No object selected"));
+                // No object selected
             }
         }
-        
-        // Add any messages from toolbar
-        self.console_messages.extend(actions.messages);
+        // Toolbar actions processed
     }
     
     pub fn show_hierarchy_panel(&mut self, ui: &mut egui::Ui) {
-        let messages = self.hierarchy_panel.show(ui, &mut self.world, &mut self.selected_entity, &mut self.gizmo_system);
-        self.console_messages.extend(messages);
+        self.hierarchy_panel.show(ui, &mut self.world, &mut self.selected_entity, &mut self.gizmo_system);
     }
     
     pub fn show_inspector_panel(&mut self, ui: &mut egui::Ui) {
-        let messages = self.inspector_panel.show(ui, &mut self.world, self.selected_entity);
-        self.console_messages.extend(messages);
+        self.inspector_panel.show(ui, &mut self.world, self.selected_entity);
     }
     
     pub fn show_scene_view(&mut self, ui: &mut egui::Ui) {
-        let messages = self.scene_view_panel.show(
+        self.scene_view_panel.show(
             ui,
             &mut self.world,
             self.selected_entity,
@@ -350,22 +319,19 @@ impl LonghornEditor {
             &mut self.scene_view_renderer,
             self.coordinator.get_play_state(),
         );
-        self.console_messages.extend(messages);
     }
 
     /// Render the scene from the main camera's perspective
     fn render_camera_perspective(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
-        let messages = panels::scene_view::rendering::SceneRenderer::render_camera_perspective(
+        panels::scene_view::rendering::SceneRenderer::render_camera_perspective(
             &self.world,
             ui,
             rect
         );
-        self.console_messages.extend(messages);
     }
 
     pub fn show_game_view(&mut self, ui: &mut egui::Ui) {
-        let (messages, render_rect) = self.game_view_panel.show(ui, self.coordinator.get_play_state());
-        self.console_messages.extend(messages);
+        let (_, render_rect) = self.game_view_panel.show(ui, self.coordinator.get_play_state());
         
         // If we got a rect back, render the camera perspective
         if let Some(rect) = render_rect {
@@ -374,10 +340,10 @@ impl LonghornEditor {
     }
     
     pub fn show_console_panel(&mut self, ui: &mut egui::Ui) {
-        self.console_panel.show(ui, &mut self.console_messages);
+        self.console_panel.show(ui, &mut Vec::new());
     }
     
     pub fn show_project_panel(&mut self, ui: &mut egui::Ui) {
-        self.project_panel.show(ui, &self.project_assets, &mut self.console_messages);
+        self.project_panel.show(ui, &self.project_assets);
     }
 }
