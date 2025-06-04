@@ -524,13 +524,13 @@ impl SceneViewRenderer {
     }
     
     fn draw_grid(&self, painter: &egui::Painter, rect: egui::Rect, camera_pos: [f32; 3], camera_rot: [f32; 3]) {
-        // Unity-style grid parameters
-        let grid_size = 1.0; // 1 unit grid
-        let major_grid_interval = 10; // Major lines every 10 units
-        let pixels_per_unit = 50.0; // Scale factor
+        use super::improved_grid::*;
+        // Get appropriate grid level based on camera height
+        let camera_height = camera_pos[1];
+        let level = get_grid_level(camera_height);
         
-        // Draw a larger grid to ensure coverage
-        let grid_extent = 50; // Fixed grid size: 50x50 units
+        // Calculate grid bounds
+        let grid_extent = (level.extent / level.spacing) as i32;
         
         // Calculate grid bounds centered on origin for simplicity
         let grid_left = -grid_extent;
@@ -542,42 +542,62 @@ impl SceneViewRenderer {
         
         // Draw grid lines running along X axis (parallel to X)
         for z in grid_top..=grid_bottom {
-            let world_z = z as f32 * grid_size;
+            let world_z = z as f32 * level.spacing;
             
             // Start and end points of the line in world space at Y=0
-            let start_world = [grid_left as f32 * grid_size, 0.0, world_z];
-            let end_world = [grid_right as f32 * grid_size, 0.0, world_z];
+            let start_world = [grid_left as f32 * level.spacing, 0.0, world_z];
+            let end_world = [grid_right as f32 * level.spacing, 0.0, world_z];
             
             // Transform to screen space
             let (start_screen, start_depth) = self.world_to_screen(start_world, camera_pos, camera_rot, view_center, rect);
             let (end_screen, end_depth) = self.world_to_screen(end_world, camera_pos, camera_rot, view_center, rect);
             
-            // Skip if both points are behind camera
-            if start_depth <= 0.1 && end_depth <= 0.1 {
-                continue;
-            }
-            
-            // Skip lines that would appear too distorted
-            if start_depth <= 0.5 || end_depth <= 0.5 {
-                continue;
-            }
-            
-            // Also skip if line endpoints are too far outside the view
-            if !rect.expand(100.0).contains(start_screen) && !rect.expand(100.0).contains(end_screen) {
-                continue;
-            }
-            
-            // Determine line style
-            let (stroke_width, color) = if z == 0 {
-                // Z-axis line (blue)
-                (2.0, egui::Color32::from_rgba_unmultiplied(100, 100, 200, 180))
-            } else if z % major_grid_interval == 0 {
-                // Major grid lines
-                (1.0, egui::Color32::from_rgba_unmultiplied(120, 120, 120, 120))
-            } else {
-                // Minor grid lines
-                (0.5, egui::Color32::from_rgba_unmultiplied(80, 80, 80, 60))
+            // Clip line to near plane if necessary
+            let clipped = match clip_line_to_near_plane(start_world, end_world, start_depth, end_depth, 0.1) {
+                Some((clipped_start, clipped_end, new_start_depth, new_end_depth)) => {
+                    // Re-project clipped points if they changed
+                    let start_s = if clipped_start[0] == start_world[0] && clipped_start[1] == start_world[1] && clipped_start[2] == start_world[2] {
+                        start_screen
+                    } else {
+                        self.world_to_screen(clipped_start, camera_pos, camera_rot, view_center, rect).0
+                    };
+                    let end_s = if clipped_end[0] == end_world[0] && clipped_end[1] == end_world[1] && clipped_end[2] == end_world[2] {
+                        end_screen
+                    } else {
+                        self.world_to_screen(clipped_end, camera_pos, camera_rot, view_center, rect).0
+                    };
+                    Some((start_s, end_s, new_start_depth, new_end_depth))
+                },
+                None => None,
             };
+            
+            let (start_screen, end_screen, start_depth, end_depth) = match clipped {
+                Some(data) => data,
+                None => continue,
+            };
+            
+            // Check if line is within reasonable screen bounds
+            if !is_line_in_bounds(start_screen, end_screen, rect, 200.0) {
+                continue;
+            }
+            
+            // Calculate distance for fading
+            let mid_point = [
+                (start_world[0] + end_world[0]) * 0.5,
+                (start_world[1] + end_world[1]) * 0.5,
+                (start_world[2] + end_world[2]) * 0.5,
+            ];
+            let distance = ((mid_point[0] - camera_pos[0]).powi(2) + 
+                           (mid_point[1] - camera_pos[1]).powi(2) + 
+                           (mid_point[2] - camera_pos[2]).powi(2)).sqrt();
+            
+            // Get line style based on grid coordinate and distance
+            let (stroke_width, color) = get_line_style(z, false, distance, &level, camera_height);
+            
+            // Skip fully transparent lines
+            if color.a() == 0 {
+                continue;
+            }
             
             painter.line_segment(
                 [start_screen, end_screen],
@@ -587,42 +607,62 @@ impl SceneViewRenderer {
         
         // Draw grid lines running along Z axis (parallel to Z)
         for x in grid_left..=grid_right {
-            let world_x = x as f32 * grid_size;
+            let world_x = x as f32 * level.spacing;
             
             // Start and end points of the line in world space at Y=0
-            let start_world = [world_x, 0.0, grid_top as f32 * grid_size];
-            let end_world = [world_x, 0.0, grid_bottom as f32 * grid_size];
+            let start_world = [world_x, 0.0, grid_top as f32 * level.spacing];
+            let end_world = [world_x, 0.0, grid_bottom as f32 * level.spacing];
             
             // Transform to screen space
             let (start_screen, start_depth) = self.world_to_screen(start_world, camera_pos, camera_rot, view_center, rect);
             let (end_screen, end_depth) = self.world_to_screen(end_world, camera_pos, camera_rot, view_center, rect);
             
-            // Skip if both points are behind camera
-            if start_depth <= 0.1 && end_depth <= 0.1 {
-                continue;
-            }
-            
-            // Skip lines that would appear too distorted
-            if start_depth <= 0.5 || end_depth <= 0.5 {
-                continue;
-            }
-            
-            // Also skip if line endpoints are too far outside the view
-            if !rect.expand(100.0).contains(start_screen) && !rect.expand(100.0).contains(end_screen) {
-                continue;
-            }
-            
-            // Determine line style
-            let (stroke_width, color) = if x == 0 {
-                // X-axis line (red)
-                (2.0, egui::Color32::from_rgba_unmultiplied(200, 100, 100, 180))
-            } else if x % major_grid_interval == 0 {
-                // Major grid lines
-                (1.0, egui::Color32::from_rgba_unmultiplied(120, 120, 120, 120))
-            } else {
-                // Minor grid lines
-                (0.5, egui::Color32::from_rgba_unmultiplied(80, 80, 80, 60))
+            // Clip line to near plane if necessary
+            let clipped = match clip_line_to_near_plane(start_world, end_world, start_depth, end_depth, 0.1) {
+                Some((clipped_start, clipped_end, new_start_depth, new_end_depth)) => {
+                    // Re-project clipped points if they changed
+                    let start_s = if clipped_start[0] == start_world[0] && clipped_start[1] == start_world[1] && clipped_start[2] == start_world[2] {
+                        start_screen
+                    } else {
+                        self.world_to_screen(clipped_start, camera_pos, camera_rot, view_center, rect).0
+                    };
+                    let end_s = if clipped_end[0] == end_world[0] && clipped_end[1] == end_world[1] && clipped_end[2] == end_world[2] {
+                        end_screen
+                    } else {
+                        self.world_to_screen(clipped_end, camera_pos, camera_rot, view_center, rect).0
+                    };
+                    Some((start_s, end_s, new_start_depth, new_end_depth))
+                },
+                None => None,
             };
+            
+            let (start_screen, end_screen, start_depth, end_depth) = match clipped {
+                Some(data) => data,
+                None => continue,
+            };
+            
+            // Check if line is within reasonable screen bounds
+            if !is_line_in_bounds(start_screen, end_screen, rect, 200.0) {
+                continue;
+            }
+            
+            // Calculate distance for fading
+            let mid_point = [
+                (start_world[0] + end_world[0]) * 0.5,
+                (start_world[1] + end_world[1]) * 0.5,
+                (start_world[2] + end_world[2]) * 0.5,
+            ];
+            let distance = ((mid_point[0] - camera_pos[0]).powi(2) + 
+                           (mid_point[1] - camera_pos[1]).powi(2) + 
+                           (mid_point[2] - camera_pos[2]).powi(2)).sqrt();
+            
+            // Get line style based on grid coordinate and distance
+            let (stroke_width, color) = get_line_style(x, true, distance, &level, camera_height);
+            
+            // Skip fully transparent lines
+            if color.a() == 0 {
+                continue;
+            }
             
             painter.line_segment(
                 [start_screen, end_screen],

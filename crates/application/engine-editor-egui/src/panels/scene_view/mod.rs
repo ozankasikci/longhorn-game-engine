@@ -9,6 +9,7 @@ pub mod object_renderer;
 pub mod scene_view_impl;
 pub mod scene_input;
 pub mod debug_overlay;
+pub mod improved_grid;
 
 #[cfg(test)]
 mod navigation_tests;
