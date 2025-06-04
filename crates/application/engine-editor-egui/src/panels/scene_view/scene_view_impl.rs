@@ -221,6 +221,7 @@ impl SceneViewRenderer {
                 camera_pos,
                 camera_rot,
                 rect.center(),
+                rect,
             );
             
             screen_vertices.push(screen_pos);
@@ -342,6 +343,7 @@ impl SceneViewRenderer {
             camera_pos,
             camera_rot,
             rect.center(),
+            rect,
         );
         
         let name = world.get_component::<engine_components_ui::Name>(entity)
@@ -440,13 +442,14 @@ impl SceneViewRenderer {
         );
     }
     
-    /// Enhanced world-to-screen projection that never culls objects
+    /// Enhanced world-to-screen projection with proper perspective
     fn world_to_screen_enhanced(
         &self,
         world_pos: [f32; 3],
         camera_pos: [f32; 3],
         camera_rot: [f32; 3],
         view_center: egui::Pos2,
+        viewport_rect: egui::Rect,
     ) -> (egui::Pos2, f32) {
         // Calculate relative position from camera
         let relative_pos = [
@@ -456,7 +459,6 @@ impl SceneViewRenderer {
         ];
         
         // Apply camera rotation (Unity-style: Y-axis yaw first, then X-axis pitch)
-        // Note: We use the rotation values directly now since mouse input already handles the sign
         let yaw = camera_rot[1];
         let pitch = camera_rot[0];
         
@@ -475,10 +477,18 @@ impl SceneViewRenderer {
         // Ensure objects are always visible by forcing positive depth
         let depth = final_z.max(0.1); // Minimum depth
         
-        // Project to screen with perspective
-        let screen_scale = 200.0;
-        let screen_x = view_center.x + (rotated_x / depth) * screen_scale;
-        let screen_y = view_center.y - (final_y / depth) * screen_scale;
+        // Proper perspective projection with FOV and aspect ratio
+        let fov_radians = 60.0_f32.to_radians(); // 60 degree FOV
+        let aspect_ratio = viewport_rect.width() / viewport_rect.height();
+        let projection_scale = viewport_rect.height() / (2.0 * (fov_radians / 2.0).tan());
+        
+        // Project to NDC space
+        let ndc_x = (rotated_x / depth) * (1.0 / aspect_ratio);
+        let ndc_y = final_y / depth;
+        
+        // Convert to screen coordinates
+        let screen_x = view_center.x + ndc_x * projection_scale;
+        let screen_y = view_center.y - ndc_y * projection_scale;
         
         (egui::pos2(screen_x, screen_y), depth)
     }
@@ -539,8 +549,8 @@ impl SceneViewRenderer {
             let end_world = [grid_right as f32 * grid_size, 0.0, world_z];
             
             // Transform to screen space
-            let (start_screen, start_depth) = self.world_to_screen(start_world, camera_pos, camera_rot, view_center);
-            let (end_screen, end_depth) = self.world_to_screen(end_world, camera_pos, camera_rot, view_center);
+            let (start_screen, start_depth) = self.world_to_screen(start_world, camera_pos, camera_rot, view_center, rect);
+            let (end_screen, end_depth) = self.world_to_screen(end_world, camera_pos, camera_rot, view_center, rect);
             
             // Skip if both points are behind camera
             if start_depth <= 0.1 && end_depth <= 0.1 {
@@ -584,8 +594,8 @@ impl SceneViewRenderer {
             let end_world = [world_x, 0.0, grid_bottom as f32 * grid_size];
             
             // Transform to screen space
-            let (start_screen, start_depth) = self.world_to_screen(start_world, camera_pos, camera_rot, view_center);
-            let (end_screen, end_depth) = self.world_to_screen(end_world, camera_pos, camera_rot, view_center);
+            let (start_screen, start_depth) = self.world_to_screen(start_world, camera_pos, camera_rot, view_center, rect);
+            let (end_screen, end_depth) = self.world_to_screen(end_world, camera_pos, camera_rot, view_center, rect);
             
             // Skip if both points are behind camera
             if start_depth <= 0.1 && end_depth <= 0.1 {
@@ -621,7 +631,7 @@ impl SceneViewRenderer {
         }
         
         // Draw origin marker at (0, 0, 0) if visible
-        let (origin_screen, origin_depth) = self.world_to_screen([0.0, 0.0, 0.0], camera_pos, camera_rot, view_center);
+        let (origin_screen, origin_depth) = self.world_to_screen([0.0, 0.0, 0.0], camera_pos, camera_rot, view_center, rect);
         
         if origin_depth > 0.1 && rect.contains(origin_screen) {
             // Draw a small circle at the origin
@@ -673,6 +683,7 @@ impl SceneViewRenderer {
             camera_pos,
             camera_rot,
             rect.center(),
+            rect,
         );
         
         // Skip if behind camera (negative depth means behind camera)
@@ -807,6 +818,7 @@ impl SceneViewRenderer {
                     camera_pos,
                     camera_rot,
                     rect.center(),
+                    rect,
                 );
                 
                 // Skip if behind camera
@@ -856,6 +868,7 @@ impl SceneViewRenderer {
         camera_pos: [f32; 3],
         camera_rot: [f32; 3],
         view_center: egui::Pos2,
+        viewport_rect: egui::Rect,
     ) -> (egui::Pos2, f32) {
         // Calculate relative position from camera
         let relative_pos = [
@@ -865,7 +878,6 @@ impl SceneViewRenderer {
         ];
         
         // Apply camera rotation (Unity-style: Y-axis yaw first, then X-axis pitch)
-        // Note: We use the rotation values directly now since mouse input already handles the sign
         let yaw = camera_rot[1];
         let pitch = camera_rot[0];
         
@@ -881,13 +893,21 @@ impl SceneViewRenderer {
         let final_y = relative_pos[1] * cos_pitch - rotated_z * sin_pitch;
         let final_z = relative_pos[1] * sin_pitch + rotated_z * cos_pitch;
         
-        // Simple perspective projection
+        // Depth for culling
         let depth = final_z;
-        let fov_scale = 100.0;
-        let perspective_scale = fov_scale / depth.max(0.1);
         
-        let screen_x = view_center.x + (rotated_x * perspective_scale);
-        let screen_y = view_center.y - (final_y * perspective_scale);
+        // Proper perspective projection with FOV and aspect ratio
+        let fov_radians = 60.0_f32.to_radians(); // 60 degree FOV
+        let aspect_ratio = viewport_rect.width() / viewport_rect.height();
+        let projection_scale = viewport_rect.height() / (2.0 * (fov_radians / 2.0).tan());
+        
+        // Project to NDC space
+        let ndc_x = (rotated_x / depth.max(0.1)) * (1.0 / aspect_ratio);
+        let ndc_y = final_y / depth.max(0.1);
+        
+        // Convert to screen coordinates
+        let screen_x = view_center.x + ndc_x * projection_scale;
+        let screen_y = view_center.y - ndc_y * projection_scale;
         
         (egui::pos2(screen_x, screen_y), depth)
     }
