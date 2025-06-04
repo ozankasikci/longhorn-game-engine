@@ -1,13 +1,12 @@
 // Engine Core - Core data structures and systems for the mobile game engine
 
-pub mod ecs;    // Legacy ECS (for comparison)
 pub mod ecs_v2; // Data-oriented ECS
 pub mod time;
 pub mod memory;
 pub mod error;
 
 // Re-export ECS types
-pub use ecs_v2::{Entity, World, ArchetypeId, Query, QueryMut, Read, Write, Changed, register_component};
+pub use ecs_v2::{Entity, World, ArchetypeId, Query, QueryMut, Read, Write, Changed, register_component, WorldBundleExt};
 // Re-export component traits
 pub use engine_component_traits::{Component, ComponentClone, ComponentTicks, Tick, Bundle};
 // Re-export error types

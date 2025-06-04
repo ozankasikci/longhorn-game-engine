@@ -52,7 +52,8 @@ impl HierarchyPanel {
                     
                     ui.separator();
                     if ui.button("🔲 Empty GameObject").clicked() {
-                        let entity = world.spawn_with(Transform::default());
+                        let entity = world.spawn();
+                        world.add_component(entity, Transform::default()).unwrap();
                         world.add_component(entity, Name::new("GameObject")).unwrap();
                         ui.close_menu();
                     }

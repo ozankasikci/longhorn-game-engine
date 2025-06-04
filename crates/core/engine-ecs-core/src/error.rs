@@ -37,6 +37,12 @@ pub enum EcsError {
     
     /// Bundle operation failed
     BundleError(String),
+    
+    /// Component type mismatch
+    ComponentTypeMismatch,
+    
+    /// Component not in archetype
+    ComponentNotInArchetype,
 }
 
 impl fmt::Display for EcsError {
@@ -65,6 +71,12 @@ impl fmt::Display for EcsError {
             }
             EcsError::BundleError(msg) => {
                 write!(f, "Bundle error: {}", msg)
+            }
+            EcsError::ComponentTypeMismatch => {
+                write!(f, "Component type mismatch")
+            }
+            EcsError::ComponentNotInArchetype => {
+                write!(f, "Component not in archetype")
             }
         }
     }

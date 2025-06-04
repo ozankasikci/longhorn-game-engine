@@ -1,50 +1,18 @@
 // World initialization and default entity creation
 
-use engine_ecs_core::{World, Entity};
+use engine_ecs_core::{World, Entity, WorldBundleExt};
 use engine_components_3d::{Transform, Visibility, Material, MeshFilter, MeshRenderer};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
 use engine_camera::Camera;
-use engine_component_traits::{Bundle, ComponentClone};
 use engine_geometry_impl::primitives::MeshPrimitives;
 use engine_geometry_core::{MeshData, Vertex};
 use engine_resource_core::{ResourceId, ResourceHandle};
 use glam::{Vec3, Vec2};
 
-/// Bundle for camera entities
-pub struct CameraBundle {
-    pub transform: Transform,
-    pub camera: Camera,
-    pub name: Name,
-}
+// CameraBundle is now just a tuple of components
+type CameraBundle = (Transform, Camera, Name);
 
-impl Bundle for CameraBundle {
-    fn component_ids() -> Vec<std::any::TypeId> where Self: Sized {
-        vec![
-            std::any::TypeId::of::<Transform>(),
-            std::any::TypeId::of::<Camera>(),
-            std::any::TypeId::of::<Name>(),
-        ]
-    }
-    
-    fn into_components(self) -> Vec<(std::any::TypeId, Box<dyn ComponentClone>)> {
-        vec![
-            (std::any::TypeId::of::<Transform>(), Box::new(self.transform)),
-            (std::any::TypeId::of::<Camera>(), Box::new(self.camera)),
-            (std::any::TypeId::of::<Name>(), Box::new(self.name)),
-        ]
-    }
-}
-
-impl Default for CameraBundle {
-    fn default() -> Self {
-        Self {
-            transform: Transform::default(),
-            camera: Camera::default(),
-            name: Name::new("Camera"),
-        }
-    }
-}
 
 /// Creates a default world with sample entities for the editor
 pub fn create_default_world() -> (World, Entity) {
@@ -63,15 +31,15 @@ pub fn create_default_world() -> (World, Entity) {
     
     
     // Create camera entity with bundle - SIMPLIFIED for coordinate system testing
-    let camera_entity = world.spawn_bundle(CameraBundle {
-        transform: Transform {
+    let camera_entity = world.spawn_bundle((
+        Transform {
             position: [0.0, 2.0, 5.0],  // Camera positioned behind cube, looking straight at it
             rotation: [0.0, 0.0, 0.0],  // No rotation - looking straight down -Z axis
             scale: [1.0, 1.0, 1.0],
         },
-        camera: Camera::default(),
-        name: Name::new("Main Camera"),
-    }).expect("Failed to create camera entity");
+        Camera::default(),
+        Name::new("Main Camera"),
+    ));
     
     
     // Create a cube with the new mesh component system
@@ -131,11 +99,12 @@ pub fn create_default_world() -> (World, Entity) {
 /// Creates test sprite entities
 fn create_test_sprites(world: &mut World) {
     // Red sprite
-    let red_sprite_entity = world.spawn_with(Transform {
+    let red_sprite_entity = world.spawn();
+    world.add_component(red_sprite_entity, Transform {
         position: [-2.0, 0.5, 4.5],  // Positive Z = in front of camera
         rotation: [0.0, 0.0, 0.0],
         scale: [1.5, 1.5, 1.0],
-    });
+    }).unwrap();
     world.add_component(red_sprite_entity, Name::new("Red Sprite")).unwrap();
     world.add_component(red_sprite_entity, SpriteRenderer {
         sprite: Sprite::new().with_texture(1001).with_color(1.0, 0.8, 0.8, 1.0),
@@ -146,11 +115,12 @@ fn create_test_sprites(world: &mut World) {
     world.add_component(red_sprite_entity, Visibility::default()).unwrap();
     
     // Blue sprite
-    let blue_sprite_entity = world.spawn_with(Transform {
+    let blue_sprite_entity = world.spawn();
+    world.add_component(blue_sprite_entity, Transform {
         position: [2.0, 0.5, 4.5],  // Positive Z = in front of camera
         rotation: [0.0, 0.0, 15.0],
         scale: [1.0, 2.0, 1.0],
-    });
+    }).unwrap();
     world.add_component(blue_sprite_entity, Name::new("Blue Sprite")).unwrap();
     world.add_component(blue_sprite_entity, SpriteRenderer {
         sprite: Sprite::new().with_texture(1003),
@@ -161,11 +131,12 @@ fn create_test_sprites(world: &mut World) {
     world.add_component(blue_sprite_entity, Visibility::default()).unwrap();
     
     // Yellow sprite
-    let yellow_sprite_entity = world.spawn_with(Transform {
+    let yellow_sprite_entity = world.spawn();
+    world.add_component(yellow_sprite_entity, Transform {
         position: [0.0, 2.0, 4.5],  // Positive Z = in front of camera
         rotation: [0.0, 0.0, 0.0],
         scale: [0.8, 0.8, 1.0],
-    });
+    }).unwrap();
     world.add_component(yellow_sprite_entity, Name::new("Yellow Sprite")).unwrap();
     world.add_component(yellow_sprite_entity, SpriteRenderer {
         sprite: Sprite::new().with_texture(1004).with_color(1.0, 1.0, 0.5, 0.9),
