@@ -16,12 +16,12 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
         match tab {
-            PanelType::Hierarchy => "🏗️ Hierarchy".into(),
-            PanelType::Inspector => "🔍 Inspector".into(),
-            PanelType::SceneView => "🎨 Scene".into(),
-            PanelType::GameView => "🎮 Game".into(),
-            PanelType::Console => "🖥️ Console".into(),
-            PanelType::Project => "📁 Project".into(),
+            PanelType::Hierarchy => "Hierarchy".into(),
+            PanelType::Inspector => "Inspector".into(),
+            PanelType::SceneView => "Scene".into(),
+            PanelType::GameView => "Game".into(),
+            PanelType::Console => "Console".into(),
+            PanelType::Project => "Project".into(),
         }
     }
 

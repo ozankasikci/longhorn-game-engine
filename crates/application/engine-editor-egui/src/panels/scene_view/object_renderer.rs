@@ -43,7 +43,7 @@ pub fn render_cube(
     let obj_rot_z = rotation[2].to_radians();
     
     // Define cube vertices in local space
-    let half_size = 0.5;
+    let half_size = size / 2.0;
     let vertices = [
         [-half_size, -half_size, -half_size], // 0: Left-Bottom-Back
         [ half_size, -half_size, -half_size], // 1: Right-Bottom-Back
@@ -244,7 +244,7 @@ pub fn render_plane(
     let obj_rot_z = rotation[2].to_radians();
     
     // Define plane corners
-    let half_size = 0.5;
+    let half_size = size / 2.0;
     let corners = [
         [-half_size, 0.0, -half_size],
         [ half_size, 0.0, -half_size],

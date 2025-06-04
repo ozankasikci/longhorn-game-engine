@@ -45,7 +45,7 @@ impl MenuBar {
                     ui.close_menu();
                 }
                 ui.separator();
-                if ui.button("⚙️ Preferences...").clicked() {
+                if ui.button("Preferences...").clicked() {
                     // Opening settings
                     messages.push(ConsoleMessage::UserAction("open_settings".to_string()));
                     ui.close_menu();
@@ -113,10 +113,10 @@ impl MenuBar {
             });
             
             ui.menu_button("Help", |ui| {
-                ui.label("💡 Drag panel tabs to rearrange");
-                ui.label("🔄 Drop tabs on different areas to dock");
-                ui.label("➕ Use Window menu to add panels");
-                ui.label("🖱️ Right-click tabs for options");
+                ui.label("Drag panel tabs to rearrange");
+                ui.label("Drop tabs on different areas to dock");
+                ui.label("Use Window menu to add panels");
+                ui.label("Right-click tabs for options");
             });
         });
         

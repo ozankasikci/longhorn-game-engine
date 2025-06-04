@@ -152,8 +152,8 @@ pub fn create_default_hierarchy() -> Vec<crate::types::HierarchyObject> {
     use crate::types::{HierarchyObject, ObjectType};
     
     vec![
-        HierarchyObject::new("📱 Main Camera", ObjectType::Camera),
-        HierarchyObject::new("📦 Cube", ObjectType::GameObject),
+        HierarchyObject::new("Main Camera", ObjectType::Camera),
+        HierarchyObject::new("Cube", ObjectType::GameObject),
     ]
 }
 
@@ -162,20 +162,20 @@ pub fn create_default_project_assets() -> Vec<crate::types::ProjectAsset> {
     use crate::types::ProjectAsset;
     
     vec![
-        ProjectAsset::folder("📁 Scripts", vec![
-            ProjectAsset::file("📄 PlayerController.cs"),
-            ProjectAsset::file("📄 GameManager.cs"),
-            ProjectAsset::file("📄 UIController.cs"),
+        ProjectAsset::folder("Scripts", vec![
+            ProjectAsset::file("PlayerController.cs"),
+            ProjectAsset::file("GameManager.cs"),
+            ProjectAsset::file("UIController.cs"),
         ]),
-        ProjectAsset::folder("📁 Materials", vec![
-            ProjectAsset::file("🎨 DefaultMaterial.mat"),
-            ProjectAsset::file("🎨 WoodTexture.mat"),
-            ProjectAsset::file("🎨 MetalSurface.mat"),
+        ProjectAsset::folder("Materials", vec![
+            ProjectAsset::file("DefaultMaterial.mat"),
+            ProjectAsset::file("WoodTexture.mat"),
+            ProjectAsset::file("MetalSurface.mat"),
         ]),
-        ProjectAsset::folder("📁 Textures", vec![
-            ProjectAsset::file("🖼️ grass.png"),
-            ProjectAsset::file("🖼️ brick_wall.jpg"),
-            ProjectAsset::file("🖼️ sky_gradient.png"),
+        ProjectAsset::folder("Textures", vec![
+            ProjectAsset::file("grass.png"),
+            ProjectAsset::file("brick_wall.jpg"),
+            ProjectAsset::file("sky_gradient.png"),
         ]),
     ]
 }

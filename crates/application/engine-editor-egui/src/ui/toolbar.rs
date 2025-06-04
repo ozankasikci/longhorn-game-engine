@@ -32,7 +32,7 @@ impl Toolbar {
             
             // Selection tool (Q)
             let select_pressed = ui.add(
-                egui::Button::new("🎯")
+                egui::Button::new("Select")
                     .fill(if current_tool == SceneTool::Select { 
                         egui::Color32::from_rgb(100, 150, 255) 
                     } else { 
@@ -48,7 +48,7 @@ impl Toolbar {
             
             // Move tool (W)
             let move_pressed = ui.add(
-                egui::Button::new("🔗")
+                egui::Button::new("Move")
                     .fill(if current_tool == SceneTool::Move { 
                         egui::Color32::from_rgb(100, 150, 255) 
                     } else { 
@@ -69,7 +69,7 @@ impl Toolbar {
             
             // Rotate tool (E) - Future implementation
             let rotate_pressed = ui.add(
-                egui::Button::new("🔄")
+                egui::Button::new("Rotate")
                     .fill(if current_tool == SceneTool::Rotate { 
                         egui::Color32::from_rgb(100, 150, 255) 
                     } else { 
@@ -84,7 +84,7 @@ impl Toolbar {
             
             // Scale tool (R) - Future implementation
             let scale_pressed = ui.add(
-                egui::Button::new("📐")
+                egui::Button::new("Scale")
                     .fill(if current_tool == SceneTool::Scale { 
                         egui::Color32::from_rgb(100, 150, 255) 
                     } else { 
@@ -102,30 +102,30 @@ impl Toolbar {
             // Play controls - state-aware buttons
             match play_state {
                 PlayState::Editing => {
-                    if ui.button("▶️").on_hover_text("Play").clicked() {
+                    if ui.button("Play").on_hover_text("Play").clicked() {
                         actions.start_play = true;
                     }
                     // Show disabled pause/stop buttons
-                    ui.add_enabled(false, egui::Button::new("⏸️"));
-                    ui.add_enabled(false, egui::Button::new("⏹️"));
+                    ui.add_enabled(false, egui::Button::new("Pause"));
+                    ui.add_enabled(false, egui::Button::new("Stop"));
                 }
                 PlayState::Playing => {
                     // Show highlighted play button (active state)
-                    ui.add_enabled(false, egui::Button::new("▶️").fill(egui::Color32::from_rgb(100, 200, 100)));
-                    if ui.button("⏸️").on_hover_text("Pause").clicked() {
+                    ui.add_enabled(false, egui::Button::new("Play").fill(egui::Color32::from_rgb(100, 200, 100)));
+                    if ui.button("Pause").on_hover_text("Pause").clicked() {
                         actions.pause_play = true;
                     }
-                    if ui.button("⏹️").on_hover_text("Stop").clicked() {
+                    if ui.button("Stop").on_hover_text("Stop").clicked() {
                         actions.stop_play = true;
                     }
                 }
                 PlayState::Paused => {
-                    if ui.button("▶️").on_hover_text("Resume").clicked() {
+                    if ui.button("Play").on_hover_text("Resume").clicked() {
                         actions.resume_play = true;
                     }
                     // Show highlighted pause button (active state)
-                    ui.add_enabled(false, egui::Button::new("⏸️").fill(egui::Color32::from_rgb(200, 200, 100)));
-                    if ui.button("⏹️").on_hover_text("Stop").clicked() {
+                    ui.add_enabled(false, egui::Button::new("Pause").fill(egui::Color32::from_rgb(200, 200, 100)));
+                    if ui.button("Stop").on_hover_text("Stop").clicked() {
                         actions.stop_play = true;
                     }
                 }
@@ -134,7 +134,7 @@ impl Toolbar {
             ui.separator();
             
             // DEBUG: Test transform mutation
-            if ui.button("🔧 Test Move").on_hover_text("Debug: Move selected object 1 unit in X").clicked() {
+            if ui.button("Test Move").on_hover_text("Debug: Move selected object 1 unit in X").clicked() {
                 actions.test_move = true;
             }
             
@@ -151,7 +151,7 @@ impl Toolbar {
                 });
             
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("🎯 Focus Selected").on_hover_text("Focus camera on selected object").clicked() {
+                if ui.button("Focus Selected").on_hover_text("Focus camera on selected object").clicked() {
                     if let Some(ref obj) = selected_object {
                         // Focused on object
                     }

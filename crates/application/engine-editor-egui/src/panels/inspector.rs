@@ -27,7 +27,7 @@ impl InspectorPanel {
                 ui.label(format!("Entity ID: {}", selected_entity.id()));
                 
                 // Copy entity info button
-                if ui.button("📋 Copy Info").on_hover_text("Copy entity information to clipboard").clicked() {
+                if ui.button("Copy Info").on_hover_text("Copy entity information to clipboard").clicked() {
                     let mut info = String::new();
                     info.push_str(&format!("=== Entity Information ===\n"));
                     info.push_str(&format!("Entity ID: {}\n", selected_entity.id()));

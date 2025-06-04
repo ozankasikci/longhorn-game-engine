@@ -30,28 +30,28 @@ impl HierarchyPanel {
         ui.horizontal(|ui| {
             ui.label("ECS Entities");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.menu_button("➕", |ui| {
+                ui.menu_button("+", |ui| {
                     ui.set_min_width(150.0);
                     ui.label("3D Objects");
                     ui.separator();
                     
-                    if ui.button("📦 Cube").clicked() {
+                    if ui.button("Cube").clicked() {
                         create_cube_entity(world);
                         ui.close_menu();
                     }
                     
-                    if ui.button("🔵 Sphere").clicked() {
+                    if ui.button("Sphere").clicked() {
                         create_sphere_entity(world);
                         ui.close_menu();
                     }
                     
-                    if ui.button("🟩 Plane").clicked() {
+                    if ui.button("Plane").clicked() {
                         create_plane_entity(world);
                         ui.close_menu();
                     }
                     
                     ui.separator();
-                    if ui.button("🔲 Empty GameObject").clicked() {
+                    if ui.button("Empty GameObject").clicked() {
                         let entity = world.spawn();
                         world.add_component(entity, Transform::default()).unwrap();
                         world.add_component(entity, Name::new("GameObject")).unwrap();
@@ -94,7 +94,7 @@ impl HierarchyPanel {
                     format!("Entity {}", entity.id())
                 };
                 
-                let label = format!("📦 {} [{}]", entity_name, component_str);
+                let label = format!("{} [{}]", entity_name, component_str);
                 
                 if ui.selectable_label(selected, &label).clicked() {
                     *selected_entity = Some(entity);
