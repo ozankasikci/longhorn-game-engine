@@ -5,7 +5,7 @@ use engine_ecs_core::{World, Entity};
 use engine_components_3d::{Transform, Mesh, MeshType, Material, Light, Visibility};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
-use engine_camera::Camera;
+use engine_renderer_3d::Camera;
 use crate::types::{SceneNavigation, SceneTool, GizmoSystem, GizmoComponent, GizmoInteractionState, GizmoAxis};
 use crate::editor_state::ConsoleMessage;
 use std::collections::HashMap;

@@ -1,0 +1,62 @@
+[package]
+name = "engine-renderer-3d"
+version = "0.1.0"
+edition = "2021"
+description = "Standalone 3D renderer for the Longhorn Game Engine"
+
+[dependencies]
+wgpu = "0.20"
+bytemuck = { version = "1.13", features = ["derive"] }
+glam = "0.24"
+egui = "0.28"
+egui-wgpu = "0.28"
+anyhow = "1.0"
+log = "0.4"
+pollster = "0.3"
+
+# Internal dependencies
+engine-ecs-core = { path = "../../core/engine-ecs-core" }
+engine-components-3d = { path = "../../core/engine-components-3d" }
+engine-component-traits = { path = "../../core/engine-component-traits" }
+serde = { version = "1.0", features = ["derive"] }
+
+# Example dependencies
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }
+env_logger = "0.10"
+
+[[example]]
+name = "simple_triangle"
+required-features = []
+
+[[example]]
+name = "cube_test"
+required-features = []
+
+[[example]]
+name = "resource_management_test"
+required-features = []
+
+[[example]]
+name = "complete_resource_test"
+required-features = []
+
+[[example]]
+name = "ecs_integration_test"
+required-features = []
+
+[[example]]
+name = "render_queue_test"
+required-features = []
+
+[[example]]
+name = "frustum_culling_test"
+required-features = []
+
+[[example]]
+name = "complete_pipeline_test"
+required-features = []
+
+[[example]]
+name = "advanced_camera_test"
+required-features = []

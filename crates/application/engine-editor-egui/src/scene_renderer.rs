@@ -5,7 +5,7 @@ use wgpu::{Device, Queue, TextureView, CommandEncoder};
 use engine_ecs_core::World;
 use engine_components_3d::Transform;
 use engine_components_3d::{Mesh, Material, Light};
-use engine_camera::Camera;
+use engine_renderer_3d::Camera;
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 
@@ -89,6 +89,7 @@ impl SceneRenderer {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
                     step_mode: wgpu::VertexStepMode::Vertex,
@@ -114,6 +115,7 @@ impl SceneRenderer {
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: surface_format,
                     blend: Some(wgpu::BlendState::REPLACE),

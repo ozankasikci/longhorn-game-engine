@@ -5,7 +5,7 @@ use engine_ecs_core::{World, Entity};
 use engine_components_3d::{Transform, Material, Light, Visibility, MeshFilter};
 use engine_components_2d::{SpriteRenderer};
 use engine_components_ui::{Canvas, Name};
-use engine_camera::{Camera, Camera2D, CameraComponent};
+use engine_renderer_3d::Camera;
 use crate::types::{SceneTool, HierarchyObject};
 use crate::editor_state::ConsoleMessage;
 
@@ -80,8 +80,6 @@ impl HierarchyPanel {
                 if world.get_component::<Light>(entity).is_some() { components.push("L"); }
                 if world.get_component::<SpriteRenderer>(entity).is_some() { components.push("Spr"); }
                 if world.get_component::<Canvas>(entity).is_some() { components.push("Canvas"); }
-                if world.get_component::<Camera2D>(entity).is_some() { components.push("C2D"); }
-                if world.get_component::<CameraComponent>(entity).is_some() { components.push("Cam"); }
                 if world.get_component::<MeshFilter>(entity).is_some() { components.push("M"); }
                 if world.get_component::<Material>(entity).is_some() { components.push("Mat"); }
                 

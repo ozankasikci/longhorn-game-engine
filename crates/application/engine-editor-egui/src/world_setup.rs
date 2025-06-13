@@ -4,7 +4,7 @@ use engine_ecs_core::{World, Entity, WorldBundleExt};
 use engine_components_3d::{Transform, Visibility, Material, MeshFilter, MeshRenderer};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
-use engine_camera::Camera;
+use engine_renderer_3d::Camera;
 use engine_geometry_impl::primitives::MeshPrimitives;
 use engine_geometry_core::{MeshData, Vertex};
 use engine_resource_core::{ResourceId, ResourceHandle};

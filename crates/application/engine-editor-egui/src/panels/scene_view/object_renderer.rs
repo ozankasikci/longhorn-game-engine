@@ -5,7 +5,7 @@ use engine_ecs_core::{World, Entity};
 use engine_components_3d::{Transform, Mesh, MeshType, Material};
 use engine_components_2d::SpriteRenderer;
 use engine_components_ui::Name;
-use engine_camera::Camera;
+use engine_renderer_3d::Camera;
 use crate::editor_state::ConsoleMessage;
 
 /// Renders a camera entity in the scene view

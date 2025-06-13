@@ -24,6 +24,7 @@ members = [
     "crates/implementation/engine-ui",
     "crates/implementation/engine-platform",
     "crates/implementation/engine-renderer-wgpu",
+    "crates/implementation/engine-renderer-3d",
     "crates/implementation/engine-geometry-impl",
     "crates/implementation/engine-camera-impl",
     
@@ -51,7 +52,7 @@ glam = "0.24"
 bytemuck = { version = "1.14", features = ["derive"] }
 
 # Graphics
-wgpu = "0.19"
+wgpu = "0.20"
 winit = "0.29"
 
 # UI
