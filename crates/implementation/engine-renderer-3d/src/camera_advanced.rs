@@ -50,6 +50,8 @@ impl CameraController {
             return;
         }
         
+        log::info!("Updating camera matrices - position: {:?}, target: {:?}", self.camera.position, self.camera.target);
+        
         // Calculate view matrix
         self.view_matrix = Mat4::look_at_rh(
             self.camera.position,

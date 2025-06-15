@@ -1,7 +1,7 @@
 // World initialization and default entity creation
 
 use engine_ecs_core::{World, Entity, WorldBundleExt};
-use engine_components_3d::{Transform, Visibility, Material, MeshFilter, MeshRenderer};
+use engine_components_3d::{Transform, Visibility, Material, MeshFilter, MeshRenderer, Mesh, MeshType};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
 use engine_renderer_3d::Camera;
@@ -28,6 +28,7 @@ pub fn create_default_world() -> (World, Entity) {
     engine_ecs_core::register_component::<SpriteRenderer>();
     engine_ecs_core::register_component::<MeshFilter>();
     engine_ecs_core::register_component::<MeshRenderer>();
+    engine_ecs_core::register_component::<Mesh>();
     
     
     // Create camera entity with bundle - SIMPLIFIED for coordinate system testing
@@ -57,6 +58,11 @@ pub fn create_default_world() -> (World, Entity) {
     
     // Create mesh handle (in a real system, this would be managed by a resource manager)
     let mesh_handle = ResourceHandle::<MeshData>::new(ResourceId::new(1));
+    
+    // Add Mesh component for rendering
+    world.add_component(cube_entity, Mesh {
+        mesh_type: MeshType::Cube,
+    }).unwrap();
     
     // Add MeshFilter component
     world.add_component(cube_entity, MeshFilter::new(mesh_handle)).unwrap();

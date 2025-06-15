@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use glam::{Mat4, Vec3};
 use engine_ecs_core::ecs_v2::{World, Entity};
-use engine_components_3d::{Transform, Mesh, Material as EcsMaterial, MeshFilter, MeshRenderer};
+use engine_components_3d::{Transform, Material as EcsMaterial, MeshFilter, MeshRenderer, Mesh, MeshType};
 
 use crate::{RenderScene, RenderObject, Camera};
 
@@ -55,23 +55,23 @@ impl EcsRenderBridge {
         // Get all entities with Transform components
         let transform_entities: HashMap<Entity, &Transform> = world.query_legacy::<Transform>().collect();
         
+        log::info!("Found {} entities with Transform", transform_entities.len());
+        
         // Get all entities with Mesh components  
         let mesh_entities: HashMap<Entity, &Mesh> = world.query_legacy::<Mesh>().collect();
         
-        // Get all entities with Material components
-        let material_entities: HashMap<Entity, &EcsMaterial> = world.query_legacy::<EcsMaterial>().collect();
+        log::info!("Found {} entities with Mesh", mesh_entities.len());
         
-        // Find entities that have all three components
+        // Find entities that have transform and mesh components
         for (entity, transform) in &transform_entities {
-            if let (Some(mesh), Some(material)) = (mesh_entities.get(entity), material_entities.get(entity)) {
-                // Convert to render object
-                if let Some(render_object) = self.convert_to_render_object(*entity, transform, mesh, material) {
+            if let Some(mesh) = mesh_entities.get(entity) {
+                if let Some(render_object) = self.convert_to_render_object(*entity, transform, mesh) {
                     scene.add_object(render_object);
                 }
             }
         }
         
-        log::debug!("Converted ECS world to render scene with {} objects", scene.objects.len());
+        log::info!("Converted ECS world to render scene with {} objects", scene.objects.len());
         scene
     }
     
@@ -81,27 +81,16 @@ impl EcsRenderBridge {
         _entity: Entity,
         transform: &Transform,
         mesh: &Mesh,
-        _material: &EcsMaterial,
     ) -> Option<RenderObject> {
         // Map mesh type to mesh ID
         let mesh_id = match &mesh.mesh_type {
-            engine_components_3d::MeshType::Cube => {
-                self.mesh_name_to_id.get("cube").copied().unwrap_or(self.default_mesh_id)
-            }
-            engine_components_3d::MeshType::Sphere => {
-                // For now, use triangle as fallback since we don't have sphere in defaults
-                self.mesh_name_to_id.get("triangle").copied().unwrap_or(self.default_mesh_id)
-            }
-            engine_components_3d::MeshType::Plane => {
-                // For now, use triangle as fallback since we don't have plane in defaults
-                self.mesh_name_to_id.get("triangle").copied().unwrap_or(self.default_mesh_id)
-            }
-            engine_components_3d::MeshType::Custom(name) => {
-                self.mesh_name_to_id.get(name).copied().unwrap_or_else(|| {
-                    log::warn!("Custom mesh '{}' not found, using default", name);
-                    self.default_mesh_id
-                })
-            }
+            MeshType::Cube => self.mesh_name_to_id.get("cube").copied().unwrap_or(self.default_mesh_id),
+            MeshType::Sphere => self.mesh_name_to_id.get("sphere").copied().unwrap_or(self.default_mesh_id),
+            MeshType::Plane => self.mesh_name_to_id.get("plane").copied().unwrap_or(self.default_mesh_id),
+            MeshType::Custom(name) => self.mesh_name_to_id.get(name).copied().unwrap_or_else(|| {
+                log::warn!("Custom mesh '{}' not found, using default", name);
+                self.default_mesh_id
+            }),
         };
         
         // For now, use a default material mapping based on color
@@ -130,16 +119,16 @@ impl EcsRenderBridge {
         let mesh_entities: HashMap<Entity, &Mesh> = world.query_legacy::<Mesh>().collect();
         let material_entities: HashMap<Entity, &EcsMaterial> = world.query_legacy::<EcsMaterial>().collect();
         
-        // Find entities that have all three components and add to scene
+        // Find entities that have transform and mesh components and add to scene
         for (entity, transform) in &transform_entities {
-            if let (Some(mesh), Some(material)) = (mesh_entities.get(entity), material_entities.get(entity)) {
-                if let Some(render_object) = self.convert_to_render_object(*entity, transform, mesh, material) {
+            if let Some(mesh) = mesh_entities.get(entity) {
+                if let Some(render_object) = self.convert_to_render_object(*entity, transform, mesh) {
                     scene.add_object(render_object);
                 }
             }
         }
         
-        log::debug!("Updated render scene with {} objects", scene.objects.len());
+        log::info!("Updated render scene with {} objects", scene.objects.len());
     }
     
     /// Get statistics about the bridge mappings

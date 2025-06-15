@@ -2,7 +2,6 @@
 // Provides a modern, responsive interface with drag-and-drop docking
 
 mod editor_state;
-mod scene_renderer;
 mod types;
 mod panels;
 mod ui;
@@ -15,13 +14,13 @@ mod assets;
 mod editor_coordinator;
 mod settings;
 
+use std::sync::Arc;
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex};
 use engine_ecs_core::{World, Entity};
 use engine_components_3d::Transform;
 use engine_components_ui::Name;
 use editor_state::ConsoleMessage;
-use scene_renderer::SceneRenderer;
 use types::{PlayState, SceneNavigation, GizmoSystem, TextureAsset, ProjectAsset, PanelType, HierarchyObject};
 use styling::{setup_custom_fonts, setup_custom_style};
 use editor_coordinator::EditorCoordinator;
@@ -92,8 +91,7 @@ pub struct LonghornEditor {
     // Scene navigation system
     scene_navigation: SceneNavigation,
     
-    // 3D scene renderer
-    scene_renderer: SceneRenderer,
+    // 3D scene renderer (using engine-renderer-3d)
     scene_view_renderer: panels::scene_view::scene_view_impl::SceneViewRenderer,
     
     // Phase 10.2: Track entity counts for change detection
@@ -105,7 +103,7 @@ pub struct LonghornEditor {
 }
 
 impl LonghornEditor {
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // Create Longhorn-style dock layout with Scene and Game views
         let mut dock_state = DockState::new(vec![PanelType::SceneView, PanelType::GameView]);
         
@@ -145,6 +143,24 @@ impl LonghornEditor {
         scene_navigation.fast_movement_multiplier = settings.camera.fast_multiplier;
         scene_navigation.rotation_sensitivity = settings.camera.rotation_sensitivity;
         
+        // Initialize scene view renderer
+        let mut scene_view_renderer = panels::scene_view::scene_view_impl::SceneViewRenderer::new();
+        
+        // Try to get WGPU render state from eframe
+        if let Some(render_state) = cc.wgpu_render_state.as_ref() {
+            let device = render_state.device.clone();
+            let queue = render_state.queue.clone();
+            
+            // Initialize the 3D renderer
+            if let Err(e) = scene_view_renderer.initialize_renderer(device, queue) {
+                log::error!("Failed to initialize 3D renderer: {}", e);
+            } else {
+                log::info!("3D renderer initialized successfully");
+            }
+        } else {
+            log::warn!("No WGPU render state available - 3D rendering will be disabled");
+        }
+        
         Self {
             dock_state,
             world,
@@ -167,8 +183,7 @@ impl LonghornEditor {
             scene_view_panel: panels::scene_view::SceneViewPanel::new(),
             gizmo_system: GizmoSystem::new(),
             scene_navigation,
-            scene_renderer: SceneRenderer::new(),
-            scene_view_renderer: panels::scene_view::scene_view_impl::SceneViewRenderer::new(),
+            scene_view_renderer,
             last_rendered_entity_count: 0,
             settings,
             settings_dialog,

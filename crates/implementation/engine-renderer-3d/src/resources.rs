@@ -154,14 +154,10 @@ impl ResourceManager {
         Ok(material_id)
     }
     
-    /// Get mesh resource by ID
-    pub fn get_mesh(&self, mesh_id: u32) -> Option<std::sync::RwLockReadGuard<HashMap<u32, MeshResource>>> {
+    /// Check if mesh exists
+    pub fn has_mesh(&self, mesh_id: u32) -> bool {
         let meshes = self.meshes.read().unwrap();
-        if meshes.contains_key(&mesh_id) {
-            Some(meshes)
-        } else {
-            None
-        }
+        meshes.contains_key(&mesh_id)
     }
     
     /// Get material resource by ID

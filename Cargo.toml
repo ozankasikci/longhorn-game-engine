@@ -23,7 +23,6 @@ members = [
     "crates/implementation/engine-scripting",
     "crates/implementation/engine-ui",
     "crates/implementation/engine-platform",
-    "crates/implementation/engine-renderer-wgpu",
     "crates/implementation/engine-renderer-3d",
     "crates/implementation/engine-geometry-impl",
     "crates/implementation/engine-camera-impl",
@@ -143,12 +142,6 @@ path = "crates/core/engine-materials-core"
 [workspace.dependencies.engine-scene]
 path = "crates/integration/engine-scene"
 
-[workspace.dependencies.engine-renderer-wgpu]
-path = "crates/implementation/engine-renderer-wgpu"
-
-[workspace.dependencies.engine-renderer]
-path = "crates/implementation/engine-renderer-wgpu"
-package = "engine-renderer-wgpu"
 
 
 [workspace.dependencies.engine-math-core]
@@ -185,3 +178,6 @@ path = "crates/implementation/engine-geometry-impl"
 
 [workspace.dependencies.engine-camera-impl]
 path = "crates/implementation/engine-camera-impl"
+
+[workspace.dependencies.engine-renderer-3d]
+path = "crates/implementation/engine-renderer-3d"

@@ -2,7 +2,7 @@
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
-use engine_components_3d::{Transform, Material, Light, Visibility, MeshFilter};
+use engine_components_3d::{Transform, Material, Light, Visibility, MeshFilter, MeshRenderer, Mesh, MeshType, LightType};
 use engine_components_2d::{SpriteRenderer};
 use engine_components_ui::{Canvas, Name};
 use engine_renderer_3d::Camera;
@@ -170,7 +170,6 @@ impl HierarchyPanel {
 
 // Helper functions for creating entities
 
-use engine_components_3d::MeshRenderer;
 use engine_resource_core::{ResourceId, ResourceHandle};
 use engine_geometry_core::{MeshData, Vertex};
 use glam::{Vec3, Vec2};
@@ -193,6 +192,11 @@ fn create_cube_entity(world: &mut World) -> Entity {
     // Create mesh handle (in a real system, this would be managed by a resource manager)
     let mesh_id = 1000 + world.entity_count() as u64; // Unique ID for each cube
     let mesh_handle = ResourceHandle::<MeshData>::new(ResourceId::new(mesh_id));
+    
+    // Add Mesh component for rendering
+    world.add_component(entity, Mesh {
+        mesh_type: MeshType::Cube,
+    }).unwrap();
     
     // Add MeshFilter component
     world.add_component(entity, MeshFilter::new(mesh_handle)).unwrap();
@@ -231,6 +235,11 @@ fn create_sphere_entity(world: &mut World) -> Entity {
     let mesh_id = 2000 + world.entity_count() as u64;
     let mesh_handle = ResourceHandle::<MeshData>::new(ResourceId::new(mesh_id));
     
+    // Add Mesh component for rendering
+    world.add_component(entity, Mesh {
+        mesh_type: MeshType::Sphere,
+    }).unwrap();
+    
     // Add MeshFilter and MeshRenderer
     world.add_component(entity, MeshFilter::new(mesh_handle)).unwrap();
     world.add_component(entity, MeshRenderer::default()).unwrap();
@@ -263,6 +272,11 @@ fn create_plane_entity(world: &mut World) -> Entity {
     // Create mesh handle
     let mesh_id = 3000 + world.entity_count() as u64;
     let mesh_handle = ResourceHandle::<MeshData>::new(ResourceId::new(mesh_id));
+    
+    // Add Mesh component for rendering
+    world.add_component(entity, Mesh {
+        mesh_type: MeshType::Plane,
+    }).unwrap();
     
     // Add MeshFilter and MeshRenderer
     world.add_component(entity, MeshFilter::new(mesh_handle)).unwrap();

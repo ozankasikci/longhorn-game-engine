@@ -15,8 +15,7 @@ engine-component-traits = { workspace = true }
 engine-components-3d = { workspace = true }
 engine-components-2d = { workspace = true }
 engine-components-ui = { workspace = true }
-engine-renderer-3d = { path = "../../../crates/implementation/engine-renderer-3d" }
-engine-renderer-wgpu = { workspace = true }
+engine-renderer-3d = { workspace = true }
 engine-geometry-core = { workspace = true }
 engine-geometry-impl = { workspace = true }
 engine-resource-core = { workspace = true }
@@ -38,3 +37,6 @@ wgpu = { workspace = true }
 winit = { workspace = true }
 bytemuck = { workspace = true }
 glam = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+pollster = { workspace = true }

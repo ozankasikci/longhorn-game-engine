@@ -100,7 +100,7 @@ impl Renderer3D {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
         
@@ -187,7 +187,7 @@ impl Renderer3D {
         // Create pipeline layout
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[&camera_bind_group_layout, &material_bind_group_layout],
+            bind_group_layouts: &[&camera_bind_group_layout], // Only camera for basic shader
             push_constant_ranges: &[],
         });
         
@@ -215,7 +215,7 @@ impl Renderer3D {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: Some(wgpu::Face::Back), // Enable backface culling
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
@@ -235,14 +235,59 @@ impl Renderer3D {
             multiview: None,
         });
         
-        // Create test triangle geometry
+        // Create a cube with proper vertices (24 vertices for 6 faces with unique normals/colors)
         let vertices = vec![
-            Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },   // Top - Red
-            Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] }, // Bottom left - Green
-            Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },  // Bottom right - Blue
+            // Front face (z = 0.5) - Red
+            Vertex { position: [-0.5, -0.5,  0.5], color: [1.0, 0.0, 0.0] }, // 0
+            Vertex { position: [ 0.5, -0.5,  0.5], color: [1.0, 0.0, 0.0] }, // 1
+            Vertex { position: [ 0.5,  0.5,  0.5], color: [1.0, 0.0, 0.0] }, // 2
+            Vertex { position: [-0.5,  0.5,  0.5], color: [1.0, 0.0, 0.0] }, // 3
+            
+            // Back face (z = -0.5) - Green
+            Vertex { position: [ 0.5, -0.5, -0.5], color: [0.0, 1.0, 0.0] }, // 4
+            Vertex { position: [-0.5, -0.5, -0.5], color: [0.0, 1.0, 0.0] }, // 5
+            Vertex { position: [-0.5,  0.5, -0.5], color: [0.0, 1.0, 0.0] }, // 6
+            Vertex { position: [ 0.5,  0.5, -0.5], color: [0.0, 1.0, 0.0] }, // 7
+            
+            // Top face (y = 0.5) - Blue
+            Vertex { position: [-0.5,  0.5,  0.5], color: [0.0, 0.0, 1.0] }, // 8
+            Vertex { position: [ 0.5,  0.5,  0.5], color: [0.0, 0.0, 1.0] }, // 9
+            Vertex { position: [ 0.5,  0.5, -0.5], color: [0.0, 0.0, 1.0] }, // 10
+            Vertex { position: [-0.5,  0.5, -0.5], color: [0.0, 0.0, 1.0] }, // 11
+            
+            // Bottom face (y = -0.5) - Yellow
+            Vertex { position: [-0.5, -0.5, -0.5], color: [1.0, 1.0, 0.0] }, // 12
+            Vertex { position: [ 0.5, -0.5, -0.5], color: [1.0, 1.0, 0.0] }, // 13
+            Vertex { position: [ 0.5, -0.5,  0.5], color: [1.0, 1.0, 0.0] }, // 14
+            Vertex { position: [-0.5, -0.5,  0.5], color: [1.0, 1.0, 0.0] }, // 15
+            
+            // Right face (x = 0.5) - Magenta
+            Vertex { position: [ 0.5, -0.5,  0.5], color: [1.0, 0.0, 1.0] }, // 16
+            Vertex { position: [ 0.5, -0.5, -0.5], color: [1.0, 0.0, 1.0] }, // 17
+            Vertex { position: [ 0.5,  0.5, -0.5], color: [1.0, 0.0, 1.0] }, // 18
+            Vertex { position: [ 0.5,  0.5,  0.5], color: [1.0, 0.0, 1.0] }, // 19
+            
+            // Left face (x = -0.5) - Cyan
+            Vertex { position: [-0.5, -0.5, -0.5], color: [0.0, 1.0, 1.0] }, // 20
+            Vertex { position: [-0.5, -0.5,  0.5], color: [0.0, 1.0, 1.0] }, // 21
+            Vertex { position: [-0.5,  0.5,  0.5], color: [0.0, 1.0, 1.0] }, // 22
+            Vertex { position: [-0.5,  0.5, -0.5], color: [0.0, 1.0, 1.0] }, // 23
         ];
         
-        let indices = vec![0u16, 1, 2];
+        let indices: Vec<u16> = vec![
+            // Front face (CCW when viewed from front)
+            0, 1, 2,    0, 2, 3,
+            // Back face (CCW when viewed from back)
+            4, 5, 6,    4, 6, 7,
+            // Top face (CCW when viewed from top)
+            8, 9, 10,   8, 10, 11,
+            // Bottom face (CCW when viewed from bottom)
+            12, 13, 14, 12, 14, 15,
+            // Right face (CCW when viewed from right)
+            16, 17, 18, 16, 18, 19,
+            // Left face (CCW when viewed from left)
+            20, 21, 22, 20, 22, 23,
+        ];
         
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -291,9 +336,21 @@ impl Renderer3D {
     
     /// Render a scene to the internal texture
     pub fn render(&mut self, scene: &RenderScene) -> Result<(), anyhow::Error> {
+        log::info!("=== Renderer3D::render called ===");
+        log::info!("Scene has {} objects", scene.objects.len());
+        log::info!("Render texture size: {}x{}", self.width, self.height);
+        log::info!("Camera position: {:?}", scene.camera.position);
+        log::info!("Camera target: {:?}", scene.camera.target);
         // Update camera uniform
+        let view_matrix = scene.camera.view_matrix();
+        let proj_matrix = scene.camera.projection_matrix();
+        let view_proj_matrix = scene.camera.view_proj_matrix();
+        log::info!("View matrix: {:?}", view_matrix);
+        log::info!("Projection matrix: {:?}", proj_matrix);
+        log::info!("Combined view_proj matrix: {:?}", view_proj_matrix);
+        
         let camera_uniform = CameraUniform {
-            view_proj: scene.camera.view_proj_matrix().to_cols_array_2d(),
+            view_proj: view_proj_matrix.to_cols_array_2d(),
         };
         
         self.queue.write_buffer(
@@ -338,14 +395,35 @@ impl Renderer3D {
             
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            
+            // Draw each object in the scene
+            for (idx, render_object) in scene.objects.iter().enumerate() {
+                log::info!("Drawing object {} with mesh_id: {}, material_id: {}", idx, render_object.mesh_id, render_object.material_id);
+                log::info!("Object transform: {:?}", render_object.transform);
+                
+                // For now, always use the default cube to verify rendering works
+                // TODO: Fix mesh resource lifetime issue
+                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                log::info!("Drawing {} indices (should be 36 for a cube)", self.num_indices);
+                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            }
+            
+            // If no objects, draw a default cube for debugging
+            if scene.objects.is_empty() {
+                log::warn!("No objects in scene, drawing default cube");
+                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            }
         }
         
         // Submit commands
-        self.queue.submit(std::iter::once(encoder.finish()));
+        let command_buffer = encoder.finish();
+        log::info!("Submitting render commands");
+        self.queue.submit(std::iter::once(command_buffer));
         
+        log::info!("=== Render complete ===");
         Ok(())
     }
     
@@ -382,7 +460,7 @@ impl Renderer3D {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
         
@@ -452,5 +530,78 @@ impl Renderer3D {
     /// Get default texture ID by name
     pub fn get_default_texture_id(&self, name: &str) -> Option<u32> {
         self.default_textures.get(name).copied()
+    }
+    
+    /// Get the render texture data as RGBA bytes
+    pub fn get_texture_data(&self) -> Result<Vec<u8>, anyhow::Error> {
+        // Need to update render texture format to include COPY_SRC usage
+        let bytes_per_row = self.width * 4; // RGBA8
+        let padded_bytes_per_row = (bytes_per_row + 255) & !255; // Align to 256 bytes
+        let buffer_size = padded_bytes_per_row * self.height;
+        
+        // Create a buffer to copy the texture data into
+        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Texture Copy Buffer"),
+            size: buffer_size as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        
+        // Create command encoder
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Texture Copy Encoder"),
+        });
+        
+        // Copy texture to buffer
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                texture: &self.render_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &output_buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded_bytes_per_row),
+                    rows_per_image: Some(self.height),
+                },
+            },
+            wgpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
+        );
+        
+        // Submit commands
+        self.queue.submit(std::iter::once(encoder.finish()));
+        
+        // Map the buffer and read the data
+        let buffer_slice = output_buffer.slice(..);
+        let (tx, rx) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            tx.send(result).unwrap();
+        });
+        
+        self.device.poll(wgpu::Maintain::Wait);
+        rx.recv().unwrap()?;
+        
+        // Read the data
+        let data = buffer_slice.get_mapped_range();
+        let mut result = Vec::with_capacity((self.width * self.height * 4) as usize);
+        
+        // Copy data row by row to remove padding
+        for y in 0..self.height {
+            let start = (y * padded_bytes_per_row) as usize;
+            let end = start + (self.width * 4) as usize;
+            result.extend_from_slice(&data[start..end]);
+        }
+        
+        drop(data);
+        output_buffer.unmap();
+        
+        Ok(result)
     }
 }

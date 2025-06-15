@@ -1357,6 +1357,7 @@ dependencies = [
 name = "engine-editor-egui"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bytemuck",
  "dirs",
  "eframe",
@@ -1371,10 +1372,11 @@ dependencies = [
  "engine-geometry-impl",
  "engine-materials-core",
  "engine-renderer-3d",
- "engine-renderer-wgpu",
  "engine-resource-core",
  "env_logger",
  "glam",
+ "log",
+ "pollster",
  "serde",
  "toml",
  "wgpu",
@@ -1508,23 +1510,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-renderer-wgpu"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "engine-geometry-core",
- "engine-materials-core",
- "engine-renderer-core",
- "glam",
- "log",
- "pollster",
- "serde",
- "thiserror",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "engine-resource-core"
 version = "0.1.0"
 dependencies = [
@@ -1540,7 +1525,6 @@ dependencies = [
  "engine-ecs-core",
  "engine-input",
  "engine-platform",
- "engine-renderer-wgpu",
  "engine-ui",
  "env_logger",
  "log",
@@ -1589,7 +1573,6 @@ dependencies = [
  "egui-wgpu",
  "egui-winit",
  "engine-ecs-core",
- "engine-renderer-wgpu",
  "glam",
  "log",
  "serde",

@@ -6,7 +6,6 @@ license.workspace = true
 
 [dependencies]
 engine-ecs-core = { workspace = true }
-engine-renderer = { workspace = true }
 engine-input = { workspace = true }
 engine-assets = { workspace = true }
 engine-ui = { workspace = true }

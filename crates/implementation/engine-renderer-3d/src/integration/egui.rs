@@ -33,43 +33,59 @@ impl EguiRenderWidget {
     
     /// Update the texture in egui's texture manager
     fn update_texture(&mut self, ui: &mut Ui, size: egui::Vec2) -> Result<(), anyhow::Error> {
-        let renderer = self.renderer.lock().unwrap();
+        let mut renderer = self.renderer.lock().unwrap();
         
         // Check if we need to resize
-        if let Some(last_size) = self.last_size {
-            if (last_size.x - size.x).abs() > 1.0 || (last_size.y - size.y).abs() > 1.0 {
-                // Need to resize - this would require recreation of the renderer
-                // For now, we'll just update the size tracking
-                self.last_size = Some(size);
-            }
-        } else {
-            self.last_size = Some(size);
-        }
-        
-        // For now, we'll create a placeholder texture
-        // In a full implementation, we would copy from the render texture
-        let width = size.x as usize;
-        let height = size.y as usize;
+        let width = size.x as u32;
+        let height = size.y as u32;
         
         if width == 0 || height == 0 {
             return Ok(());
         }
         
-        // Create a placeholder gradient image
-        let mut pixels = vec![egui::Color32::BLACK; width * height];
-        for y in 0..height {
-            for x in 0..width {
-                let idx = y * width + x;
-                let r = (x as f32 / width as f32 * 255.0) as u8;
-                let g = (y as f32 / height as f32 * 255.0) as u8;
-                let b = 128;
-                pixels[idx] = egui::Color32::from_rgb(r, g, b);
+        log::debug!("Updating texture with size {}x{}", width, height);
+        
+        if let Some(last_size) = self.last_size {
+            if (last_size.x - size.x).abs() > 1.0 || (last_size.y - size.y).abs() > 1.0 {
+                // Need to resize the renderer
+                renderer.resize(width, height)?;
+                self.last_size = Some(size);
             }
+        } else {
+            self.last_size = Some(size);
+            renderer.resize(width, height)?;
+        }
+        
+        // Get the render output from the renderer
+        log::info!("Getting texture data from renderer");
+        let pixels = renderer.get_texture_data()?;
+        
+        // Convert from RGBA bytes to egui Color32
+        let width_usize = width as usize;
+        let height_usize = height as usize;
+        
+        log::info!("Got {} bytes of pixel data, expected {}", pixels.len(), width_usize * height_usize * 4);
+        
+        // Debug: Check if we're getting valid pixel data
+        if !pixels.is_empty() {
+            // Sample a few pixels to see what we're getting
+            log::debug!("First pixel: R={}, G={}, B={}, A={}", pixels[0], pixels[1], pixels[2], pixels[3]);
+            let mid = pixels.len() / 2;
+            if mid + 3 < pixels.len() {
+                log::debug!("Middle pixel: R={}, G={}, B={}, A={}", pixels[mid], pixels[mid+1], pixels[mid+2], pixels[mid+3]);
+            }
+        }
+        let mut egui_pixels = Vec::with_capacity(width_usize * height_usize);
+        
+        for chunk in pixels.chunks_exact(4) {
+            egui_pixels.push(egui::Color32::from_rgba_premultiplied(
+                chunk[0], chunk[1], chunk[2], chunk[3]
+            ));
         }
         
         let color_image = ColorImage {
-            size: [width, height],
-            pixels,
+            size: [width_usize, height_usize],
+            pixels: egui_pixels,
         };
         
         // Update or create texture
@@ -96,6 +112,8 @@ impl Widget for &mut EguiRenderWidget {
         let rect = ui.available_rect_before_wrap();
         let size = rect.size();
         
+        log::info!("EguiRenderWidget::ui called with size {:?}", size);
+        
         // Update texture if needed
         if let Err(e) = self.update_texture(ui, size) {
             log::error!("Failed to update render texture: {}", e);
@@ -104,13 +122,24 @@ impl Widget for &mut EguiRenderWidget {
         
         // Display the texture
         if let Some(texture_id) = self.texture_id {
+            log::info!("Drawing texture with id {:?} at rect {:?}", texture_id, rect);
             let response = ui.allocate_response(size, egui::Sense::hover());
+            
+            // Draw the texture
             ui.painter().image(
                 texture_id,
                 response.rect,
                 egui::Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::new(1.0, 1.0)),
                 egui::Color32::WHITE,
             );
+            
+            // Debug: Draw a border around the texture area
+            ui.painter().rect_stroke(
+                response.rect,
+                0.0,
+                egui::Stroke::new(2.0, egui::Color32::RED),
+            );
+            
             response
         } else {
             ui.label("Initializing renderer...")
