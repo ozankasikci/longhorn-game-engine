@@ -18,6 +18,7 @@ pollster = "0.3"
 engine-ecs-core = { path = "../../core/engine-ecs-core" }
 engine-components-3d = { path = "../../core/engine-components-3d" }
 engine-component-traits = { path = "../../core/engine-component-traits" }
+engine-camera-impl = { path = "../engine-camera-impl" }
 serde = { version = "1.0", features = ["derive"] }
 
 # Example dependencies

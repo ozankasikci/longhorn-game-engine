@@ -72,6 +72,13 @@ impl EcsRenderBridge {
         }
         
         log::info!("Converted ECS world to render scene with {} objects", scene.objects.len());
+        
+        // Log details about objects
+        for (i, obj) in scene.objects.iter().enumerate() {
+            log::info!("Object {}: mesh_id={}, material_id={}, transform={:?}", 
+                i, obj.mesh_id, obj.material_id, obj.transform);
+        }
+        
         scene
     }
     
@@ -169,14 +176,28 @@ pub struct CameraExtractor;
 impl CameraExtractor {
     /// Extract camera from ECS world (looks for camera entities)
     pub fn extract_camera(world: &World, aspect_ratio: f32) -> Camera {
-        // Try to find a camera entity in the ECS world
-        // For now, we'll use a default camera if none found
+        // Find the main camera or highest priority active camera
+        let camera_entity = engine_camera_impl::find_main_camera(world)
+            .or_else(|| engine_camera_impl::find_active_camera(world));
         
-        // TODO: Implement proper camera component query
-        // let camera_query = world.query::<(Entity, &CameraComponent)>();
-        // if let Some((_, camera_component)) = camera_query.iter().next() {
-        //     return Camera::from_component(camera_component, aspect_ratio);
-        // }
+        if let Some(entity) = camera_entity {
+            // Get transform and camera components
+            if let (Some(transform), Some(cam)) = (
+                world.get_component::<engine_components_3d::Transform>(entity),
+                world.get_component::<engine_components_3d::Camera>(entity)
+            ) {
+                log::info!("Found ECS camera at position: {:?}, rotation: {:?}", 
+                    transform.position, transform.rotation);
+                // Convert ECS components to renderer Camera
+                let camera = Camera::from_position_rotation(
+                    transform.position,
+                    transform.rotation,
+                    cam.calculate_aspect_ratio(800, 600), // TODO: get actual viewport size
+                );
+                log::info!("Camera target: {:?}", camera.target);
+                return camera;
+            }
+        }
         
         // Default camera fallback
         let mut camera = Camera::new(aspect_ratio);

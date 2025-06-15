@@ -40,15 +40,19 @@ impl Camera {
         let yaw = rotation[1];
         
         // Calculate forward direction from pitch and yaw
-        // Default forward is +Z, then apply rotations
+        // In a right-handed system, default forward is -Z
+        // Yaw rotates around Y axis, pitch rotates around X axis
         let forward = Vec3::new(
-            yaw.sin() * pitch.cos(),
+            -yaw.sin() * pitch.cos(),  // -sin for right-handed
             pitch.sin(),
-            yaw.cos() * pitch.cos(),
+            -yaw.cos() * pitch.cos(),  // -cos for right-handed (looking down -Z)
         );
         
         // Calculate target point (position + forward direction)
         let target = pos + forward;
+        
+        log::info!("Camera from_position_rotation: pos={:?}, rot={:?}, forward={:?}, target={:?}", 
+            position, rotation, forward, target);
         
         Self {
             position: pos,

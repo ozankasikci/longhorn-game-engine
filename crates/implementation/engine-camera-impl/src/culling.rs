@@ -286,7 +286,7 @@ mod tests {
     
     #[test]
     fn test_culling_stats() {
-        let mut stats = CullingStats::new();
+        let mut stats = engine_camera_core::CullingStats::new();
         
         stats.record(CullingResult::Inside);
         stats.record(CullingResult::Outside);

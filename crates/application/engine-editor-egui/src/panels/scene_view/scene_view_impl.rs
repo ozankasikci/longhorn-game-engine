@@ -17,6 +17,7 @@ pub struct SceneViewRenderer {
     render_widget: Option<EguiRenderWidget>,
     ecs_bridge: Option<EcsRenderBridge>,
     camera_controller: CameraController,
+    pub editor_camera: super::ecs_camera_bridge::EditorCameraManager,
 }
 
 impl SceneViewRenderer {
@@ -26,6 +27,7 @@ impl SceneViewRenderer {
             render_widget: None,
             ecs_bridge: None,
             camera_controller: CameraController::new(Camera::default()),
+            editor_camera: super::ecs_camera_bridge::EditorCameraManager::new(),
         }
     }
     
@@ -70,7 +72,7 @@ impl SceneViewRenderer {
     /// Main scene rendering function - Using engine-renderer-3d
     pub fn draw_scene(
         &mut self,
-        world: &World,
+        world: &mut World,
         ui: &mut egui::Ui,
         rect: egui::Rect,
         response: &egui::Response,
@@ -78,13 +80,47 @@ impl SceneViewRenderer {
         selected_entity: Option<Entity>,
         play_state: PlayState,
     ) {
-        // Update camera from scene navigation
-        let camera_transform = &scene_navigation.scene_camera_transform;
-        let camera = Camera::from_position_rotation(
-            camera_transform.position,
-            camera_transform.rotation,
-            rect.aspect_ratio(),
-        );
+        // Initialize editor camera in ECS if needed
+        self.editor_camera.initialize(world);
+        
+        // Handle camera input
+        let delta_time = ui.input(|i| i.stable_dt);
+        self.editor_camera.handle_input(world, ui, response, delta_time);
+        
+        // Sync camera with scene navigation (for compatibility)
+        self.editor_camera.sync_to_scene_navigation(world, scene_navigation);
+        
+        // Update camera matrices
+        engine_camera_impl::camera_update_system(world);
+        
+        // Get camera from ECS for rendering
+        let camera = if let Some(entity) = self.editor_camera.camera_entity {
+            if let (Some(transform), Some(cam)) = (
+                world.get_component::<engine_components_3d::Transform>(entity),
+                world.get_component::<engine_components_3d::Camera>(entity)
+            ) {
+                Camera::from_position_rotation(
+                    transform.position,
+                    transform.rotation,
+                    rect.aspect_ratio(),
+                )
+            } else {
+                // Fallback
+                Camera::from_position_rotation(
+                    scene_navigation.scene_camera_transform.position,
+                    scene_navigation.scene_camera_transform.rotation,
+                    rect.aspect_ratio(),
+                )
+            }
+        } else {
+            // Fallback
+            Camera::from_position_rotation(
+                scene_navigation.scene_camera_transform.position,
+                scene_navigation.scene_camera_transform.rotation,
+                rect.aspect_ratio(),
+            )
+        };
+        
         self.camera_controller.camera = camera;
         
         // If we have the renderer initialized, use it
@@ -120,6 +156,52 @@ impl SceneViewRenderer {
         if current_entity_count != self.last_rendered_entity_count {
             self.last_rendered_entity_count = current_entity_count;
         }
+    }
+    
+    /// Render from a specific camera (used for game view)
+    pub fn render_game_camera_view(
+        &mut self,
+        world: &mut World,
+        ui: &mut egui::Ui,
+        rect: egui::Rect,
+        camera: Camera,
+    ) {
+        log::info!("render_game_camera_view called with rect: {:?}", rect);
+        
+        // Store the current camera
+        let old_camera = self.camera_controller.camera.clone();
+        self.camera_controller.camera = camera;
+        
+        // If we have the renderer initialized, use it
+        if let (Some(render_widget), Some(ecs_bridge)) = (&mut self.render_widget, &self.ecs_bridge) {
+            log::info!("Renderer is initialized, creating render scene");
+            
+            // Convert ECS world to render scene
+            let render_scene = ecs_bridge.world_to_render_scene(world, self.camera_controller.camera.clone());
+            log::info!("Created render scene with {} objects", render_scene.objects.len());
+            
+            // Render the scene
+            if let Err(e) = render_widget.render_scene(&render_scene) {
+                log::error!("Game view 3D rendering failed: {}", e);
+                // Could fall back to 2D here if needed
+            } else {
+                log::info!("Render succeeded, adding widget to UI at rect: {:?}", rect);
+                
+                // Display the rendered result at the specific rect
+                ui.allocate_ui_at_rect(rect, |ui| {
+                    // Force the UI to use the full rect
+                    ui.set_min_size(rect.size());
+                    ui.set_max_size(rect.size());
+                    let response = ui.add(render_widget);
+                    log::info!("Widget added, response rect: {:?}", response.rect);
+                });
+            }
+        } else {
+            log::warn!("Renderer not initialized");
+        }
+        
+        // Restore the original camera
+        self.camera_controller.camera = old_camera;
     }
     
     /// Fallback 2D scene rendering when 3D renderer is unavailable

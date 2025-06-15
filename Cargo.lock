@@ -1294,6 +1294,8 @@ name = "engine-camera-impl"
 version = "0.1.0"
 dependencies = [
  "engine-camera-core",
+ "engine-components-3d",
+ "engine-ecs-core",
  "glam",
  "serde",
 ]
@@ -1362,6 +1364,7 @@ dependencies = [
  "eframe",
  "egui",
  "egui_dock",
+ "engine-camera-impl",
  "engine-components-2d",
  "engine-components-3d",
  "engine-components-ui",
@@ -1473,6 +1476,7 @@ dependencies = [
  "bytemuck",
  "egui",
  "egui-wgpu",
+ "engine-camera-impl",
  "engine-component-traits",
  "engine-components-3d",
  "engine-ecs-core",

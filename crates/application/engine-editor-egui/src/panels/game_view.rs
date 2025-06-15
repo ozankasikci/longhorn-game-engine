@@ -50,22 +50,16 @@ impl GameViewPanel {
         let available_size = ui.available_size();
         let response = ui.allocate_response(available_size, egui::Sense::hover());
         
-        if play_state == PlayState::Editing {
-            // Show "Press Play" message when not in play mode
-            ui.allocate_ui_at_rect(response.rect, |ui| {
-                ui.centered_and_justified(|ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.label("🎮 Game View");
-                        ui.label("Press Play button to see game from camera");
-                        ui.small("This view shows what the player will see");
-                    });
-                });
-            });
-        } else {
-            // Return the rect for rendering from main camera perspective
-            return (messages, Some(response.rect));
-        }
+        // Debug: Draw a background to ensure the game view is visible
+        let painter = ui.painter();
+        painter.rect_filled(
+            response.rect,
+            0.0,
+            egui::Color32::from_rgb(30, 30, 40), // Dark blue background
+        );
         
-        (messages, None)
+        // Always return the rect for rendering from main camera perspective
+        // The game view should show the camera view regardless of play state
+        (messages, Some(response.rect))
     }
 }

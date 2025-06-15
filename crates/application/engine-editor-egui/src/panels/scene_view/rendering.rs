@@ -2,9 +2,8 @@
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
-use engine_components_3d::{Transform, Mesh, MeshType, Material, Light, Visibility};
+use engine_components_3d::{Transform, Mesh, MeshType, Material, Light, Visibility, Camera, MainCamera};
 use engine_components_2d::SpriteRenderer;
-use engine_renderer_3d::Camera;
 use crate::types::SceneNavigation;
 use crate::editor_state::ConsoleMessage;
 use engine_components_ui::Name;
@@ -59,7 +58,7 @@ impl SceneRenderer {
                     ui.colored_label(egui::Color32::YELLOW, "⚠️ Camera Issue");
                     ui.label(message);
                     ui.small("Add a Camera component to an entity");
-                    ui.small("Set 'is_main' to true for main camera");
+                    ui.small("Add MainCamera tag component for main camera");
                 });
             });
         });
@@ -67,18 +66,18 @@ impl SceneRenderer {
     
     /// Find the main camera entity in the scene
     pub fn find_main_camera_entity(world: &World) -> Option<Entity> {
-        // Look for entity with Camera component that has is_main = true
-        for (entity, _transform) in world.query_legacy::<Transform>() {
-            if let Some(camera) = world.get_component::<Camera>(entity) {
-                if camera.is_main {
-                    return Some(entity);
-                }
+        // Look for entity with MainCamera tag component
+        for (entity, _) in world.query_legacy::<MainCamera>() {
+            // Verify it also has Camera and Transform components
+            if world.get_component::<Camera>(entity).is_some() && 
+               world.get_component::<Transform>(entity).is_some() {
+                return Some(entity);
             }
         }
         
         // If no main camera found, return the first camera entity
-        for (entity, _transform) in world.query_legacy::<Transform>() {
-            if world.get_component::<Camera>(entity).is_some() {
+        for (entity, _) in world.query_legacy::<Camera>() {
+            if world.get_component::<Transform>(entity).is_some() {
                 return Some(entity);
             }
         }
@@ -99,7 +98,7 @@ impl SceneRenderer {
         
         // Camera position and view parameters
         let camera_pos = camera_transform.position;
-        let fov_rad = camera.fov.to_radians();
+        let fov_rad = camera.fov_degrees.to_radians();
         let aspect_ratio = rect.width() / rect.height();
         
         // Calculate view frustum dimensions at different depths
@@ -108,10 +107,8 @@ impl SceneRenderer {
         // Render all entities with transforms
         for (entity, transform) in world.query_legacy::<Transform>() {
             // Skip the camera itself
-            if let Some(camera_check) = world.get_component::<Camera>(entity) {
-                if camera_check.is_main {
-                    continue;
-                }
+            if world.get_component::<MainCamera>(entity).is_some() {
+                continue;
             }
             
             // Calculate relative position from camera
@@ -125,7 +122,7 @@ impl SceneRenderer {
             let depth = -relative_pos[2]; // Distance from camera
             
             // Skip objects behind camera or too far away
-            if depth <= camera.near || depth > camera.far {
+            if depth <= camera.near_plane || depth > camera.far_plane {
                 continue;
             }
             
@@ -145,7 +142,7 @@ impl SceneRenderer {
             
             // Calculate object size based on depth (perspective scaling)
             let base_size = 20.0;
-            let size_scale = camera.near / depth; // Objects get smaller with distance
+            let size_scale = camera.near_plane / depth; // Objects get smaller with distance
             let object_size = base_size * size_scale * transform.scale[0];
             
             // Get entity info for rendering
@@ -229,13 +226,13 @@ impl SceneRenderer {
                     ui.allocate_ui_at_rect(egui::Rect::from_min_size(rect.min, egui::vec2(250.0, 80.0)), |ui| {
                         ui.vertical(|ui| {
                             ui.colored_label(egui::Color32::WHITE, 
-                                format!("📷 Camera View (FOV: {:.0}°)", camera.fov));
+                                format!("📷 Camera View (FOV: {:.0}°)", camera.fov_degrees));
                             ui.small(format!("Position: [{:.1}, {:.1}, {:.1}]", 
                                 camera_transform.position[0], 
                                 camera_transform.position[1], 
                                 camera_transform.position[2]));
                             ui.small(format!("Aspect: {:.2} | Near: {:.1} | Far: {:.0}", 
-                                aspect_ratio, camera.near, camera.far));
+                                aspect_ratio, camera.near_plane, camera.far_plane));
                         });
                     });
                 } else {

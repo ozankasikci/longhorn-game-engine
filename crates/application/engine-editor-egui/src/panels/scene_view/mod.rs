@@ -10,6 +10,7 @@ pub mod scene_view_impl;
 pub mod scene_input;
 pub mod debug_overlay;
 pub mod improved_grid;
+pub mod ecs_camera_bridge;
 
 #[cfg(test)]
 mod navigation_tests;

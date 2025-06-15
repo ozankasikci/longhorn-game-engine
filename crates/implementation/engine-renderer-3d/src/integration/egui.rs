@@ -109,41 +109,52 @@ impl EguiRenderWidget {
 
 impl Widget for &mut EguiRenderWidget {
     fn ui(self, ui: &mut Ui) -> Response {
-        let rect = ui.available_rect_before_wrap();
-        let size = rect.size();
+        let available_rect = ui.available_rect_before_wrap();
+        let size = available_rect.size();
         
-        log::info!("EguiRenderWidget::ui called with size {:?}", size);
+        log::info!("EguiRenderWidget::ui called with available_rect: {:?}, size: {:?}", available_rect, size);
+        
+        // Allocate the response first to claim the space
+        let response = ui.allocate_response(size, egui::Sense::hover());
+        let rect = response.rect;
+        
+        log::info!("Allocated response rect: {:?}", rect);
         
         // Update texture if needed
-        if let Err(e) = self.update_texture(ui, size) {
+        if let Err(e) = self.update_texture(ui, rect.size()) {
             log::error!("Failed to update render texture: {}", e);
-            return ui.label("Render Error");
+            ui.painter().text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "Render Error",
+                egui::FontId::default(),
+                egui::Color32::RED,
+            );
+            return response;
         }
         
         // Display the texture
         if let Some(texture_id) = self.texture_id {
             log::info!("Drawing texture with id {:?} at rect {:?}", texture_id, rect);
-            let response = ui.allocate_response(size, egui::Sense::hover());
             
             // Draw the texture
             ui.painter().image(
                 texture_id,
-                response.rect,
+                rect,
                 egui::Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::new(1.0, 1.0)),
                 egui::Color32::WHITE,
             );
-            
-            // Debug: Draw a border around the texture area
-            ui.painter().rect_stroke(
-                response.rect,
-                0.0,
-                egui::Stroke::new(2.0, egui::Color32::RED),
-            );
-            
-            response
         } else {
-            ui.label("Initializing renderer...")
+            ui.painter().text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "Initializing renderer...",
+                egui::FontId::default(),
+                egui::Color32::WHITE,
+            );
         }
+        
+        response
     }
 }
 

@@ -8,6 +8,7 @@ pub mod viewport;
 pub mod projection;
 pub mod culling;
 pub mod components;
+pub mod matrices;
 
 // Core exports
 pub use camera::{Camera as AdvancedCamera, CameraType, CameraComponent, CameraUniform};

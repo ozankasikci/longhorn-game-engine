@@ -9,6 +9,12 @@ repository.workspace = true
 # Core camera abstractions
 engine-camera-core = { workspace = true }
 
+# Components
+engine-components-3d = { workspace = true }
+
+# ECS
+engine-ecs-core = { workspace = true }
+
 # Math types
 glam = { workspace = true }
 

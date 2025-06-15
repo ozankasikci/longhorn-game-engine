@@ -18,6 +18,7 @@ engine-renderer-3d = { workspace = true }
 engine-geometry-core = { workspace = true }
 engine-geometry-impl = { workspace = true }
 engine-resource-core = { workspace = true }
+engine-camera-impl = { workspace = true }
 
 # EGUI and platform integration
 egui = { workspace = true }

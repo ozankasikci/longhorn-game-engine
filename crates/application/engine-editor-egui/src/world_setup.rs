@@ -1,10 +1,9 @@
 // World initialization and default entity creation
 
 use engine_ecs_core::{World, Entity, WorldBundleExt};
-use engine_components_3d::{Transform, Visibility, Material, MeshFilter, MeshRenderer, Mesh, MeshType};
+use engine_components_3d::{Transform, Visibility, Material, MeshFilter, MeshRenderer, Mesh, MeshType, Camera, MainCamera, CameraMatrices};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
-use engine_renderer_3d::Camera;
 use engine_geometry_impl::primitives::MeshPrimitives;
 use engine_geometry_core::{MeshData, Vertex};
 use engine_resource_core::{ResourceId, ResourceHandle};
@@ -21,6 +20,8 @@ pub fn create_default_world() -> (World, Entity) {
     // Register all component types
     engine_ecs_core::register_component::<Transform>();
     engine_ecs_core::register_component::<Camera>();
+    engine_ecs_core::register_component::<MainCamera>();
+    engine_ecs_core::register_component::<CameraMatrices>();
     engine_ecs_core::register_component::<Name>();
     engine_ecs_core::register_component::<Material>();
     engine_ecs_core::register_component::<Visibility>();
@@ -38,7 +39,7 @@ pub fn create_default_world() -> (World, Entity) {
             rotation: [0.0, 0.0, 0.0],  // No rotation - looking straight down -Z axis
             scale: [1.0, 1.0, 1.0],
         },
-        Camera::default(),
+        Camera::perspective(60.0, 0.1, 1000.0),
         Name::new("Main Camera"),
     ));
     

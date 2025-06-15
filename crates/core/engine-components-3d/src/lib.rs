@@ -160,6 +160,181 @@ impl Default for Visibility {
 }
 
 // ============================================================================
+// CAMERA COMPONENTS
+// ============================================================================
+
+/// Camera component - defines camera properties for rendering
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Camera {
+    /// Type of projection
+    pub projection_type: ProjectionType,
+    
+    /// Vertical field of view in degrees (for perspective projection)
+    pub fov_degrees: f32,
+    
+    /// Near clipping plane distance
+    pub near_plane: f32,
+    
+    /// Far clipping plane distance  
+    pub far_plane: f32,
+    
+    /// Orthographic projection size (height in world units)
+    pub orthographic_size: f32,
+    
+    /// Viewport rectangle (normalized 0-1)
+    pub viewport: Viewport,
+    
+    /// Render target (None = main framebuffer)
+    pub render_target: Option<u32>,
+    
+    /// Rendering priority (higher = rendered later)
+    pub priority: i32,
+    
+    /// Whether this camera is active
+    pub active: bool,
+    
+    /// Clear flags
+    pub clear_flags: ClearFlags,
+    
+    /// Background color (if clearing color buffer)
+    pub clear_color: [f32; 4],
+}
+
+/// Projection type for cameras
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum ProjectionType {
+    Perspective,
+    Orthographic,
+}
+
+/// Viewport defines the screen area to render to
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Viewport {
+    /// X position (0-1, where 0 is left)
+    pub x: f32,
+    /// Y position (0-1, where 0 is top)
+    pub y: f32,
+    /// Width (0-1)
+    pub width: f32,
+    /// Height (0-1)
+    pub height: f32,
+}
+
+impl Default for Viewport {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            width: 1.0,
+            height: 1.0,
+        }
+    }
+}
+
+/// Clear flags for camera rendering
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ClearFlags {
+    pub color: bool,
+    pub depth: bool,
+    pub stencil: bool,
+}
+
+impl Default for ClearFlags {
+    fn default() -> Self {
+        Self {
+            color: true,
+            depth: true,
+            stencil: false,
+        }
+    }
+}
+
+impl Component for Camera {}
+
+impl Default for Camera {
+    fn default() -> Self {
+        Self {
+            projection_type: ProjectionType::Perspective,
+            fov_degrees: 60.0,
+            near_plane: 0.1,
+            far_plane: 1000.0,
+            orthographic_size: 10.0,
+            viewport: Viewport::default(),
+            render_target: None,
+            priority: 0,
+            active: true,
+            clear_flags: ClearFlags::default(),
+            clear_color: [0.1, 0.1, 0.1, 1.0],
+        }
+    }
+}
+
+impl Camera {
+    /// Create a perspective camera
+    pub fn perspective(fov_degrees: f32, near: f32, far: f32) -> Self {
+        Self {
+            projection_type: ProjectionType::Perspective,
+            fov_degrees,
+            near_plane: near,
+            far_plane: far,
+            ..Default::default()
+        }
+    }
+    
+    /// Create an orthographic camera
+    pub fn orthographic(size: f32, near: f32, far: f32) -> Self {
+        Self {
+            projection_type: ProjectionType::Orthographic,
+            orthographic_size: size,
+            near_plane: near,
+            far_plane: far,
+            ..Default::default()
+        }
+    }
+    
+    /// Set the viewport
+    pub fn with_viewport(mut self, viewport: Viewport) -> Self {
+        self.viewport = viewport;
+        self
+    }
+    
+    /// Set the render priority
+    pub fn with_priority(mut self, priority: i32) -> Self {
+        self.priority = priority;
+        self
+    }
+    
+    /// Set the clear color
+    pub fn with_clear_color(mut self, color: [f32; 4]) -> Self {
+        self.clear_color = color;
+        self
+    }
+    
+    /// Calculate aspect ratio from viewport and screen dimensions
+    pub fn calculate_aspect_ratio(&self, screen_width: u32, screen_height: u32) -> f32 {
+        let viewport_width = self.viewport.width * screen_width as f32;
+        let viewport_height = self.viewport.height * screen_height as f32;
+        viewport_width / viewport_height
+    }
+}
+
+/// Tag component for the main camera
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct MainCamera;
+
+impl Component for MainCamera {}
+
+/// Cached camera matrices (computed by camera system)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CameraMatrices {
+    pub view: glam::Mat4,
+    pub projection: glam::Mat4,
+    pub view_projection: glam::Mat4,
+}
+
+impl Component for CameraMatrices {}
+
+// ============================================================================
 // NEW MESH COMPONENTS - Unity-style separation
 // ============================================================================
 
@@ -284,6 +459,37 @@ impl Default for GameObject3DBundle {
             mesh: Mesh::default(),
             material: Material::default(),
             visibility: Visibility::default(),
+        }
+    }
+}
+
+/// Bundle for camera entities
+pub struct CameraBundle {
+    pub transform: Transform,
+    pub camera: Camera,
+}
+
+impl Bundle for CameraBundle {
+    fn component_ids() -> Vec<std::any::TypeId> where Self: Sized {
+        vec![
+            std::any::TypeId::of::<Transform>(),
+            std::any::TypeId::of::<Camera>(),
+        ]
+    }
+    
+    fn into_components(self) -> Vec<(std::any::TypeId, Box<dyn engine_component_traits::ComponentClone>)> {
+        vec![
+            (std::any::TypeId::of::<Transform>(), Box::new(self.transform)),
+            (std::any::TypeId::of::<Camera>(), Box::new(self.camera)),
+        ]
+    }
+}
+
+impl Default for CameraBundle {
+    fn default() -> Self {
+        Self {
+            transform: Transform::default(),
+            camera: Camera::default(),
         }
     }
 }
@@ -421,5 +627,60 @@ mod tests {
         assert_eq!(renderer.receive_shadows, deserialized.receive_shadows);
         assert_eq!(renderer.layer_mask, deserialized.layer_mask);
         assert_eq!(renderer.enabled, deserialized.enabled);
+    }
+    
+    #[test]
+    fn test_camera_default() {
+        let camera = Camera::default();
+        assert_eq!(camera.projection_type, ProjectionType::Perspective);
+        assert_eq!(camera.fov_degrees, 60.0);
+        assert_eq!(camera.near_plane, 0.1);
+        assert_eq!(camera.far_plane, 1000.0);
+        assert!(camera.active);
+        assert_eq!(camera.priority, 0);
+    }
+    
+    #[test]
+    fn test_camera_perspective() {
+        let camera = Camera::perspective(90.0, 0.01, 500.0);
+        assert_eq!(camera.projection_type, ProjectionType::Perspective);
+        assert_eq!(camera.fov_degrees, 90.0);
+        assert_eq!(camera.near_plane, 0.01);
+        assert_eq!(camera.far_plane, 500.0);
+    }
+    
+    #[test]
+    fn test_camera_orthographic() {
+        let camera = Camera::orthographic(20.0, -10.0, 10.0);
+        assert_eq!(camera.projection_type, ProjectionType::Orthographic);
+        assert_eq!(camera.orthographic_size, 20.0);
+        assert_eq!(camera.near_plane, -10.0);
+        assert_eq!(camera.far_plane, 10.0);
+    }
+    
+    #[test]
+    fn test_viewport_default() {
+        let viewport = Viewport::default();
+        assert_eq!(viewport.x, 0.0);
+        assert_eq!(viewport.y, 0.0);
+        assert_eq!(viewport.width, 1.0);
+        assert_eq!(viewport.height, 1.0);
+    }
+    
+    #[test]
+    fn test_camera_aspect_ratio() {
+        let camera = Camera::default();
+        let aspect = camera.calculate_aspect_ratio(1920, 1080);
+        assert!((aspect - 16.0/9.0).abs() < 0.001);
+        
+        // Test with custom viewport
+        let camera = Camera::default().with_viewport(Viewport {
+            x: 0.0,
+            y: 0.0,
+            width: 0.5,
+            height: 0.5,
+        });
+        let aspect = camera.calculate_aspect_ratio(1920, 1080);
+        assert!((aspect - 16.0/9.0).abs() < 0.001);
     }
 }

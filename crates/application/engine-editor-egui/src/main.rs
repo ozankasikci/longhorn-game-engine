@@ -341,13 +341,64 @@ impl LonghornEditor {
         }
     }
 
-    /// Render the scene from the main camera's perspective
+    /// Render the scene from the main camera's perspective using 3D renderer
     fn render_camera_perspective(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
-        panels::scene_view::rendering::SceneRenderer::render_camera_perspective(
-            &self.world,
-            ui,
-            rect
-        );
+        log::info!("render_camera_perspective called with rect: {:?}", rect);
+        
+        // Debug: List all cameras
+        let cameras: Vec<_> = self.world.query_legacy::<engine_components_3d::Camera>()
+            .map(|(e, _)| e)
+            .collect();
+        log::info!("Total cameras in world: {}", cameras.len());
+        
+        // Find the main camera entity, or use the scene editor camera
+        let main_camera_entity = engine_camera_impl::find_main_camera(&self.world)
+            .or_else(|| engine_camera_impl::find_active_camera(&self.world))
+            .or_else(|| {
+                // Fallback to editor camera if no main camera
+                self.scene_view_renderer.editor_camera.camera_entity
+            });
+        
+        if let Some(camera_entity) = main_camera_entity {
+            log::info!("Found main camera entity: {:?}", camera_entity);
+            
+            // Get camera transform and component
+            if let (Some(transform), Some(cam)) = (
+                self.world.get_component::<engine_components_3d::Transform>(camera_entity),
+                self.world.get_component::<engine_components_3d::Camera>(camera_entity)
+            ) {
+                log::info!("Camera transform: {:?}, camera: {:?}", transform, cam);
+                
+                // Create a camera for rendering
+                let camera = engine_renderer_3d::Camera::from_position_rotation(
+                    transform.position,
+                    transform.rotation,
+                    rect.aspect_ratio(),
+                );
+                
+                log::info!("Created render camera: {:?}", camera);
+                
+                // Use the scene view renderer to render from this camera
+                self.scene_view_renderer.render_game_camera_view(
+                    &mut self.world,
+                    ui,
+                    rect,
+                    camera,
+                );
+            } else {
+                log::warn!("Camera components missing");
+                // Show no camera message
+                panels::scene_view::rendering::SceneRenderer::show_no_camera_message(
+                    ui, rect, "Camera components missing"
+                );
+            }
+        } else {
+            log::warn!("No main camera found");
+            // Show no camera message
+            panels::scene_view::rendering::SceneRenderer::show_no_camera_message(
+                ui, rect, "No main camera found"
+            );
+        }
     }
 
     pub fn show_game_view(&mut self, ui: &mut egui::Ui) {
