@@ -31,6 +31,18 @@ impl EguiRenderWidget {
         renderer.render(scene)
     }
     
+    /// Set gizmo transform
+    pub fn set_gizmo_transform(&mut self, transform: Option<glam::Mat4>) {
+        let mut renderer = self.renderer.lock().unwrap();
+        renderer.set_gizmo_transform(transform);
+    }
+    
+    /// Set gizmo mode
+    pub fn set_gizmo_mode(&mut self, mode: crate::GizmoMode) {
+        let mut renderer = self.renderer.lock().unwrap();
+        renderer.set_gizmo_mode(mode);
+    }
+    
     /// Update the texture in egui's texture manager
     fn update_texture(&mut self, ui: &mut Ui, size: egui::Vec2) -> Result<(), anyhow::Error> {
         let mut renderer = self.renderer.lock().unwrap();

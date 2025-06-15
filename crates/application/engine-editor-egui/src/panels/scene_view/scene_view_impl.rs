@@ -142,6 +142,19 @@ impl SceneViewRenderer {
         if let (Some(render_widget), Some(ecs_bridge)) = (&mut self.render_widget, &self.ecs_bridge) {
             log::info!("SCENE VIEW: Using 3D renderer with camera at pos={:?}", self.camera_controller.camera.position);
             
+            // Set gizmo transform based on selected entity
+            if let Some(entity) = selected_entity {
+                if let Some(transform) = world.get_component::<Transform>(entity) {
+                    // Create transform matrix for gizmo
+                    let gizmo_transform = transform.matrix();
+                    render_widget.set_gizmo_transform(Some(gizmo_transform));
+                    render_widget.set_gizmo_mode(engine_renderer_3d::GizmoMode::Translation);
+                }
+            } else {
+                // No selection, hide gizmo
+                render_widget.set_gizmo_transform(None);
+            }
+            
             // Convert ECS world to render scene
             let render_scene = ecs_bridge.world_to_render_scene(world, self.camera_controller.camera.clone());
             log::info!("Created render scene with {} objects", render_scene.objects.len());

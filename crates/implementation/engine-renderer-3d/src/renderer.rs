@@ -12,6 +12,7 @@ use crate::scene::RenderScene;
 use crate::resources::{ResourceManager, ResourceStats};
 use crate::{Mesh, Material};
 use crate::grid::{GridRenderer, GridConfig};
+use crate::gizmo_3d::{GizmoRenderer3D, GizmoMode};
 
 /// Vertex data structure for the renderer
 #[repr(C)]
@@ -89,6 +90,11 @@ pub struct Renderer3D {
     // Grid renderer
     grid_renderer: Option<GridRenderer>,
     grid_enabled: bool,
+    
+    // Gizmo renderer
+    gizmo_renderer: Option<GizmoRenderer3D>,
+    gizmo_enabled: bool,
+    gizmo_transform: Option<glam::Mat4>,
 }
 
 impl Renderer3D {
@@ -350,6 +356,19 @@ impl Renderer3D {
             }
         };
         
+        // Create gizmo renderer
+        let gizmo_renderer = match GizmoRenderer3D::new(
+            device.clone(),
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            wgpu::TextureFormat::Depth32Float,
+        ) {
+            Ok(renderer) => Some(renderer),
+            Err(e) => {
+                log::warn!("Failed to create gizmo renderer: {}", e);
+                None
+            }
+        };
+        
         log::info!("Renderer3D created successfully");
         log::info!("Loaded {} default meshes, {} default materials, {} default textures", 
                    default_meshes.len(), default_materials.len(), default_textures.len());
@@ -377,6 +396,9 @@ impl Renderer3D {
             height,
             grid_renderer,
             grid_enabled: true,
+            gizmo_renderer,
+            gizmo_enabled: true,
+            gizmo_transform: None,
         })
     }
     
@@ -535,6 +557,21 @@ impl Renderer3D {
                     );
                 }
             }
+            
+            // Render gizmo if enabled and transform is set
+            if self.gizmo_enabled {
+                if let (Some(gizmo), Some(transform)) = (&self.gizmo_renderer, &self.gizmo_transform) {
+                    gizmo.render(
+                        &mut render_pass,
+                        transform,
+                        &view_matrix,
+                        &proj_matrix,
+                        scene.camera.position,
+                        (self.width, self.height),
+                        &self.queue,
+                    );
+                }
+            }
         }
         
         // Submit commands
@@ -666,6 +703,23 @@ impl Renderer3D {
     /// Get whether grid is enabled
     pub fn is_grid_enabled(&self) -> bool {
         self.grid_enabled
+    }
+    
+    /// Enable or disable gizmo rendering
+    pub fn set_gizmo_enabled(&mut self, enabled: bool) {
+        self.gizmo_enabled = enabled;
+    }
+    
+    /// Set gizmo transform (position/rotation/scale of the selected object)
+    pub fn set_gizmo_transform(&mut self, transform: Option<glam::Mat4>) {
+        self.gizmo_transform = transform;
+    }
+    
+    /// Set gizmo mode (Translation, Rotation, Scale, None)
+    pub fn set_gizmo_mode(&mut self, mode: GizmoMode) {
+        if let Some(gizmo) = &mut self.gizmo_renderer {
+            gizmo.set_mode(mode);
+        }
     }
     
     /// Get the render texture data as RGBA bytes
