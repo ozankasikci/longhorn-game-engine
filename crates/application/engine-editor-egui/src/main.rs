@@ -415,11 +415,26 @@ impl LonghornEditor {
     }
 
     pub fn show_game_view(&mut self, ui: &mut egui::Ui) {
-        let (_, render_rect) = self.game_view_panel.show(ui, self.coordinator.get_play_state());
+        let play_state = self.coordinator.get_play_state();
+        let (_, render_rect) = self.game_view_panel.show(ui, play_state);
         
-        // If we got a rect back, render the camera perspective
+        // Only render game camera when playing or paused
         if let Some(rect) = render_rect {
-            self.render_camera_perspective(ui, rect);
+            match play_state {
+                PlayState::Playing | PlayState::Paused => {
+                    self.render_camera_perspective(ui, rect);
+                }
+                PlayState::Editing => {
+                    // Show "Press Play" message
+                    ui.painter().text(
+                        rect.center(),
+                        egui::Align2::CENTER_CENTER,
+                        "Press Play ▶ to start game view",
+                        egui::FontId::proportional(20.0),
+                        egui::Color32::from_gray(150),
+                    );
+                }
+            }
         }
     }
     

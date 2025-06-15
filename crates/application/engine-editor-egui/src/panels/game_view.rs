@@ -50,12 +50,16 @@ impl GameViewPanel {
         let available_size = ui.available_size();
         let response = ui.allocate_response(available_size, egui::Sense::hover());
         
-        // Debug: Draw a background to ensure the game view is visible
+        // Draw appropriate background based on play state
         let painter = ui.painter();
+        let bg_color = match play_state {
+            PlayState::Playing | PlayState::Paused => egui::Color32::from_rgb(30, 30, 40), // Dark blue when playing
+            PlayState::Editing => egui::Color32::from_gray(45), // Neutral gray when editing
+        };
         painter.rect_filled(
             response.rect,
             0.0,
-            egui::Color32::from_rgb(30, 30, 40), // Dark blue background
+            bg_color,
         );
         
         // Always return the rect for rendering from main camera perspective

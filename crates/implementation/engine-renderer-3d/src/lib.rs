@@ -16,6 +16,7 @@ pub mod ecs_bridge;
 pub mod integration;
 pub mod render_queue;
 pub mod culling;
+pub mod grid;
 
 // Re-export main types
 pub use renderer::{Renderer3D, Vertex, CameraUniform};
@@ -30,3 +31,4 @@ pub use ecs_bridge::{EcsRenderBridge, EcsRendererIntegration, CameraExtractor, M
 pub use render_queue::{RenderQueue, RenderItem, MaterialGroup, SortMode, RenderQueueStats};
 pub use culling::{FrustumCuller, Frustum, Plane, BoundingVolume, CullingStats};
 pub use camera_advanced::{CameraController, CameraPresets, CameraInfo, Ray};
+pub use grid::{GridRenderer, GridConfig};

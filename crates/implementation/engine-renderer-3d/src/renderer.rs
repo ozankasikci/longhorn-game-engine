@@ -11,6 +11,7 @@ use bytemuck::{Pod, Zeroable};
 use crate::scene::RenderScene;
 use crate::resources::{ResourceManager, ResourceStats};
 use crate::{Mesh, Material};
+use crate::grid::{GridRenderer, GridConfig};
 
 /// Vertex data structure for the renderer
 #[repr(C)]
@@ -84,6 +85,10 @@ pub struct Renderer3D {
     // Render dimensions
     width: u32,
     height: u32,
+    
+    // Grid renderer
+    grid_renderer: Option<GridRenderer>,
+    grid_enabled: bool,
 }
 
 impl Renderer3D {
@@ -332,6 +337,19 @@ impl Renderer3D {
         let default_materials = resource_manager.load_default_materials(&material_bind_group_layout)?;
         let default_textures = resource_manager.load_default_textures()?;
         
+        // Create grid renderer
+        let grid_renderer = match GridRenderer::new(
+            device.clone(),
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            GridConfig::default(),
+        ) {
+            Ok(renderer) => Some(renderer),
+            Err(e) => {
+                log::warn!("Failed to create grid renderer: {}", e);
+                None
+            }
+        };
+        
         log::info!("Renderer3D created successfully");
         log::info!("Loaded {} default meshes, {} default materials, {} default textures", 
                    default_meshes.len(), default_materials.len(), default_textures.len());
@@ -357,6 +375,8 @@ impl Renderer3D {
             num_indices: indices.len() as u32,
             width,
             height,
+            grid_renderer,
+            grid_enabled: true,
         })
     }
     
@@ -503,6 +523,18 @@ impl Renderer3D {
                 render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
             }
+            
+            // Render grid if enabled
+            if self.grid_enabled {
+                if let Some(grid) = &self.grid_renderer {
+                    grid.render(
+                        &mut render_pass,
+                        &view_proj_matrix,
+                        scene.camera.position,
+                        &self.queue,
+                    );
+                }
+            }
         }
         
         // Submit commands
@@ -617,6 +649,23 @@ impl Renderer3D {
     /// Get default texture ID by name
     pub fn get_default_texture_id(&self, name: &str) -> Option<u32> {
         self.default_textures.get(name).copied()
+    }
+    
+    /// Enable or disable grid rendering
+    pub fn set_grid_enabled(&mut self, enabled: bool) {
+        self.grid_enabled = enabled;
+    }
+    
+    /// Update grid configuration
+    pub fn set_grid_config(&mut self, config: GridConfig) {
+        if let Some(grid) = &mut self.grid_renderer {
+            grid.update_config(self.device.clone(), config);
+        }
+    }
+    
+    /// Get whether grid is enabled
+    pub fn is_grid_enabled(&self) -> bool {
+        self.grid_enabled
     }
     
     /// Get the render texture data as RGBA bytes

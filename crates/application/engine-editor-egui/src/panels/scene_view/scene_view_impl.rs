@@ -55,9 +55,13 @@ impl SceneViewRenderer {
         self.render_widget = Some(EguiRenderWidget::new(renderer.clone()));
         
         // Create a second renderer for the game view
-        let game_renderer = pollster::block_on(async {
+        let mut game_renderer = pollster::block_on(async {
             Renderer3D::new(device, queue, 800, 600).await
         })?;
+        
+        // Disable grid for game view - it's an editor-only feature
+        game_renderer.set_grid_enabled(false);
+        
         let game_renderer = Arc::new(Mutex::new(game_renderer));
         self.game_render_widget = Some(EguiRenderWidget::new(game_renderer));
         
