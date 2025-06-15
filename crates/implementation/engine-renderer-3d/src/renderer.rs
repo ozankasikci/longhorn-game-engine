@@ -42,6 +42,13 @@ pub struct CameraUniform {
     pub view_proj: [[f32; 4]; 4],
 }
 
+/// Model uniform data for shaders (per-object transform)
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+pub struct ModelUniform {
+    pub model: [[f32; 4]; 4],
+}
+
 /// Main 3D renderer struct
 pub struct Renderer3D {
     // Core WGPU resources
@@ -66,6 +73,7 @@ pub struct Renderer3D {
     // Uniforms and bind groups
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+    model_bind_group_layout: wgpu::BindGroupLayout,
     material_bind_group_layout: wgpu::BindGroupLayout,
     
     // Test geometry (triangle for now)
@@ -167,6 +175,23 @@ impl Renderer3D {
             ],
         });
         
+        // Create model bind group layout for per-object transforms
+        let model_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Model Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+        
         // Create material bind group layout
         let material_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Material Bind Group Layout"),
@@ -184,10 +209,10 @@ impl Renderer3D {
             ],
         });
         
-        // Create pipeline layout
+        // Create pipeline layout - include both camera and model bind groups
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[&camera_bind_group_layout], // Only camera for basic shader
+            bind_group_layouts: &[&camera_bind_group_layout, &model_bind_group_layout],
             push_constant_ranges: &[],
         });
         
@@ -325,6 +350,7 @@ impl Renderer3D {
             render_pipeline,
             camera_buffer,
             camera_bind_group,
+            model_bind_group_layout,
             material_bind_group_layout,
             vertex_buffer,
             index_buffer,
@@ -364,6 +390,63 @@ impl Renderer3D {
             label: Some("Render Encoder"),
         });
         
+        // Create model buffers and bind groups for all objects first
+        let mut model_bind_groups = Vec::new();
+        
+        for (idx, render_object) in scene.objects.iter().enumerate() {
+            // Create model uniform from object transform
+            let model_uniform = ModelUniform {
+                model: render_object.transform.to_cols_array_2d(),
+            };
+            
+            // Create temporary buffer for this object's model transform
+            let model_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&format!("Model Buffer {}", idx)),
+                contents: bytemuck::cast_slice(&[model_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM,
+            });
+            
+            // Create bind group for this object
+            let model_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some(&format!("Model Bind Group {}", idx)),
+                layout: &self.model_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: model_buffer.as_entire_binding(),
+                    },
+                ],
+            });
+            
+            model_bind_groups.push(model_bind_group);
+        }
+        
+        // If no objects, create a default bind group
+        if scene.objects.is_empty() {
+            let model_uniform = ModelUniform {
+                model: Mat4::IDENTITY.to_cols_array_2d(),
+            };
+            
+            let model_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Default Model Buffer"),
+                contents: bytemuck::cast_slice(&[model_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM,
+            });
+            
+            let model_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Default Model Bind Group"),
+                layout: &self.model_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: model_buffer.as_entire_binding(),
+                    },
+                ],
+            });
+            
+            model_bind_groups.push(model_bind_group);
+        }
+        
         // Begin render pass
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -397,21 +480,25 @@ impl Renderer3D {
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             
             // Draw each object in the scene
-            for (idx, render_object) in scene.objects.iter().enumerate() {
-                log::info!("Drawing object {} with mesh_id: {}, material_id: {}", idx, render_object.mesh_id, render_object.material_id);
-                log::info!("Object transform: {:?}", render_object.transform);
-                
-                // For now, always use the default cube to verify rendering works
-                // TODO: Fix mesh resource lifetime issue
-                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                log::info!("Drawing {} indices (should be 36 for a cube)", self.num_indices);
-                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
-            }
-            
-            // If no objects, draw a default cube for debugging
-            if scene.objects.is_empty() {
+            if !scene.objects.is_empty() {
+                for (idx, render_object) in scene.objects.iter().enumerate() {
+                    log::info!("Drawing object {} with mesh_id: {}, material_id: {}", idx, render_object.mesh_id, render_object.material_id);
+                    log::info!("Object transform: {:?}", render_object.transform);
+                    
+                    // Set the model bind group
+                    render_pass.set_bind_group(1, &model_bind_groups[idx], &[]);
+                    
+                    // For now, always use the default cube to verify rendering works
+                    // TODO: Fix mesh resource lifetime issue
+                    render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                    render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                    log::info!("Drawing {} indices (should be 36 for a cube)", self.num_indices);
+                    render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+                }
+            } else {
+                // Draw default cube
                 log::warn!("No objects in scene, drawing default cube");
+                render_pass.set_bind_group(1, &model_bind_groups[0], &[]);
                 render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..self.num_indices, 0, 0..1);

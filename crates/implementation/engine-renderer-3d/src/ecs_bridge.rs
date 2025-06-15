@@ -112,8 +112,14 @@ impl EcsRenderBridge {
     
     /// Convert Transform component to transformation matrix
     fn transform_to_matrix(&self, transform: &Transform) -> Mat4 {
+        // Log transform values for debugging
+        log::debug!("Converting transform to matrix: pos={:?}, rot={:?}, scale={:?}", 
+            transform.position, transform.rotation, transform.scale);
+        
         // Use the built-in matrix method from the Transform component
-        transform.matrix()
+        let matrix = transform.matrix();
+        log::debug!("Resulting matrix: {:?}", matrix);
+        matrix
     }
     
     /// Update existing render scene from ECS world (more efficient than full rebuild)

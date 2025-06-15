@@ -118,10 +118,16 @@ impl InspectorPanel {
                         
                         // Update the ECS component if values changed
                         if changed {
+                            log::info!("Transform changed for entity {:?}: pos={:?}, rot={:?}, scale={:?}", 
+                                selected_entity, pos, rot, scale);
+                            
                             if let Some(transform_mut) = world.get_component_mut::<Transform>(selected_entity) {
                                 transform_mut.position = pos;
                                 transform_mut.rotation = rot;
                                 transform_mut.scale = scale;
+                                log::info!("Updated transform in ECS");
+                            } else {
+                                log::error!("Failed to get mutable transform component");
                             }
                         }
                     });

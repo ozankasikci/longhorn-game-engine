@@ -4,8 +4,15 @@ struct CameraUniform {
     view_proj: mat4x4<f32>,
 }
 
+struct ModelUniform {
+    model: mat4x4<f32>,
+}
+
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
+
+@group(1) @binding(0)
+var<uniform> model: ModelUniform;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -22,15 +29,15 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    // For now, just apply camera transform (we'll add model transform later)
-    let world_position = vec4<f32>(in.position, 1.0);
+    // Apply model transform, then camera transform
+    let world_position = model.model * vec4<f32>(in.position, 1.0);
     out.world_pos = world_position.xyz;
     out.clip_position = camera.view_proj * world_position;
     out.color = in.color;
     
-    // For now, use a simple normal pointing towards camera
-    // In a real implementation, we'd pass normals as vertex attributes
-    out.normal = normalize(in.position);
+    // Transform normal by model matrix (without translation)
+    // In a real implementation, we'd use the normal matrix (inverse transpose of model)
+    out.normal = normalize((model.model * vec4<f32>(in.position, 0.0)).xyz);
     
     return out;
 }
