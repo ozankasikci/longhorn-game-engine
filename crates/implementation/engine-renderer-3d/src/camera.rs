@@ -32,17 +32,29 @@ impl Camera {
     }
     
     /// Create a camera from position and rotation (euler angles)
-    pub fn from_position_rotation(position: [f32; 3], _rotation: [f32; 3], aspect: f32) -> Self {
+    pub fn from_position_rotation(position: [f32; 3], rotation: [f32; 3], aspect: f32) -> Self {
         let pos = Vec3::from(position);
         
-        // For now, always look at origin where the cube is
-        let target = Vec3::ZERO;
+        // Convert rotation to look direction
+        let pitch = rotation[0];
+        let yaw = rotation[1];
+        
+        // Calculate forward direction from pitch and yaw
+        // Default forward is +Z, then apply rotations
+        let forward = Vec3::new(
+            yaw.sin() * pitch.cos(),
+            pitch.sin(),
+            yaw.cos() * pitch.cos(),
+        );
+        
+        // Calculate target point (position + forward direction)
+        let target = pos + forward;
         
         Self {
             position: pos,
             target,
             up: Vec3::Y,
-            fov: 45.0_f32.to_radians(),
+            fov: 60.0_f32.to_radians(),
             aspect,
             near: 0.1,
             far: 100.0,
