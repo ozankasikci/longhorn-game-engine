@@ -24,12 +24,13 @@ pub fn transform_movement_by_camera(camera_transform: &Transform, movement: [f32
     // When pitch is positive (looking up), forward has positive Y
     // When pitch is negative (looking down), forward has negative Y
     
-    let forward_x = -yaw.sin() * pitch.cos();
+    let forward_x = yaw.sin() * pitch.cos();
     let forward_y = pitch.sin();
     let forward_z = yaw.cos() * pitch.cos();
     
     // Right direction is always horizontal (no pitch component)
-    let right_x = yaw.cos();
+    // Right is perpendicular to forward in the XZ plane
+    let right_x = -yaw.cos();
     let right_y = 0.0;
     let right_z = yaw.sin();
     
