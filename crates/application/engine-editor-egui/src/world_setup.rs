@@ -43,6 +43,9 @@ pub fn create_default_world() -> (World, Entity) {
         Name::new("Main Camera"),
     ));
     
+    // Add MainCamera tag to make it the main camera
+    world.add_component(camera_entity, MainCamera).unwrap();
+    
     
     // Create a cube with the new mesh component system
     let cube_entity = world.spawn();

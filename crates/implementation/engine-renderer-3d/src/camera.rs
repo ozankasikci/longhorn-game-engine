@@ -31,33 +31,34 @@ impl Camera {
         }
     }
     
-    /// Create a camera from position and rotation (euler angles)
+    /// Create a camera from position and rotation (euler angles in radians)
     pub fn from_position_rotation(position: [f32; 3], rotation: [f32; 3], aspect: f32) -> Self {
         let pos = Vec3::from(position);
         
-        // Convert rotation to look direction
-        let pitch = rotation[0];
-        let yaw = rotation[1];
+        // rotation[0] = pitch (X rotation)
+        // rotation[1] = yaw (Y rotation)  
+        // rotation[2] = roll (Z rotation)
         
-        // Calculate forward direction from pitch and yaw
-        // In a right-handed system, default forward is -Z
-        // Yaw rotates around Y axis, pitch rotates around X axis
-        let forward = Vec3::new(
-            -yaw.sin() * pitch.cos(),  // -sin for right-handed
-            pitch.sin(),
-            -yaw.cos() * pitch.cos(),  // -cos for right-handed (looking down -Z)
-        );
+        // Create quaternion from Euler angles using YXZ order (standard for FPS cameras)
+        let quat = glam::Quat::from_euler(glam::EulerRot::YXZ, rotation[1], rotation[0], rotation[2]);
+        
+        // Calculate forward direction from quaternion
+        // In our coordinate system: default forward is -Z
+        let forward = quat * Vec3::NEG_Z;
         
         // Calculate target point (position + forward direction)
         let target = pos + forward;
         
-        log::info!("Camera from_position_rotation: pos={:?}, rot={:?}, forward={:?}, target={:?}", 
-            position, rotation, forward, target);
+        // Calculate up vector from quaternion
+        let up = quat * Vec3::Y;
+        
+        log::info!("Camera from_position_rotation: pos={:?}, rot_rad={:?}, quat={:?}, forward={:?}, target={:?}", 
+            position, rotation, quat, forward, target);
         
         Self {
             position: pos,
             target,
-            up: Vec3::Y,
+            up,
             fov: 60.0_f32.to_radians(),
             aspect,
             near: 0.1,

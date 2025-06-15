@@ -15,6 +15,7 @@ use std::sync::{Arc, Mutex};
 pub struct SceneViewRenderer {
     last_rendered_entity_count: usize,
     render_widget: Option<EguiRenderWidget>,
+    game_render_widget: Option<EguiRenderWidget>, // Separate widget for game view
     ecs_bridge: Option<EcsRenderBridge>,
     camera_controller: CameraController,
     pub editor_camera: super::ecs_camera_bridge::EditorCameraManager,
@@ -25,6 +26,7 @@ impl SceneViewRenderer {
         Self {
             last_rendered_entity_count: 0,
             render_widget: None,
+            game_render_widget: None,
             ecs_bridge: None,
             camera_controller: CameraController::new(Camera::default()),
             editor_camera: super::ecs_camera_bridge::EditorCameraManager::new(),
@@ -34,8 +36,10 @@ impl SceneViewRenderer {
     /// Initialize the 3D renderer (call this when we have wgpu context)
     pub fn initialize_renderer(&mut self, device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>) -> Result<(), anyhow::Error> {
         // Create 3D renderer
+        let device_clone = device.clone();
+        let queue_clone = queue.clone();
         let renderer = pollster::block_on(async {
-            Renderer3D::new(device, queue, 800, 600).await
+            Renderer3D::new(device_clone, queue_clone, 800, 600).await
         })?;
         
         // Get the actual mesh and material IDs from the renderer
@@ -46,9 +50,16 @@ impl SceneViewRenderer {
         
         log::info!("Mesh IDs - cube: {}, sphere: {}, plane: {}", cube_mesh_id, sphere_mesh_id, plane_mesh_id);
         
-        // Create render widget
+        // Create render widgets - one for scene view, one for game view
         let renderer = Arc::new(Mutex::new(renderer));
-        self.render_widget = Some(EguiRenderWidget::new(renderer));
+        self.render_widget = Some(EguiRenderWidget::new(renderer.clone()));
+        
+        // Create a second renderer for the game view
+        let game_renderer = pollster::block_on(async {
+            Renderer3D::new(device, queue, 800, 600).await
+        })?;
+        let game_renderer = Arc::new(Mutex::new(game_renderer));
+        self.game_render_widget = Some(EguiRenderWidget::new(game_renderer));
         
         // Create ECS bridge with actual mappings
         let mut mesh_mappings = HashMap::new();
@@ -125,7 +136,7 @@ impl SceneViewRenderer {
         
         // If we have the renderer initialized, use it
         if let (Some(render_widget), Some(ecs_bridge)) = (&mut self.render_widget, &self.ecs_bridge) {
-            log::info!("Using 3D renderer for scene view");
+            log::info!("SCENE VIEW: Using 3D renderer with camera at pos={:?}", self.camera_controller.camera.position);
             
             // Convert ECS world to render scene
             let render_scene = ecs_bridge.world_to_render_scene(world, self.camera_controller.camera.clone());
@@ -166,26 +177,25 @@ impl SceneViewRenderer {
         rect: egui::Rect,
         camera: Camera,
     ) {
-        log::info!("render_game_camera_view called with rect: {:?}", rect);
+        log::info!("render_game_camera_view called with camera pos: {:?}, target: {:?}", camera.position, camera.target);
         
-        // Store the current camera
-        let old_camera = self.camera_controller.camera.clone();
-        self.camera_controller.camera = camera;
+        // IMPORTANT: We need to render the scene with the game camera, not reuse the scene view's render
+        // The game view should always show what the main camera sees
         
-        // If we have the renderer initialized, use it
-        if let (Some(render_widget), Some(ecs_bridge)) = (&mut self.render_widget, &self.ecs_bridge) {
-            log::info!("Renderer is initialized, creating render scene");
+        // Use the dedicated game render widget
+        if let (Some(render_widget), Some(ecs_bridge)) = (&mut self.game_render_widget, &self.ecs_bridge) {
+            log::info!("Rendering game view from main camera perspective");
             
-            // Convert ECS world to render scene
-            let render_scene = ecs_bridge.world_to_render_scene(world, self.camera_controller.camera.clone());
-            log::info!("Created render scene with {} objects", render_scene.objects.len());
+            // Convert ECS world to render scene with the GAME CAMERA
+            let render_scene = ecs_bridge.world_to_render_scene(world, camera);
+            log::info!("Created game view render scene with {} objects", render_scene.objects.len());
             
-            // Render the scene
+            // Render the scene with the game camera
             if let Err(e) = render_widget.render_scene(&render_scene) {
                 log::error!("Game view 3D rendering failed: {}", e);
                 // Could fall back to 2D here if needed
             } else {
-                log::info!("Render succeeded, adding widget to UI at rect: {:?}", rect);
+                log::info!("Game view render succeeded");
                 
                 // Display the rendered result at the specific rect
                 ui.allocate_ui_at_rect(rect, |ui| {
@@ -193,15 +203,12 @@ impl SceneViewRenderer {
                     ui.set_min_size(rect.size());
                     ui.set_max_size(rect.size());
                     let response = ui.add(render_widget);
-                    log::info!("Widget added, response rect: {:?}", response.rect);
+                    log::info!("Game view widget added, response rect: {:?}", response.rect);
                 });
             }
         } else {
-            log::warn!("Renderer not initialized");
+            log::warn!("Renderer not initialized for game view");
         }
-        
-        // Restore the original camera
-        self.camera_controller.camera = old_camera;
     }
     
     /// Fallback 2D scene rendering when 3D renderer is unavailable

@@ -367,7 +367,20 @@ impl LonghornEditor {
                 self.world.get_component::<engine_components_3d::Transform>(camera_entity),
                 self.world.get_component::<engine_components_3d::Camera>(camera_entity)
             ) {
-                log::info!("Camera transform: {:?}, camera: {:?}", transform, cam);
+                log::info!("Camera transform: pos={:?}, rot={:?}", transform.position, transform.rotation);
+                
+                // Store transform values to detect changes
+                static mut LAST_POS: [f32; 3] = [0.0, 0.0, 0.0];
+                static mut LAST_ROT: [f32; 3] = [0.0, 0.0, 0.0];
+                
+                unsafe {
+                    if LAST_POS != transform.position || LAST_ROT != transform.rotation {
+                        log::warn!("CAMERA MOVED! Old pos={:?}, New pos={:?}", LAST_POS, transform.position);
+                        log::warn!("CAMERA ROTATED! Old rot={:?}, New rot={:?}", LAST_ROT, transform.rotation);
+                        LAST_POS = transform.position;
+                        LAST_ROT = transform.rotation;
+                    }
+                }
                 
                 // Create a camera for rendering
                 let camera = engine_renderer_3d::Camera::from_position_rotation(
@@ -376,7 +389,7 @@ impl LonghornEditor {
                     rect.aspect_ratio(),
                 );
                 
-                log::info!("Created render camera: {:?}", camera);
+                log::info!("Created render camera at pos={:?}, target={:?}", camera.position, camera.target);
                 
                 // Use the scene view renderer to render from this camera
                 self.scene_view_renderer.render_game_camera_view(
