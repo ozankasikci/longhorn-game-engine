@@ -1358,19 +1358,16 @@ name = "engine-editor-egui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bytemuck",
  "dirs",
  "eframe",
  "egui",
  "egui_dock",
- "engine-component-traits",
  "engine-components-2d",
  "engine-components-3d",
  "engine-components-ui",
  "engine-ecs-core",
  "engine-geometry-core",
  "engine-geometry-impl",
- "engine-materials-core",
  "engine-renderer-3d",
  "engine-resource-core",
  "env_logger",
@@ -1380,7 +1377,6 @@ dependencies = [
  "serde",
  "toml",
  "wgpu",
- "winit",
 ]
 
 [[package]]
@@ -1435,7 +1431,6 @@ dependencies = [
  "bitflags 2.9.1",
  "glam",
  "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -1450,13 +1445,8 @@ dependencies = [
 name = "engine-physics-core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "engine-components-2d",
- "engine-components-3d",
  "engine-ecs-core",
- "engine-math-core",
  "glam",
- "log",
  "serde",
  "thiserror",
 ]

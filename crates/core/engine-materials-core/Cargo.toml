@@ -9,7 +9,6 @@ license.workspace = true
 glam = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 bitflags = { workspace = true }
-thiserror = { workspace = true }
 
 # Materials shouldn't depend on renderer - renderer depends on materials
 

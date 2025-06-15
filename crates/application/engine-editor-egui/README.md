@@ -1,6 +1,6 @@
-# Engine Editor EGUI
+# Longhorn Editor
 
-Unity-style game editor built with EGUI and dockable panels.
+Unity-style game editor for the Longhorn Game Engine built with egui.
 
 ## Module Structure
 
@@ -54,5 +54,19 @@ The editor follows a modular architecture with clear separation of concerns:
 ## Running the Editor
 
 ```bash
-cargo run --bin unity-editor-egui
+cargo run --bin longhorn-editor
 ```
+
+## Controls
+
+### Scene Navigation
+- **Right Mouse + Drag**: Rotate camera
+- **WASD**: Move camera (while right mouse pressed)
+- **Q/E**: Move up/down
+- **Shift**: Fast movement
+- **Scroll**: Adjust movement speed
+
+### Object Manipulation
+- **Left Click**: Select object
+- **F**: Focus on selected object
+- **Delete**: Delete selected object

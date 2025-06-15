@@ -8,9 +8,6 @@ repository.workspace = true
 [dependencies]
 # Core engine integration
 engine-ecs-core = { workspace = true }
-engine-components-3d = { workspace = true }
-engine-components-2d = { workspace = true }
-engine-math-core = { workspace = true }
 
 # Math and utilities
 glam = { workspace = true }
@@ -18,10 +15,6 @@ serde = { workspace = true }
 
 # Error handling
 thiserror = { workspace = true }
-anyhow = { workspace = true }
-
-# Logging
-log = { workspace = true }
 
 [features]
 default = []
