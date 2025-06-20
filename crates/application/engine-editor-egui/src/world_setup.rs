@@ -98,7 +98,7 @@ pub fn create_default_world() -> (World, Entity) {
     
     // FINAL DEBUG: Verify entities exist
     let final_count = world.entity_count();
-    let mesh_entities: Vec<_> = world.query_legacy::<Transform>()
+    let _mesh_entities: Vec<_> = world.query_legacy::<Transform>()
         .filter(|(e, _)| world.get_component::<MeshFilter>(*e).is_some())
         .collect();
     

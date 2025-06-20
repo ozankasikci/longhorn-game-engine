@@ -43,6 +43,12 @@ impl EguiRenderWidget {
         renderer.set_gizmo_mode(mode);
     }
     
+    /// Enable or disable gizmo rendering
+    pub fn set_gizmo_enabled(&mut self, enabled: bool) {
+        let mut renderer = self.renderer.lock().unwrap();
+        renderer.set_gizmo_enabled(enabled);
+    }
+    
     /// Update the texture in egui's texture manager
     fn update_texture(&mut self, ui: &mut Ui, size: egui::Vec2) -> Result<(), anyhow::Error> {
         let mut renderer = self.renderer.lock().unwrap();

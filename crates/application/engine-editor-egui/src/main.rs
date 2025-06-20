@@ -219,6 +219,29 @@ impl eframe::App for LonghornEditor {
             self.scene_navigation.rotation_sensitivity = self.settings.camera.rotation_sensitivity;
         }
         
+        // Handle global keyboard shortcuts for transform tools
+        ctx.input(|i| {
+            if i.key_pressed(egui::Key::Q) {
+                self.scene_navigation.current_tool = crate::types::SceneTool::Select;
+                self.gizmo_system.set_active_tool(crate::types::SceneTool::Select);
+                self.gizmo_system.disable_move_gizmo();
+            } else if i.key_pressed(egui::Key::W) {
+                self.scene_navigation.current_tool = crate::types::SceneTool::Move;
+                self.gizmo_system.set_active_tool(crate::types::SceneTool::Move);
+                if let Some(entity) = self.selected_entity {
+                    if let Some(transform) = self.world.get_component::<Transform>(entity) {
+                        self.gizmo_system.enable_move_gizmo(transform.position);
+                    }
+                }
+            } else if i.key_pressed(egui::Key::E) {
+                self.scene_navigation.current_tool = crate::types::SceneTool::Rotate;
+                self.gizmo_system.set_active_tool(crate::types::SceneTool::Rotate);
+            } else if i.key_pressed(egui::Key::R) {
+                self.scene_navigation.current_tool = crate::types::SceneTool::Scale;
+                self.gizmo_system.set_active_tool(crate::types::SceneTool::Scale);
+            }
+        });
+        
         // Top menu bar (macOS style)
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             self.show_menu_bar(ui);
@@ -280,6 +303,7 @@ impl LonghornEditor {
             ui,
             self.coordinator.get_play_state_mut(),
             &mut self.gizmo_system,
+            &mut self.scene_navigation,
             &self.world,
             self.selected_entity,
             &self.selected_object,
@@ -303,7 +327,7 @@ impl LonghornEditor {
         if actions.test_move {
             if let Some(selected_entity) = self.selected_entity {
                 if let Some(transform_mut) = self.world.get_component_mut::<Transform>(selected_entity) {
-                    let old_pos = transform_mut.position;
+                    let _old_pos = transform_mut.position;
                     transform_mut.position[0] += 1.0; // Move 1 unit in X
                     // Object moved successfully
                 } else {
@@ -363,7 +387,7 @@ impl LonghornEditor {
             log::info!("Found main camera entity: {:?}", camera_entity);
             
             // Get camera transform and component
-            if let (Some(transform), Some(cam)) = (
+            if let (Some(transform), Some(_cam)) = (
                 self.world.get_component::<engine_components_3d::Transform>(camera_entity),
                 self.world.get_component::<engine_components_3d::Camera>(camera_entity)
             ) {

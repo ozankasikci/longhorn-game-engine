@@ -30,6 +30,9 @@ pub struct SceneNavigation {
     
     // Rotation velocity for tests
     pub rotation_velocity: [f32; 2],          // Current rotation velocity [pitch, yaw] in rad/s
+    
+    // Current transform tool (for gizmo mode)
+    pub current_tool: SceneTool,
 }
 
 impl Default for SceneNavigation {
@@ -47,6 +50,7 @@ impl Default for SceneNavigation {
                 scale: [1.0, 1.0, 1.0],
             },
             rotation_velocity: [0.0, 0.0],
+            current_tool: SceneTool::default(),
         }
     }
 }

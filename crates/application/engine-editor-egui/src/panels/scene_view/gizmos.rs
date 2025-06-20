@@ -163,6 +163,7 @@ impl GizmoSystem {
     /// Test if mouse position hits any gizmo component
     pub fn test_gizmo_hit(&self, mouse_pos: egui::Pos2, gizmo_center: egui::Pos2) -> Option<GizmoComponent> {
         if !self.move_gizmo.as_ref().map_or(false, |g| g.enabled) {
+            eprintln!("Gizmo: Move gizmo not enabled");
             return None;
         }
         
@@ -177,9 +178,12 @@ impl GizmoSystem {
         }
         
         // Test axis lines
+        // X axis: points right in screen space
         let x_end = gizmo_center + egui::vec2(axis_length, 0.0);
+        // Y axis: points up in screen space (negative Y in egui coordinates)
         let y_end = gizmo_center + egui::vec2(0.0, -axis_length);
-        let z_end = gizmo_center + egui::vec2(axis_length * 0.5, -axis_length * 0.5);
+        // Z axis: diagonal to represent depth (adjusted for better visual separation)
+        let z_end = gizmo_center + egui::vec2(-axis_length * 0.7, axis_length * 0.7);
         
         // Use line distance calculation
         if self.point_to_line_distance(mouse_pos, gizmo_center, x_end) < hit_radius {
@@ -212,7 +216,7 @@ impl GizmoSystem {
     }
     
     /// Calculate distance from point to line segment
-    fn point_to_line_distance(&self, point: egui::Pos2, line_start: egui::Pos2, line_end: egui::Pos2) -> f32 {
+    pub fn point_to_line_distance(&self, point: egui::Pos2, line_start: egui::Pos2, line_end: egui::Pos2) -> f32 {
         let line_vec = line_end - line_start;
         let point_vec = point - line_start;
         let line_len_sq = line_vec.length_sq();
@@ -236,7 +240,9 @@ impl GizmoSystem {
                 match axis {
                     GizmoAxis::X => new_pos[0] = start_pos[0] + mouse_delta.x * movement_scale,
                     GizmoAxis::Y => new_pos[1] = start_pos[1] - mouse_delta.y * movement_scale,
-                    GizmoAxis::Z => new_pos[2] = start_pos[2] - mouse_delta.y * movement_scale,
+                    // Z axis: Since we're in a 2D projection, we need to map mouse movement differently
+                    // Map diagonal mouse movement to Z axis - moving along the visual Z axis line
+                    GizmoAxis::Z => new_pos[2] = start_pos[2] + (-mouse_delta.x * 0.7 + mouse_delta.y * 0.7) * movement_scale,
                 }
             }
             GizmoComponent::Plane(plane) => {

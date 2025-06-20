@@ -11,11 +11,17 @@ pub mod scene_input;
 pub mod debug_overlay;
 pub mod improved_grid;
 pub mod ecs_camera_bridge;
+pub mod gizmo_3d_projection;
+pub mod gizmo_2d_overlay;
+pub mod simple_gizmos;
+pub mod unity_style_gizmos;
 
 #[cfg(test)]
 mod navigation_tests;
 #[cfg(test)]
 mod camera_movement_tests;
+#[cfg(test)]
+mod gizmo_tests;
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
@@ -23,6 +29,7 @@ use engine_components_3d::{Transform, MeshFilter};
 use engine_components_ui::Name;
 use crate::types::{SceneNavigation, GizmoSystem};
 use crate::editor_state::ConsoleMessage;
+use glam::{Mat4, Vec3};
 
 /// Focus the scene camera on the selected object
 fn focus_on_selected_object(
@@ -63,15 +70,46 @@ fn focus_on_selected_object(
     }
 }
 
+/// Get camera view and projection matrices for 3D projection
+fn get_camera_matrices(world: &World, scene_navigation: &SceneNavigation, viewport_rect: egui::Rect) -> (Option<Mat4>, Option<Mat4>) {
+    // Create view matrix from scene camera transform
+    let camera_transform = &scene_navigation.scene_camera_transform;
+    let camera_pos = Vec3::from_array(camera_transform.position);
+    let camera_rot = Vec3::from_array(camera_transform.rotation);
+    
+    // The renderer uses -Z as forward direction (standard for graphics)
+    // Calculate the proper view matrix matching the renderer's convention
+    
+    // Always use rotation-based view matrix for consistency
+    // Create quaternion from Euler angles (YXZ order, matching renderer)
+    let quat = glam::Quat::from_euler(glam::EulerRot::YXZ, camera_rot.y, camera_rot.x, camera_rot.z);
+    
+    // Forward is -Z (matching renderer convention)
+    let forward = quat * Vec3::NEG_Z;
+    let target = camera_pos + forward;
+    let up = quat * Vec3::Y;
+    
+    let view_matrix = Mat4::look_at_rh(camera_pos, target, up);
+    
+    // Create projection matrix
+    let aspect_ratio = viewport_rect.width() / viewport_rect.height();
+    let fov = 60.0_f32.to_radians();
+    let projection_matrix = Mat4::perspective_rh(fov, aspect_ratio, 0.1, 1000.0);
+    
+    (Some(view_matrix), Some(projection_matrix))
+}
+
 /// Scene view panel for 3D scene rendering and manipulation
 pub struct SceneViewPanel {
     pub scene_view_active: bool,
+    unity_gizmo: unity_style_gizmos::UnityStyleGizmo,
 }
 
 impl SceneViewPanel {
     pub fn new() -> Self {
         Self {
             scene_view_active: true,
+            unity_gizmo: unity_style_gizmos::UnityStyleGizmo::new(),
         }
     }
 
@@ -93,6 +131,15 @@ impl SceneViewPanel {
             
             ui.separator();
             
+            // Simple mode indicator
+            if selected_entity.is_some() {
+                ui.label("🎯 MOVE MODE (Simple Gizmos Active)");
+            } else {
+                ui.label("Select an object to show gizmos");
+            }
+            
+            ui.separator();
+            
             if ui.button("🔍").on_hover_text("Focus on selected (F)").clicked() {
                 if let Some(entity) = selected_entity {
                     focus_on_selected_object(world, entity, scene_navigation);
@@ -110,49 +157,70 @@ impl SceneViewPanel {
         // This ensures the scene view gets mouse input even in a docked panel
         response = ui.interact(rect, response.id, egui::Sense::click_and_drag());
         
+        // Debug input events (only important ones)
+        if response.clicked() {
+            eprintln!("Scene view clicked");
+        }
+        if response.drag_started() {
+            eprintln!("Scene view drag started");
+        }
+        
         // Force focus when hovering to ensure we get input priority
         if response.hovered() {
             response.request_focus();
         }
         
-        // Handle scene navigation FIRST before drawing
-        let console_messages = scene_input::handle_scene_input(
-            world,
+        // Get camera matrices for 3D projection
+        let (camera_view_matrix, camera_projection_matrix) = get_camera_matrices(world, scene_navigation, rect);
+        
+        // Handle navigation
+        let mut console_messages = navigation::SceneNavigator::handle_scene_navigation(
+            scene_navigation,
             ui,
             &response,
             rect,
-            scene_navigation,
-            gizmo_system,
-            selected_entity,
         );
         
-        // Get painter from UI
-        let painter = ui.painter();
-        
         // Draw background
-        painter.rect_filled(
+        ui.painter().rect_filled(
             rect,
             egui::Rounding::same(2.0),
             egui::Color32::from_rgb(35, 35, 35)
         );
         
+        // Draw 3D scene first
+        if self.scene_view_active {
+            scene_renderer.draw_scene(
+                world,
+                ui,
+                rect,
+                &response,
+                scene_navigation,
+                selected_entity,
+                play_state,
+            );
+        }
         
-        // Scene content
+        // Scene content overlay - CRITICAL: This must come AFTER 3D scene
         ui.allocate_ui_at_rect(rect, |ui| {
             if self.scene_view_active {
-                // Draw 3D scene
-                scene_renderer.draw_scene(
-                    world,
-                    ui,
-                    rect,
-                    &response,
-                    scene_navigation,
-                    selected_entity,
-                    play_state,
-                );
-                
                 // Draw debug overlay
                 debug_overlay::draw_movement_debug_overlay(ui, rect, scene_navigation);
+                
+                // Handle Unity-style gizmos AFTER 3D scene is drawn (so they appear on top)
+                if !scene_navigation.is_navigating {
+                    if let (Some(view), Some(proj)) = (camera_view_matrix, camera_projection_matrix) {
+                        self.unity_gizmo.update(
+                            ui, 
+                            &response, 
+                            rect, 
+                            world, 
+                            selected_entity,
+                            view,
+                            proj,
+                        );
+                    }
+                }
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.vertical_centered(|ui| {

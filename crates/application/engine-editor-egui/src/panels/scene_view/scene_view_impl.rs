@@ -6,7 +6,7 @@ use engine_components_3d::{Transform, Mesh, MeshType, Material, Light, Visibilit
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
 use engine_renderer_3d::{Camera, EguiRenderWidget, EcsRenderBridge, CameraController, Renderer3D};
-use crate::types::{SceneNavigation, GizmoSystem, PlayState};
+use crate::types::{SceneNavigation, PlayState};
 use crate::editor_state::ConsoleMessage;
 use super::object_renderer;
 use std::collections::HashMap;
@@ -142,21 +142,11 @@ impl SceneViewRenderer {
         if let (Some(render_widget), Some(ecs_bridge)) = (&mut self.render_widget, &self.ecs_bridge) {
             log::info!("SCENE VIEW: Using 3D renderer with camera at pos={:?}", self.camera_controller.camera.position);
             
-            // Set gizmo transform based on selected entity
-            if let Some(entity) = selected_entity {
-                if let Some(transform) = world.get_component::<Transform>(entity) {
-                    // Create transform matrix for gizmo
-                    let gizmo_transform = transform.matrix();
-                    render_widget.set_gizmo_transform(Some(gizmo_transform));
-                    render_widget.set_gizmo_mode(engine_renderer_3d::GizmoMode::Translation);
-                }
-            } else {
-                // No selection, hide gizmo
-                render_widget.set_gizmo_transform(None);
-            }
+            // Disable 3D gizmos for now - we'll use 2D overlay instead
+            render_widget.set_gizmo_enabled(false);
             
             // Convert ECS world to render scene
-            let render_scene = ecs_bridge.world_to_render_scene(world, self.camera_controller.camera.clone());
+            let render_scene = self.ecs_bridge.as_ref().unwrap().world_to_render_scene(world, self.camera_controller.camera.clone());
             log::info!("Created render scene with {} objects", render_scene.objects.len());
             
             // Render the scene
@@ -168,9 +158,9 @@ impl SceneViewRenderer {
             }
             
             log::info!("Rendering complete, adding widget to UI");
-            // Display the rendered result
-            let response = ui.add(render_widget);
-            log::info!("Widget added, response rect: {:?}", response.rect);
+            // Display the rendered result - use put() to avoid consuming input
+            ui.put(rect, render_widget);
+            log::info!("Widget added at rect: {:?}", rect);
             
         } else {
             log::warn!("3D renderer not initialized, using 2D fallback");
