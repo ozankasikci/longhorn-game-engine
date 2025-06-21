@@ -142,11 +142,39 @@ impl SceneViewRenderer {
         if let (Some(render_widget), Some(ecs_bridge)) = (&mut self.render_widget, &self.ecs_bridge) {
             log::info!("SCENE VIEW: Using 3D renderer with camera at pos={:?}", self.camera_controller.camera.position);
             
-            // Disable 3D gizmos for now - we'll use 2D overlay instead
-            render_widget.set_gizmo_enabled(false);
+            // Enable 3D gizmos for selected entity
+            if let Some(entity) = selected_entity {
+                if let Some(transform) = world.get_component::<Transform>(entity) {
+                    // Enable gizmo rendering
+                    render_widget.set_gizmo_enabled(true);
+                    
+                    // Create transform matrix from the entity's transform
+                    let transform_matrix = glam::Mat4::from_scale_rotation_translation(
+                        glam::Vec3::from_array(transform.scale),
+                        glam::Quat::from_euler(
+                            glam::EulerRot::YXZ,
+                            transform.rotation[1].to_radians(),
+                            transform.rotation[0].to_radians(),
+                            transform.rotation[2].to_radians(),
+                        ),
+                        glam::Vec3::from_array(transform.position),
+                    );
+                    
+                    render_widget.set_gizmo_transform(Some(transform_matrix));
+                    render_widget.set_gizmo_mode(engine_renderer_3d::GizmoMode::Translation);
+                    
+                    log::info!("3D Gizmo enabled for entity at position {:?}", transform.position);
+                } else {
+                    // No transform, disable gizmos
+                    render_widget.set_gizmo_enabled(false);
+                }
+            } else {
+                // No selection, disable gizmos
+                render_widget.set_gizmo_enabled(false);
+            }
             
             // Convert ECS world to render scene
-            let render_scene = self.ecs_bridge.as_ref().unwrap().world_to_render_scene(world, self.camera_controller.camera.clone());
+            let render_scene = self.ecs_bridge.as_ref().unwrap().world_to_render_scene(world, self.camera_controller.camera.clone(), selected_entity);
             log::info!("Created render scene with {} objects", render_scene.objects.len());
             
             // Render the scene
@@ -194,7 +222,7 @@ impl SceneViewRenderer {
             log::info!("Rendering game view from main camera perspective");
             
             // Convert ECS world to render scene with the GAME CAMERA
-            let render_scene = ecs_bridge.world_to_render_scene(world, camera);
+            let render_scene = ecs_bridge.world_to_render_scene(world, camera, None);
             log::info!("Created game view render scene with {} objects", render_scene.objects.len());
             
             // Render the scene with the game camera

@@ -49,7 +49,7 @@ impl EcsRenderBridge {
     }
     
     /// Convert ECS world to render scene
-    pub fn world_to_render_scene(&self, world: &World, camera: Camera) -> RenderScene {
+    pub fn world_to_render_scene(&self, world: &World, camera: Camera, selected_entity: Option<Entity>) -> RenderScene {
         let mut scene = RenderScene::new(camera);
         
         // Get all entities with Transform components
@@ -65,7 +65,8 @@ impl EcsRenderBridge {
         // Find entities that have transform and mesh components
         for (entity, transform) in &transform_entities {
             if let Some(mesh) = mesh_entities.get(entity) {
-                if let Some(render_object) = self.convert_to_render_object(*entity, transform, mesh) {
+                let is_selected = selected_entity == Some(*entity);
+                if let Some(render_object) = self.convert_to_render_object(*entity, transform, mesh, is_selected) {
                     scene.add_object(render_object);
                 }
             }
@@ -88,6 +89,7 @@ impl EcsRenderBridge {
         _entity: Entity,
         transform: &Transform,
         mesh: &Mesh,
+        is_selected: bool,
     ) -> Option<RenderObject> {
         // Map mesh type to mesh ID
         let mesh_id = match &mesh.mesh_type {
@@ -107,7 +109,9 @@ impl EcsRenderBridge {
         // Convert transform to matrix
         let transform_matrix = self.transform_to_matrix(transform);
         
-        Some(RenderObject::new(transform_matrix, mesh_id, material_id))
+        let mut render_object = RenderObject::new(transform_matrix, mesh_id, material_id);
+        render_object.is_selected = is_selected;
+        Some(render_object)
     }
     
     /// Convert Transform component to transformation matrix
@@ -135,7 +139,7 @@ impl EcsRenderBridge {
         // Find entities that have transform and mesh components and add to scene
         for (entity, transform) in &transform_entities {
             if let Some(mesh) = mesh_entities.get(entity) {
-                if let Some(render_object) = self.convert_to_render_object(*entity, transform, mesh) {
+                if let Some(render_object) = self.convert_to_render_object(*entity, transform, mesh, false) {
                     scene.add_object(render_object);
                 }
             }
@@ -294,12 +298,12 @@ impl EcsRendererIntegration {
     /// Convert ECS world to renderable scene
     pub fn world_to_scene(&self, world: &World, aspect_ratio: f32) -> RenderScene {
         let camera = CameraExtractor::extract_camera(world, aspect_ratio);
-        self.bridge.world_to_render_scene(world, camera)
+        self.bridge.world_to_render_scene(world, camera, None)
     }
     
     /// Convert ECS world to scene with custom camera
     pub fn world_to_scene_with_camera(&self, world: &World, camera: Camera) -> RenderScene {
-        self.bridge.world_to_render_scene(world, camera)
+        self.bridge.world_to_render_scene(world, camera, None)
     }
     
     /// Update existing scene from ECS world

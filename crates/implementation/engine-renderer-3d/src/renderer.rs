@@ -49,6 +49,8 @@ pub struct CameraUniform {
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct ModelUniform {
     pub model: [[f32; 4]; 4],
+    pub is_selected: f32,
+    pub _padding: [f32; 3], // Padding to align to 16 bytes
 }
 
 /// Main 3D renderer struct
@@ -242,7 +244,7 @@ impl Renderer3D {
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
@@ -439,6 +441,8 @@ impl Renderer3D {
             // Create model uniform from object transform
             let model_uniform = ModelUniform {
                 model: render_object.transform.to_cols_array_2d(),
+                is_selected: if render_object.is_selected { 1.0 } else { 0.0 },
+                _padding: [0.0; 3],
             };
             
             // Create temporary buffer for this object's model transform
@@ -467,6 +471,8 @@ impl Renderer3D {
         if scene.objects.is_empty() {
             let model_uniform = ModelUniform {
                 model: Mat4::IDENTITY.to_cols_array_2d(),
+                is_selected: 0.0,
+                _padding: [0.0; 3],
             };
             
             let model_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

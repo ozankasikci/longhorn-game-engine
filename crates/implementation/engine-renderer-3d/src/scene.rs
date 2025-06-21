@@ -41,6 +41,7 @@ pub struct RenderObject {
     pub transform: Mat4,
     pub mesh_id: u32,
     pub material_id: u32,
+    pub is_selected: bool,
 }
 
 impl RenderObject {
@@ -50,6 +51,7 @@ impl RenderObject {
             transform,
             mesh_id,
             material_id,
+            is_selected: false,
         }
     }
 }

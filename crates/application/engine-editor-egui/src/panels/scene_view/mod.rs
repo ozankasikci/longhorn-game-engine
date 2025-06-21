@@ -15,6 +15,7 @@ pub mod gizmo_3d_projection;
 pub mod gizmo_2d_overlay;
 pub mod simple_gizmos;
 pub mod unity_style_gizmos;
+pub mod gizmo_3d_input;
 
 #[cfg(test)]
 mod navigation_tests;
@@ -22,6 +23,8 @@ mod navigation_tests;
 mod camera_movement_tests;
 #[cfg(test)]
 mod gizmo_tests;
+#[cfg(test)]
+mod unity_gizmo_tests;
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
@@ -103,6 +106,7 @@ fn get_camera_matrices(world: &World, scene_navigation: &SceneNavigation, viewpo
 pub struct SceneViewPanel {
     pub scene_view_active: bool,
     unity_gizmo: unity_style_gizmos::UnityStyleGizmo,
+    gizmo_3d_input: gizmo_3d_input::Gizmo3DInput,
 }
 
 impl SceneViewPanel {
@@ -110,6 +114,7 @@ impl SceneViewPanel {
         Self {
             scene_view_active: true,
             unity_gizmo: unity_style_gizmos::UnityStyleGizmo::new(),
+            gizmo_3d_input: gizmo_3d_input::Gizmo3DInput::new(),
         }
     }
 
@@ -173,13 +178,37 @@ impl SceneViewPanel {
         // Get camera matrices for 3D projection
         let (camera_view_matrix, camera_projection_matrix) = get_camera_matrices(world, scene_navigation, rect);
         
-        // Handle navigation
-        let mut console_messages = navigation::SceneNavigator::handle_scene_navigation(
-            scene_navigation,
-            ui,
-            &response,
-            rect,
-        );
+        // Handle 3D gizmo input before navigation
+        let gizmo_handled = if !scene_navigation.is_navigating {
+            if let (Some(view), Some(proj)) = (camera_view_matrix, camera_projection_matrix) {
+                self.gizmo_3d_input.handle_input(
+                    world,
+                    selected_entity,
+                    &response,
+                    rect,
+                    view,
+                    proj,
+                )
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        
+        // Handle navigation only if gizmo didn't handle the input
+        let mut console_messages = if gizmo_handled {
+            // If gizmo handled input, ensure we maintain focus
+            response.request_focus();
+            Vec::new()
+        } else {
+            navigation::SceneNavigator::handle_scene_navigation(
+                scene_navigation,
+                ui,
+                &response,
+                rect,
+            )
+        };
         
         // Draw background
         ui.painter().rect_filled(
@@ -207,20 +236,20 @@ impl SceneViewPanel {
                 // Draw debug overlay
                 debug_overlay::draw_movement_debug_overlay(ui, rect, scene_navigation);
                 
-                // Handle Unity-style gizmos AFTER 3D scene is drawn (so they appear on top)
-                if !scene_navigation.is_navigating {
-                    if let (Some(view), Some(proj)) = (camera_view_matrix, camera_projection_matrix) {
-                        self.unity_gizmo.update(
-                            ui, 
-                            &response, 
-                            rect, 
-                            world, 
-                            selected_entity,
-                            view,
-                            proj,
-                        );
-                    }
-                }
+                // Disabled 2D overlay gizmos - using true 3D gizmos instead
+                // if !scene_navigation.is_navigating {
+                //     if let (Some(view), Some(proj)) = (camera_view_matrix, camera_projection_matrix) {
+                //         self.unity_gizmo.update(
+                //             ui, 
+                //             &response, 
+                //             rect, 
+                //             world, 
+                //             selected_entity,
+                //             view,
+                //             proj,
+                //         );
+                //     }
+                // }
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.vertical_centered(|ui| {

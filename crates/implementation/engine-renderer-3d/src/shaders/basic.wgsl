@@ -6,6 +6,7 @@ struct CameraUniform {
 
 struct ModelUniform {
     model: mat4x4<f32>,
+    is_selected: f32, // 1.0 if selected, 0.0 otherwise
 }
 
 @group(0) @binding(0)
@@ -24,6 +25,7 @@ struct VertexOutput {
     @location(0) color: vec3<f32>,
     @location(1) world_pos: vec3<f32>,
     @location(2) normal: vec3<f32>,
+    @location(3) is_selected: f32,
 }
 
 @vertex
@@ -39,11 +41,15 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     // In a real implementation, we'd use the normal matrix (inverse transpose of model)
     out.normal = normalize((model.model * vec4<f32>(in.position, 0.0)).xyz);
     
+    // Pass selection state to fragment shader
+    out.is_selected = model.is_selected;
+    
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Return the interpolated vertex color
-    return vec4<f32>(in.color, 1.0);
+    // Return the interpolated vertex color with transparency if selected
+    let alpha = mix(1.0, 0.5, in.is_selected); // 50% transparent when selected
+    return vec4<f32>(in.color, alpha);
 }

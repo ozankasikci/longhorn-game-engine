@@ -32,13 +32,16 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let gizmo_view_pos = uniforms.view * uniforms.gizmo_position;
     let distance = length(gizmo_view_pos.xyz);
     
-    // Calculate scale factor for constant screen size
-    // The gizmo should appear as a fixed pixel size on screen
-    let fov_y = 1.0472; // 60 degrees in radians (should be passed as uniform in production)
-    let scale_factor = (uniforms.viewport_size.z / uniforms.viewport_size.y) * distance * tan(fov_y * 0.5) * 2.0;
+    // Calculate scale factor for perspective-correct scaling
+    // Gizmos should scale naturally with distance like other objects
+    let base_scale = uniforms.viewport_size.z * 0.01; // Base size in world units
+    
+    // Use a fixed world-space size instead of screen-space size
+    // This makes gizmos scale naturally with perspective
+    let final_scale = base_scale;
     
     // Scale the vertex position
-    var scaled_position = in.position * scale_factor;
+    var scaled_position = in.position * final_scale;
     
     // Apply axis-specific rotation based on vertex color
     // Red (X-axis): rotate 90 degrees around Z

@@ -129,7 +129,7 @@ impl LonghornEditor {
         );
         
         // Initialize world with default entities
-        let (world, camera_entity) = world_setup::create_default_world();
+        let (world, cube_entity) = world_setup::create_default_world();
         
         // Verify world has entities immediately after creation
         
@@ -164,7 +164,7 @@ impl LonghornEditor {
         Self {
             dock_state,
             world,
-            selected_entity: Some(camera_entity),
+            selected_entity: Some(cube_entity),
             selected_object: None,
             hierarchy_objects: world_setup::create_default_hierarchy(),
             project_assets: world_setup::create_default_project_assets(),

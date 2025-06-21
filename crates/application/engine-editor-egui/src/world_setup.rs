@@ -103,7 +103,7 @@ pub fn create_default_world() -> (World, Entity) {
         .collect();
     
     
-    (world, camera_entity)
+    (world, cube_entity)
 }
 
 /// Creates test sprite entities

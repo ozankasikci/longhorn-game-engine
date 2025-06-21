@@ -198,7 +198,7 @@ impl GizmoRenderer3D {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: depth_format,
-                depth_write_enabled: false, // Don't write to depth
+                depth_write_enabled: false, // Don't write to depth buffer
                 depth_compare: wgpu::CompareFunction::Always, // Always render on top
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
@@ -232,7 +232,7 @@ impl GizmoRenderer3D {
             mode: GizmoMode::None,
             highlighted_component: None,
             active_component: None,
-            gizmo_size: 100.0, // Default size in pixels
+            gizmo_size: 150.0, // Larger size for better visibility
         })
     }
     
@@ -268,9 +268,9 @@ impl GizmoRenderer3D {
             return;
         }
         
-        log::info!("=== Rendering Gizmo ===");
-        log::info!("Mode: {:?}", self.mode);
-        log::info!("Viewport size: {:?}", viewport_size);
+        eprintln!("=== 3D Gizmo Rendering ===");
+        eprintln!("Mode: {:?}", self.mode);
+        eprintln!("Viewport size: {:?}", viewport_size);
         
         // Extract gizmo position from transform
         let gizmo_position = Vec3::new(
@@ -279,8 +279,18 @@ impl GizmoRenderer3D {
             gizmo_transform.col(3).z,
         );
         
-        log::info!("Gizmo position: {:?}", gizmo_position);
-        log::info!("Camera position: {:?}", camera_position);
+        eprintln!("Gizmo position: {:?}", gizmo_position);
+        eprintln!("Camera position: {:?}", camera_position);
+        
+        // Test if gizmo is in view
+        let gizmo_pos_vec4 = gizmo_position.extend(1.0);
+        let view_pos = *view_matrix * gizmo_pos_vec4;
+        let gizmo_clip = *projection_matrix * view_pos;
+        eprintln!("Gizmo clip space: {:?}", gizmo_clip);
+        if gizmo_clip.w > 0.0 {
+            let ndc = gizmo_clip.truncate() / gizmo_clip.w;
+            eprintln!("Gizmo NDC: {:?}", ndc);
+        }
         
         // Update uniforms
         let uniforms = GizmoUniforms {
@@ -310,7 +320,7 @@ impl GizmoRenderer3D {
     
     /// Render translation gizmo (arrows and planes)
     fn render_translation_gizmo<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        log::info!("Rendering translation gizmo with 3 colored arrows");
+        eprintln!("3D GIZMO: Rendering translation gizmo with 3 colored arrows");
         
         // Render each axis with its specific mesh (which has the correct color)
         
@@ -318,19 +328,19 @@ impl GizmoRenderer3D {
         render_pass.set_vertex_buffer(0, self.arrow_x_mesh.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.arrow_x_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.draw_indexed(0..self.arrow_x_mesh.index_count, 0, 0..1);
-        log::info!("Drew X axis arrow with {} indices", self.arrow_x_mesh.index_count);
+        eprintln!("3D GIZMO: Drew X axis arrow with {} indices", self.arrow_x_mesh.index_count);
         
         // Y axis - Green arrow  
         render_pass.set_vertex_buffer(0, self.arrow_y_mesh.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.arrow_y_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.draw_indexed(0..self.arrow_y_mesh.index_count, 0, 0..1);
-        log::info!("Drew Y axis arrow with {} indices", self.arrow_y_mesh.index_count);
+        eprintln!("3D GIZMO: Drew Y axis arrow with {} indices", self.arrow_y_mesh.index_count);
         
         // Z axis - Blue arrow
         render_pass.set_vertex_buffer(0, self.arrow_z_mesh.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.arrow_z_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.draw_indexed(0..self.arrow_z_mesh.index_count, 0, 0..1);
-        log::info!("Drew Z axis arrow with {} indices", self.arrow_z_mesh.index_count);
+        eprintln!("3D GIZMO: Drew Z axis arrow with {} indices", self.arrow_z_mesh.index_count);
     }
     
     /// Render rotation gizmo (circles)
@@ -397,67 +407,70 @@ fn create_arrow_mesh_with_color(device: &wgpu::Device, color: [f32; 4]) -> Gizmo
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
     
-    // Create a simple arrow pointing up (Y axis)
-    let shaft_length = 0.8;
-    let head_length = 0.2;
-    let head_width = 0.15;
+    // Create a better-looking arrow pointing up (Y axis)
+    let shaft_length = 0.7;
+    let head_length = 0.3;
+    let head_radius = 0.1;
+    let shaft_radius = 0.03;
+    let segments = 12; // More segments for smoother cylinder
     
-    // Shaft (simple box)
-    let shaft_width = 0.04;
+    // Create cylindrical shaft
+    let base_offset = 0;
+    for i in 0..segments {
+        let angle = (i as f32 / segments as f32) * std::f32::consts::TAU;
+        let x = angle.cos() * shaft_radius;
+        let z = angle.sin() * shaft_radius;
+        
+        // Bottom vertex
+        vertices.push(GizmoVertex { position: [x, 0.0, z], color });
+        // Top vertex
+        vertices.push(GizmoVertex { position: [x, shaft_length, z], color });
+    }
     
-    // Front face of shaft
-    vertices.push(GizmoVertex { position: [-shaft_width, 0.0, -shaft_width], color });
-    vertices.push(GizmoVertex { position: [shaft_width, 0.0, -shaft_width], color });
-    vertices.push(GizmoVertex { position: [shaft_width, shaft_length, -shaft_width], color });
-    vertices.push(GizmoVertex { position: [-shaft_width, shaft_length, -shaft_width], color });
+    // Add center vertices for end caps
+    let bottom_center = vertices.len();
+    vertices.push(GizmoVertex { position: [0.0, 0.0, 0.0], color });
+    let top_center = vertices.len();
+    vertices.push(GizmoVertex { position: [0.0, shaft_length, 0.0], color });
     
-    // Back face of shaft
-    vertices.push(GizmoVertex { position: [-shaft_width, 0.0, shaft_width], color });
-    vertices.push(GizmoVertex { position: [shaft_width, 0.0, shaft_width], color });
-    vertices.push(GizmoVertex { position: [shaft_width, shaft_length, shaft_width], color });
-    vertices.push(GizmoVertex { position: [-shaft_width, shaft_length, shaft_width], color });
+    // Create conical arrow head
+    let head_base_offset = vertices.len();
+    for i in 0..segments {
+        let angle = (i as f32 / segments as f32) * std::f32::consts::TAU;
+        let x = angle.cos() * head_radius;
+        let z = angle.sin() * head_radius;
+        vertices.push(GizmoVertex { position: [x, shaft_length, z], color });
+    }
     
-    // Arrow head (pyramid)
-    let head_base_y = shaft_length;
-    let head_tip_y = shaft_length + head_length;
+    // Arrow tip
+    let tip_index = vertices.len();
+    vertices.push(GizmoVertex { position: [0.0, shaft_length + head_length, 0.0], color });
     
-    // Base of pyramid
-    vertices.push(GizmoVertex { position: [-head_width, head_base_y, -head_width], color });
-    vertices.push(GizmoVertex { position: [head_width, head_base_y, -head_width], color });
-    vertices.push(GizmoVertex { position: [head_width, head_base_y, head_width], color });
-    vertices.push(GizmoVertex { position: [-head_width, head_base_y, head_width], color });
+    // Generate cylinder indices
+    for i in 0..segments {
+        let i1 = (i * 2) as u16;
+        let i2 = (i * 2 + 1) as u16;
+        let i3 = ((i + 1) % segments * 2) as u16;
+        let i4 = ((i + 1) % segments * 2 + 1) as u16;
+        
+        // Side faces
+        indices.extend_from_slice(&[i1, i3, i4, i1, i4, i2]);
+        
+        // Bottom cap
+        indices.extend_from_slice(&[bottom_center as u16, i3, i1]);
+        
+        // Top cap (connecting to arrow base)
+        indices.extend_from_slice(&[top_center as u16, i2, i4]);
+    }
     
-    // Tip of pyramid
-    vertices.push(GizmoVertex { position: [0.0, head_tip_y, 0.0], color });
-    
-    // Shaft indices
-    indices.extend_from_slice(&[
-        // Front face
-        0, 1, 2, 0, 2, 3,
-        // Back face
-        5, 4, 7, 5, 7, 6,
-        // Left face
-        4, 0, 3, 4, 3, 7,
-        // Right face
-        1, 5, 6, 1, 6, 2,
-        // Bottom face
-        4, 5, 1, 4, 1, 0,
-        // Top face (connects to arrow head)
-        3, 2, 6, 3, 6, 7,
-    ]);
-    
-    // Arrow head indices (pyramid)
-    let base = 8;
-    indices.extend_from_slice(&[
-        // Four triangular faces
-        base, base + 1, 12, // Front
-        base + 1, base + 2, 12, // Right
-        base + 2, base + 3, 12, // Back
-        base + 3, base, 12, // Left
-        // Base
-        base, base + 2, base + 1,
-        base, base + 3, base + 2,
-    ]);
+    // Generate cone indices for arrow head
+    for i in 0..segments {
+        let base = head_base_offset as u16 + i as u16;
+        let next_base = head_base_offset as u16 + ((i + 1) % segments) as u16;
+        
+        // Cone sides
+        indices.extend_from_slice(&[base, next_base, tip_index as u16]);
+    }
     
     log::info!("Created arrow mesh with {} vertices, {} indices, color: {:?}", vertices.len(), indices.len(), color);
     

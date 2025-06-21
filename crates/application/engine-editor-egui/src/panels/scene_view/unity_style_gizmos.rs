@@ -8,10 +8,10 @@ use glam::{Mat4, Vec3, Vec4};
 
 pub struct UnityStyleGizmo {
     // Current interaction state
-    active_axis: Option<Axis>,
+    pub active_axis: Option<Axis>,
     drag_start_mouse: Option<egui::Pos2>,
     drag_start_world_pos: Option<Vec3>,
-    drag_plane_normal: Option<Vec3>,
+    pub drag_plane_normal: Option<Vec3>,
     drag_plane_point: Option<Vec3>,
     
     // Gizmo settings
@@ -19,17 +19,18 @@ pub struct UnityStyleGizmo {
     axis_length: f32, // Length of axis lines in world units
     
     // Cached axis endpoints for hit testing
-    axis_endpoints: Option<AxisEndpoints>,
+    pub axis_endpoints: Option<AxisEndpoints>,
     
     // Track the currently selected entity to detect changes
-    last_selected_entity: Option<Entity>,
+    pub last_selected_entity: Option<Entity>,
 }
 
-struct AxisEndpoints {
-    center: egui::Pos2,
-    x_end: Option<egui::Pos2>,
-    y_end: Option<egui::Pos2>,
-    z_end: Option<egui::Pos2>,
+#[cfg_attr(test, derive(Debug))]
+pub struct AxisEndpoints {
+    pub center: egui::Pos2,
+    pub x_end: Option<egui::Pos2>,
+    pub y_end: Option<egui::Pos2>,
+    pub z_end: Option<egui::Pos2>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -117,7 +118,7 @@ impl UnityStyleGizmo {
         }
     }
     
-    fn start_drag(&mut self, axis: Axis, mouse_pos: egui::Pos2, world_pos: Vec3, view_matrix: Mat4) {
+    pub fn start_drag(&mut self, axis: Axis, mouse_pos: egui::Pos2, world_pos: Vec3, view_matrix: Mat4) {
         eprintln!("Unity Gizmo: Starting drag on axis {:?}", axis);
         self.active_axis = Some(axis);
         self.drag_start_mouse = Some(mouse_pos);
@@ -177,7 +178,7 @@ impl UnityStyleGizmo {
         self.drag_plane_point = Some(world_pos);
     }
     
-    fn update_drag(
+    pub fn update_drag(
         &mut self,
         mouse_pos: egui::Pos2,
         world: &mut World,
@@ -238,6 +239,10 @@ impl UnityStyleGizmo {
         scale: f32,
     ) {
         let painter = ui.painter();
+        
+        // Calculate depth of each axis endpoint for proper draw order
+        let camera_pos = view_matrix.inverse().w_axis.truncate();
+        let view_dir = (world_pos - camera_pos).normalize();
         
         // Calculate screen-space directions for each axis
         let x_end_world = world_pos + Vec3::X * self.axis_length * scale;
@@ -360,7 +365,7 @@ impl UnityStyleGizmo {
         painter.line_segment([tip, p2], egui::Stroke::new(2.0, color));
     }
     
-    fn hit_test_axes(&self, mouse_pos: egui::Pos2, gizmo_center: egui::Pos2, scale: f32) -> Option<Axis> {
+    pub fn hit_test_axes(&self, mouse_pos: egui::Pos2, gizmo_center: egui::Pos2, scale: f32) -> Option<Axis> {
         let threshold = 10.0;
         
         // Use the actual projected axis endpoints
@@ -390,7 +395,7 @@ impl UnityStyleGizmo {
         None
     }
     
-    fn calculate_screen_space_scale(&self, world_pos: Vec3, view_matrix: Mat4, projection_matrix: Mat4) -> f32 {
+    pub fn calculate_screen_space_scale(&self, world_pos: Vec3, view_matrix: Mat4, projection_matrix: Mat4) -> f32 {
         // Calculate constant screen-space scale
         let camera_pos = view_matrix.inverse().w_axis.truncate();
         let distance = (world_pos - camera_pos).length();
@@ -399,7 +404,7 @@ impl UnityStyleGizmo {
         distance * 0.1
     }
     
-    fn world_to_screen(&self, world_pos: Vec3, view_matrix: Mat4, proj_matrix: Mat4, viewport: egui::Rect) -> Option<egui::Pos2> {
+    pub fn world_to_screen(&self, world_pos: Vec3, view_matrix: Mat4, proj_matrix: Mat4, viewport: egui::Rect) -> Option<egui::Pos2> {
         let world_pos4 = world_pos.extend(1.0);
         let view_pos = view_matrix * world_pos4;
         let clip_pos = proj_matrix * view_pos;
@@ -458,7 +463,7 @@ impl UnityStyleGizmo {
         world_dir.truncate().normalize()
     }
     
-    fn ray_plane_intersection(&self, ray_origin: Vec3, ray_dir: Vec3, plane_point: Vec3, plane_normal: Vec3) -> Option<Vec3> {
+    pub fn ray_plane_intersection(&self, ray_origin: Vec3, ray_dir: Vec3, plane_point: Vec3, plane_normal: Vec3) -> Option<Vec3> {
         let denominator = plane_normal.dot(ray_dir);
         
         if denominator.abs() < 0.0001 {
@@ -474,7 +479,7 @@ impl UnityStyleGizmo {
         Some(ray_origin + ray_dir * t)
     }
     
-    fn point_to_line_distance(&self, point: egui::Pos2, line_start: egui::Pos2, line_end: egui::Pos2) -> f32 {
+    pub fn point_to_line_distance(&self, point: egui::Pos2, line_start: egui::Pos2, line_end: egui::Pos2) -> f32 {
         let line_vec = line_end - line_start;
         let point_vec = point - line_start;
         
