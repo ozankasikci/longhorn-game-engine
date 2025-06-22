@@ -8,6 +8,10 @@ license.workspace = true
 name = "longhorn-editor"
 path = "src/main.rs"
 
+[[bench]]
+name = "compilation_benchmark"
+harness = false
+
 [dependencies]
 # Engine core integration
 engine-ecs-core = { workspace = true }
@@ -43,3 +47,6 @@ glam = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 pollster = { workspace = true }
+
+[dev-dependencies]
+criterion = "0.5"
