@@ -1,20 +1,19 @@
-// World initialization and default entity creation
+// Re-export world setup functionality from framework
 
+pub use engine_editor_framework::world_setup::create_default_world;
+
+// Keep any additional local world setup functions
 use engine_ecs_core::{World, Entity, WorldBundleExt};
 use engine_components_3d::{Transform, Visibility, Material, MeshFilter, MeshRenderer, Mesh, MeshType, Camera, MainCamera, CameraMatrices};
 use engine_components_2d::{Sprite, SpriteRenderer};
 use engine_components_ui::Name;
-use engine_geometry_impl::primitives::MeshPrimitives;
 use engine_geometry_core::{MeshData, Vertex};
 use engine_resource_core::{ResourceId, ResourceHandle};
 use glam::{Vec3, Vec2};
 
-// CameraBundle is now just a tuple of components
-type CameraBundle = (Transform, Camera, Name);
-
-
-/// Creates a default world with sample entities for the editor
-pub fn create_default_world() -> (World, Entity) {
+// Original create_default_world moved to framework, but keep this for compatibility
+#[allow(dead_code)]
+fn create_default_world_local() -> (World, Entity) {
     let mut world = World::new();
     
     // Register all component types
@@ -158,36 +157,13 @@ fn create_test_sprites(world: &mut World) {
 }
 
 /// Creates default hierarchy objects for the editor UI
-pub fn create_default_hierarchy() -> Vec<crate::types::HierarchyObject> {
-    use crate::types::{HierarchyObject, ObjectType};
-    
-    vec![
-        HierarchyObject::new("Main Camera", ObjectType::Camera),
-        HierarchyObject::new("Cube", ObjectType::GameObject),
-    ]
+pub fn create_default_hierarchy() -> Vec<engine_editor_framework::HierarchyObject> {
+    engine_editor_framework::world_setup::create_default_hierarchy()
 }
 
 /// Creates default project assets for the editor UI
-pub fn create_default_project_assets() -> Vec<crate::types::ProjectAsset> {
-    use crate::types::ProjectAsset;
-    
-    vec![
-        ProjectAsset::folder("Scripts", vec![
-            ProjectAsset::file("PlayerController.cs"),
-            ProjectAsset::file("GameManager.cs"),
-            ProjectAsset::file("UIController.cs"),
-        ]),
-        ProjectAsset::folder("Materials", vec![
-            ProjectAsset::file("DefaultMaterial.mat"),
-            ProjectAsset::file("WoodTexture.mat"),
-            ProjectAsset::file("MetalSurface.mat"),
-        ]),
-        ProjectAsset::folder("Textures", vec![
-            ProjectAsset::file("grass.png"),
-            ProjectAsset::file("brick_wall.jpg"),
-            ProjectAsset::file("sky_gradient.png"),
-        ]),
-    ]
+pub fn create_default_project_assets() -> Vec<engine_editor_assets::ProjectAsset> {
+    engine_editor_assets::create_default_project_assets()
 }
 
 /// Create cube mesh data

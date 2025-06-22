@@ -21,43 +21,7 @@ engine-component-traits = { path = "../../core/engine-component-traits" }
 engine-camera-impl = { path = "../engine-camera-impl" }
 serde = { version = "1.0", features = ["derive"] }
 
-# Example dependencies
+# Example dependencies moved to engine-renderer-3d-examples crate
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full"] }
 env_logger = "0.10"
-
-[[example]]
-name = "simple_triangle"
-required-features = []
-
-[[example]]
-name = "cube_test"
-required-features = []
-
-[[example]]
-name = "resource_management_test"
-required-features = []
-
-[[example]]
-name = "complete_resource_test"
-required-features = []
-
-[[example]]
-name = "ecs_integration_test"
-required-features = []
-
-[[example]]
-name = "render_queue_test"
-required-features = []
-
-[[example]]
-name = "frustum_culling_test"
-required-features = []
-
-[[example]]
-name = "complete_pipeline_test"
-required-features = []
-
-[[example]]
-name = "advanced_camera_test"
-required-features = []

@@ -1,0 +1,34 @@
+[package]
+name = "engine-editor-framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core framework and state management for the Longhorn Game Engine editor"
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+# External
+log = { workspace = true }
+serde = { workspace = true }
+
+# Internal - core
+engine-ecs-core = { workspace = true }
+engine-components-3d = { workspace = true }
+engine-components-2d = { workspace = true }
+engine-components-ui = { workspace = true }
+engine-geometry-core = { workspace = true }
+engine-geometry-impl = { workspace = true }
+engine-resource-core = { workspace = true }
+
+# Internal - editor
+engine-editor-assets = { path = "../engine-editor-assets" }
+engine-editor-scene-view = { path = "../engine-editor-scene-view" }
+
+# Math
+glam = { workspace = true }
+
+# Time
+instant = "0.1"

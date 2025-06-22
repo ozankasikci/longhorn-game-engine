@@ -1,74 +1,9 @@
 // Common types and enums used throughout the editor
 
 use eframe::egui;
-use engine_components_3d::Transform;
 
-/// Play state for editor mode management
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PlayState {
-    Editing,   // Normal editor mode - full editing capabilities
-    Playing,   // Game running - properties locked, runtime active  
-    Paused,    // Game paused - can inspect state, limited editing
-}
-
-impl Default for PlayState {
-    fn default() -> Self {
-        Self::Editing
-    }
-}
-
-/// Scene navigation state for Longhorn/Unreal style camera controls
-#[derive(Debug, Clone)]
-pub struct SceneNavigation {
-    pub enabled: bool,
-    pub is_navigating: bool,
-    pub movement_speed: f32,
-    pub rotation_sensitivity: f32,
-    pub fast_movement_multiplier: f32,
-    pub last_mouse_pos: Option<egui::Pos2>,
-    pub scene_camera_transform: Transform,
-    
-    // Rotation velocity for tests
-    pub rotation_velocity: [f32; 2],          // Current rotation velocity [pitch, yaw] in rad/s
-    
-    // Current transform tool (for gizmo mode)
-    pub current_tool: SceneTool,
-}
-
-impl Default for SceneNavigation {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            is_navigating: false,
-            movement_speed: 5.0,                    // Units per second
-            rotation_sensitivity: 0.005,            // Radians per pixel - Unity-like direct response
-            fast_movement_multiplier: 3.0,          // Shift speed boost
-            last_mouse_pos: None,
-            scene_camera_transform: Transform {
-                position: [5.0, 5.0, 15.0],         // Move camera back and up for better view
-                rotation: [-0.2, -0.3, 0.0],        // Slight downward and leftward angle
-                scale: [1.0, 1.0, 1.0],
-            },
-            rotation_velocity: [0.0, 0.0],
-            current_tool: SceneTool::default(),
-        }
-    }
-}
-
-/// Scene manipulation tool types
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SceneTool {
-    Select,   // Q - Selection tool (default)
-    Move,     // W - Move tool with XYZ gizmo
-    Rotate,   // E - Rotation tool (future)
-    Scale,    // R - Scale tool (future)
-}
-
-impl Default for SceneTool {
-    fn default() -> Self {
-        Self::Select
-    }
-}
+// Re-export types from scene view crate
+pub use engine_editor_scene_view::types::{SceneNavigation, PlayState, SceneTool};
 
 /// Gizmo axis selection for movement constraints
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -112,37 +47,8 @@ impl Default for GizmoInteractionState {
     }
 }
 
-/// Texture asset for displaying in editor
-#[derive(Clone)]
-pub struct TextureAsset {
-    pub id: egui::TextureId,
-    pub name: String,
-    pub size: egui::Vec2,
-    pub path: String,
-}
-
-/// Project asset representation
-#[derive(Clone)]
-pub struct ProjectAsset {
-    pub name: String,
-    pub children: Option<Vec<ProjectAsset>>,
-}
-
-impl ProjectAsset {
-    pub fn file(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            children: None,
-        }
-    }
-    
-    pub fn folder(name: &str, children: Vec<ProjectAsset>) -> Self {
-        Self {
-            name: name.to_string(),
-            children: Some(children),
-        }
-    }
-}
+// Re-export asset types from the asset crate
+pub use engine_editor_assets::{TextureAsset, ProjectAsset};
 
 /// Different types of dockable panels
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -155,40 +61,11 @@ pub enum PanelType {
     Project,
 }
 
-/// Hierarchy object representation
-#[derive(Clone)]
-pub struct HierarchyObject {
-    pub name: String,
-    pub object_type: ObjectType,
-    pub children: Option<Vec<HierarchyObject>>,
-}
-
-impl HierarchyObject {
-    pub fn new(name: &str, object_type: ObjectType) -> Self {
-        Self {
-            name: name.to_string(),
-            object_type,
-            children: None,
-        }
-    }
-    
-    pub fn parent(name: &str, children: Vec<HierarchyObject>) -> Self {
-        Self {
-            name: name.to_string(),
-            object_type: ObjectType::GameObject,
-            children: Some(children),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum ObjectType {
-    GameObject,
-    Camera,
-    Light,
-}
+// Re-export hierarchy types from framework
+pub use engine_editor_framework::{HierarchyObject, ObjectType};
 
 // GizmoSystem moved to a simpler implementation
+
 #[derive(Debug, Clone)]
 pub struct GizmoSystem {
     active_tool: SceneTool,
@@ -217,3 +94,32 @@ impl GizmoSystem {
         self.active_tool = SceneTool::Select;
     }
 }
+
+impl engine_editor_scene_view::types::GizmoSystem for GizmoSystem {
+    fn get_active_tool(&self) -> SceneTool {
+        self.active_tool
+    }
+    
+    fn set_active_tool(&mut self, tool: SceneTool) {
+        self.active_tool = tool;
+    }
+}
+
+impl engine_editor_panels::GizmoSystem for GizmoSystem {
+    fn get_active_tool(&self) -> SceneTool {
+        self.active_tool
+    }
+    
+    fn set_active_tool(&mut self, tool: SceneTool) {
+        self.active_tool = tool;
+    }
+    
+    fn enable_move_gizmo(&mut self) {
+        self.active_tool = SceneTool::Move;
+    }
+    
+    fn disable_move_gizmo(&mut self) {
+        self.active_tool = SceneTool::Select;
+    }
+}
+

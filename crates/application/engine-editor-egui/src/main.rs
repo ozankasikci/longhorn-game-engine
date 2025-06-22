@@ -3,9 +3,6 @@
 
 mod editor_state;
 mod types;
-mod panels;
-mod ui;
-mod styling;
 mod bridge;
 mod utils;
 mod play_state;
@@ -14,18 +11,26 @@ mod assets;
 mod editor_coordinator;
 mod settings;
 
-use std::sync::Arc;
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex};
 use engine_ecs_core::{World, Entity};
 use engine_components_3d::Transform;
-use engine_components_ui::Name;
-use editor_state::ConsoleMessage;
-use types::{PlayState, SceneNavigation, GizmoSystem, TextureAsset, ProjectAsset, PanelType, HierarchyObject};
-use styling::{setup_custom_fonts, setup_custom_style};
+use types::{GizmoSystem, TextureAsset, HierarchyObject};
+use engine_editor_ui::PanelType;
 use editor_coordinator::EditorCoordinator;
-use settings::EditorSettings;
-use ui::SettingsDialog;
+use engine_editor_scene_view::{
+    SceneView as SceneViewPanel, 
+    scene_view::scene_view_impl::SceneViewRenderer, 
+    scene_view::rendering::SceneRenderer,
+    types::{SceneNavigation, PlayState}
+};
+use engine_editor_ui::{
+    setup_custom_fonts, setup_custom_style,
+    SettingsDialog, Toolbar, MenuBar, EditorTabViewer
+};
+use engine_editor_panels::{
+    InspectorPanel, HierarchyPanel, ConsolePanel, ProjectPanel, GameViewPanel
+};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -53,7 +58,7 @@ fn main() -> Result<(), eframe::Error> {
 /// Longhorn Game Engine editor application with dockable panels
 pub struct LonghornEditor {
     // Docking system
-    dock_state: DockState<PanelType>,
+    dock_state: DockState<engine_editor_ui::PanelType>,
     
     // ECS v2 Integration
     world: World,
@@ -64,7 +69,7 @@ pub struct LonghornEditor {
     
     // Panel data
     hierarchy_objects: Vec<HierarchyObject>,
-    project_assets: Vec<ProjectAsset>,
+    project_assets: Vec<types::ProjectAsset>,
     
     // Texture asset system
     texture_assets: std::collections::HashMap<u64, TextureAsset>,
@@ -76,14 +81,14 @@ pub struct LonghornEditor {
     // UI state
     scene_view_active: bool,
     show_add_component_dialog: bool,
-    inspector_panel: panels::inspector::InspectorPanel,
-    hierarchy_panel: panels::hierarchy::HierarchyPanel,
-    console_panel: panels::console::ConsolePanel,
-    project_panel: panels::project::ProjectPanel,
-    toolbar: ui::toolbar::Toolbar,
-    menu_bar: ui::menu_bar::MenuBar,
-    game_view_panel: panels::game_view::GameViewPanel,
-    scene_view_panel: panels::scene_view::SceneViewPanel,
+    inspector_panel: InspectorPanel,
+    hierarchy_panel: HierarchyPanel,
+    console_panel: ConsolePanel,
+    project_panel: ProjectPanel,
+    toolbar: Toolbar,
+    menu_bar: MenuBar,
+    game_view_panel: GameViewPanel,
+    scene_view_panel: SceneViewPanel,
     
     // Gizmo system
     gizmo_system: GizmoSystem,
@@ -92,40 +97,40 @@ pub struct LonghornEditor {
     scene_navigation: SceneNavigation,
     
     // 3D scene renderer (using engine-renderer-3d)
-    scene_view_renderer: panels::scene_view::scene_view_impl::SceneViewRenderer,
+    scene_view_renderer: SceneViewRenderer,
     
     // Phase 10.2: Track entity counts for change detection
     last_rendered_entity_count: usize,
     
     // Editor settings
-    settings: EditorSettings,
+    settings: engine_editor_ui::EditorSettings,
     settings_dialog: SettingsDialog,
 }
 
 impl LonghornEditor {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // Create Longhorn-style dock layout with Scene and Game views
-        let mut dock_state = DockState::new(vec![PanelType::SceneView, PanelType::GameView]);
+        let mut dock_state = DockState::new(vec![engine_editor_ui::PanelType::SceneView, engine_editor_ui::PanelType::GameView]);
         
         // Add Hierarchy to the left
         let [_main, _left] = dock_state.main_surface_mut().split_left(
             NodeIndex::root(),
             0.2,
-            vec![PanelType::Hierarchy]
+            vec![engine_editor_ui::PanelType::Hierarchy]
         );
         
         // Add Inspector to the right
         let [_main, _right] = dock_state.main_surface_mut().split_right(
             NodeIndex::root(),
             0.8,
-            vec![PanelType::Inspector]
+            vec![engine_editor_ui::PanelType::Inspector]
         );
         
         // Add Console to the bottom
         let [_main, _bottom] = dock_state.main_surface_mut().split_below(
             NodeIndex::root(),
             0.7,
-            vec![PanelType::Console]
+            vec![engine_editor_ui::PanelType::Console]
         );
         
         // Initialize world with default entities
@@ -134,7 +139,7 @@ impl LonghornEditor {
         // Verify world has entities immediately after creation
         
         // Load editor settings
-        let settings = EditorSettings::load();
+        let settings = engine_editor_ui::EditorSettings::load();
         let settings_dialog = SettingsDialog::new(settings.clone());
         
         // Create scene navigation with settings applied
@@ -144,7 +149,7 @@ impl LonghornEditor {
         scene_navigation.rotation_sensitivity = settings.camera.rotation_sensitivity;
         
         // Initialize scene view renderer
-        let mut scene_view_renderer = panels::scene_view::scene_view_impl::SceneViewRenderer::new();
+        let mut scene_view_renderer = SceneViewRenderer::new();
         
         // Try to get WGPU render state from eframe
         if let Some(render_state) = cc.wgpu_render_state.as_ref() {
@@ -173,14 +178,14 @@ impl LonghornEditor {
             coordinator: EditorCoordinator::new(),
             scene_view_active: true,
             show_add_component_dialog: false,
-            inspector_panel: panels::inspector::InspectorPanel::new(),
-            hierarchy_panel: panels::hierarchy::HierarchyPanel::new(),
-            console_panel: panels::console::ConsolePanel::new(),
-            project_panel: panels::project::ProjectPanel::new(),
-            toolbar: ui::toolbar::Toolbar::new(),
-            menu_bar: ui::menu_bar::MenuBar::new(),
-            game_view_panel: panels::game_view::GameViewPanel::new(),
-            scene_view_panel: panels::scene_view::SceneViewPanel::new(),
+            inspector_panel: InspectorPanel::new(),
+            hierarchy_panel: HierarchyPanel::new(),
+            console_panel: ConsolePanel::new(),
+            project_panel: ProjectPanel::new(),
+            toolbar: Toolbar::new(),
+            menu_bar: MenuBar::new(),
+            game_view_panel: GameViewPanel::new(),
+            scene_view_panel: SceneViewPanel::new(),
             gizmo_system: GizmoSystem::new(),
             scene_navigation,
             scene_view_renderer,
@@ -203,7 +208,7 @@ impl eframe::App for LonghornEditor {
             style.visuals.panel_fill = egui::Color32::from_rgba_unmultiplied(45, 45, 55, 240);
             ctx.set_style(style);
         } else {
-            styling::apply_longhorn_style(ctx);
+            engine_editor_ui::apply_longhorn_style(ctx);
         }
         
         // Show settings dialog if open
@@ -222,23 +227,23 @@ impl eframe::App for LonghornEditor {
         // Handle global keyboard shortcuts for transform tools
         ctx.input(|i| {
             if i.key_pressed(egui::Key::Q) {
-                self.scene_navigation.current_tool = crate::types::SceneTool::Select;
-                self.gizmo_system.set_active_tool(crate::types::SceneTool::Select);
+                self.scene_navigation.current_tool = engine_editor_ui::SceneTool::Select;
+                self.gizmo_system.set_active_tool(engine_editor_ui::SceneTool::Select);
                 self.gizmo_system.disable_move_gizmo();
             } else if i.key_pressed(egui::Key::W) {
-                self.scene_navigation.current_tool = crate::types::SceneTool::Move;
-                self.gizmo_system.set_active_tool(crate::types::SceneTool::Move);
+                self.scene_navigation.current_tool = engine_editor_ui::SceneTool::Move;
+                self.gizmo_system.set_active_tool(engine_editor_ui::SceneTool::Move);
                 if let Some(entity) = self.selected_entity {
                     if let Some(transform) = self.world.get_component::<Transform>(entity) {
                         self.gizmo_system.enable_move_gizmo();
                     }
                 }
             } else if i.key_pressed(egui::Key::E) {
-                self.scene_navigation.current_tool = crate::types::SceneTool::Rotate;
-                self.gizmo_system.set_active_tool(crate::types::SceneTool::Rotate);
+                self.scene_navigation.current_tool = engine_editor_ui::SceneTool::Rotate;
+                self.gizmo_system.set_active_tool(engine_editor_ui::SceneTool::Rotate);
             } else if i.key_pressed(egui::Key::R) {
-                self.scene_navigation.current_tool = crate::types::SceneTool::Scale;
-                self.gizmo_system.set_active_tool(crate::types::SceneTool::Scale);
+                self.scene_navigation.current_tool = engine_editor_ui::SceneTool::Scale;
+                self.gizmo_system.set_active_tool(engine_editor_ui::SceneTool::Scale);
             }
         });
         
@@ -274,7 +279,7 @@ impl eframe::App for LonghornEditor {
             
             DockArea::new(&mut dock_state)
                 .style(style)
-                .show_inside(ui, &mut ui::tab_viewer::EditorTabViewer { editor: self });
+                .show_inside(ui, &mut EditorTabViewer { editor: self });
             
             // Put dock_state back
             self.dock_state = dock_state;
@@ -289,7 +294,7 @@ impl LonghornEditor {
         
         // Handle special actions
         for msg in &messages {
-            if let ConsoleMessage::UserAction(action) = msg {
+            if let engine_editor_ui::ConsoleMessage::UserAction(action) = msg {
                 if action == "open_settings" {
                     self.settings_dialog.open = true;
                 }
@@ -359,9 +364,38 @@ impl LonghornEditor {
             self.coordinator.get_play_state(),
         );
         
-        // Add camera logging messages to console
+        // Convert and add scene view messages to console
         if !console_messages.is_empty() {
-            self.console_panel.add_messages(console_messages);
+            let editor_messages: Vec<editor_state::ConsoleMessage> = console_messages
+                .into_iter()
+                .map(|msg| match msg.severity {
+                    engine_editor_scene_view::types::MessageSeverity::Info => 
+                        editor_state::ConsoleMessage::info(&msg.message),
+                    engine_editor_scene_view::types::MessageSeverity::Warning => 
+                        editor_state::ConsoleMessage::warning(&msg.message),
+                    engine_editor_scene_view::types::MessageSeverity::Error => 
+                        editor_state::ConsoleMessage::error(&msg.message),
+                })
+                .collect();
+            // Convert to panel ConsoleMessage type
+            let panel_messages: Vec<engine_editor_panels::ConsoleMessage> = editor_messages
+                .into_iter()
+                .map(|msg| match msg {
+                    editor_state::ConsoleMessage::Message { message, message_type, .. } => {
+                        match message_type {
+                            editor_state::ConsoleMessageType::Info => 
+                                engine_editor_panels::ConsoleMessage::info(&message),
+                            editor_state::ConsoleMessageType::Warning => 
+                                engine_editor_panels::ConsoleMessage::warning(&message),
+                            editor_state::ConsoleMessageType::Error => 
+                                engine_editor_panels::ConsoleMessage::error(&message),
+                        }
+                    },
+                    editor_state::ConsoleMessage::UserAction(action) => 
+                        engine_editor_panels::ConsoleMessage::info(&action),
+                })
+                .collect();
+            self.console_panel.add_messages(panel_messages);
         }
     }
 
@@ -425,14 +459,14 @@ impl LonghornEditor {
             } else {
                 log::warn!("Camera components missing");
                 // Show no camera message
-                panels::scene_view::rendering::SceneRenderer::show_no_camera_message(
+                SceneRenderer::show_no_camera_message(
                     ui, rect, "Camera components missing"
                 );
             }
         } else {
             log::warn!("No main camera found");
             // Show no camera message
-            panels::scene_view::rendering::SceneRenderer::show_no_camera_message(
+            SceneRenderer::show_no_camera_message(
                 ui, rect, "No main camera found"
             );
         }
@@ -470,6 +504,35 @@ impl LonghornEditor {
     }
     
     pub fn show_project_panel(&mut self, ui: &mut egui::Ui) {
-        self.project_panel.show(ui, &self.project_assets);
+        // Convert internal ProjectAsset to panel ProjectAsset
+        let panel_assets: Vec<engine_editor_panels::ProjectAsset> = self.project_assets
+            .iter()
+            .map(|asset| {
+                if let Some(children) = &asset.children {
+                    let panel_children: Vec<engine_editor_panels::ProjectAsset> = children
+                        .iter()
+                        .map(|child| engine_editor_panels::ProjectAsset::file(&child.name))
+                        .collect();
+                    engine_editor_panels::ProjectAsset::folder(&asset.name, panel_children)
+                } else {
+                    engine_editor_panels::ProjectAsset::file(&asset.name)
+                }
+            })
+            .collect();
+        
+        self.project_panel.show(ui, &panel_assets);
+    }
+}
+
+impl engine_editor_ui::EditorApp for LonghornEditor {
+    fn show_panel(&mut self, ui: &mut egui::Ui, panel_type: PanelType) {
+        match panel_type {
+            PanelType::Hierarchy => self.show_hierarchy_panel(ui),
+            PanelType::Inspector => self.show_inspector_panel(ui),
+            PanelType::SceneView => self.show_scene_view(ui),
+            PanelType::GameView => self.show_game_view(ui),
+            PanelType::Console => self.show_console_panel(ui),
+            PanelType::Project => self.show_project_panel(ui),
+        }
     }
 }

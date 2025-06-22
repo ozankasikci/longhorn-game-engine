@@ -1,0 +1,27 @@
+[package]
+name = "engine-editor-assets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Asset management system for the Longhorn Game Engine editor"
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+# External
+egui = { workspace = true }
+eframe = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }
+
+# Internal
+engine-resource-core = { workspace = true }
+
+# Standard library extensions
+anyhow = { workspace = true }
+thiserror = "1.0"
+
+# Collections
+indexmap = "2.0"

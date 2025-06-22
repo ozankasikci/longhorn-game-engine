@@ -19,6 +19,11 @@ engine-geometry-core = { workspace = true }
 engine-geometry-impl = { workspace = true }
 engine-resource-core = { workspace = true }
 engine-camera-impl = { workspace = true }
+engine-editor-scene-view = { path = "../engine-editor-scene-view" }
+engine-editor-panels = { path = "../engine-editor-panels" }
+engine-editor-ui = { path = "../engine-editor-ui" }
+engine-editor-assets = { path = "../engine-editor-assets" }
+engine-editor-framework = { path = "../engine-editor-framework" }
 
 # EGUI and platform integration
 egui = { workspace = true }
