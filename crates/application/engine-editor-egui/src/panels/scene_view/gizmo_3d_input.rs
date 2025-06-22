@@ -26,6 +26,9 @@ pub enum Axis {
     X,
     Y,
     Z,
+    XY,  // Plane movement in X and Y
+    XZ,  // Plane movement in X and Z
+    YZ,  // Plane movement in Y and Z
 }
 
 impl Gizmo3DInput {
@@ -115,32 +118,42 @@ impl Gizmo3DInput {
         let camera_pos = view_matrix.inverse().w_axis.truncate();
         let to_camera = (camera_pos - world_pos).normalize();
         
-        let axis_direction = match axis {
-            Axis::X => Vec3::X,
-            Axis::Y => Vec3::Y,
-            Axis::Z => Vec3::Z,
-        };
-        
-        // Create a plane that contains the axis and faces the camera
-        let plane_normal = if axis_direction.dot(to_camera).abs() > 0.95 {
-            // Camera looking along axis - use fallback
-            if axis == Axis::Y {
-                Vec3::Z
-            } else {
-                Vec3::Y
-            }
-        } else {
-            // Normal case
-            let cross = axis_direction.cross(to_camera);
-            if cross.length() < 0.001 {
-                if axis == Axis::Y {
-                    Vec3::Z
+        // For plane movement, the plane normal is simply the axis perpendicular to the plane
+        // For single axis movement, create a plane that contains the axis and faces the camera
+        let plane_normal = match axis {
+            Axis::X | Axis::Y | Axis::Z => {
+                let axis_direction = match axis {
+                    Axis::X => Vec3::X,
+                    Axis::Y => Vec3::Y,
+                    Axis::Z => Vec3::Z,
+                    _ => unreachable!(),
+                };
+                
+                // Create a plane that contains the axis and faces the camera
+                if axis_direction.dot(to_camera).abs() > 0.95 {
+                    // Camera looking along axis - use fallback
+                    if axis == Axis::Y {
+                        Vec3::Z
+                    } else {
+                        Vec3::Y
+                    }
                 } else {
-                    Vec3::Y
+                    // Normal case
+                    let cross = axis_direction.cross(to_camera);
+                    if cross.length() < 0.001 {
+                        if axis == Axis::Y {
+                            Vec3::Z
+                        } else {
+                            Vec3::Y
+                        }
+                    } else {
+                        axis_direction.cross(cross).normalize()
+                    }
                 }
-            } else {
-                axis_direction.cross(cross).normalize()
             }
+            Axis::XY => Vec3::Z,  // XY plane has Z normal
+            Axis::XZ => Vec3::Y,  // XZ plane has Y normal
+            Axis::YZ => Vec3::X,  // YZ plane has X normal
         };
         
         self.drag_plane_normal = Some(plane_normal);
@@ -167,16 +180,30 @@ impl Gizmo3DInput {
         
         // Intersect ray with drag plane
         if let Some(intersection) = self.ray_plane_intersection(ray_origin, ray_direction, plane_point, plane_normal) {
-            let axis_direction = match axis {
-                Axis::X => Vec3::X,
-                Axis::Y => Vec3::Y,
-                Axis::Z => Vec3::Z,
+            let new_position = match axis {
+                Axis::X | Axis::Y | Axis::Z => {
+                    // Single axis movement - project onto axis
+                    let axis_direction = match axis {
+                        Axis::X => Vec3::X,
+                        Axis::Y => Vec3::Y,
+                        Axis::Z => Vec3::Z,
+                        _ => unreachable!(),
+                    };
+                    let delta = intersection - start_pos;
+                    let movement = delta.dot(axis_direction) * axis_direction;
+                    start_pos + movement
+                }
+                Axis::XY | Axis::XZ | Axis::YZ => {
+                    // Plane movement - use full intersection but constrain to plane
+                    let delta = intersection - start_pos;
+                    match axis {
+                        Axis::XY => start_pos + Vec3::new(delta.x, delta.y, 0.0),
+                        Axis::XZ => start_pos + Vec3::new(delta.x, 0.0, delta.z),
+                        Axis::YZ => start_pos + Vec3::new(0.0, delta.y, delta.z),
+                        _ => unreachable!(),
+                    }
+                }
             };
-            
-            // Project movement onto axis
-            let delta = intersection - start_pos;
-            let movement = delta.dot(axis_direction) * axis_direction;
-            let new_position = start_pos + movement;
             
             // Update transform
             if let Some(transform) = world.get_component_mut::<Transform>(entity) {
@@ -225,7 +252,7 @@ impl Gizmo3DInput {
         let scale = gizmo_size * 0.01; // Fixed world-space scale matching shader
         eprintln!("3D GIZMO HIT TEST: Using fixed scale: {}", scale);
         
-        // Test each axis
+        // Test axes first (they should have priority over planes)
         let axes = [
             (Axis::X, Vec3::X),
             (Axis::Y, Vec3::Y),
@@ -236,13 +263,120 @@ impl Gizmo3DInput {
             let end_world = gizmo_pos + direction * self.axis_length * scale;
             if let Some(end_screen) = self.world_to_screen(end_world, rect, view_matrix, projection_matrix) {
                 let distance = self.point_to_line_distance(mouse_pos, center_screen, end_screen);
-                eprintln!("3D GIZMO HIT TEST: Axis {:?} - end screen: {:?}, distance: {}", axis, end_screen, distance);
-                if distance < self.hit_threshold {
+                
+                // Also check if we're clicking too close to the center (where plane handles are)
+                let distance_from_center = (mouse_pos - center_screen).length();
+                let min_axis_distance = 30.0; // Minimum distance from center to register as axis click
+                
+                eprintln!("3D GIZMO HIT TEST: Axis {:?} - distance: {}, from center: {}", axis, distance, distance_from_center);
+                
+                if distance < self.hit_threshold && distance_from_center > min_axis_distance {
                     eprintln!("3D GIZMO HIT TEST: HIT on axis {:?}!", axis);
                     return Some(axis);
                 }
             }
         }
+        
+        // Now test plane handles (lower priority than axes)
+        let plane_size = 0.3 * scale;
+        let plane_offset = 0.0 * scale;
+        
+        // Test XY plane (yellow square) - test all 4 corners for better accuracy
+        let xy_corners = [
+            gizmo_pos + Vec3::new(plane_offset, plane_offset, 0.0),
+            gizmo_pos + Vec3::new(plane_offset + plane_size, plane_offset, 0.0),
+            gizmo_pos + Vec3::new(plane_offset + plane_size, plane_offset + plane_size, 0.0),
+            gizmo_pos + Vec3::new(plane_offset, plane_offset + plane_size, 0.0),
+        ];
+        let mut screen_corners = Vec::new();
+        for corner in &xy_corners {
+            if let Some(screen_pos) = self.world_to_screen(*corner, rect, view_matrix, projection_matrix) {
+                screen_corners.push(screen_pos);
+            }
+        }
+        if screen_corners.len() == 4 {
+            // Create bounding box from all corners
+            let min_x = screen_corners.iter().map(|p| p.x).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let max_x = screen_corners.iter().map(|p| p.x).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let min_y = screen_corners.iter().map(|p| p.y).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let max_y = screen_corners.iter().map(|p| p.y).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            
+            // Add some padding for easier clicking
+            let padding = 10.0; // pixels
+            let hit_rect = egui::Rect::from_min_max(
+                egui::pos2(min_x - padding, min_y - padding),
+                egui::pos2(max_x + padding, max_y + padding)
+            );
+            
+            if hit_rect.contains(mouse_pos) {
+                eprintln!("3D GIZMO HIT TEST: HIT on XY plane!");
+                return Some(Axis::XY);
+            }
+        }
+        
+        // Test XZ plane (cyan square)
+        let xz_corners = [
+            gizmo_pos + Vec3::new(plane_offset, 0.0, plane_offset),
+            gizmo_pos + Vec3::new(plane_offset + plane_size, 0.0, plane_offset),
+            gizmo_pos + Vec3::new(plane_offset + plane_size, 0.0, plane_offset + plane_size),
+            gizmo_pos + Vec3::new(plane_offset, 0.0, plane_offset + plane_size),
+        ];
+        let mut screen_corners = Vec::new();
+        for corner in &xz_corners {
+            if let Some(screen_pos) = self.world_to_screen(*corner, rect, view_matrix, projection_matrix) {
+                screen_corners.push(screen_pos);
+            }
+        }
+        if screen_corners.len() == 4 {
+            let min_x = screen_corners.iter().map(|p| p.x).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let max_x = screen_corners.iter().map(|p| p.x).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let min_y = screen_corners.iter().map(|p| p.y).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let max_y = screen_corners.iter().map(|p| p.y).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            
+            let padding = 5.0;
+            let hit_rect = egui::Rect::from_min_max(
+                egui::pos2(min_x - padding, min_y - padding),
+                egui::pos2(max_x + padding, max_y + padding)
+            );
+            
+            if hit_rect.contains(mouse_pos) {
+                eprintln!("3D GIZMO HIT TEST: HIT on XZ plane!");
+                return Some(Axis::XZ);
+            }
+        }
+        
+        // Test YZ plane (magenta square)
+        let yz_corners = [
+            gizmo_pos + Vec3::new(0.0, plane_offset, plane_offset),
+            gizmo_pos + Vec3::new(0.0, plane_offset + plane_size, plane_offset),
+            gizmo_pos + Vec3::new(0.0, plane_offset + plane_size, plane_offset + plane_size),
+            gizmo_pos + Vec3::new(0.0, plane_offset, plane_offset + plane_size),
+        ];
+        let mut screen_corners = Vec::new();
+        for corner in &yz_corners {
+            if let Some(screen_pos) = self.world_to_screen(*corner, rect, view_matrix, projection_matrix) {
+                screen_corners.push(screen_pos);
+            }
+        }
+        if screen_corners.len() == 4 {
+            let min_x = screen_corners.iter().map(|p| p.x).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let max_x = screen_corners.iter().map(|p| p.x).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let min_y = screen_corners.iter().map(|p| p.y).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            let max_y = screen_corners.iter().map(|p| p.y).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+            
+            let padding = 5.0;
+            let hit_rect = egui::Rect::from_min_max(
+                egui::pos2(min_x - padding, min_y - padding),
+                egui::pos2(max_x + padding, max_y + padding)
+            );
+            
+            if hit_rect.contains(mouse_pos) {
+                eprintln!("3D GIZMO HIT TEST: HIT on YZ plane!");
+                return Some(Axis::YZ);
+            }
+        }
+        
+        // No hits found
         
         eprintln!("3D GIZMO HIT TEST: No axis hit");
         None

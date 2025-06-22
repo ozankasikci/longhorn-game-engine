@@ -95,7 +95,9 @@ pub struct GizmoRenderer3D {
     arrow_x_mesh: GizmoMesh,  // Red arrow for X axis
     arrow_y_mesh: GizmoMesh,  // Green arrow for Y axis  
     arrow_z_mesh: GizmoMesh,  // Blue arrow for Z axis
-    plane_mesh: GizmoMesh,
+    plane_xy_mesh: GizmoMesh, // Yellow plane for XY movement
+    plane_xz_mesh: GizmoMesh, // Cyan plane for XZ movement
+    plane_yz_mesh: GizmoMesh, // Magenta plane for YZ movement
     circle_mesh: GizmoMesh,
     box_mesh: GizmoMesh,
     
@@ -215,7 +217,12 @@ impl GizmoRenderer3D {
         let arrow_x_mesh = create_arrow_mesh_with_color(&device, [1.0, 0.2, 0.2, 1.0]); // Red
         let arrow_y_mesh = create_arrow_mesh_with_color(&device, [0.2, 1.0, 0.2, 1.0]); // Green  
         let arrow_z_mesh = create_arrow_mesh_with_color(&device, [0.2, 0.2, 1.0, 1.0]); // Blue
-        let plane_mesh = create_plane_mesh(&device);
+        
+        // Create plane meshes for constrained movement
+        let plane_xy_mesh = create_plane_mesh_xy(&device); // Yellow plane
+        let plane_xz_mesh = create_plane_mesh_xz(&device); // Cyan plane
+        let plane_yz_mesh = create_plane_mesh_yz(&device); // Magenta plane
+        
         let circle_mesh = create_circle_mesh(&device);
         let box_mesh = create_box_mesh(&device);
         
@@ -224,7 +231,9 @@ impl GizmoRenderer3D {
             arrow_x_mesh,
             arrow_y_mesh,
             arrow_z_mesh,
-            plane_mesh,
+            plane_xy_mesh,
+            plane_xz_mesh,
+            plane_yz_mesh,
             circle_mesh,
             box_mesh,
             uniform_buffer,
@@ -320,9 +329,26 @@ impl GizmoRenderer3D {
     
     /// Render translation gizmo (arrows and planes)
     fn render_translation_gizmo<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        eprintln!("3D GIZMO: Rendering translation gizmo with 3 colored arrows");
+        eprintln!("3D GIZMO: Rendering translation gizmo with 3 colored arrows and 3 plane handles");
         
-        // Render each axis with its specific mesh (which has the correct color)
+        // Render plane handles first (so they appear behind arrows)
+        
+        // XY plane - Yellow
+        render_pass.set_vertex_buffer(0, self.plane_xy_mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(self.plane_xy_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..self.plane_xy_mesh.index_count, 0, 0..1);
+        
+        // XZ plane - Cyan
+        render_pass.set_vertex_buffer(0, self.plane_xz_mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(self.plane_xz_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..self.plane_xz_mesh.index_count, 0, 0..1);
+        
+        // YZ plane - Magenta
+        render_pass.set_vertex_buffer(0, self.plane_yz_mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(self.plane_yz_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..self.plane_yz_mesh.index_count, 0, 0..1);
+        
+        // Render arrows on top
         
         // X axis - Red arrow
         render_pass.set_vertex_buffer(0, self.arrow_x_mesh.vertex_buffer.slice(..));
@@ -363,20 +389,16 @@ impl GizmoRenderer3D {
     }
     
     
-    /// Helper to render a plane
+    /// Helper to render a plane - not used anymore since we have specific plane meshes
     fn render_plane<'a>(
         &'a self,
-        render_pass: &mut wgpu::RenderPass<'a>,
+        _render_pass: &mut wgpu::RenderPass<'a>,
         _normal: Vec3,
         _color: [f32; 4],
         _component: GizmoComponent,
     ) {
-        // Set vertex and index buffers
-        render_pass.set_vertex_buffer(0, self.plane_mesh.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(self.plane_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        
-        // Draw
-        render_pass.draw_indexed(0..self.plane_mesh.index_count, 0, 0..1);
+        // This method is deprecated - we now use specific plane meshes
+        // (plane_xy_mesh, plane_xz_mesh, plane_yz_mesh) directly in render_translation_gizmo
     }
     
     /// Helper to render a circle
@@ -496,26 +518,101 @@ fn create_arrow_mesh_with_color(device: &wgpu::Device, color: [f32; 4]) -> Gizmo
     }
 }
 
-/// Create plane mesh for constrained movement
-fn create_plane_mesh(device: &wgpu::Device) -> GizmoMesh {
-    let size = 0.3;
+/// Create XY plane mesh (yellow) - for moving in X and Y
+fn create_plane_mesh_xy(device: &wgpu::Device) -> GizmoMesh {
+    let size = 0.3;  // Larger size for better visibility
+    let offset = 0.0; // Start at the pivot point
+    let color = [1.0, 1.0, 0.0, 0.7]; // Yellow with good opacity
+    
     let vertices = vec![
-        GizmoVertex { position: [0.0, 0.0, 0.0], color: [1.0, 1.0, 1.0, 0.3] },
-        GizmoVertex { position: [size, 0.0, 0.0], color: [1.0, 1.0, 1.0, 0.3] },
-        GizmoVertex { position: [size, size, 0.0], color: [1.0, 1.0, 1.0, 0.3] },
-        GizmoVertex { position: [0.0, size, 0.0], color: [1.0, 1.0, 1.0, 0.3] },
+        GizmoVertex { position: [offset, offset, 0.0], color },
+        GizmoVertex { position: [offset + size, offset, 0.0], color },
+        GizmoVertex { position: [offset + size, offset + size, 0.0], color },
+        GizmoVertex { position: [offset, offset + size, 0.0], color },
     ];
     
     let indices = vec![0, 1, 2, 0, 2, 3];
     
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Plane Vertex Buffer"),
+        label: Some("XY Plane Vertex Buffer"),
         contents: bytemuck::cast_slice(&vertices),
         usage: wgpu::BufferUsages::VERTEX,
     });
     
     let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Plane Index Buffer"),
+        label: Some("XY Plane Index Buffer"),
+        contents: bytemuck::cast_slice(&indices),
+        usage: wgpu::BufferUsages::INDEX,
+    });
+    
+    GizmoMesh {
+        vertices,
+        indices: indices.clone(),
+        vertex_buffer,
+        index_buffer,
+        index_count: indices.len() as u32,
+    }
+}
+
+/// Create XZ plane mesh (cyan) - for moving in X and Z
+fn create_plane_mesh_xz(device: &wgpu::Device) -> GizmoMesh {
+    let size = 0.3;
+    let offset = 0.0;
+    let color = [0.0, 1.0, 1.0, 0.7]; // Cyan with good opacity
+    
+    let vertices = vec![
+        GizmoVertex { position: [offset, 0.0, offset], color },
+        GizmoVertex { position: [offset + size, 0.0, offset], color },
+        GizmoVertex { position: [offset + size, 0.0, offset + size], color },
+        GizmoVertex { position: [offset, 0.0, offset + size], color },
+    ];
+    
+    let indices = vec![0, 1, 2, 0, 2, 3];
+    
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("XZ Plane Vertex Buffer"),
+        contents: bytemuck::cast_slice(&vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+    
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("XZ Plane Index Buffer"),
+        contents: bytemuck::cast_slice(&indices),
+        usage: wgpu::BufferUsages::INDEX,
+    });
+    
+    GizmoMesh {
+        vertices,
+        indices: indices.clone(),
+        vertex_buffer,
+        index_buffer,
+        index_count: indices.len() as u32,
+    }
+}
+
+/// Create YZ plane mesh (magenta) - for moving in Y and Z
+fn create_plane_mesh_yz(device: &wgpu::Device) -> GizmoMesh {
+    let size = 0.3;
+    let offset = 0.0;
+    let color = [1.0, 0.0, 1.0, 0.7]; // Magenta with good opacity
+    
+    let vertices = vec![
+        GizmoVertex { position: [0.0, offset, offset], color },
+        GizmoVertex { position: [0.0, offset + size, offset], color },
+        GizmoVertex { position: [0.0, offset + size, offset + size], color },
+        GizmoVertex { position: [0.0, offset, offset + size], color },
+    ];
+    
+    let indices = vec![0, 1, 2, 0, 2, 3];
+    
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("YZ Plane Vertex Buffer"),
+        contents: bytemuck::cast_slice(&vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+    
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("YZ Plane Index Buffer"),
         contents: bytemuck::cast_slice(&indices),
         usage: wgpu::BufferUsages::INDEX,
     });
