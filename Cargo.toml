@@ -26,13 +26,25 @@ members = [
     "crates/implementation/engine-renderer-3d",
     "crates/implementation/engine-geometry-impl",
     "crates/implementation/engine-camera-impl",
+    "crates/implementation/engine-asset-import",
+    "crates/implementation/engine-mesh-import",
+    "crates/implementation/engine-texture-import",
+    "crates/implementation/engine-audio-import",
+    "crates/implementation/engine-animation-import",
     
     # Integration layer (Tier 3)
     "crates/integration/engine-scene",
     "crates/integration/engine-runtime",
     
     # Application layer (Tier 4)
-    "crates/application/engine-editor-egui", "crates/engine-renderer-3d-examples", "crates/application/engine-editor-scene-view", "crates/application/engine-editor-panels", "crates/application/engine-editor-ui", "crates/application/engine-editor-app",
+    "crates/application/engine-editor-egui", 
+    "crates/engine-renderer-3d-examples", 
+    "crates/application/engine-editor-scene-view", 
+    "crates/application/engine-editor-panels", 
+    "crates/application/engine-editor-ui", 
+    "crates/application/engine-editor-app",
+    "crates/application/engine-editor-assets",
+    "crates/application/engine-editor-framework",
 ]
 
 [workspace.package]
@@ -96,11 +108,15 @@ bitflags = "2.4"
 
 # Error handling
 thiserror = "1.0"
+async-trait = "0.1"
 anyhow = "1.0"
 
 # Testing
 criterion = { version = "0.5", features = ["html_reports"] }
 tokio-test = "0.4"
+
+# Misc
+uuid = { version = "1.0", features = ["v4", "serde"] }
 
 [workspace.dependencies.engine-ecs-core]
 path = "crates/core/engine-ecs-core"
@@ -181,3 +197,18 @@ path = "crates/implementation/engine-camera-impl"
 
 [workspace.dependencies.engine-renderer-3d]
 path = "crates/implementation/engine-renderer-3d"
+
+[workspace.dependencies.engine-asset-import]
+path = "crates/implementation/engine-asset-import"
+
+[workspace.dependencies.engine-mesh-import]
+path = "crates/implementation/engine-mesh-import"
+
+[workspace.dependencies.engine-texture-import]
+path = "crates/implementation/engine-texture-import"
+
+[workspace.dependencies.engine-audio-import]
+path = "crates/implementation/engine-audio-import"
+
+[workspace.dependencies.engine-animation-import]
+path = "crates/implementation/engine-animation-import"

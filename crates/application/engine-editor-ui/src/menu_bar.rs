@@ -30,6 +30,11 @@ impl MenuBar {
                     ui.close_menu();
                 }
                 ui.separator();
+                if ui.button("Import Asset...").clicked() {
+                    messages.push(ConsoleMessage::UserAction("open_import_dialog".to_string()));
+                    ui.close_menu();
+                }
+                ui.separator();
                 if ui.button("Exit").clicked() {
                     std::process::exit(0);
                 }

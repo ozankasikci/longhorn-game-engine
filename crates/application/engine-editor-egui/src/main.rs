@@ -10,6 +10,8 @@ mod world_setup;
 mod assets;
 mod editor_coordinator;
 mod settings;
+mod import;
+mod panels;
 
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex};
@@ -31,6 +33,7 @@ use engine_editor_ui::{
 use engine_editor_panels::{
     InspectorPanel, HierarchyPanel, ConsolePanel, ProjectPanel, GameViewPanel
 };
+use import::dialog::{ImportDialog, ImportResult};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -105,6 +108,14 @@ pub struct LonghornEditor {
     // Editor settings
     settings: engine_editor_ui::EditorSettings,
     settings_dialog: SettingsDialog,
+    
+    // Import dialog
+    import_dialog: ImportDialog,
+    show_import_dialog: bool,
+    
+    // Import service
+    import_service: import::ImportService,
+    asset_database: assets::AssetDatabase,
 }
 
 impl LonghornEditor {
@@ -166,6 +177,12 @@ impl LonghornEditor {
             log::warn!("No WGPU render state available - 3D rendering will be disabled");
         }
         
+        // Create import service with registered importers
+        let mut import_service = import::ImportService::new();
+        import_service.register_mesh_importers();
+        import_service.register_texture_importers();
+        import_service.register_audio_importers();
+        
         Self {
             dock_state,
             world,
@@ -192,6 +209,10 @@ impl LonghornEditor {
             last_rendered_entity_count: 0,
             settings,
             settings_dialog,
+            import_dialog: ImportDialog::new(),
+            show_import_dialog: false,
+            import_service,
+            asset_database: assets::AssetDatabase::new(),
         }
     }
 }
@@ -213,6 +234,32 @@ impl eframe::App for LonghornEditor {
         
         // Show settings dialog if open
         self.settings_dialog.show(ctx);
+        
+        // Show import dialog if open
+        if self.show_import_dialog {
+            self.import_dialog.open();
+            self.show_import_dialog = false; // Reset flag after opening
+        }
+        
+        if let Some(result) = self.import_dialog.show(ctx) {
+            match result {
+                    ImportResult::Import(path, settings) => {
+                        self.import_single_asset(path, settings);
+                    }
+                    ImportResult::ImportBatch(paths, settings) => {
+                        self.console_panel.add_messages(vec![
+                            engine_editor_panels::types::ConsoleMessage::info(&format!("Importing {} assets...", paths.len()))
+                        ]);
+                        
+                        for path in paths {
+                            self.import_single_asset(path, settings.clone());
+                        }
+                    }
+                    ImportResult::Cancel => {
+                        // Dialog closed
+                    }
+                }
+        }
         
         // Apply settings to scene navigation if changed
         if self.settings_dialog.settings.camera.movement_speed != self.settings.camera.movement_speed ||
@@ -297,6 +344,8 @@ impl LonghornEditor {
             if let engine_editor_ui::ConsoleMessage::UserAction(action) = msg {
                 if action == "open_settings" {
                     self.settings_dialog.open = true;
+                } else if action == "open_import_dialog" {
+                    self.show_import_dialog = true;
                 }
             }
         }
@@ -504,23 +553,103 @@ impl LonghornEditor {
     }
     
     pub fn show_project_panel(&mut self, ui: &mut egui::Ui) {
-        // Convert internal ProjectAsset to panel ProjectAsset
+        // Convert internal ProjectAsset to panel ProjectAsset recursively
         let panel_assets: Vec<engine_editor_panels::ProjectAsset> = self.project_assets
             .iter()
-            .map(|asset| {
-                if let Some(children) = &asset.children {
-                    let panel_children: Vec<engine_editor_panels::ProjectAsset> = children
-                        .iter()
-                        .map(|child| engine_editor_panels::ProjectAsset::file(&child.name))
-                        .collect();
-                    engine_editor_panels::ProjectAsset::folder(&asset.name, panel_children)
-                } else {
-                    engine_editor_panels::ProjectAsset::file(&asset.name)
-                }
-            })
+            .map(|asset| self.convert_project_asset(asset))
             .collect();
         
         self.project_panel.show(ui, &panel_assets);
+    }
+    
+    fn convert_project_asset(&self, asset: &types::ProjectAsset) -> engine_editor_panels::ProjectAsset {
+        if let Some(children) = &asset.children {
+            // Recursively convert children
+            let panel_children: Vec<engine_editor_panels::ProjectAsset> = children
+                .iter()
+                .map(|child| self.convert_project_asset(child))
+                .collect();
+            engine_editor_panels::ProjectAsset::folder(&asset.name, panel_children)
+        } else {
+            engine_editor_panels::ProjectAsset::file(&asset.name)
+        }
+    }
+    
+    fn import_single_asset(&mut self, path: std::path::PathBuf, settings: import::ImportSettings) {
+        self.console_panel.add_messages(vec![
+            engine_editor_panels::types::ConsoleMessage::info(&format!("Importing asset: {}", path.display()))
+        ]);
+        
+        // Start the import
+        let handle = self.import_service.start_import(path.clone(), settings);
+        
+        // For now, simulate immediate completion
+        let asset_id = uuid::Uuid::new_v4();
+        handle.complete(Ok(vec![asset_id]));
+        
+        // Determine asset type from extension
+        let asset_type = path.extension()
+            .and_then(|ext| ext.to_str())
+            .and_then(|ext| match ext {
+                "obj" | "gltf" | "glb" | "fbx" => Some(assets::AssetType::Mesh),
+                "png" | "jpg" | "jpeg" => Some(assets::AssetType::Texture),
+                "wav" | "mp3" | "ogg" => Some(assets::AssetType::Audio),
+                _ => None,
+            })
+            .unwrap_or(assets::AssetType::Mesh);
+        
+        // Add to database
+        self.asset_database.add_imported_asset(asset_id, path.clone(), asset_type);
+        
+        // Add to project assets view
+        let file_name = path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Unknown")
+            .to_string();
+        
+        // Find or create the appropriate folder based on asset type
+        let folder_name = match asset_type {
+            assets::AssetType::Mesh => "Models",
+            assets::AssetType::Texture => "Textures",
+            assets::AssetType::Audio => "Audio",
+            _ => "Other",
+        };
+        
+        // Add the asset to the project view
+        // For now, we'll add it to the root since we're using a simple Vec structure
+        // In a real implementation, you'd want a proper tree structure
+        let new_asset = types::ProjectAsset::file(&file_name);
+        
+        // Check if we have an Assets folder
+        if let Some(assets_folder) = self.project_assets.iter_mut().find(|a| a.name == "Assets") {
+            // Check if we have the appropriate subfolder
+            if let Some(children) = &mut assets_folder.children {
+                if let Some(target_folder) = children.iter_mut().find(|c| c.name == folder_name) {
+                    // Add to existing folder
+                    if let Some(folder_children) = &mut target_folder.children {
+                        folder_children.push(new_asset);
+                    } else {
+                        target_folder.children = Some(vec![new_asset]);
+                    }
+                } else {
+                    // Create new folder
+                    children.push(types::ProjectAsset::folder(folder_name, vec![new_asset]));
+                }
+            }
+        } else {
+            // Create Assets folder structure
+            self.project_assets.push(types::ProjectAsset::folder(
+                "Assets", 
+                vec![types::ProjectAsset::folder(folder_name, vec![new_asset])]
+            ));
+        }
+        
+        self.console_panel.add_messages(vec![
+            engine_editor_panels::types::ConsoleMessage::info(&format!("Asset imported successfully: {} (ID: {})", file_name, asset_id))
+        ]);
+        
+        // Debug: Log the project assets structure
+        log::info!("Project assets after import: {:?}", self.project_assets);
     }
 }
 

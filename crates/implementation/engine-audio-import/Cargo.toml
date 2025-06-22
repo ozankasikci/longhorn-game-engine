@@ -1,0 +1,21 @@
+[package]
+name = "engine-audio-import"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engine-asset-import = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+bytemuck = { workspace = true }
+tokio = { workspace = true }
+
+# Audio processing
+hound = "3.5"  # WAV file handling
+rubato = "0.14"  # Sample rate conversion
+dasp = "0.11"  # Digital audio signal processing
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -1,0 +1,34 @@
+[package]
+name = "engine-mesh-import"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Core dependencies
+engine-asset-import = { path = "../engine-asset-import" }
+engine-geometry-core = { path = "../../core/engine-geometry-core" }
+engine-materials-core = { path = "../../core/engine-materials-core" }
+
+# Mesh format parsers
+obj = "0.10"
+gltf = "1.4"
+# Note: FBX is proprietary, we'll use a basic parser
+
+# Math
+glam = { workspace = true }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Async
+tokio = { version = "1.35", features = ["rt", "fs"] }
+async-trait = "0.1"
+
+# Utilities
+log = "0.4"
+bincode = "1.3"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+tokio = { version = "1.35", features = ["rt-multi-thread", "macros", "test-util"] }
