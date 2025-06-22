@@ -230,7 +230,7 @@ impl eframe::App for LonghornEditor {
                 self.gizmo_system.set_active_tool(crate::types::SceneTool::Move);
                 if let Some(entity) = self.selected_entity {
                     if let Some(transform) = self.world.get_component::<Transform>(entity) {
-                        self.gizmo_system.enable_move_gizmo(transform.position);
+                        self.gizmo_system.enable_move_gizmo();
                     }
                 }
             } else if i.key_pressed(egui::Key::E) {

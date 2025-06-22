@@ -3,28 +3,17 @@
 pub mod rendering;
 pub mod navigation;
 pub mod camera_movement;
-pub mod gizmos;
-pub mod scene_renderer;
 pub mod object_renderer;
 pub mod scene_view_impl;
-pub mod scene_input;
 pub mod debug_overlay;
 pub mod improved_grid;
 pub mod ecs_camera_bridge;
-pub mod gizmo_3d_projection;
-pub mod gizmo_2d_overlay;
-pub mod simple_gizmos;
-pub mod unity_style_gizmos;
 pub mod gizmo_3d_input;
 
 #[cfg(test)]
 mod navigation_tests;
 #[cfg(test)]
 mod camera_movement_tests;
-#[cfg(test)]
-mod gizmo_tests;
-#[cfg(test)]
-mod unity_gizmo_tests;
 
 use eframe::egui;
 use engine_ecs_core::{World, Entity};
@@ -105,7 +94,6 @@ fn get_camera_matrices(world: &World, scene_navigation: &SceneNavigation, viewpo
 /// Scene view panel for 3D scene rendering and manipulation
 pub struct SceneViewPanel {
     pub scene_view_active: bool,
-    unity_gizmo: unity_style_gizmos::UnityStyleGizmo,
     gizmo_3d_input: gizmo_3d_input::Gizmo3DInput,
 }
 
@@ -113,7 +101,6 @@ impl SceneViewPanel {
     pub fn new() -> Self {
         Self {
             scene_view_active: true,
-            unity_gizmo: unity_style_gizmos::UnityStyleGizmo::new(),
             gizmo_3d_input: gizmo_3d_input::Gizmo3DInput::new(),
         }
     }

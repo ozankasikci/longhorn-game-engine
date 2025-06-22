@@ -64,7 +64,7 @@ impl Toolbar {
                 // Enable move gizmo if an entity is selected
                 if let Some(entity) = selected_entity {
                     if let Some(transform) = world.get_component::<Transform>(entity) {
-                        gizmo_system.enable_move_gizmo(transform.position);
+                        gizmo_system.enable_move_gizmo();
                     }
                 }
                 // Move tool activated

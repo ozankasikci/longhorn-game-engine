@@ -101,7 +101,7 @@ impl HierarchyPanel {
                     // Update gizmo position if move tool is active
                     if gizmo_system.get_active_tool() == SceneTool::Move {
                         if let Some(transform) = world.get_component::<Transform>(entity) {
-                            gizmo_system.enable_move_gizmo(transform.position);
+                            gizmo_system.enable_move_gizmo();
                         }
                     }
                 }

@@ -188,5 +188,32 @@ pub enum ObjectType {
     Light,
 }
 
-// Re-export GizmoSystem from the proper module
-pub use crate::panels::scene_view::gizmos::GizmoSystem;
+// GizmoSystem moved to a simpler implementation
+#[derive(Debug, Clone)]
+pub struct GizmoSystem {
+    active_tool: SceneTool,
+}
+
+impl GizmoSystem {
+    pub fn new() -> Self {
+        Self {
+            active_tool: SceneTool::Select,
+        }
+    }
+    
+    pub fn get_active_tool(&self) -> SceneTool {
+        self.active_tool
+    }
+    
+    pub fn set_active_tool(&mut self, tool: SceneTool) {
+        self.active_tool = tool;
+    }
+    
+    pub fn enable_move_gizmo(&mut self) {
+        self.active_tool = SceneTool::Move;
+    }
+    
+    pub fn disable_move_gizmo(&mut self) {
+        self.active_tool = SceneTool::Select;
+    }
+}
