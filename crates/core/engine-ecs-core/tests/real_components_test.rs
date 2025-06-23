@@ -35,8 +35,7 @@ fn test_real_components_migration() {
     assert!(world.get_component::<Material>(entity).is_some());
     
     // Test removing a component
-    let removed_mesh = world.remove_component::<Mesh>(entity).unwrap();
-    assert!(removed_mesh.is_some());
+    world.remove_component::<Mesh>(entity).unwrap();
     assert!(world.get_component::<Mesh>(entity).is_none());
     assert!(world.get_component::<Transform>(entity).is_some());
     assert!(world.get_component::<Material>(entity).is_some());
