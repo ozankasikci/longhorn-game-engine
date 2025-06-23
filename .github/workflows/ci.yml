@@ -32,7 +32,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgtk-4-dev libxkbcommon-dev libwayland-dev
+        sudo apt-get install -y pkg-config libx11-dev libxi-dev libgl1-mesa-dev libasound2-dev
     
     - name: Cache cargo registry
       uses: actions/cache@v4
