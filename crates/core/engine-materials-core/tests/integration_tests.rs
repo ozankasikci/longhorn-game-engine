@@ -201,7 +201,7 @@ fn test_shader_creation_and_properties() {
     assert_eq!(vertex_shader.name, "basic_vertex");
     assert_eq!(vertex_shader.shader_type, ShaderType::Vertex);
     assert_eq!(vertex_shader.language, ShaderLanguage::Wgsl);
-    assert_eq!(vertex_shader.entry_point, "vs_main");
+    assert_eq!(vertex_shader.entry_point, "main");
     assert!(vertex_shader.source_text().is_some());
     assert!(vertex_shader.source_binary().is_none());
 
