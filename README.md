@@ -4,6 +4,17 @@ A modular, high-performance game engine written in Rust, specifically designed f
 
 ![Longhorn Editor Screenshot](assets/longhorn-editor.png)
 
+## 📱 Why Longhorn for Mobile Games?
+
+Longhorn is built from the ground up with mobile game development in mind:
+
+- **Mobile-First Architecture**: Every design decision prioritizes mobile performance and battery life
+- **Optimized Asset Pipeline**: Automatic texture compression, mesh optimization, and audio encoding for mobile
+- **Efficient Memory Usage**: Object pooling, resource streaming, and aggressive memory management
+- **Battery-Aware Rendering**: Dynamic quality adjustment based on thermal state and battery level
+- **Native Mobile Features**: Built-in support for touch input, accelerometer, haptics, and mobile-specific APIs
+- **Small Runtime**: Modular design allows you to ship only what you need, keeping app sizes small
+
 ## 🏗️ Architecture
 
 Longhorn is built with a clean, modular architecture using Rust workspaces, organized into core systems, implementations, and applications:
@@ -65,6 +76,13 @@ cargo run --bin longhorn-editor --release
 
 ## 🎯 Features
 
+### Mobile-First Design
+- **Optimized for Mobile GPUs**: Tile-based rendering optimizations
+- **Battery-Efficient**: Power-aware rendering and frame rate management
+- **Touch Input Support**: Native touch and gesture handling
+- **Small Build Sizes**: Modular architecture for minimal app size
+- **Cross-Platform**: iOS and Android support (desktop for development)
+
 ### Editor Features
 - **Professional Interface**: Modern game editor with dockable panels
 - **Scene View**: Interactive 3D viewport with manipulation gizmos
@@ -72,23 +90,31 @@ cargo run --bin longhorn-editor --release
 - **Inspector Panel**: Component-based object editing
 - **Project View**: Asset browser with folder navigation
 - **Console Panel**: Logging and debugging output
-- **Game View**: Play mode preview
+- **Game View**: Play mode preview with mobile viewport simulation
 - **Asset Import**: Support for 3D models (OBJ, FBX, GLTF), textures, and audio
 
 ### Engine Features
-- **Modern Rendering**: WGPU-based renderer with PBR support
+- **Modern Rendering**: WGPU-based renderer optimized for mobile
 - **Entity Component System**: High-performance ECS architecture
 - **Component System**: Flexible component-based game objects
-- **3D Gizmos**: Transform manipulation tools in editor
-- **Asset Pipeline**: Efficient asset loading and management
-- **Modular Architecture**: Clean separation of concerns
+- **Mobile-Optimized Physics**: Efficient collision detection and physics
+- **Asset Pipeline**: Streaming and compression for mobile deployment
+- **Memory Management**: Aggressive pooling and resource management
+- **Modular Architecture**: Include only what you need for smaller builds
 
 ## 📱 Platform Support
 
-- **Desktop**: Windows, macOS, Linux
-- **Graphics**: Vulkan, Metal, DX12, OpenGL (via WGPU)
-- **Mobile**: iOS, Android (planned)
-- **Web**: WebAssembly (planned)
+### Primary Targets (Mobile)
+- **iOS**: iPhone 6s and newer (A9 chip+)
+- **Android**: API Level 24+ (Android 7.0+)
+
+### Development Platform
+- **Desktop**: Windows, macOS, Linux (for editor and development)
+- **Graphics**: Vulkan, Metal, DX12, OpenGL ES (via WGPU)
+
+### Future Support
+- **Web**: WebAssembly for mobile web games
+- **Console**: Nintendo Switch (similar mobile architecture)
 
 ## 📁 Project Structure
 
