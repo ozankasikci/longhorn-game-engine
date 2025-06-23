@@ -22,7 +22,7 @@ Trait-based design enables extensible systems without the complexity of inherita
 
 Mobile GPUs fundamentally differ from desktop GPUs in their tile-based architecture. Modern mobile game engines must embrace this difference rather than treating mobile as a scaled-down desktop platform. **Tile-based deferred rendering** leverages the natural architecture of mobile GPUs by keeping intermediate rendering data in fast tile memory, dramatically reducing memory bandwidth—the primary bottleneck on mobile devices.
 
-For supporting both 2D and 3D games, a unified rendering pipeline is essential. Unity's Universal Render Pipeline (URP) provides a proven model: a single-pass forward renderer that efficiently handles both 2D sprites and 3D meshes. The key is maintaining separate optimization paths within the unified architecture—sprite batching for 2D content and hierarchical LOD systems for 3D scenes.
+For supporting both 2D and 3D games, a unified rendering pipeline is essential. industry-standard Universal Render Pipeline (URP) provides a proven model: a single-pass forward renderer that efficiently handles both 2D sprites and 3D meshes. The key is maintaining separate optimization paths within the unified architecture—sprite batching for 2D content and hierarchical LOD systems for 3D scenes.
 
 Battery optimization requires a holistic approach beyond just rendering. Frame rate capping to 30fps for casual games or dynamic adjustment based on battery level can extend play sessions significantly. The SEGA framework's research shows that system-level optimizations including CPU-GPU coordination can achieve 17.4% energy savings—crucial for mobile gaming success.
 

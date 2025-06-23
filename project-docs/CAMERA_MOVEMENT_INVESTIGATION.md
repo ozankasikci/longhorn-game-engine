@@ -1,7 +1,7 @@
 # Camera Movement Investigation Report
 
 ## Problem Description
-The scene camera appears to be moving instead of just rotating when the user right-clicks and drags. The expected behavior (like Unity) is that the camera should stay in the same position and only rotate to look around.
+The scene camera appears to be moving instead of just rotating when the user right-clicks and drags. The expected behavior (following industry standards) is that the camera should stay in the same position and only rotate to look around.
 
 ## Investigation Findings
 
@@ -16,10 +16,10 @@ In `navigation.rs`:
 - `handle_scene_navigation()` (lines 207-299) detects right-click drag
 - When dragging, it calculates mouse delta (lines 251-276)
 - Calls `apply_mouse_look()` (lines 41-74) which ONLY modifies rotation:
-  ```rust
-  scene_nav.scene_camera_transform.rotation[0] += pitch_delta;
-  scene_nav.scene_camera_transform.rotation[1] += yaw_delta;
-  ```
+ ```rust
+ scene_nav.scene_camera_transform.rotation[0] += pitch_delta;
+ scene_nav.scene_camera_transform.rotation[1] += yaw_delta;
+ ```
 
 ### 3. The Root Cause: Unintended WASD Movement
 The issue is in `handle_scene_navigation()` at line 285:
@@ -65,13 +65,13 @@ Add logging to understand what's triggering movement:
 ```rust
 // In handle_wasd_movement, before movement calculation:
 console_messages.push(ConsoleMessage::info(&format!(
-    "WASD Check: navigating={}, wants_keyboard={}, W={}, A={}, S={}, D={}",
-    scene_nav.is_navigating,
-    ui.ctx().wants_keyboard_input(),
-    ui.input(|i| i.key_down(egui::Key::W)),
-    ui.input(|i| i.key_down(egui::Key::A)),
-    ui.input(|i| i.key_down(egui::Key::S)),
-    ui.input(|i| i.key_down(egui::Key::D)),
+  "WASD Check: navigating={}, wants_keyboard={}, W={}, A={}, S={}, D={}",
+  scene_nav.is_navigating,
+  ui.ctx().wants_keyboard_input(),
+  ui.input(|i| i.key_down(egui::Key::W)),
+  ui.input(|i| i.key_down(egui::Key::A)),
+  ui.input(|i| i.key_down(egui::Key::S)),
+  ui.input(|i| i.key_down(egui::Key::D)),
 )));
 ```
 
@@ -80,7 +80,7 @@ Only process WASD when explicitly intended:
 ```rust
 // In handle_wasd_movement, change the guard condition:
 if !scene_nav.is_navigating {
-    return messages;
+  return messages;
 }
 
 // Remove the wants_keyboard_input check, or make it more specific
@@ -95,13 +95,13 @@ Consider separating "look around" mode from "fly around" mode:
 Before applying any movement, verify at least one movement key is actually pressed:
 ```rust
 let any_movement_key = ui.input(|i| 
-    i.key_down(egui::Key::W) || i.key_down(egui::Key::A) || 
-    i.key_down(egui::Key::S) || i.key_down(egui::Key::D) ||
-    i.key_down(egui::Key::Q) || i.key_down(egui::Key::E)
+  i.key_down(egui::Key::W) || i.key_down(egui::Key::A) || 
+  i.key_down(egui::Key::S) || i.key_down(egui::Key::D) ||
+  i.key_down(egui::Key::Q) || i.key_down(egui::Key::E)
 );
 
 if !any_movement_key {
-    return messages;
+  return messages;
 }
 ```
 

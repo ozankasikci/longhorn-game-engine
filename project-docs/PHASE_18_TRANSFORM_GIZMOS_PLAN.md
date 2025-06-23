@@ -1,7 +1,7 @@
 # Phase 18: Transform Gizmos Implementation Plan
 
 ## Overview
-Implement Unity-style transform manipulation gizmos (handles) for position, rotation, and scale with proper 3D rendering, mouse interaction, and keyboard shortcuts.
+Implement professional transform manipulation gizmos (handles) for position, rotation, and scale with proper 3D rendering, mouse interaction, and keyboard shortcuts.
 
 ## Goals
 1. Create visually accurate 3D gizmos that render in world space
@@ -16,22 +16,22 @@ Implement Unity-style transform manipulation gizmos (handles) for position, rota
 ```rust
 // In engine-renderer-3d/src/gizmo_3d.rs
 pub struct GizmoRenderer3D {
-    // Separate pipelines for each gizmo type
-    translation_pipeline: wgpu::RenderPipeline,
-    rotation_pipeline: wgpu::RenderPipeline,
-    scale_pipeline: wgpu::RenderPipeline,
-    
-    // Vertex buffers for gizmo geometry
-    arrow_mesh: GizmoMesh,      // For translation
-    circle_mesh: GizmoMesh,     // For rotation
-    box_mesh: GizmoMesh,        // For scale
-    
-    // Uniforms
-    gizmo_uniforms: GizmoUniforms,
-    
-    // Interaction state
-    hover_component: Option<GizmoComponent>,
-    active_component: Option<GizmoComponent>,
+  // Separate pipelines for each gizmo type
+  translation_pipeline: wgpu::RenderPipeline,
+  rotation_pipeline: wgpu::RenderPipeline,
+  scale_pipeline: wgpu::RenderPipeline,
+  
+  // Vertex buffers for gizmo geometry
+  arrow_mesh: GizmoMesh,   // For translation
+  circle_mesh: GizmoMesh,   // For rotation
+  box_mesh: GizmoMesh,    // For scale
+  
+  // Uniforms
+  gizmo_uniforms: GizmoUniforms,
+  
+  // Interaction state
+  hover_component: Option<GizmoComponent>,
+  active_component: Option<GizmoComponent>,
 }
 ```
 
@@ -58,10 +58,10 @@ pub struct GizmoRenderer3D {
 #### Ray Casting
 ```rust
 pub struct GizmoRaycaster {
-    pub fn screen_to_ray(mouse_pos: Vec2, camera: &Camera, viewport: Rect) -> Ray;
-    pub fn ray_intersect_plane(ray: &Ray, plane_normal: Vec3, plane_point: Vec3) -> Option<f32>;
-    pub fn ray_intersect_sphere(ray: &Ray, center: Vec3, radius: f32) -> Option<f32>;
-    pub fn ray_intersect_cylinder(ray: &Ray, axis: Vec3, radius: f32) -> Option<f32>;
+  pub fn screen_to_ray(mouse_pos: Vec2, camera: &Camera, viewport: Rect) -> Ray;
+  pub fn ray_intersect_plane(ray: &Ray, plane_normal: Vec3, plane_point: Vec3) -> Option<f32>;
+  pub fn ray_intersect_sphere(ray: &Ray, center: Vec3, radius: f32) -> Option<f32>;
+  pub fn ray_intersect_cylinder(ray: &Ray, axis: Vec3, radius: f32) -> Option<f32>;
 }
 ```
 
@@ -75,34 +75,34 @@ pub struct GizmoRaycaster {
 #### Position Delta Calculation
 ```rust
 fn calculate_translation_delta(
-    drag_start: Vec3,
-    current_mouse: Vec2,
-    constraint: GizmoConstraint,
-    camera: &Camera,
+  drag_start: Vec3,
+  current_mouse: Vec2,
+  constraint: GizmoConstraint,
+  camera: &Camera,
 ) -> Vec3 {
-    match constraint {
-        GizmoConstraint::Axis(axis) => {
-            // Project mouse movement onto world axis
-        },
-        GizmoConstraint::Plane(normal) => {
-            // Calculate intersection with plane
-        },
-        GizmoConstraint::Screen => {
-            // Move parallel to camera plane
-        },
-    }
+  match constraint {
+    GizmoConstraint::Axis(axis) => {
+      // Project mouse movement onto world axis
+    },
+    GizmoConstraint::Plane(normal) => {
+      // Calculate intersection with plane
+    },
+    GizmoConstraint::Screen => {
+      // Move parallel to camera plane
+    },
+  }
 }
 ```
 
 #### Rotation Delta Calculation
 ```rust
 fn calculate_rotation_delta(
-    drag_start: Vec3,
-    current_mouse: Vec2,
-    rotation_axis: Vec3,
-    camera: &Camera,
+  drag_start: Vec3,
+  current_mouse: Vec2,
+  rotation_axis: Vec3,
+  camera: &Camera,
 ) -> f32 {
-    // Calculate angle based on mouse movement around axis
+  // Calculate angle based on mouse movement around axis
 }
 ```
 
@@ -111,26 +111,26 @@ fn calculate_rotation_delta(
 #### Gizmo Vertex Shader
 ```wgsl
 struct GizmoUniforms {
-    model: mat4x4<f32>,
-    view_proj: mat4x4<f32>,
-    gizmo_scale: f32,  // For constant screen size
-    highlight_color: vec4<f32>,
-    camera_pos: vec3<f32>,
+  model: mat4x4<f32>,
+  view_proj: mat4x4<f32>,
+  gizmo_scale: f32, // For constant screen size
+  highlight_color: vec4<f32>,
+  camera_pos: vec3<f32>,
 }
 
 @vertex
 fn vs_main(vertex: VertexInput) -> VertexOutput {
-    // Scale gizmo based on distance to camera
-    let world_pos = model * vec4<f32>(vertex.position, 1.0);
-    let distance = length(camera_pos - world_pos.xyz);
-    let scale = gizmo_scale * distance * 0.1; // Constant screen size
-    
-    // Apply scaling and transform
-    let scaled_pos = vertex.position * scale;
-    let final_pos = model * vec4<f32>(scaled_pos, 1.0);
-    
-    out.position = view_proj * final_pos;
-    out.color = mix(vertex.color, highlight_color, highlight_factor);
+  // Scale gizmo based on distance to camera
+  let world_pos = model * vec4<f32>(vertex.position, 1.0);
+  let distance = length(camera_pos - world_pos.xyz);
+  let scale = gizmo_scale * distance * 0.1; // Constant screen size
+  
+  // Apply scaling and transform
+  let scaled_pos = vertex.position * scale;
+  let final_pos = model * vec4<f32>(scaled_pos, 1.0);
+  
+  out.position = view_proj * final_pos;
+  out.color = mix(vertex.color, highlight_color, highlight_factor);
 }
 ```
 
@@ -175,7 +175,7 @@ fn vs_main(vertex: VertexInput) -> VertexOutput {
 
 ## Success Criteria
 
-1. Gizmos visually match Unity's implementation
+1. Gizmos visually match industry-standard implementation
 2. All three transform modes work correctly
 3. Mouse interaction feels responsive and precise
 4. Keyboard shortcuts work as expected
@@ -184,7 +184,7 @@ fn vs_main(vertex: VertexInput) -> VertexOutput {
 
 ## References
 
-- Unity Transform Tools: https://docs.unity3d.com/Manual/PositioningGameObjects.html
+- standard transform Tools: https://industry references/Manual/PositioningGameObjects.html
 - Blender Gizmo System: https://docs.blender.org/manual/en/latest/editors/3dview/controls/gizmos.html
 - Three.js TransformControls: https://threejs.org/examples/#misc_controls_transform
 

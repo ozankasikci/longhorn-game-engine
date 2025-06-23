@@ -2,8 +2,8 @@
 
 ## Phase Overview
 
-**Goal**: Connect Unity-style editor Scene View to WGPU renderer to display 3D world with ECS objects  
-**Timeline**: 6-8 hours (6 sub-phases)  
+**Goal**: Connect professional editor Scene View to WGPU renderer to display 3D world with ECS objects 
+**Timeline**: 6-8 hours (6 sub-phases) 
 **Status**: Ready for implementation - integration of existing systems
 
 ## Current State Analysis
@@ -11,7 +11,7 @@
 ### ✅ Existing Strengths
 - **Complete 3D Component System**: Transform, Mesh, Material, Light, Visibility
 - **Advanced WGPU Renderer**: Multi-camera system with working shaders
-- **Unity-Style Editor**: EGUI interface with dockable panels and scene navigation
+- **Professional Editor**: EGUI interface with dockable panels and scene navigation
 - **ECS Architecture**: Dual ECS systems managing 3D entities
 - **Working Examples**: Multi-camera demos with animated 3D objects
 
@@ -21,134 +21,134 @@
 ## Implementation Plan
 
 ### Phase 10.1: Connect Editor Scene View to WGPU Renderer
-**Duration**: 1-2 hours  
+**Duration**: 1-2 hours 
 **Priority**: HIGH
 
 **Tasks**:
 1. **Embed MultiCameraRenderer in UnityEditor**
-   - Add `MultiCameraRenderer` field to `UnityEditor` struct
-   - Initialize renderer in `new()` method
-   - Handle WGPU device and surface creation
+  - Add `MultiCameraRenderer` field to `UnityEditor` struct
+  - Initialize renderer in `new()` method
+  - Handle WGPU device and surface creation
 
 2. **Integrate with Scene View Panel**
-   - Replace empty Scene View rendering with WGPU output
-   - Connect scene camera transform to renderer
-   - Handle viewport resizing and aspect ratio
+  - Replace empty Scene View rendering with WGPU output
+  - Connect scene camera transform to renderer
+  - Handle viewport resizing and aspect ratio
 
 3. **Basic Render Loop**
-   - Call renderer update in `show_scene_view()`
-   - Display rendered frame in egui texture
-   - Handle frame synchronization
+  - Call renderer update in `show_scene_view()`
+  - Display rendered frame in egui texture
+  - Handle frame synchronization
 
 **Expected Outcome**: Scene View displays rendered 3D content
 
 ### Phase 10.2: Bridge ECS World to Renderer
-**Duration**: 1-2 hours  
+**Duration**: 1-2 hours 
 **Priority**: HIGH
 
 **Tasks**:
 1. **Component Query System**
-   - Query entities with Transform + Mesh components
-   - Extract component data each frame
-   - Convert to renderer-compatible format
+  - Query entities with Transform + Mesh components
+  - Extract component data each frame
+  - Convert to renderer-compatible format
 
 2. **Object Synchronization**
-   - Track entity creation/deletion
-   - Update renderer when components change
-   - Handle component additions/removals
+  - Track entity creation/deletion
+  - Update renderer when components change
+  - Handle component additions/removals
 
 3. **Transform Matrix Calculation**
-   - Use Transform::matrix() method for world transforms
-   - Pass MVP matrices to renderer
-   - Handle camera view/projection updates
+  - Use Transform::matrix() method for world transforms
+  - Pass MVP matrices to renderer
+  - Handle camera view/projection updates
 
 **Expected Outcome**: ECS objects appear in Scene View
 
 ### Phase 10.3: Dynamic Mesh Generation
-**Duration**: 1-2 hours  
+**Duration**: 1-2 hours 
 **Priority**: HIGH
 
 **Tasks**:
 1. **Primitive Mesh Factory**
-   - Implement `MeshType` to GPU buffer conversion
-   - Generate vertex/index data for Cube, Sphere, Plane
-   - Create WGPU vertex and index buffers
+  - Implement `MeshType` to GPU buffer conversion
+  - Generate vertex/index data for Cube, Sphere, Plane
+  - Create WGPU vertex and index buffers
 
 2. **Mesh Resource Management**
-   - Cache generated meshes by type
-   - Handle mesh sharing between entities
-   - Implement mesh cleanup and disposal
+  - Cache generated meshes by type
+  - Handle mesh sharing between entities
+  - Implement mesh cleanup and disposal
 
 3. **Vertex Data Pipeline**
-   - Use existing `Vertex` struct with position, normal, uv
-   - Convert geometry-core mesh data to WGPU format
-   - Handle different vertex layouts
+  - Use existing `Vertex` struct with position, normal, uv
+  - Convert geometry-core mesh data to WGPU format
+  - Handle different vertex layouts
 
 **Expected Outcome**: Cubes, spheres, and planes render correctly
 
 ### Phase 10.4: Real-Time ECS-to-Renderer Synchronization
-**Duration**: 1 hour  
+**Duration**: 1 hour 
 **Priority**: MEDIUM
 
 **Tasks**:
 1. **Change Detection System**
-   - Track component modifications
-   - Optimize updates to only changed objects
-   - Handle bulk entity operations
+  - Track component modifications
+  - Optimize updates to only changed objects
+  - Handle bulk entity operations
 
 2. **Performance Optimization**
-   - Batch similar mesh updates
-   - Minimize GPU buffer reallocations
-   - Implement dirty state tracking
+  - Batch similar mesh updates
+  - Minimize GPU buffer reallocations
+  - Implement dirty state tracking
 
 3. **Editor Integration**
-   - Update rendering when objects created via editor
-   - Handle transform gizmo modifications
-   - Sync with undo/redo operations
+  - Update rendering when objects created via editor
+  - Handle transform gizmo modifications
+  - Sync with undo/redo operations
 
 **Expected Outcome**: Real-time updates when modifying objects
 
 ### Phase 10.5: Material System Integration
-**Duration**: 1-2 hours  
+**Duration**: 1-2 hours 
 **Priority**: MEDIUM
 
 **Tasks**:
 1. **Material Uniform Buffers**
-   - Connect Material component to shader uniforms
-   - Handle color, metallic, roughness properties
-   - Implement per-material rendering
+  - Connect Material component to shader uniforms
+  - Handle color, metallic, roughness properties
+  - Implement per-material rendering
 
 2. **Texture System**
-   - Basic texture loading and binding
-   - Handle texture atlas and UV mapping
-   - Implement texture resource management
+  - Basic texture loading and binding
+  - Handle texture atlas and UV mapping
+  - Implement texture resource management
 
 3. **Shader Pipeline Enhancement**
-   - Extend basic shader with material properties
-   - Add proper PBR calculations
-   - Handle material property updates
+  - Extend basic shader with material properties
+  - Add proper PBR calculations
+  - Handle material property updates
 
 **Expected Outcome**: Objects render with proper materials and colors
 
 ### Phase 10.6: Dynamic Lighting Implementation
-**Duration**: 1-2 hours  
+**Duration**: 1-2 hours 
 **Priority**: MEDIUM
 
 **Tasks**:
 1. **Light Component Integration**
-   - Query Light components from ECS
-   - Convert to shader-compatible format
-   - Handle multiple light types
+  - Query Light components from ECS
+  - Convert to shader-compatible format
+  - Handle multiple light types
 
 2. **Lighting Shader Updates**
-   - Replace hardcoded directional light
-   - Add point and spot light calculations
-   - Implement proper attenuation
+  - Replace hardcoded directional light
+  - Add point and spot light calculations
+  - Implement proper attenuation
 
 3. **Shadow System (Basic)**
-   - Simple shadow mapping for directional lights
-   - Basic depth buffer rendering
-   - Shadow texture binding
+  - Simple shadow mapping for directional lights
+  - Basic depth buffer rendering
+  - Shadow texture binding
 
 **Expected Outcome**: Dynamic lighting based on ECS Light components
 

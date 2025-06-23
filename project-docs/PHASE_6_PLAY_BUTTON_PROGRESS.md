@@ -6,7 +6,7 @@
 - **Technical Foundation**: glam library for matrix calculations, atomic state transitions, visual feedback systems
 
 ## Overview
-Implement the Play button functionality to switch from editor Scene View to runtime Game View, showing the scene from the main camera's perspective during gameplay. This creates the classic Unity workflow of Scene/Game view switching based on research findings.
+Implement the Play button functionality to switch from editor Scene View to runtime Game View, showing the scene from the main camera's perspective during gameplay. This creates the classic standard workflow of Scene/Game view switching based on research findings.
 
 ## Current State Analysis
 
@@ -87,16 +87,16 @@ Implement the Play button functionality to switch from editor Scene View to runt
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PlayState {
-    Editing,   // Normal editor mode
-    Playing,   // Game is running
-    Paused,    // Game is paused
+  Editing,  // Normal editor mode
+  Playing,  // Game is running
+  Paused,  // Game is paused
 }
 
 struct UnityEditor {
-    play_state: PlayState,
-    game_start_time: Option<std::time::Instant>,
-    delta_time: f32,
-    // ... existing fields
+  play_state: PlayState,
+  game_start_time: Option<std::time::Instant>,
+  delta_time: f32,
+  // ... existing fields
 }
 ```
 
@@ -104,30 +104,30 @@ struct UnityEditor {
 
 ```rust
 fn show_game_view(&mut self, ui: &mut egui::Ui) {
-    if self.play_state == PlayState::Editing {
-        // Show message to press Play
-        ui.centered_and_justified(|ui| {
-            ui.label("🎮 Press Play to see Game View");
-        });
-        return;
-    }
-    
-    // Render from main camera perspective
-    if let Some(camera_entity) = self.get_main_camera() {
-        self.render_camera_view(ui, camera_entity);
-    }
+  if self.play_state == PlayState::Editing {
+    // Show message to press Play
+    ui.centered_and_justified(|ui| {
+      ui.label("🎮 Press Play to see Game View");
+    });
+    return;
+  }
+  
+  // Render from main camera perspective
+  if let Some(camera_entity) = self.get_main_camera() {
+    self.render_camera_view(ui, camera_entity);
+  }
 }
 
 fn render_camera_view(&mut self, ui: &mut egui::Ui, camera_entity: EntityV2) {
-    let camera_transform = self.world.get_component::<Transform>(camera_entity).unwrap();
-    let camera = self.world.get_component::<Camera>(camera_entity).unwrap();
-    
-    // Create projection matrix from camera
-    let projection = create_perspective_matrix(camera.fov, ui.available_width() / ui.available_height(), camera.near, camera.far);
-    let view = create_view_matrix(&camera_transform);
-    
-    // Render all visible objects from camera perspective
-    self.render_scene_from_camera(ui, &view, &projection);
+  let camera_transform = self.world.get_component::<Transform>(camera_entity).unwrap();
+  let camera = self.world.get_component::<Camera>(camera_entity).unwrap();
+  
+  // Create projection matrix from camera
+  let projection = create_perspective_matrix(camera.fov, ui.available_width() / ui.available_height(), camera.near, camera.far);
+  let view = create_view_matrix(&camera_transform);
+  
+  // Render all visible objects from camera perspective
+  self.render_scene_from_camera(ui, &view, &projection);
 }
 ```
 
@@ -135,35 +135,35 @@ fn render_camera_view(&mut self, ui: &mut egui::Ui, camera_entity: EntityV2) {
 
 ```rust
 fn create_perspective_matrix(fov_degrees: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
-    let fov_rad = fov_degrees.to_radians();
-    glam::Mat4::perspective_rh(fov_rad, aspect, near, far)
+  let fov_rad = fov_degrees.to_radians();
+  glam::Mat4::perspective_rh(fov_rad, aspect, near, far)
 }
 
 fn create_view_matrix(transform: &Transform) -> Mat4 {
-    let position = Vec3::from_array(transform.position);
-    let rotation = Quat::from_euler(
-        EulerRot::XYZ,
-        transform.rotation[0].to_radians(),
-        transform.rotation[1].to_radians(),
-        transform.rotation[2].to_radians()
-    );
-    
-    Mat4::from_rotation_translation(rotation, position).inverse()
+  let position = Vec3::from_array(transform.position);
+  let rotation = Quat::from_euler(
+    EulerRot::XYZ,
+    transform.rotation[0].to_radians(),
+    transform.rotation[1].to_radians(),
+    transform.rotation[2].to_radians()
+  );
+  
+  Mat4::from_rotation_translation(rotation, position).inverse()
 }
 
 fn world_to_screen(world_pos: Vec3, view_matrix: &Mat4, projection_matrix: &Mat4, screen_size: Vec2) -> Option<Vec2> {
-    let clip_pos = projection_matrix * view_matrix * Vec4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
-    
-    if clip_pos.w <= 0.0 { return None; } // Behind camera
-    
-    let ndc = clip_pos.xyz() / clip_pos.w;
-    if ndc.z < -1.0 || ndc.z > 1.0 { return None; } // Outside depth range
-    
-    // Convert to screen coordinates
-    let screen_x = (ndc.x + 1.0) * 0.5 * screen_size.x;
-    let screen_y = (1.0 - ndc.y) * 0.5 * screen_size.y; // Flip Y for screen space
-    
-    Some(Vec2::new(screen_x, screen_y))
+  let clip_pos = projection_matrix * view_matrix * Vec4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
+  
+  if clip_pos.w <= 0.0 { return None; } // Behind camera
+  
+  let ndc = clip_pos.xyz() / clip_pos.w;
+  if ndc.z < -1.0 || ndc.z > 1.0 { return None; } // Outside depth range
+  
+  // Convert to screen coordinates
+  let screen_x = (ndc.x + 1.0) * 0.5 * screen_size.x;
+  let screen_y = (1.0 - ndc.y) * 0.5 * screen_size.y; // Flip Y for screen space
+  
+  Some(Vec2::new(screen_x, screen_y))
 }
 ```
 
@@ -229,6 +229,6 @@ fn world_to_screen(world_pos: Vec3, view_matrix: &Mat4, projection_matrix: &Mat4
 
 ## Next Steps
 
-This phase transforms the editor from a static tool into a dynamic game development environment. The Play button becomes the gateway between editing and testing, just like Unity.
+This phase transforms the editor from a static tool into a dynamic game development environment. The Play button becomes the gateway between editing and testing, just following industry standards.
 
 **Ready to start with Phase 6.1, Task 6.1.1 - Add Play State Management?**

@@ -13,12 +13,12 @@
 ```rust
 // Skip if both points are behind camera
 if start_depth <= 0.1 && end_depth <= 0.1 {
-    continue;
+  continue;
 }
 
 // Skip lines that would appear too distorted
 if start_depth <= 0.5 || end_depth <= 0.5 {
-    continue;
+  continue;
 }
 ```
 **Problem**: Lines are culled when ANY endpoint has depth <= 0.5, even if one endpoint is visible. This causes lines to disappear when they cross the near plane.
@@ -66,7 +66,7 @@ No proper depth-based fading or LOD system, causing all lines to render with sam
 
 ## Comparison with Professional Editors
 
-### Unity/Unreal Approach
+### modern engines Approach
 - Infinite grid that fades with distance
 - Dynamic LOD based on camera height
 - Smooth transitions between grid levels

@@ -117,11 +117,11 @@ This phase addresses the most impactful architectural improvements identified in
 
 ### Technical Risks
 1. **Transform Consolidation Risk**: Changing Transform could break ECS integration
-   - Mitigation: Careful analysis and incremental changes
+  - Mitigation: Careful analysis and incremental changes
 2. **Math Expansion Risk**: New math utilities could conflict with existing code
-   - Mitigation: Additive changes only, no breaking modifications
+  - Mitigation: Additive changes only, no breaking modifications
 3. **Resource System Risk**: Complex resource management could introduce circular dependencies
-   - Mitigation: Pure abstraction approach, no implementation details
+  - Mitigation: Pure abstraction approach, no implementation details
 
 ### Mitigation Strategies
 - Work in small incremental steps with immediate testing

@@ -11,20 +11,20 @@ Refactor the 1,018-line `scene_view_impl.rs` into focused, maintainable modules.
 ## Target Structure
 ```
 crates/application/engine-editor-egui/src/panels/scene_view/
-├── scene_view_impl.rs      # Main orchestrator (200 lines)
+├── scene_view_impl.rs   # Main orchestrator (200 lines)
 ├── rendering/
-│   ├── mod.rs              # Rendering module exports
-│   ├── grid_renderer.rs    # Grid rendering logic
-│   ├── mesh_renderer.rs    # 3D mesh rendering
-│   ├── entity_renderer.rs  # Generic entity rendering
-│   ├── sprite_renderer.rs  # 2D sprite rendering
-│   └── projection.rs       # World-to-screen projection
-├── camera/                 # (existing)
-├── interaction/           # (existing)
+│  ├── mod.rs       # Rendering module exports
+│  ├── grid_renderer.rs  # Grid rendering logic
+│  ├── mesh_renderer.rs  # 3D mesh rendering
+│  ├── entity_renderer.rs # Generic entity rendering
+│  ├── sprite_renderer.rs # 2D sprite rendering
+│  └── projection.rs    # World-to-screen projection
+├── camera/         # (existing)
+├── interaction/      # (existing)
 └── overlays/
-    ├── mod.rs
-    ├── scene_info.rs      # Scene statistics overlay
-    └── debug_info.rs      # Debug information overlay
+  ├── mod.rs
+  ├── scene_info.rs   # Scene statistics overlay
+  └── debug_info.rs   # Debug information overlay
 ```
 
 ## Tasks Checklist

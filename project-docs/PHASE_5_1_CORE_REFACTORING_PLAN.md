@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**Phase:** 5.1.1 - Core Graphics Domain Separation  
-**Timeline:** 2-3 hours  
-**Objective:** Refactor monolithic `engine-graphics-core` into focused domain-specific core crates  
+**Phase:** 5.1.1 - Core Graphics Domain Separation 
+**Timeline:** 2-3 hours 
+**Objective:** Refactor monolithic `engine-graphics-core` into focused domain-specific core crates 
 **Trigger:** User feedback that "graphics" is too generic and should be separated into logical domains
 
 ---
@@ -33,12 +33,12 @@ The current `engine-graphics-core` crate contains multiple distinct domains that
 ### **Core Crate Structure:**
 ```
 crates/core/
-├── engine-renderer-core/     # Pure rendering abstractions & traits
-├── engine-geometry-core/     # Mesh, primitives, spatial math
-├── engine-materials-core/    # Materials, shaders, textures
-├── engine-scene-core/        # Scene graph, lighting, culling, cameras
-├── engine-audio-core/        # ✅ Already implemented
-└── engine-physics-core/      # ✅ Already implemented
+├── engine-renderer-core/   # Pure rendering abstractions & traits
+├── engine-geometry-core/   # Mesh, primitives, spatial math
+├── engine-materials-core/  # Materials, shaders, textures
+├── engine-scene-core/    # Scene graph, lighting, culling, cameras
+├── engine-audio-core/    # ✅ Already implemented
+└── engine-physics-core/   # ✅ Already implemented
 ```
 
 ### **Dependency Flow:**
@@ -54,7 +54,7 @@ engine-materials-core
 engine-geometry-core
 └─ depends on → glam, serde (no internal dependencies)
 
-engine-renderer-core  
+engine-renderer-core 
 └─ depends on → glam, serde (no internal dependencies)
 ```
 
@@ -78,15 +78,15 @@ engine-renderer-core
 **Key Types:**
 ```rust
 pub trait Renderer: Send + Sync {
-    fn render(&mut self, commands: &[RenderCommand]) -> Result<()>;
-    fn create_texture(&mut self, desc: &TextureDescriptor) -> TextureHandle;
-    fn capabilities(&self) -> RendererCapabilities;
+  fn render(&mut self, commands: &[RenderCommand]) -> Result<()>;
+  fn create_texture(&mut self, desc: &TextureDescriptor) -> TextureHandle;
+  fn capabilities(&self) -> RendererCapabilities;
 }
 
 pub enum RenderCommand {
-    DrawMesh { mesh: MeshHandle, material: MaterialHandle, transform: Mat4 },
-    SetViewport { viewport: Viewport },
-    BeginRenderPass { clear_color: Option<Color> },
+  DrawMesh { mesh: MeshHandle, material: MaterialHandle, transform: Mat4 },
+  SetViewport { viewport: Viewport },
+  BeginRenderPass { clear_color: Option<Color> },
 }
 ```
 
@@ -105,19 +105,19 @@ pub enum RenderCommand {
 **Key Types:**
 ```rust
 pub struct Mesh {
-    pub vertices: Vec<Vertex>,
-    pub indices: Vec<u32>,
-    pub bounds: BoundingBox,
+  pub vertices: Vec<Vertex>,
+  pub indices: Vec<u32>,
+  pub bounds: BoundingBox,
 }
 
 pub struct BoundingBox {
-    pub min: Vec3,
-    pub max: Vec3,
+  pub min: Vec3,
+  pub max: Vec3,
 }
 
 pub struct Ray {
-    pub origin: Vec3,
-    pub direction: Vec3,
+  pub origin: Vec3,
+  pub direction: Vec3,
 }
 ```
 
@@ -136,16 +136,16 @@ pub struct Ray {
 **Key Types:**
 ```rust
 pub struct Material {
-    pub albedo: Color,
-    pub metallic: f32,
-    pub roughness: f32,
-    pub textures: MaterialTextures,
+  pub albedo: Color,
+  pub metallic: f32,
+  pub roughness: f32,
+  pub textures: MaterialTextures,
 }
 
 pub struct Shader {
-    pub shader_type: ShaderType,
-    pub source: ShaderSource,
-    pub entry_point: String,
+  pub shader_type: ShaderType,
+  pub source: ShaderSource,
+  pub entry_point: String,
 }
 ```
 
@@ -164,14 +164,14 @@ pub struct Shader {
 **Key Types:**
 ```rust
 pub struct Scene {
-    pub objects: Vec<RenderObject>,
-    pub lights: Vec<Light>,
-    pub environment: Environment,
+  pub objects: Vec<RenderObject>,
+  pub lights: Vec<Light>,
+  pub environment: Environment,
 }
 
 pub struct Camera {
-    pub projection: CameraProjection,
-    pub transform: CameraTransform,
+  pub projection: CameraProjection,
+  pub transform: CameraTransform,
 }
 ```
 
@@ -187,14 +187,14 @@ pub struct Camera {
 - [ ] Move: `renderer.rs` (traits only), handle types, errors
 - [ ] Remove all data structure dependencies
 
-#### Task 2: Create `engine-geometry-core` (10 minutes)  
+#### Task 2: Create `engine-geometry-core` (10 minutes) 
 - [ ] Create crate structure with Cargo.toml
 - [ ] Move: `mesh.rs`, `geometry.rs` (primitives, spatial math)
 - [ ] Keep: All geometric data structures and algorithms
 - [ ] Dependencies: glam, serde, bytemuck only
 
 #### Task 3: Create `engine-materials-core` (10 minutes)
-- [ ] Create crate structure with Cargo.toml  
+- [ ] Create crate structure with Cargo.toml 
 - [ ] Move: `material.rs`, `shader.rs`, `color.rs`
 - [ ] Add dependency on `engine-renderer-core` for texture handles
 - [ ] Keep: All material and shader definitions
@@ -242,7 +242,7 @@ pub struct Camera {
 - [ ] **Dependency Flow**: Dependencies flow in one direction (scene → materials → renderer)
 - [ ] **Zero Implementation Dependencies**: No wgpu, rodio, rapier, etc. in any core crate
 
-### **Architectural Validation**  
+### **Architectural Validation** 
 - [ ] **Domain Clarity**: Each crate name clearly communicates its purpose
 - [ ] **Testability**: Each domain can be tested in isolation
 - [ ] **Reusability**: Core crates can be used independently in other projects
@@ -250,7 +250,7 @@ pub struct Camera {
 
 ### **Integration Validation**
 - [ ] **Existing Code Works**: All current functionality continues to work
-- [ ] **Editor Integration**: Unity-style editor continues to function
+- [ ] **Editor Integration**: professional editor continues to function
 - [ ] **Examples Function**: Multi-camera demo and other examples still work
 - [ ] **Build Performance**: No significant increase in build times
 
@@ -261,21 +261,21 @@ pub struct Camera {
 ### **Medium Risk Areas**
 
 1. **Circular Dependencies**
-   - **Risk:** Scene depends on renderer, materials depend on renderer
-   - **Mitigation:** Careful interface design, use of handle types instead of concrete types
-   - **Contingency:** Merge problematic crates if circular dependencies can't be resolved
+  - **Risk:** Scene depends on renderer, materials depend on renderer
+  - **Mitigation:** Careful interface design, use of handle types instead of concrete types
+  - **Contingency:** Merge problematic crates if circular dependencies can't be resolved
 
 2. **Interface Complexity**
-   - **Risk:** Too many small crates create integration complexity
-   - **Mitigation:** Keep interfaces minimal and focused
-   - **Contingency:** Merge related crates if interfaces become unwieldy
+  - **Risk:** Too many small crates create integration complexity
+  - **Mitigation:** Keep interfaces minimal and focused
+  - **Contingency:** Merge related crates if interfaces become unwieldy
 
 ### **Low Risk Areas**
 
 1. **Build Time Impact**
-   - **Risk:** More crates might increase build time
-   - **Mitigation:** Rust's incremental compilation handles this well
-   - **Contingency:** Profile build times and optimize if needed
+  - **Risk:** More crates might increase build time
+  - **Mitigation:** Rust's incremental compilation handles this well
+  - **Contingency:** Profile build times and optimize if needed
 
 ---
 
@@ -295,6 +295,6 @@ pub struct Camera {
 
 ---
 
-**Status:** Ready for implementation  
-**Next Phase:** Phase 5.2 - Implementation Separation (after completion)  
+**Status:** Ready for implementation 
+**Next Phase:** Phase 5.2 - Implementation Separation (after completion) 
 **Dependencies:** Completion of this phase before proceeding with WGPU/Rodio/Rapier implementation crates

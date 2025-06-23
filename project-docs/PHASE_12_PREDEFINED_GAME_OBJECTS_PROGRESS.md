@@ -8,7 +8,7 @@
 ## Progress Overview
 
 ### Research & Planning ✅
-- [x] Research Unity's MeshFilter/MeshRenderer architecture
+- [x] Research industry-standard MeshFilter/MeshRenderer architecture
 - [x] Research game engine mesh/material best practices
 - [x] Design component architecture
 - [x] Create implementation plan
@@ -18,7 +18,7 @@
 
 #### Phase 12.1: Core Mesh Components ✅ (Completed)
 - [x] Create `MeshFilter` component
-- [x] Create `MeshRenderer` component  
+- [x] Create `MeshRenderer` component 
 - [x] Define `MeshData` structure with submesh support
 - [x] Implement mesh handle system using ResourceHandle<MeshData>
 - [x] Add comprehensive unit tests for all components
@@ -60,7 +60,7 @@
 
 ## Key Design Decisions Made
 
-1. **Separate MeshFilter and MeshRenderer components** - Following Unity's proven pattern
+1. **Separate MeshFilter and MeshRenderer components** - Following industry-standard proven pattern
 2. **Handle-based resource system** - Meshes and materials are referenced by handles
 3. **Procedural primitive generation** - Basic shapes generated at runtime
 4. **Material independence** - Materials are separate resources that can be shared
@@ -76,13 +76,13 @@ GameObject (Entity)
 
 Resources
 ├── MeshLibrary
-│   ├── Cube
-│   ├── Sphere
-│   └── ...
+│  ├── Cube
+│  ├── Sphere
+│  └── ...
 └── MaterialLibrary
-    ├── Default
-    ├── Unlit
-    └── ...
+  ├── Default
+  ├── Unlit
+  └── ...
 ```
 
 ## Next Steps
@@ -99,29 +99,29 @@ Resources
 **MeshFilter Component**:
 ```rust
 pub struct MeshFilter {
-    pub mesh: ResourceHandle<MeshData>,
+  pub mesh: ResourceHandle<MeshData>,
 }
 ```
 
 **MeshRenderer Component**:
 ```rust
 pub struct MeshRenderer {
-    pub materials: Vec<MaterialHandle>,
-    pub cast_shadows: bool,
-    pub receive_shadows: bool,
-    pub layer_mask: u32,
-    pub enabled: bool,
+  pub materials: Vec<MaterialHandle>,
+  pub cast_shadows: bool,
+  pub receive_shadows: bool,
+  pub layer_mask: u32,
+  pub enabled: bool,
 }
 ```
 
 **Enhanced MeshData Structure**:
 ```rust
 pub struct MeshData {
-    pub vertices: Vec<Vertex>,
-    pub indices: Vec<u32>,
-    pub name: String,
-    pub submeshes: Vec<SubMesh>,
-    pub bounds: BoundingBox,
+  pub vertices: Vec<Vertex>,
+  pub indices: Vec<u32>,
+  pub name: String,
+  pub submeshes: Vec<SubMesh>,
+  pub bounds: BoundingBox,
 }
 ```
 
@@ -130,18 +130,18 @@ pub struct MeshData {
 All components have comprehensive test coverage:
 
 1. **Unit Tests** (`engine-components-3d`):
-   - MeshFilter creation and functionality
-   - MeshRenderer with single/multiple materials
-   - Builder pattern for MeshRenderer
-   - Component trait implementation
-   - Serialization/deserialization
+  - MeshFilter creation and functionality
+  - MeshRenderer with single/multiple materials
+  - Builder pattern for MeshRenderer
+  - Component trait implementation
+  - Serialization/deserialization
 
 2. **Integration Tests** (`engine-ecs-core`):
-   - MeshData creation and bounds calculation
-   - Resource handle comparison
-   - Memory usage calculations
-   - Multiple submesh support
-   - Resource trait implementation
+  - MeshData creation and bounds calculation
+  - Resource handle comparison
+  - Memory usage calculations
+  - Multiple submesh support
+  - Resource trait implementation
 
 ## Notes
 

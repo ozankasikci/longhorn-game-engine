@@ -7,25 +7,25 @@
 This is the fastest way to get multi-component entities working:
 
 1. **Create Bundle Definitions** (30 min)
-   - `GameObject3DBundle` (Transform + Mesh + Material + Visibility)
-   - `CameraBundle` (Transform + Camera + Name)
-   - `SpriteBundle` (Transform + SpriteRenderer + Visibility)
-   - `LightBundle` (Transform + Light + Name)
+  - `GameObject3DBundle` (Transform + Mesh + Material + Visibility)
+  - `CameraBundle` (Transform + Camera + Name)
+  - `SpriteBundle` (Transform + SpriteRenderer + Visibility)
+  - `LightBundle` (Transform + Light + Name)
 
 2. **Implement Bundle System** (1 hour)
-   - Add `Bundle` trait
-   - Add `spawn_bundle()` method to World
-   - Create archetype with all components at once
+  - Add `Bundle` trait
+  - Add `spawn_bundle()` method to World
+  - Create archetype with all components at once
 
 3. **Update Editor** (30 min)
-   - Replace `spawn_with()` + multiple `add_component()` calls
-   - Use `spawn_bundle()` instead
-   - Remove Transform-only workarounds
+  - Replace `spawn_with()` + multiple `add_component()` calls
+  - Use `spawn_bundle()` instead
+  - Remove Transform-only workarounds
 
 4. **Test & Verify** (30 min)
-   - Confirm entities render with proper meshes
-   - Test all component queries work
-   - Verify editor functionality
+  - Confirm entities render with proper meshes
+  - Test all component queries work
+  - Verify editor functionality
 
 **Pros:** Fast, simple, covers most use cases
 **Cons:** Can't add/remove components dynamically after creation
@@ -35,17 +35,17 @@ This is the fastest way to get multi-component entities working:
 Support only specific component addition patterns:
 
 1. **Define Migration Paths** (1 hour)
-   - Transform → Transform+Mesh
-   - Transform+Mesh → Transform+Mesh+Material
-   - etc.
+  - Transform → Transform+Mesh
+  - Transform+Mesh → Transform+Mesh+Material
+  - etc.
 
 2. **Hardcode Migrations** (2 hours)
-   - Create specific migration functions
-   - Manually copy each component type
+  - Create specific migration functions
+  - Manually copy each component type
 
 3. **Update World** (1 hour)
-   - Route to appropriate migration function
-   - Based on source and target archetypes
+  - Route to appropriate migration function
+  - Based on source and target archetypes
 
 **Pros:** Supports dynamic component addition
 **Cons:** Limited flexibility, lots of boilerplate
@@ -80,87 +80,87 @@ Complete implementation as described in the main plan:
 // 1. Add to engine-ecs-core/src/ecs_v2.rs
 
 pub trait Bundle: Send + Sync {
-    fn component_types() -> Vec<TypeId>;
-    fn insert(self, entity: Entity, world: &mut World) -> Result<(), &'static str>;
+  fn component_types() -> Vec<TypeId>;
+  fn insert(self, entity: Entity, world: &mut World) -> Result<(), &'static str>;
 }
 
 impl World {
-    pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> Result<Entity, &'static str> {
-        let entity = self.spawn();
-        bundle.insert(entity, self)?;
-        Ok(entity)
-    }
+  pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> Result<Entity, &'static str> {
+    let entity = self.spawn();
+    bundle.insert(entity, self)?;
+    Ok(entity)
+  }
 }
 
 // 2. Add to engine-components-3d/src/lib.rs
 
 pub struct GameObject3DBundle {
-    pub transform: Transform,
-    pub mesh: Mesh,
-    pub material: Material,
-    pub visibility: Visibility,
+  pub transform: Transform,
+  pub mesh: Mesh,
+  pub material: Material,
+  pub visibility: Visibility,
 }
 
 impl Bundle for GameObject3DBundle {
-    fn component_types() -> Vec<TypeId> {
-        vec![
-            TypeId::of::<Transform>(),
-            TypeId::of::<Mesh>(),
-            TypeId::of::<Material>(),
-            TypeId::of::<Visibility>(),
-        ]
-    }
+  fn component_types() -> Vec<TypeId> {
+    vec![
+      TypeId::of::<Transform>(),
+      TypeId::of::<Mesh>(),
+      TypeId::of::<Material>(),
+      TypeId::of::<Visibility>(),
+    ]
+  }
+  
+  fn insert(self, entity: Entity, world: &mut World) -> Result<(), &'static str> {
+    // Create archetype ID with all components
+    let archetype_id = ArchetypeId::new()
+      .with_component::<Transform>()
+      .with_component::<Mesh>()
+      .with_component::<Material>()
+      .with_component::<Visibility>();
+      
+    // Get or create archetype
+    world.ensure_archetype_exists(archetype_id.clone());
     
-    fn insert(self, entity: Entity, world: &mut World) -> Result<(), &'static str> {
-        // Create archetype ID with all components
-        let archetype_id = ArchetypeId::new()
-            .with_component::<Transform>()
-            .with_component::<Mesh>()
-            .with_component::<Material>()
-            .with_component::<Visibility>();
-            
-        // Get or create archetype
-        world.ensure_archetype_exists(archetype_id.clone());
-        
-        // Add entity to archetype
-        let archetype = world.archetypes.get_mut(&archetype_id).unwrap();
-        let index = archetype.add_entity(entity);
-        
-        // Add all components
-        let tick = world.change_tick();
-        archetype.add_component(self.transform, ComponentTicks::new(tick));
-        archetype.add_component(self.mesh, ComponentTicks::new(tick));
-        archetype.add_component(self.material, ComponentTicks::new(tick));
-        archetype.add_component(self.visibility, ComponentTicks::new(tick));
-        
-        // Update entity location
-        world.entity_locations.insert(entity, EntityLocation {
-            archetype_id,
-            index,
-        });
-        
-        Ok(())
-    }
+    // Add entity to archetype
+    let archetype = world.archetypes.get_mut(&archetype_id).unwrap();
+    let index = archetype.add_entity(entity);
+    
+    // Add all components
+    let tick = world.change_tick();
+    archetype.add_component(self.transform, ComponentTicks::new(tick));
+    archetype.add_component(self.mesh, ComponentTicks::new(tick));
+    archetype.add_component(self.material, ComponentTicks::new(tick));
+    archetype.add_component(self.visibility, ComponentTicks::new(tick));
+    
+    // Update entity location
+    world.entity_locations.insert(entity, EntityLocation {
+      archetype_id,
+      index,
+    });
+    
+    Ok(())
+  }
 }
 
 // 3. Update world_setup.rs
 
 let test_cube = world.spawn_bundle(GameObject3DBundle {
-    transform: Transform {
-        position: [0.0, 2.0, 5.0],
-        rotation: [0.0, 0.0, 0.0],
-        scale: [3.0, 3.0, 3.0],
-    },
-    mesh: Mesh {
-        mesh_type: MeshType::Cube,
-    },
-    material: Material {
-        color: [0.0, 1.0, 0.0, 1.0], // Green
-        metallic: 0.0,
-        roughness: 0.3,
-        emissive: [0.1, 0.3, 0.1],
-    },
-    visibility: Visibility::default(),
+  transform: Transform {
+    position: [0.0, 2.0, 5.0],
+    rotation: [0.0, 0.0, 0.0],
+    scale: [3.0, 3.0, 3.0],
+  },
+  mesh: Mesh {
+    mesh_type: MeshType::Cube,
+  },
+  material: Material {
+    color: [0.0, 1.0, 0.0, 1.0], // Green
+    metallic: 0.0,
+    roughness: 0.3,
+    emissive: [0.1, 0.3, 0.1],
+  },
+  visibility: Visibility::default(),
 })?;
 ```
 

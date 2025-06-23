@@ -74,19 +74,19 @@ Current issues with the existing approach:
 crates/implementation/engine-renderer-3d/
 ├── Cargo.toml
 ├── src/
-│   ├── lib.rs              # Public API
-│   ├── renderer.rs         # Main renderer struct
-│   ├── pipeline.rs         # Render pipeline management
-│   ├── resources.rs        # GPU resource management
-│   ├── mesh.rs            # Mesh data structures
-│   ├── material.rs        # Material system
-│   ├── camera.rs          # Camera matrices
-│   ├── lighting.rs        # Lighting calculations
-│   ├── scene.rs           # Scene representation
-│   ├── frame.rs           # Frame rendering logic
-│   └── integration/
-│       ├── mod.rs
-│       └── egui.rs        # egui-specific integration
+│  ├── lib.rs       # Public API
+│  ├── renderer.rs     # Main renderer struct
+│  ├── pipeline.rs     # Render pipeline management
+│  ├── resources.rs    # GPU resource management
+│  ├── mesh.rs      # Mesh data structures
+│  ├── material.rs    # Material system
+│  ├── camera.rs     # Camera matrices
+│  ├── lighting.rs    # Lighting calculations
+│  ├── scene.rs      # Scene representation
+│  ├── frame.rs      # Frame rendering logic
+│  └── integration/
+│    ├── mod.rs
+│    └── egui.rs    # egui-specific integration
 ```
 
 ### Key Components

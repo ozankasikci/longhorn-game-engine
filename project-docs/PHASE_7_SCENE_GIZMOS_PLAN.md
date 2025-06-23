@@ -1,19 +1,19 @@
 # Phase 7: Scene Manipulation Gizmos - Plan & Implementation
 
 ## Phase Overview
-Implement Unity-style 3D manipulation gizmos in the Scene View to enable interactive transformation of objects along three axes (X, Y, Z). This will provide intuitive visual tools for moving, rotating, and scaling objects directly in the scene view, matching Unity and Unreal Engine workflows.
+Implement professional 3D manipulation gizmos in the Scene View to enable interactive transformation of objects along three axes (X, Y, Z). This will provide intuitive visual tools for moving, rotating, and scaling objects directly in the scene view, matching modern game engines Engine workflows.
 
 ## Research Foundation
 
-Based on Unity's official documentation and industry standards:
+Based on industry-standard official documentation and industry standards:
 
 ### Unity Move Tool Gizmo Design
 - **Color-coded axes**: Red (X), Green (Y), Blue (Z) 
 - **Interactive highlighting**: Selected axis turns yellow during manipulation
 - **Multiple movement modes**:
-  - Single-axis movement (drag individual arrows)
-  - Planar movement (drag colored squares for 2-axis movement)
-  - Screen-space movement (shift+drag center for camera-relative movement)
+ - Single-axis movement (drag individual arrows)
+ - Planar movement (drag colored squares for 2-axis movement)
+ - Screen-space movement (shift+drag center for camera-relative movement)
 - **Visual feedback**: Real-time position updates with snap-to-grid options
 
 ### Technical Implementation Requirements
@@ -47,11 +47,11 @@ Based on Unity's official documentation and industry standards:
 - Implement proper depth testing and occlusion handling
 
 ### Phase 7.2: Move Tool Implementation (30-45 minutes)
-**Objective**: Complete the move tool with full Unity-style functionality
+**Objective**: Complete the move tool with full professional functionality
 
 #### Task 7.2.1: Single-Axis Movement
 - Implement X-axis movement (red arrow) with constraint to X-only
-- Implement Y-axis movement (green arrow) with constraint to Y-only  
+- Implement Y-axis movement (green arrow) with constraint to Y-only 
 - Implement Z-axis movement (blue arrow) with constraint to Z-only
 - Add visual feedback and axis highlighting during drag
 
@@ -108,61 +108,61 @@ Based on Unity's official documentation and industry standards:
 ### Gizmo Rendering
 ```rust
 pub struct MoveGizmo {
-    position: Vec3,
-    scale: f32,           // Scale based on camera distance
-    selected_axis: Option<GizmoAxis>,
-    selected_plane: Option<GizmoPlane>,
-    interaction_state: GizmoInteractionState,
+  position: Vec3,
+  scale: f32,      // Scale based on camera distance
+  selected_axis: Option<GizmoAxis>,
+  selected_plane: Option<GizmoPlane>,
+  interaction_state: GizmoInteractionState,
 }
 
 pub enum GizmoAxis {
-    X, Y, Z
+  X, Y, Z
 }
 
 pub enum GizmoPlane {
-    XY, XZ, YZ
+  XY, XZ, YZ
 }
 
 pub enum GizmoInteractionState {
-    Idle,
-    Hovering(GizmoComponent),
-    Dragging(GizmoComponent, Vec3), // Component and start position
+  Idle,
+  Hovering(GizmoComponent),
+  Dragging(GizmoComponent, Vec3), // Component and start position
 }
 ```
 
 ### Mouse Interaction
 ```rust
 pub struct Ray {
-    origin: Vec3,
-    direction: Vec3,
+  origin: Vec3,
+  direction: Vec3,
 }
 
 pub fn screen_to_world_ray(mouse_pos: Vec2, camera: &Camera, viewport: &Viewport) -> Ray {
-    // Convert screen coordinates to world space ray
+  // Convert screen coordinates to world space ray
 }
 
 pub fn intersect_gizmo(ray: &Ray, gizmo: &MoveGizmo) -> Option<GizmoComponent> {
-    // Ray-intersection testing for gizmo components
+  // Ray-intersection testing for gizmo components
 }
 ```
 
 ### Transform Updates
 ```rust
 pub fn update_transform_from_gizmo_drag(
-    transform: &mut Transform,
-    drag_delta: Vec3,
-    constraint: MovementConstraint,
+  transform: &mut Transform,
+  drag_delta: Vec3,
+  constraint: MovementConstraint,
 ) {
-    match constraint {
-        MovementConstraint::XAxis => transform.position.x += drag_delta.x,
-        MovementConstraint::YAxis => transform.position.y += drag_delta.y,
-        MovementConstraint::ZAxis => transform.position.z += drag_delta.z,
-        MovementConstraint::XYPlane => {
-            transform.position.x += drag_delta.x;
-            transform.position.y += drag_delta.y;
-        }
-        // ... other constraints
+  match constraint {
+    MovementConstraint::XAxis => transform.position.x += drag_delta.x,
+    MovementConstraint::YAxis => transform.position.y += drag_delta.y,
+    MovementConstraint::ZAxis => transform.position.z += drag_delta.z,
+    MovementConstraint::XYPlane => {
+      transform.position.x += drag_delta.x;
+      transform.position.y += drag_delta.y;
     }
+    // ... other constraints
+  }
 }
 ```
 
@@ -170,7 +170,7 @@ pub fn update_transform_from_gizmo_drag(
 
 ### Color Scheme (Unity Standard)
 - **X-Axis**: Red (#FF0000) - Right/Left movement
-- **Y-Axis**: Green (#00FF00) - Up/Down movement  
+- **Y-Axis**: Green (#00FF00) - Up/Down movement 
 - **Z-Axis**: Blue (#0000FF) - Forward/Backward movement
 - **Selected/Hover**: Yellow (#FFFF00) - Active manipulation
 - **Inactive**: Gray (#808080) - Non-selected tools
@@ -216,7 +216,7 @@ pub fn update_transform_from_gizmo_drag(
 - All three axes support constrained movement
 - Planar movement works for all three planes
 - Screen-space movement functions with camera orientation
-- Visual feedback matches Unity standards
+- Visual feedback matches industry standards
 
 ### Phase 7.3 Complete When:
 - Tool selection integrates with toolbar and keyboard shortcuts
@@ -233,7 +233,7 @@ pub fn update_transform_from_gizmo_drag(
 ## Risk Mitigation
 1. **Mathematical Complexity**: Use proven ray-intersection algorithms and test thoroughly
 2. **Performance Impact**: Profile early and optimize rendering pipeline
-3. **User Experience**: Follow Unity conventions closely for familiar workflow
+3. **User Experience**: Follow industry conventions closely for familiar workflow
 4. **Integration Issues**: Design modular system that can be disabled/enabled
 
 ## Next Steps After Completion

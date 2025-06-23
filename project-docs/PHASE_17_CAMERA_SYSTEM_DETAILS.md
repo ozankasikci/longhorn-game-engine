@@ -4,21 +4,21 @@
 
 ### Existing Camera Implementation
 1. **Location**: `engine-renderer-3d/src/camera.rs`
-   - Basic Camera struct with position, target, up vectors
-   - Simple view/projection matrix calculations
-   - Limited to look-at style camera
+  - Basic Camera struct with position, target, up vectors
+  - Simple view/projection matrix calculations
+  - Limited to look-at style camera
 
 2. **Editor Integration**: `engine-editor-egui/src/panels/scene_view/`
-   - Camera movement in `camera_movement.rs`
-   - Navigation in `navigation.rs`
-   - Currently tightly coupled to editor
+  - Camera movement in `camera_movement.rs`
+  - Navigation in `navigation.rs`
+  - Currently tightly coupled to editor
 
 3. **Issues**:
-   - No proper camera component in ECS
-   - Camera logic mixed with renderer
-   - Limited camera types (only perspective)
-   - No frustum culling implementation
-   - Editor camera and game camera not properly separated
+  - No proper camera component in ECS
+  - Camera logic mixed with renderer
+  - Limited camera types (only perspective)
+  - No frustum culling implementation
+  - Editor camera and game camera not properly separated
 
 ## Implementation Strategy
 
@@ -26,21 +26,21 @@
 ```rust
 // Proper view matrix calculation
 pub fn calculate_view_matrix(position: Vec3, rotation: Quat) -> Mat4 {
-    let forward = rotation * Vec3::Z;
-    let right = rotation * Vec3::X;
-    let up = rotation * Vec3::Y;
-    
-    Mat4::look_at_rh(position, position + forward, up)
+  let forward = rotation * Vec3::Z;
+  let right = rotation * Vec3::X;
+  let up = rotation * Vec3::Y;
+  
+  Mat4::look_at_rh(position, position + forward, up)
 }
 
 // Perspective projection with proper parameters
 pub fn calculate_projection_matrix(
-    fov_radians: f32,
-    aspect_ratio: f32,
-    near_plane: f32,
-    far_plane: f32
+  fov_radians: f32,
+  aspect_ratio: f32,
+  near_plane: f32,
+  far_plane: f32
 ) -> Mat4 {
-    Mat4::perspective_rh(fov_radians, aspect_ratio, near_plane, far_plane)
+  Mat4::perspective_rh(fov_radians, aspect_ratio, near_plane, far_plane)
 }
 ```
 
@@ -49,24 +49,24 @@ pub fn calculate_projection_matrix(
 // In engine-components-3d
 #[derive(Component)]
 pub struct Camera {
-    pub projection_type: ProjectionType,
-    pub fov_degrees: f32,
-    pub aspect_ratio: f32,
-    pub near_plane: f32,
-    pub far_plane: f32,
-    pub orthographic_size: f32,
-    pub viewport: Viewport,
-    pub render_target: Option<RenderTargetId>,
-    pub priority: i32,
-    pub active: bool,
+  pub projection_type: ProjectionType,
+  pub fov_degrees: f32,
+  pub aspect_ratio: f32,
+  pub near_plane: f32,
+  pub far_plane: f32,
+  pub orthographic_size: f32,
+  pub viewport: Viewport,
+  pub render_target: Option<RenderTargetId>,
+  pub priority: i32,
+  pub active: bool,
 }
 
 #[derive(Component)]
 pub struct MainCamera; // Tag component
 
 pub enum ProjectionType {
-    Perspective,
-    Orthographic,
+  Perspective,
+  Orthographic,
 }
 ```
 
@@ -74,71 +74,71 @@ pub enum ProjectionType {
 ```rust
 // In engine-camera-impl
 pub trait CameraController: Send + Sync {
-    fn update(
-        &mut self,
-        transform: &mut Transform,
-        input: &InputState,
-        delta_time: f32
-    );
-    
-    fn get_config(&self) -> CameraControllerConfig;
+  fn update(
+    &mut self,
+    transform: &mut Transform,
+    input: &InputState,
+    delta_time: f32
+  );
+  
+  fn get_config(&self) -> CameraControllerConfig;
 }
 
 pub struct FPSCameraController {
-    pub mouse_sensitivity: f32,
-    pub movement_speed: f32,
-    pub sprint_multiplier: f32,
-    pub smoothing: f32,
+  pub mouse_sensitivity: f32,
+  pub movement_speed: f32,
+  pub sprint_multiplier: f32,
+  pub smoothing: f32,
 }
 
 pub struct OrbitCameraController {
-    pub target: Vec3,
-    pub distance: f32,
-    pub min_distance: f32,
-    pub max_distance: f32,
-    pub rotation_speed: f32,
+  pub target: Vec3,
+  pub distance: f32,
+  pub min_distance: f32,
+  pub max_distance: f32,
+  pub rotation_speed: f32,
 }
 ```
 
 ### 4. Frustum Culling Implementation
 ```rust
 pub struct Frustum {
-    planes: [FrustumPlane; 6],
+  planes: [FrustumPlane; 6],
 }
 
 impl Frustum {
-    pub fn from_view_projection(vp_matrix: &Mat4) -> Self {
-        // Extract planes from VP matrix
-        let planes = [
-            extract_left_plane(vp_matrix),
-            extract_right_plane(vp_matrix),
-            extract_bottom_plane(vp_matrix),
-            extract_top_plane(vp_matrix),
-            extract_near_plane(vp_matrix),
-            extract_far_plane(vp_matrix),
-        ];
-        
-        Self { planes }
-    }
+  pub fn from_view_projection(vp_matrix: &Mat4) -> Self {
+    // Extract planes from VP matrix
+    let planes = [
+      extract_left_plane(vp_matrix),
+      extract_right_plane(vp_matrix),
+      extract_bottom_plane(vp_matrix),
+      extract_top_plane(vp_matrix),
+      extract_near_plane(vp_matrix),
+      extract_far_plane(vp_matrix),
+    ];
     
-    pub fn test_sphere(&self, center: Vec3, radius: f32) -> bool {
-        for plane in &self.planes {
-            if plane.distance_to_point(center) < -radius {
-                return false;
-            }
-        }
-        true
+    Self { planes }
+  }
+  
+  pub fn test_sphere(&self, center: Vec3, radius: f32) -> bool {
+    for plane in &self.planes {
+      if plane.distance_to_point(center) < -radius {
+        return false;
+      }
     }
-    
-    pub fn test_aabb(&self, aabb: &AABB) -> bool {
-        // Optimized AABB test
-        for plane in &self.planes {
-            if plane.distance_to_aabb(aabb) < 0.0 {
-                return false;
-            }
-        }
-        true
+    true
+  }
+  
+  pub fn test_aabb(&self, aabb: &AABB) -> bool {
+    // Optimized AABB test
+    for plane in &self.planes {
+      if plane.distance_to_aabb(aabb) < 0.0 {
+        return false;
+      }
     }
+    true
+  }
 }
 ```
 
@@ -147,54 +147,54 @@ impl Frustum {
 #### Camera System (runs each frame)
 ```rust
 pub fn camera_system(world: &World) {
-    // Find active cameras
-    let cameras = world.query::<(&Camera, &Transform)>()
-        .filter(|(camera, _)| camera.active)
-        .sorted_by_key(|(camera, _)| -camera.priority);
+  // Find active cameras
+  let cameras = world.query::<(&Camera, &Transform)>()
+    .filter(|(camera, _)| camera.active)
+    .sorted_by_key(|(camera, _)| -camera.priority);
+  
+  // Update view and projection matrices
+  for (entity, (camera, transform)) in cameras {
+    let view_matrix = calculate_view_matrix(
+      transform.position,
+      transform.rotation
+    );
     
-    // Update view and projection matrices
-    for (entity, (camera, transform)) in cameras {
-        let view_matrix = calculate_view_matrix(
-            transform.position,
-            transform.rotation
-        );
-        
-        let projection_matrix = match camera.projection_type {
-            ProjectionType::Perspective => {
-                calculate_perspective_matrix(camera)
-            }
-            ProjectionType::Orthographic => {
-                calculate_orthographic_matrix(camera)
-            }
-        };
-        
-        // Store matrices for renderer
-        world.add_component(entity, ViewMatrix(view_matrix));
-        world.add_component(entity, ProjectionMatrix(projection_matrix));
-    }
+    let projection_matrix = match camera.projection_type {
+      ProjectionType::Perspective => {
+        calculate_perspective_matrix(camera)
+      }
+      ProjectionType::Orthographic => {
+        calculate_orthographic_matrix(camera)
+      }
+    };
+    
+    // Store matrices for renderer
+    world.add_component(entity, ViewMatrix(view_matrix));
+    world.add_component(entity, ProjectionMatrix(projection_matrix));
+  }
 }
 ```
 
 #### Culling System (before rendering)
 ```rust
 pub fn frustum_culling_system(
-    world: &World,
-    render_queue: &mut RenderQueue
+  world: &World,
+  render_queue: &mut RenderQueue
 ) {
-    // Get main camera frustum
-    if let Some((_, (view, proj))) = world.query::<(&MainCamera, &ViewMatrix, &ProjectionMatrix)>().next() {
-        let vp_matrix = proj.0 * view.0;
-        let frustum = Frustum::from_view_projection(&vp_matrix);
-        
-        // Cull objects
-        for (entity, (transform, bounds)) in world.query::<(&Transform, &Bounds)>() {
-            let world_bounds = bounds.transform(transform);
-            
-            if frustum.test_aabb(&world_bounds) {
-                render_queue.add_visible(entity);
-            }
-        }
+  // Get main camera frustum
+  if let Some((_, (view, proj))) = world.query::<(&MainCamera, &ViewMatrix, &ProjectionMatrix)>().next() {
+    let vp_matrix = proj.0 * view.0;
+    let frustum = Frustum::from_view_projection(&vp_matrix);
+    
+    // Cull objects
+    for (entity, (transform, bounds)) in world.query::<(&Transform, &Bounds)>() {
+      let world_bounds = bounds.transform(transform);
+      
+      if frustum.test_aabb(&world_bounds) {
+        render_queue.add_visible(entity);
+      }
     }
+  }
 }
 ```
 

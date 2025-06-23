@@ -1,7 +1,7 @@
 # Phase 8: Scene Navigation Controls - Progress Tracker
 
 ## Phase Overview
-Implementing Unity/Unreal Engine style scene camera navigation using right-click + WASD controls for professional scene editing workflow.
+Implementing modern engines Engine style scene camera navigation using right-click + WASD controls for professional scene editing workflow.
 
 ## Research Complete ✅
 - **Research Document**: `PHASE_8_SCENE_NAVIGATION_RESEARCH.md`
@@ -18,7 +18,7 @@ Implementing Unity/Unreal Engine style scene camera navigation using right-click
 **Implementation**: Added `SceneNavigation` struct with configuration
 - Added navigation state tracking to `UnityEditor`
 - Configured movement speed, rotation sensitivity, fast movement multiplier
-- Initialized with Unity-like defaults (5.0 units/sec, 0.002 sensitivity)
+- Initialized with professional defaults (5.0 units/sec, 0.002 sensitivity)
 - Added scene camera transform separate from game camera
 
 #### Task 8.1.2: Right Mouse Button Detection ✅
@@ -75,7 +75,7 @@ Implementing Unity/Unreal Engine style scene camera navigation using right-click
 - Scene navigation camera separate from game camera
 - Navigation state persists between sessions
 - Input priority system prevents conflicts
-- Professional Unity/Unreal level responsiveness achieved
+- Professional modern engines level responsiveness achieved
 
 ## Current Implementation Details
 
@@ -107,7 +107,7 @@ Implementing Unity/Unreal Engine style scene camera navigation using right-click
 
 ### Phase 8.3 Success Indicators: ✅ COMPLETED
 - ✅ No conflicts between navigation and gizmo interaction
-- ✅ Professional Unity/Unreal level responsiveness
+- ✅ Professional modern engines level responsiveness
 - ✅ Smooth integration with existing editor workflow
 - ✅ Visual feedback for navigation state
 
@@ -116,22 +116,22 @@ Implementing Unity/Unreal Engine style scene camera navigation using right-click
 ### Current Scene View Structure
 ```rust
 fn show_scene_view(&mut self, ui: &mut egui::Ui) {
-    // Existing toolbar and view switching
-    // Scene content rendering
-    // Gizmo and input handling ← Navigation integration point
+  // Existing toolbar and view switching
+  // Scene content rendering
+  // Gizmo and input handling ← Navigation integration point
 }
 ```
 
 ### Planned Navigation Structure
 ```rust
 struct SceneNavigation {
-    enabled: bool,
-    is_navigating: bool,
-    movement_speed: f32,
-    rotation_sensitivity: f32,
-    fast_movement_multiplier: f32,
-    last_mouse_pos: Option<egui::Pos2>,
-    scene_camera_transform: Transform,
+  enabled: bool,
+  is_navigating: bool,
+  movement_speed: f32,
+  rotation_sensitivity: f32,
+  fast_movement_multiplier: f32,
+  last_mouse_pos: Option<egui::Pos2>,
+  scene_camera_transform: Transform,
 }
 ```
 
@@ -139,14 +139,14 @@ struct SceneNavigation {
 
 ### Technical Risks
 1. **Input Conflicts**: Navigation vs gizmo interaction
-   - Mitigation: Clear priority system and state management
+  - Mitigation: Clear priority system and state management
 2. **Performance Impact**: Camera calculations during rapid movement
-   - Mitigation: Efficient math operations and delta time usage
+  - Mitigation: Efficient math operations and delta time usage
 3. **State Management**: Complex transitions between navigation modes
-   - Mitigation: Simple state machine with clear entry/exit conditions
+  - Mitigation: Simple state machine with clear entry/exit conditions
 
 ### Mitigation Strategies
-- Follow Unity/Unreal patterns exactly for familiar user experience
+- Follow modern engines patterns exactly for familiar user experience
 - Implement input priority system to prevent conflicts
 - Use efficient vector math and minimize allocations
 - Test with rapid input switching and edge cases
@@ -155,7 +155,7 @@ struct SceneNavigation {
 
 **Ready to begin Phase 8.1.1 - Navigation State Management**
 
-This will establish the foundation for Unity/Unreal style scene navigation and provide the professional editing experience expected in modern game engines.
+This will establish the foundation for modern engines style scene navigation and provide the professional editing experience expected in modern game engines.
 
 ## Integration Notes
 

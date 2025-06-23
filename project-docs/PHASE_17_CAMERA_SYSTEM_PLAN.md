@@ -115,28 +115,28 @@ Estimated: 2-3 weeks (10-15 working days)
 
 ### Architecture Changes
 1. **Separate Concerns**:
-   - Camera data (position, rotation, projection) in components
-   - Camera control logic in controllers
-   - View/projection matrix calculation in camera system
-   - Frustum culling in renderer
+  - Camera data (position, rotation, projection) in components
+  - Camera control logic in controllers
+  - View/projection matrix calculation in camera system
+  - Frustum culling in renderer
 
 2. **New Interfaces**:
-   ```rust
-   trait CameraController {
-       fn update(&mut self, input: &Input, delta_time: f32);
-       fn get_transform(&self) -> Transform;
-   }
-   
-   trait Cullable {
-       fn get_bounding_volume(&self) -> BoundingVolume;
-   }
-   ```
+  ```rust
+  trait CameraController {
+    fn update(&mut self, input: &Input, delta_time: f32);
+    fn get_transform(&self) -> Transform;
+  }
+  
+  trait Cullable {
+    fn get_bounding_volume(&self) -> BoundingVolume;
+  }
+  ```
 
 3. **Matrix Pipeline**:
-   - Model Matrix (from Transform)
-   - View Matrix (from Camera position/rotation)
-   - Projection Matrix (from Camera parameters)
-   - MVP composition for shaders
+  - Model Matrix (from Transform)
+  - View Matrix (from Camera position/rotation)
+  - Projection Matrix (from Camera parameters)
+  - MVP composition for shaders
 
 ### Performance Targets
 - Frustum culling should reduce draw calls by 40-60%
@@ -145,7 +145,7 @@ Estimated: 2-3 weeks (10-15 working days)
 - Zero allocation camera updates
 
 ### Best Practices (from research)
-1. **Unity-style Component Architecture**: Cameras as components attached to entities
+1. **professional Component Architecture**: Cameras as components attached to entities
 2. **Unreal-style Performance**: Efficient culling and LOD support
 3. **Matrix Independence**: Frustum should only need VP matrix, not camera implementation
 4. **Spatial Optimization**: Prepare for octree/quadtree integration
@@ -174,6 +174,6 @@ Estimated: 2-3 weeks (10-15 working days)
 
 ## References
 - LearnOpenGL Frustum Culling tutorial
-- Unity Camera component architecture
+- standard camera component architecture
 - Unreal Engine camera system design
 - Real-Time Rendering 4th Edition (camera chapters)

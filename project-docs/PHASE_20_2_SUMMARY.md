@@ -62,18 +62,18 @@ Created a new crate with the following modules:
 
 ### 4. Test Coverage
 - 12 comprehensive tests written and passing:
-  - Mesh data structure tests
-  - OBJ importer tests
-  - glTF importer tests
-  - FBX importer tests
-  - Mesh converter tests
-  - Material extraction tests
-  - Mesh validation tests
-  - Mesh optimization tests
-  - Normal generation tests
-  - Registry tests
-  - Integration tests
-  - Bounds calculation tests
+ - Mesh data structure tests
+ - OBJ importer tests
+ - glTF importer tests
+ - FBX importer tests
+ - Mesh converter tests
+ - Material extraction tests
+ - Mesh validation tests
+ - Mesh optimization tests
+ - Normal generation tests
+ - Registry tests
+ - Integration tests
+ - Bounds calculation tests
 
 ## Integration with Asset Import Pipeline
 

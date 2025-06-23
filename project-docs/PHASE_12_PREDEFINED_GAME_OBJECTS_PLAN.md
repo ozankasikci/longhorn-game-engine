@@ -1,11 +1,11 @@
 # Phase 12: Predefined Game Objects with Mesh and Material System
 
 ## Overview
-This phase focuses on implementing Unity-style predefined game objects (starting with Cube) using a proper component-based mesh and material rendering system. We'll establish the foundation for how mesh data, rendering properties, and materials work together in the Longhorn Game Engine.
+This phase focuses on implementing professional predefined game objects (starting with Cube) using a proper component-based mesh and material rendering system. We'll establish the foundation for how mesh data, rendering properties, and materials work together in the Longhorn Game Engine.
 
 ## Research Summary
 
-### Unity's Architecture
+### industry-standard Architecture
 Unity separates mesh handling into two components:
 - **MeshFilter**: Holds reference to mesh data (geometry, vertices, indices)
 - **MeshRenderer**: Handles rendering properties and material assignments
@@ -28,35 +28,35 @@ This separation follows the Single Responsibility Principle and allows:
 ```rust
 // Core trait for mesh data providers
 trait MeshProvider {
-    fn get_mesh_data(&self) -> MeshData;
+  fn get_mesh_data(&self) -> MeshData;
 }
 
-// Component that holds mesh reference (like Unity's MeshFilter)
+// Component that holds mesh reference (like industry-standard MeshFilter)
 struct MeshFilter {
-    mesh: MeshHandle,  // Reference to mesh asset
+  mesh: MeshHandle, // Reference to mesh asset
 }
 
-// Component that handles rendering (like Unity's MeshRenderer)
+// Component that handles rendering (like industry-standard MeshRenderer)
 struct MeshRenderer {
-    materials: Vec<MaterialHandle>,  // Materials for each submesh
-    cast_shadows: bool,
-    receive_shadows: bool,
-    layer_mask: u32,
+  materials: Vec<MaterialHandle>, // Materials for each submesh
+  cast_shadows: bool,
+  receive_shadows: bool,
+  layer_mask: u32,
 }
 
 // Actual mesh data (stored in resource system)
 struct MeshData {
-    vertices: Vec<Vertex>,
-    indices: Vec<u32>,
-    submeshes: Vec<SubMesh>,
-    bounds: AABB,
+  vertices: Vec<Vertex>,
+  indices: Vec<u32>,
+  submeshes: Vec<SubMesh>,
+  bounds: AABB,
 }
 
 // Material definition
 struct Material {
-    shader: ShaderHandle,
-    properties: MaterialProperties,
-    render_state: RenderState,
+  shader: ShaderHandle,
+  properties: MaterialProperties,
+  render_state: RenderState,
 }
 ```
 
@@ -65,17 +65,17 @@ struct Material {
 ```rust
 // Factory for creating predefined game objects
 impl GameObjectFactory {
-    pub fn create_cube(world: &mut World, position: Vec3, size: f32) -> Entity {
-        let entity = world.spawn();
-        
-        // Add required components
-        world.add_component(entity, Transform::new(position));
-        world.add_component(entity, MeshFilter::new(MeshLibrary::CUBE));
-        world.add_component(entity, MeshRenderer::default());
-        world.add_component(entity, Name::new("Cube"));
-        
-        entity
-    }
+  pub fn create_cube(world: &mut World, position: Vec3, size: f32) -> Entity {
+    let entity = world.spawn();
+    
+    // Add required components
+    world.add_component(entity, Transform::new(position));
+    world.add_component(entity, MeshFilter::new(MeshLibrary::CUBE));
+    world.add_component(entity, MeshRenderer::default());
+    world.add_component(entity, Name::new("Cube"));
+    
+    entity
+  }
 }
 ```
 
@@ -96,11 +96,11 @@ impl GameObjectFactory {
 ### Phase 12.3: Mesh Library and Primitives (2-3 hours)
 1. Create `MeshLibrary` with predefined meshes
 2. Implement procedural mesh generation for:
-   - Cube
-   - Sphere
-   - Plane
-   - Cylinder
-   - Capsule
+  - Cube
+  - Sphere
+  - Plane
+  - Cylinder
+  - Capsule
 3. Store generated meshes in resource system
 
 ### Phase 12.4: Game Object Factory (1-2 hours)
@@ -124,7 +124,7 @@ impl GameObjectFactory {
 ## Technical Decisions
 
 ### 1. Component Separation
-**Decision**: Follow Unity's pattern of separate MeshFilter and MeshRenderer
+**Decision**: Follow industry-standard pattern of separate MeshFilter and MeshRenderer
 **Rationale**: 
 - Clean separation of concerns
 - Allows mesh sharing between objects

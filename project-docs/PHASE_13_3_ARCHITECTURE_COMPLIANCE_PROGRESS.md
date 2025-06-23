@@ -7,17 +7,17 @@ Fix violations of the 4-tier architecture by moving implementation details out o
 
 ### Core Crates with Implementation Details
 1. **engine-camera-core**
-   - `optimization.rs` (522 lines) - Should be in impl
-   - `culling.rs` - Contains implementation, not just traits
+  - `optimization.rs` (522 lines) - Should be in impl
+  - `culling.rs` - Contains implementation, not just traits
 
 2. **engine-resource-core**
-   - `cache.rs` (502 lines) - Caching is implementation
-   - `metadata.rs` (625 lines) - Too detailed for core
-   - `loader.rs` (463 lines) - Loading logic is implementation
+  - `cache.rs` (502 lines) - Caching is implementation
+  - `metadata.rs` (625 lines) - Too detailed for core
+  - `loader.rs` (463 lines) - Loading logic is implementation
 
 3. **engine-geometry-core**
-   - `mesh.rs` (918 lines) - Too much implementation
-   - `bounds.rs` (464 lines) - Complex calculations
+  - `mesh.rs` (918 lines) - Too much implementation
+  - `bounds.rs` (464 lines) - Complex calculations
 
 ## New Crates to Create
 
@@ -27,18 +27,18 @@ crates/implementation/engine-resource-impl/
 ├── Cargo.toml
 ├── README.md
 ├── src/
-│   ├── lib.rs
-│   ├── cache/
-│   │   ├── mod.rs
-│   │   ├── memory_cache.rs
-│   │   └── disk_cache.rs
-│   ├── loader/
-│   │   ├── mod.rs
-│   │   ├── async_loader.rs
-│   │   └── sync_loader.rs
-│   └── metadata/
-│       ├── mod.rs
-│       └── metadata_store.rs
+│  ├── lib.rs
+│  ├── cache/
+│  │  ├── mod.rs
+│  │  ├── memory_cache.rs
+│  │  └── disk_cache.rs
+│  ├── loader/
+│  │  ├── mod.rs
+│  │  ├── async_loader.rs
+│  │  └── sync_loader.rs
+│  └── metadata/
+│    ├── mod.rs
+│    └── metadata_store.rs
 ```
 
 ### engine-math-impl
@@ -47,16 +47,16 @@ crates/implementation/engine-math-impl/
 ├── Cargo.toml
 ├── README.md
 ├── src/
-│   ├── lib.rs
-│   ├── simd/
-│   │   ├── mod.rs
-│   │   └── operations.rs
-│   ├── geometry/
-│   │   ├── mod.rs
-│   │   └── algorithms.rs
-│   └── interpolation/
-│       ├── mod.rs
-│       └── curves.rs
+│  ├── lib.rs
+│  ├── simd/
+│  │  ├── mod.rs
+│  │  └── operations.rs
+│  ├── geometry/
+│  │  ├── mod.rs
+│  │  └── algorithms.rs
+│  └── interpolation/
+│    ├── mod.rs
+│    └── curves.rs
 ```
 
 ## Tasks Checklist

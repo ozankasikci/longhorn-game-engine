@@ -12,14 +12,14 @@ Added an explicit check for movement keys before applying any movement:
 ```rust
 // Check if any movement keys are actually pressed
 let any_movement_key = ui.input(|i| {
-    i.key_down(egui::Key::W) || i.key_down(egui::Key::A) || 
-    i.key_down(egui::Key::S) || i.key_down(egui::Key::D) ||
-    i.key_down(egui::Key::Q) || i.key_down(egui::Key::E)
+  i.key_down(egui::Key::W) || i.key_down(egui::Key::A) || 
+  i.key_down(egui::Key::S) || i.key_down(egui::Key::D) ||
+  i.key_down(egui::Key::Q) || i.key_down(egui::Key::E)
 });
 
 if !any_movement_key {
-    // No movement keys pressed, don't move
-    return messages;
+  // No movement keys pressed, don't move
+  return messages;
 }
 ```
 
@@ -32,7 +32,7 @@ if !any_movement_key {
 - Right-click and drag now ONLY rotates the camera
 - Camera position remains constant during rotation
 - Movement only occurs when WASD/QE keys are actually pressed
-- Behavior now matches Unity's scene navigation
+- Behavior now matches industry-standard scene navigation
 
 ## Testing
 To verify the fix:

@@ -15,14 +15,14 @@ Comprehensive cleanup and reorganization of the core folder structure to elimina
 ### Current Problematic Structure
 ```
 crates/core/
-├── engine-audio-core/          # UNUSED - No references found
-├── engine-camera-core/         # Camera system #1
-├── engine-ecs-core/           # BLOATED - ECS + math + components + editor state
-├── engine-geometry-core/       # OK - Pure geometric data
-├── engine-materials-core/      # OK - Material definitions
-├── engine-physics-core/        # UNUSED - No references found
-├── engine-renderer-core/       # MINIMAL - Mostly empty traits
-└── engine-scene-core/         # Camera system #2 + scene hierarchy
+├── engine-audio-core/     # UNUSED - No references found
+├── engine-camera-core/     # Camera system #1
+├── engine-ecs-core/      # BLOATED - ECS + math + components + editor state
+├── engine-geometry-core/    # OK - Pure geometric data
+├── engine-materials-core/   # OK - Material definitions
+├── engine-physics-core/    # UNUSED - No references found
+├── engine-renderer-core/    # MINIMAL - Mostly empty traits
+└── engine-scene-core/     # Camera system #2 + scene hierarchy
 ```
 
 ## Implementation Plan
@@ -53,9 +53,9 @@ crates/core/
 
 #### Task 9.2.1: Analyze Camera Implementations (30 minutes)
 - Document camera features in each system:
-  - engine-camera-core: Viewport, projection, culling, optimization
-  - engine-scene-core: Basic camera component
-  - engine-ecs-core: Camera, Camera2D components
+ - engine-camera-core: Viewport, projection, culling, optimization
+ - engine-scene-core: Basic camera component
+ - engine-ecs-core: Camera, Camera2D components
 - Identify best features from each
 
 #### Task 9.2.2: Merge Camera Systems (90 minutes)
@@ -107,22 +107,22 @@ crates/core/
 ### New Clean Core Structure
 ```
 crates/core/
-├── engine-math-core/          # Mathematical utilities (NEW)
-├── engine-entity-core/        # Pure ECS systems (RENAMED/CLEANED)
-├── engine-components-core/    # Standard game components (NEW)
-├── engine-camera-core/        # Unified camera system (CONSOLIDATED)
-├── engine-geometry-core/      # Pure geometric data (UNCHANGED)
-├── engine-materials-core/     # Material definitions (UNCHANGED)
-└── engine-scene-core/         # Scene hierarchy only (CLEANED)
+├── engine-math-core/     # Mathematical utilities (NEW)
+├── engine-entity-core/    # Pure ECS systems (RENAMED/CLEANED)
+├── engine-components-core/  # Standard game components (NEW)
+├── engine-camera-core/    # Unified camera system (CONSOLIDATED)
+├── engine-geometry-core/   # Pure geometric data (UNCHANGED)
+├── engine-materials-core/   # Material definitions (UNCHANGED)
+└── engine-scene-core/     # Scene hierarchy only (CLEANED)
 ```
 
 ### Moved to Application Tier
 ```
 crates/application/engine-editor-egui/
 └── src/
-    ├── main.rs
-    ├── editor_state.rs       # EditorState, GameObject, ConsoleMessage (MOVED)
-    └── ...
+  ├── main.rs
+  ├── editor_state.rs    # EditorState, GameObject, ConsoleMessage (MOVED)
+  └── ...
 ```
 
 ## Success Criteria
@@ -172,11 +172,11 @@ crates/application/engine-editor-egui/
 
 ### Technical Risks
 1. **Import Breakage**: Moving code will break existing imports
-   - Mitigation: Systematic import updates and testing after each phase
+  - Mitigation: Systematic import updates and testing after each phase
 2. **Camera System Conflicts**: Merging camera systems may lose functionality
-   - Mitigation: Careful analysis and feature preservation
+  - Mitigation: Careful analysis and feature preservation
 3. **Transform Compatibility**: Standardizing Transform may break ECS integration
-   - Mitigation: Ensure new Transform implements both Component traits
+  - Mitigation: Ensure new Transform implements both Component traits
 
 ### Mitigation Strategies
 - Work in phases with testing after each phase

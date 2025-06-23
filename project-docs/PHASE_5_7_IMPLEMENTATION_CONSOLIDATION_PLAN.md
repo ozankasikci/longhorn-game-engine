@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**Phase:** 5.7 - Implementation Layer Consolidation  
-**Timeline:** 30-45 minutes  
-**Objective:** Remove implementation layer duplication by consolidating into core crates  
+**Phase:** 5.7 - Implementation Layer Consolidation 
+**Timeline:** 30-45 minutes 
+**Objective:** Remove implementation layer duplication by consolidating into core crates 
 **Priority:** High - Eliminates architectural redundancy and simplifies the codebase
 
 ---
@@ -21,19 +21,19 @@
 
 **DUPLICATED (Can be consolidated):**
 ```
-core/engine-audio-core/     ←→ implementation/engine-audio/
-core/engine-camera-core/    ←→ implementation/engine-camera/  
-core/engine-physics-core/   ←→ implementation/engine-physics/
+core/engine-audio-core/   ←→ implementation/engine-audio/
+core/engine-camera-core/  ←→ implementation/engine-camera/ 
+core/engine-physics-core/  ←→ implementation/engine-physics/
 ```
 
 **UNIQUE IMPLEMENTATION CRATES (Keep as core):**
 ```
-implementation/engine-assets/        → Move to core/
-implementation/engine-input/         → Move to core/
-implementation/engine-platform/     → Move to core/
+implementation/engine-assets/    → Move to core/
+implementation/engine-input/     → Move to core/
+implementation/engine-platform/   → Move to core/
 implementation/engine-renderer-wgpu/ → Move to core/ (rename to engine-renderer/)
-implementation/engine-scripting/     → Move to core/
-implementation/engine-ui/            → Move to core/
+implementation/engine-scripting/   → Move to core/
+implementation/engine-ui/      → Move to core/
 ```
 
 **ANALYSIS SUMMARY:**
@@ -48,26 +48,26 @@ implementation/engine-ui/            → Move to core/
 ### **Simplified Target Structure:**
 ```
 crates/
-├── core/                    # Tier 1: All core functionality (consolidated)
-│   ├── engine-audio/        # Consolidated audio (merge audio-core + audio)
-│   ├── engine-camera/       # Consolidated camera (merge camera-core + camera)
-│   ├── engine-physics/      # Consolidated physics (merge physics-core + physics)
-│   ├── engine-ecs/          # Renamed from engine-ecs-core
-│   ├── engine-geometry/     # Renamed from engine-geometry-core  
-│   ├── engine-materials/    # Renamed from engine-materials-core
-│   ├── engine-scene/        # Renamed from engine-scene-core
-│   ├── engine-renderer/     # Renamed from engine-renderer-core
-│   ├── engine-assets/       # Moved from implementation
-│   ├── engine-input/        # Moved from implementation
-│   ├── engine-platform/     # Moved from implementation
-│   ├── engine-scripting/    # Moved from implementation
-│   └── engine-ui/           # Moved from implementation
+├── core/          # Tier 1: All core functionality (consolidated)
+│  ├── engine-audio/    # Consolidated audio (merge audio-core + audio)
+│  ├── engine-camera/    # Consolidated camera (merge camera-core + camera)
+│  ├── engine-physics/   # Consolidated physics (merge physics-core + physics)
+│  ├── engine-ecs/     # Renamed from engine-ecs-core
+│  ├── engine-geometry/   # Renamed from engine-geometry-core 
+│  ├── engine-materials/  # Renamed from engine-materials-core
+│  ├── engine-scene/    # Renamed from engine-scene-core
+│  ├── engine-renderer/   # Renamed from engine-renderer-core
+│  ├── engine-assets/    # Moved from implementation
+│  ├── engine-input/    # Moved from implementation
+│  ├── engine-platform/   # Moved from implementation
+│  ├── engine-scripting/  # Moved from implementation
+│  └── engine-ui/      # Moved from implementation
 │
-├── integration/             # Tier 2: System integration
-│   └── engine-runtime/
+├── integration/       # Tier 2: System integration
+│  └── engine-runtime/
 │
-└── application/             # Tier 3: End-user applications
-    └── engine-editor-egui/
+└── application/       # Tier 3: End-user applications
+  └── engine-editor-egui/
 ```
 
 ---
@@ -200,8 +200,8 @@ For each duplicated pair (audio, camera, physics):
 - [ ] Workspace compiles successfully
 - [ ] 3-tier architecture established (core → integration → application)
 
-**Timeline:** 30-45 minutes  
-**Dependencies:** Completed Phase 5.6  
+**Timeline:** 30-45 minutes 
+**Dependencies:** Completed Phase 5.6 
 **Next Phase:** 6.0 - Feature Development
 
 ---
@@ -212,9 +212,9 @@ After completion, the workspace will have a clean 3-tier architecture:
 
 ```
 crates/
-├── core/           # 13 consolidated core crates (all functionality)
-├── integration/    # 1 system integration crate
-└── application/    # 1 end-user application crate
+├── core/      # 13 consolidated core crates (all functionality)
+├── integration/  # 1 system integration crate
+└── application/  # 1 end-user application crate
 ```
 
 This provides a much simpler, more maintainable foundation with no duplication and clear separation of concerns between domain logic (core), system integration, and applications.

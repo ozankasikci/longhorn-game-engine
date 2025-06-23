@@ -210,23 +210,23 @@ This report analyzes the current graphics pipeline and camera system in the mobi
 
 ```rust
 pub struct MultiCameraRenderer {
-    // Core wgpu resources
-    device: Device,
-    queue: Queue,
-    surface: Surface,
-    
-    // Render targets
-    surface_config: SurfaceConfiguration,
-    texture_targets: HashMap<u64, TextureRenderTarget>,
-    depth_buffers: HashMap<u64, Texture>,
-    
-    // Camera management
-    active_cameras: Vec<Entity>,
-    camera_uniforms: HashMap<Entity, Buffer>,
-    
-    // Rendering pipeline
-    render_pipeline: RenderPipeline,
-    // ... existing fields
+  // Core wgpu resources
+  device: Device,
+  queue: Queue,
+  surface: Surface,
+  
+  // Render targets
+  surface_config: SurfaceConfiguration,
+  texture_targets: HashMap<u64, TextureRenderTarget>,
+  depth_buffers: HashMap<u64, Texture>,
+  
+  // Camera management
+  active_cameras: Vec<Entity>,
+  camera_uniforms: HashMap<Entity, Buffer>,
+  
+  // Rendering pipeline
+  render_pipeline: RenderPipeline,
+  // ... existing fields
 }
 ```
 
@@ -234,14 +234,14 @@ pub struct MultiCameraRenderer {
 
 ```rust
 pub enum RenderTarget {
-    Surface, // Main screen surface
-    Texture { handle: u64, size: (u32, u32) },
+  Surface, // Main screen surface
+  Texture { handle: u64, size: (u32, u32) },
 }
 
 pub struct TextureRenderTarget {
-    texture: Texture,
-    view: TextureView,
-    size: (u32, u32),
+  texture: Texture,
+  view: TextureView,
+  size: (u32, u32),
 }
 ```
 
@@ -249,42 +249,42 @@ pub struct TextureRenderTarget {
 
 ```rust
 impl MultiCameraRenderer {
-    pub fn render(&mut self, world: &World) -> Result<(), RenderError> {
-        // 1. Collect and sort active cameras
-        let cameras = self.collect_active_cameras(world)?;
-        
-        // 2. Update camera uniforms
-        for camera_entity in &cameras {
-            self.update_camera_uniform(camera_entity, world)?;
-        }
-        
-        // 3. Render each camera in priority order
-        for camera_entity in cameras {
-            self.render_camera(camera_entity, world)?;
-        }
-        
-        // 4. Present to surface
-        self.present_surface()?;
-        
-        Ok(())
+  pub fn render(&mut self, world: &World) -> Result<(), RenderError> {
+    // 1. Collect and sort active cameras
+    let cameras = self.collect_active_cameras(world)?;
+    
+    // 2. Update camera uniforms
+    for camera_entity in &cameras {
+      self.update_camera_uniform(camera_entity, world)?;
     }
     
-    fn render_camera(&mut self, camera: Entity, world: &World) -> Result<()> {
-        // Get camera component
-        let camera_comp = world.get_component::<CameraComponent>(camera)?;
-        
-        // Setup render target
-        let render_target = self.setup_render_target(&camera_comp)?;
-        
-        // Begin render pass with camera-specific settings
-        let mut render_pass = self.begin_camera_render_pass(&camera_comp, &render_target)?;
-        
-        // Cull and render visible entities
-        let visible_entities = self.cull_entities(camera, world)?;
-        self.render_entities(&mut render_pass, &visible_entities, world)?;
-        
-        Ok(())
+    // 3. Render each camera in priority order
+    for camera_entity in cameras {
+      self.render_camera(camera_entity, world)?;
     }
+    
+    // 4. Present to surface
+    self.present_surface()?;
+    
+    Ok(())
+  }
+  
+  fn render_camera(&mut self, camera: Entity, world: &World) -> Result<()> {
+    // Get camera component
+    let camera_comp = world.get_component::<CameraComponent>(camera)?;
+    
+    // Setup render target
+    let render_target = self.setup_render_target(&camera_comp)?;
+    
+    // Begin render pass with camera-specific settings
+    let mut render_pass = self.begin_camera_render_pass(&camera_comp, &render_target)?;
+    
+    // Cull and render visible entities
+    let visible_entities = self.cull_entities(camera, world)?;
+    self.render_entities(&mut render_pass, &visible_entities, world)?;
+    
+    Ok(())
+  }
 }
 ```
 
@@ -293,20 +293,20 @@ impl MultiCameraRenderer {
 ```rust
 // In engine-runtime/src/systems.rs
 pub struct CameraRenderSystem {
-    renderer: MultiCameraRenderer,
+  renderer: MultiCameraRenderer,
 }
 
 impl System for CameraRenderSystem {
-    fn update(&mut self, world: &mut World, _delta_time: f32) -> RuntimeResult<()> {
-        // Update camera matrices
-        self.update_camera_transforms(world)?;
-        
-        // Render all cameras
-        self.renderer.render(world)
-            .map_err(|e| RuntimeError::SystemError(e.to_string()))?;
-        
-        Ok(())
-    }
+  fn update(&mut self, world: &mut World, _delta_time: f32) -> RuntimeResult<()> {
+    // Update camera matrices
+    self.update_camera_transforms(world)?;
+    
+    // Render all cameras
+    self.renderer.render(world)
+      .map_err(|e| RuntimeError::SystemError(e.to_string()))?;
+    
+    Ok(())
+  }
 }
 ```
 

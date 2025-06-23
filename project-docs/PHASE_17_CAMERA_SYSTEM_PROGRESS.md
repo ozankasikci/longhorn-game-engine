@@ -13,11 +13,11 @@
 
 ### ✅ Phase 17.2: Camera Component System (Completed)
 - Added Camera component to `engine-components-3d` with:
-  - Perspective and orthographic projection support
-  - Viewport configuration (for split-screen, etc.)
-  - Priority system for multiple cameras
-  - Clear flags and background color
-  - Active/inactive state
+ - Perspective and orthographic projection support
+ - Viewport configuration (for split-screen, etc.)
+ - Priority system for multiple cameras
+ - Clear flags and background color
+ - Active/inactive state
 - Created CameraBundle for easy entity spawning
 - Added MainCamera tag component
 - Added CameraMatrices component for caching
@@ -26,27 +26,27 @@
 ### ✅ Phase 17.3: Camera Controllers (Completed)
 - Created CameraController trait with input handling interface
 - Implemented FPSCameraController with:
-  - Mouse look with configurable sensitivity
-  - WASD movement with sprint support
-  - Pitch constraints to prevent camera flipping
-  - Smooth movement and rotation options
-  - Full test coverage
+ - Mouse look with configurable sensitivity
+ - WASD movement with sprint support
+ - Pitch constraints to prevent camera flipping
+ - Smooth movement and rotation options
+ - Full test coverage
 - Created standardized CameraInput structure
 - Added helper functions for quaternion/euler conversions
 
 ### ✅ Phase 17.4: Basic Scene Integration (Completed)
 - **Editor Camera Integration**:
-  - Created `EditorCameraManager` in `ecs_camera_bridge.rs` to manage editor camera as ECS entity
-  - Integrated FPS controller with editor navigation
-  - Camera spawned with high priority (100) and MainCamera tag
-  - Syncs between legacy SceneNavigation and new ECS camera system
-  - Handles input through egui response system with proper mouse delta and keyboard input
+ - Created `EditorCameraManager` in `ecs_camera_bridge.rs` to manage editor camera as ECS entity
+ - Integrated FPS controller with editor navigation
+ - Camera spawned with high priority (100) and MainCamera tag
+ - Syncs between legacy SceneNavigation and new ECS camera system
+ - Handles input through egui response system with proper mouse delta and keyboard input
 - **Renderer Integration**:
-  - Updated `CameraExtractor::extract_camera` to use ECS camera components
-  - Finds MainCamera or highest priority active camera
-  - Converts ECS Transform and Camera components to renderer Camera
-  - Falls back to default camera if no ECS camera found
-  - Scene view passes camera from ECS to renderer through `world_to_render_scene`
+ - Updated `CameraExtractor::extract_camera` to use ECS camera components
+ - Finds MainCamera or highest priority active camera
+ - Converts ECS Transform and Camera components to renderer Camera
+ - Falls back to default camera if no ECS camera found
+ - Scene view passes camera from ECS to renderer through `world_to_render_scene`
 
 ### Phase Overview
 - **Start Date**: Phase 17 Started

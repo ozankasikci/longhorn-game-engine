@@ -1,23 +1,23 @@
-# Camera Integration Plan: Making Camera Work in Unity Editor
+# Camera Integration Plan: Making Camera Work in modern game editor
 
 ## Current State Analysis
 
 ### ✅ What's Already Working
 1. **Camera Components Available**:
-   - Basic `Camera` component (from engine-ecs-core)
-   - `Camera2D` component (from engine-ecs-core) 
-   - Advanced `CameraComponent` (from engine-camera-core)
+  - Basic `Camera` component (from engine-ecs-core)
+  - `Camera2D` component (from engine-ecs-core) 
+  - Advanced `CameraComponent` (from engine-camera-core)
 
 2. **Editor Integration**:
-   - Camera components can be added to entities
-   - Camera properties displayed in Inspector panel
-   - Camera entities visible in Hierarchy panel
-   - Default camera entity spawned on startup
+  - Camera components can be added to entities
+  - Camera properties displayed in Inspector panel
+  - Camera entities visible in Hierarchy panel
+  - Default camera entity spawned on startup
 
 3. **Core Architecture**:
-   - `engine-camera-core` provides advanced camera abstractions
-   - `engine-renderer-core` provides rendering pipeline interfaces
-   - ECS v2 system for component management
+  - `engine-camera-core` provides advanced camera abstractions
+  - `engine-renderer-core` provides rendering pipeline interfaces
+  - ECS v2 system for component management
 
 ### ❌ What's Missing
 1. **No Visual Camera Rendering**: Scene View panel shows empty space
@@ -93,11 +93,11 @@
 // In show_scene_view()
 let camera_entity = self.get_active_camera();
 if let Some(camera) = self.world.get_component::<CameraComponent>(camera_entity) {
-    let render_target = self.create_render_target_for_panel(response.rect);
-    self.renderer.render_scene(&camera, &render_target, &self.world);
-    
-    // Display rendered texture in egui
-    ui.image(render_target.texture_id(), response.rect.size());
+  let render_target = self.create_render_target_for_panel(response.rect);
+  self.renderer.render_scene(&camera, &render_target, &self.world);
+  
+  // Display rendered texture in egui
+  ui.image(render_target.texture_id(), response.rect.size());
 }
 ```
 
@@ -107,8 +107,8 @@ if let Some(camera) = self.world.get_component::<CameraComponent>(camera_entity)
 let cube_entity = world.spawn();
 world.add_component(cube_entity, Transform::default());
 world.add_component(cube_entity, MeshRenderer {
-    mesh: cube_mesh_handle,
-    material: default_material_handle,
+  mesh: cube_mesh_handle,
+  material: default_material_handle,
 });
 ```
 
@@ -116,29 +116,29 @@ world.add_component(cube_entity, MeshRenderer {
 ```rust
 // In Scene View input handling
 if response.dragged_by(egui::PointerButton::Middle) {
-    self.orbit_camera(response.drag_delta());
+  self.orbit_camera(response.drag_delta());
 }
 if input.scroll_delta.y != 0.0 {
-    self.zoom_camera(input.scroll_delta.y);
+  self.zoom_camera(input.scroll_delta.y);
 }
 ```
 
 ### Dependencies Needed
 
 1. **Renderer Setup**:
-   - `engine-renderer-wgpu` for WGPU implementation
-   - Basic shader compilation system
-   - Render target creation for egui integration
+  - `engine-renderer-wgpu` for WGPU implementation
+  - Basic shader compilation system
+  - Render target creation for egui integration
 
 2. **Scene Content**:
-   - Default meshes (cube, sphere, plane) in `engine-geometry-core`
-   - Basic materials in `engine-materials-core`
-   - MeshRenderer component for ECS
+  - Default meshes (cube, sphere, plane) in `engine-geometry-core`
+  - Basic materials in `engine-materials-core`
+  - MeshRenderer component for ECS
 
 3. **Input System**:
-   - Mouse/keyboard input handling in Scene View
-   - Camera controller component
-   - Input state management
+  - Mouse/keyboard input handling in Scene View
+  - Camera controller component
+  - Input state management
 
 ## Success Criteria
 
@@ -160,7 +160,7 @@ if input.scroll_delta.y != 0.0 {
 ### ✅ Phase 4 Complete When:
 - Multiple cameras work seamlessly
 - Camera presets provide professional workflow
-- Overall camera experience matches Unity editor
+- Overall camera experience matches modern game editor
 
 ## Risk Mitigation
 
@@ -173,5 +173,5 @@ if input.scroll_delta.y != 0.0 {
 
 1. **Immediate**: Start with Phase 1, Task 1.1 - Create basic scene geometry
 2. **Priority Order**: Focus on visual results first, polish controls later
-3. **Testing Strategy**: Use existing Unity editor as reference for expected behavior
+3. **Testing Strategy**: Use existing modern game editor as reference for expected behavior
 4. **Documentation**: Update this plan based on implementation discoveries

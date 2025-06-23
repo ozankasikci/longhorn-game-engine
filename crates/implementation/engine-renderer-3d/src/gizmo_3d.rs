@@ -1,6 +1,6 @@
 //! 3D Gizmo rendering for transform manipulation
 //!
-//! Provides Unity-style gizmos for position, rotation, and scale manipulation
+//! Provides professional gizmos for position, rotation, and scale manipulation
 //! with proper 3D rendering and constant screen-space sizing.
 
 use glam::{Vec3, Vec4, Mat4, Quat};

@@ -1,12 +1,12 @@
 # Phase 21: Customizable Project View Plan
 
 ## Overview
-Implement a Unity-style customizable project folder structure that allows users to organize their assets freely, create custom folders, move assets between folders, and have a file-system based project structure.
+Implement a professional customizable project folder structure that allows users to organize their assets freely, create custom folders, move assets between folders, and have a file-system based project structure.
 
 ## Motivation
-The current project view has predefined folders (Scripts, Materials, Textures, Models, Audio) which is too restrictive. Users need the flexibility to organize their project assets according to their needs, similar to Unity's Project window.
+The current project view has predefined folders (Scripts, Materials, Textures, Models, Audio) which is too restrictive. Users need the flexibility to organize their project assets according to their needs, similar to industry-standard Project window.
 
-## Unity Project View Reference Features
+## standard project View Reference Features
 1. **File System Based**: Mirrors actual file system structure
 2. **Custom Folders**: Users can create any folder structure they want
 3. **Drag & Drop**: Move assets between folders via drag & drop
@@ -123,41 +123,41 @@ The current project view has predefined folders (Scripts, Materials, Textures, M
 ### ProjectFileSystem
 ```rust
 pub struct ProjectFileSystem {
-    root_path: PathBuf,
-    watcher: FileWatcher,
-    asset_database: AssetDatabase,
+  root_path: PathBuf,
+  watcher: FileWatcher,
+  asset_database: AssetDatabase,
 }
 ```
 
 ### ProjectFolder
 ```rust
 pub struct ProjectFolder {
-    path: PathBuf,
-    name: String,
-    children: Vec<ProjectItem>,
-    expanded: bool,
-    metadata: FolderMetadata,
+  path: PathBuf,
+  name: String,
+  children: Vec<ProjectItem>,
+  expanded: bool,
+  metadata: FolderMetadata,
 }
 ```
 
 ### ProjectAsset
 ```rust
 pub struct ProjectAsset {
-    path: PathBuf,
-    name: String,
-    asset_type: AssetType,
-    guid: Guid,
-    metadata: AssetMetadata,
-    thumbnail: Option<TextureHandle>,
+  path: PathBuf,
+  name: String,
+  asset_type: AssetType,
+  guid: Guid,
+  metadata: AssetMetadata,
+  thumbnail: Option<TextureHandle>,
 }
 ```
 
 ### AssetDatabase
 ```rust
 pub struct AssetDatabase {
-    assets: HashMap<Guid, ProjectAsset>,
-    path_index: HashMap<PathBuf, Guid>,
-    type_index: HashMap<AssetType, Vec<Guid>>,
+  assets: HashMap<Guid, ProjectAsset>,
+  path_index: HashMap<PathBuf, Guid>,
+  type_index: HashMap<AssetType, Vec<Guid>>,
 }
 ```
 
@@ -178,7 +178,7 @@ pub struct AssetDatabase {
 
 ## Dependencies
 - `notify` crate for file watching
-- `uuid` crate for GUIDs  
+- `uuid` crate for GUIDs 
 - `image` crate for thumbnails
 - `rfd` for native dialogs
 - Existing asset import system
@@ -198,6 +198,6 @@ pub struct AssetDatabase {
 6. Collaborative features
 
 ## References
-- Unity Project Window: https://docs.unity3d.com/Manual/ProjectView.html
+- standard project Window: https://industry references/Manual/ProjectView.html
 - Unreal Content Browser: https://docs.unrealengine.com/5.0/en-US/content-browser-interface-in-unreal-engine/
 - Godot FileSystem Dock: https://docs.godotengine.org/en/stable/tutorials/editor/project_manager.html

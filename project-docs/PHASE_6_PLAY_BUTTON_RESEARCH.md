@@ -1,7 +1,7 @@
 # Phase 6: Play Button and Game View Research Report
 
 ## Research Overview
-This document presents research findings on implementing play button functionality and game view camera rendering in game engine editors, based on analysis of Unity's implementation patterns and industry best practices.
+This document presents research findings on implementing play button functionality and game view camera rendering in game engine editors, based on analysis of industry-standard implementation patterns and industry best practices.
 
 ## Unity Play Button & Game View Analysis
 
@@ -22,7 +22,7 @@ This document presents research findings on implementing play button functionali
 ### Key Technical Insights
 
 **Camera Perspective Rendering:**
-From Unity's GameView.cs source code analysis:
+From industry-standard GameView.cs source code analysis:
 - Uses camera projection matrices (perspective or orthographic)
 - Implements view frustum culling for performance optimization
 - Handles multiple camera rendering with depth sorting
@@ -99,28 +99,28 @@ screen_position = projection_matrix * view_matrix * world_position
 ```rust
 // Perspective projection matrix
 fn create_perspective_matrix(fov_degrees: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
-    glam::Mat4::perspective_rh(fov_degrees.to_radians(), aspect, near, far)
+  glam::Mat4::perspective_rh(fov_degrees.to_radians(), aspect, near, far)
 }
 
 // View matrix from camera transform
 fn create_view_matrix(position: Vec3, rotation: Quat) -> Mat4 {
-    Mat4::from_rotation_translation(rotation, position).inverse()
+  Mat4::from_rotation_translation(rotation, position).inverse()
 }
 ```
 
 **World-to-Screen Projection:**
 ```rust
 fn world_to_screen(world_pos: Vec3, view: &Mat4, projection: &Mat4, screen_size: Vec2) -> Option<Vec2> {
-    let clip_pos = projection * view * Vec4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
-    if clip_pos.w <= 0.0 { return None; } // Behind camera
-    
-    let ndc = clip_pos.xyz() / clip_pos.w;
-    if ndc.z < -1.0 || ndc.z > 1.0 { return None; } // Outside depth range
-    
-    Some(Vec2::new(
-        (ndc.x + 1.0) * 0.5 * screen_size.x,
-        (1.0 - ndc.y) * 0.5 * screen_size.y
-    ))
+  let clip_pos = projection * view * Vec4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
+  if clip_pos.w <= 0.0 { return None; } // Behind camera
+  
+  let ndc = clip_pos.xyz() / clip_pos.w;
+  if ndc.z < -1.0 || ndc.z > 1.0 { return None; } // Outside depth range
+  
+  Some(Vec2::new(
+    (ndc.x + 1.0) * 0.5 * screen_size.x,
+    (1.0 - ndc.y) * 0.5 * screen_size.y
+  ))
 }
 ```
 
@@ -130,9 +130,9 @@ fn world_to_screen(world_pos: Vec3, view: &Mat4, projection: &Mat4, screen_size:
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PlayState {
-    Editing,   // Normal editor mode - full editing capabilities
-    Playing,   // Game running - properties locked, runtime active
-    Paused,    // Game paused - can inspect state, limited editing
+  Editing,  // Normal editor mode - full editing capabilities
+  Playing,  // Game running - properties locked, runtime active
+  Paused,  // Game paused - can inspect state, limited editing
 }
 ```
 
@@ -193,7 +193,7 @@ Research indicates that successful play button and game view implementation requ
 3. **Performance Optimization**: Early implementation of culling and LOD systems
 4. **User Experience Focus**: Clear visual feedback and intuitive controls
 
-The Unity reference implementation provides an excellent model for these patterns, emphasizing safety, performance, and user clarity in the editor-to-runtime transition workflow.
+The industry reference implementation provides an excellent model for these patterns, emphasizing safety, performance, and user clarity in the editor-to-runtime transition workflow.
 
 ## Next Steps
 
@@ -201,6 +201,6 @@ Based on this research, Phase 6 implementation should prioritize:
 1. State management foundation with visual feedback
 2. Camera matrix mathematics using glam library
 3. Basic frustum culling for performance
-4. Clear user experience patterns following Unity conventions
+4. Clear user experience patterns following industry conventions
 
 This research provides the foundation for detailed implementation planning in the Phase 6 progress document.

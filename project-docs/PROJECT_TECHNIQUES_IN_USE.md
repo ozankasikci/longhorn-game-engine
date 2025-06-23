@@ -28,7 +28,7 @@ Entity 2: [Transform | Health | ... other data ...]
 We achieve cache-friendly storage:
 ```
 All Transforms: [Transform, Transform, Transform, ...]
-All Healths:    [Health, Health, Health, ...]
+All Healths:  [Health, Health, Health, ...]
 ```
 
 ### Technical Implementation (`ecs_v2.rs`)
@@ -40,14 +40,14 @@ struct ArchetypeId(BTreeSet<TypeId>);
 
 // Stores entities with identical component signatures
 struct Archetype {
-    id: ArchetypeId,
-    entities: Vec<Entity>,
-    components: HashMap<TypeId, ErasedComponentArray>,
+  id: ArchetypeId,
+  entities: Vec<Entity>,
+  components: HashMap<TypeId, ErasedComponentArray>,
 }
 
 // Type-safe component storage
 struct ComponentArray<T: Component> {
-    data: Vec<T>,  // Contiguous memory for cache efficiency
+  data: Vec<T>, // Contiguous memory for cache efficiency
 }
 ```
 
@@ -64,36 +64,36 @@ struct ComponentArray<T: Component> {
 // Static Environment Objects
 // Archetype: [Transform, MeshRenderer]
 let tree = world.spawn()
-    .add_component(Transform::at([10.0, 0.0, 5.0]))
-    .add_component(MeshRenderer::new(tree_mesh));
+  .add_component(Transform::at([10.0, 0.0, 5.0]))
+  .add_component(MeshRenderer::new(tree_mesh));
 
-// Dynamic Physics Objects  
+// Dynamic Physics Objects 
 // Archetype: [Transform, MeshRenderer, RigidBody, Collider]
 let crate_box = world.spawn()
-    .add_component(Transform::default())
-    .add_component(MeshRenderer::new(crate_mesh))
-    .add_component(RigidBody::dynamic())
-    .add_component(Collider::box_shape());
+  .add_component(Transform::default())
+  .add_component(MeshRenderer::new(crate_mesh))
+  .add_component(RigidBody::dynamic())
+  .add_component(Collider::box_shape());
 
 // Player Character
 // Archetype: [Transform, MeshRenderer, RigidBody, Collider, Health, Input]
 let player = world.spawn()
-    .add_component(Transform::default())
-    .add_component(MeshRenderer::new(player_mesh))
-    .add_component(RigidBody::character_controller())
-    .add_component(Collider::capsule())
-    .add_component(Health::new(100))
-    .add_component(InputController::new());
+  .add_component(Transform::default())
+  .add_component(MeshRenderer::new(player_mesh))
+  .add_component(RigidBody::character_controller())
+  .add_component(Collider::capsule())
+  .add_component(Health::new(100))
+  .add_component(InputController::new());
 ```
 
 #### System Processing
 ```rust
 // Physics system only processes entities with physics components
 fn physics_system(query: Query<(&mut Transform, &RigidBody)>) {
-    // Efficiently iterates only over archetypes containing BOTH components
-    for (transform, rigidbody) in query.iter() {
-        // Cache-friendly processing of physics entities
-    }
+  // Efficiently iterates only over archetypes containing BOTH components
+  for (transform, rigidbody) in query.iter() {
+    // Cache-friendly processing of physics entities
+  }
 }
 ```
 
@@ -145,9 +145,9 @@ fn physics_system(query: Query<(&mut Transform, &RigidBody)>) {
 ```rust
 // Marker trait for all game components
 pub trait Component: 'static + Send + Sync {
-    fn type_id() -> TypeId where Self: Sized {
-        TypeId::of::<Self>()
-    }
+  fn type_id() -> TypeId where Self: Sized {
+    TypeId::of::<Self>()
+  }
 }
 ```
 
@@ -169,17 +169,17 @@ pub trait Component: 'static + Send + Sync {
 ```rust
 // Trait for type-erased operations
 pub trait ComponentArrayTrait: Send + Sync {
-    fn swap_remove(&mut self, index: usize);
-    fn len(&self) -> usize;
-    fn type_id(&self) -> TypeId;
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+  fn swap_remove(&mut self, index: usize);
+  fn len(&self) -> usize;
+  fn type_id(&self) -> TypeId;
+  fn as_any(&self) -> &dyn Any;
+  fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 // Type-erased wrapper for heterogeneous storage
 pub struct ErasedComponentArray {
-    array: Box<dyn ComponentArrayTrait>,
-    type_id: TypeId,
+  array: Box<dyn ComponentArrayTrait>,
+  type_id: TypeId,
 }
 ```
 
@@ -190,20 +190,20 @@ pub struct ErasedComponentArray {
 
 ---
 
-## Unity-Style Editor Integration
+## Professional Editor Integration
 
 ### EGUI-Based Editor
 - **Dockable Panels**: Hierarchy, Inspector, Scene View, Console using egui_dock
 - **Real-time Updates**: Editor state synchronization with ECS world
-- **Professional Layout**: Unity-style arrangement and workflow
+- **Professional Layout**: professional arrangement and workflow
 
 ### Editor-ECS Bridge
 ```rust
 // Editor state integrates with ECS components
 pub struct EditorState {
-    pub scene_objects: HashMap<u32, GameObject>,
-    pub selected_object: Option<u32>,
-    pub console_messages: Vec<ConsoleMessage>,
+  pub scene_objects: HashMap<u32, GameObject>,
+  pub selected_object: Option<u32>,
+  pub console_messages: Vec<ConsoleMessage>,
 }
 ```
 

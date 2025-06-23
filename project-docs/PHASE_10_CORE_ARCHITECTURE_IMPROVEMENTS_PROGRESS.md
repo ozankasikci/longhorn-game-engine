@@ -5,7 +5,7 @@ High-impact architectural improvements to strengthen the engine's core foundatio
 
 ## Implementation Plan
 - **Phase 10.1**: Remove Transform Duplication (30 minutes)
-- **Phase 10.2**: Expand Engine-Math-Core (45 minutes)  
+- **Phase 10.2**: Expand Engine-Math-Core (45 minutes) 
 - **Phase 10.3**: Create Engine-Resource-Core (60 minutes)
 - **Phase 10.4**: Add Engine-Events-Core (45 minutes)
 - **Total Estimated Time**: 3 hours
@@ -54,7 +54,7 @@ High-impact architectural improvements to strengthen the engine's core foundatio
 - Plan backward compatibility with existing math usage
 
 #### Task 10.2.2: Implement Core Math Modules ⏳
-*Status: Pending*  
+*Status: Pending* 
 *Estimated Time: 30 minutes*
 **Implementation Plan**:
 - Create curves.rs (Bezier curves, splines, easing functions)

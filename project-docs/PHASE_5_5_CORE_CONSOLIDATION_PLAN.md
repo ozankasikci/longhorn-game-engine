@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**Phase:** 5.5 - Core Architecture Consolidation  
-**Timeline:** 30-45 minutes  
-**Objective:** Move legacy `engine-core` to `crates/core/` and rename to `engine-ecs-core` for consistency  
+**Phase:** 5.5 - Core Architecture Consolidation 
+**Timeline:** 30-45 minutes 
+**Objective:** Move legacy `engine-core` to `crates/core/` and rename to `engine-ecs-core` for consistency 
 **Priority:** High - Completes the core architecture reorganization
 
 ---
@@ -20,7 +20,7 @@
 ### Current Core Crate Status:
 **✅ Already in `crates/core/` (Domain-specific):**
 - `engine-audio-core` - Pure audio abstractions
-- `engine-camera-core` - Pure camera abstractions  
+- `engine-camera-core` - Pure camera abstractions 
 - `engine-geometry-core` - Pure geometry abstractions
 - `engine-materials-core` - Pure material abstractions
 - `engine-physics-core` - Pure physics abstractions
@@ -37,7 +37,7 @@
 ### **Step 1: Rename and Move**
 ```
 FROM: crates/engine-core/
-TO:   crates/core/engine-ecs-core/
+TO:  crates/core/engine-ecs-core/
 ```
 
 **Rationale for `engine-ecs-core` name:**
@@ -49,7 +49,7 @@ TO:   crates/core/engine-ecs-core/
 ### **Step 2: Update Dependencies**
 All crates currently depending on `engine-core` need to be updated:
 - `engine-camera`
-- `engine-editor-egui`  
+- `engine-editor-egui` 
 - `engine-renderer-wgpu`
 - `engine-runtime`
 - `engine-ui`
@@ -159,8 +159,8 @@ Update Rust source files to import from `engine_ecs_core` instead of `engine_cor
 - [x] Tests pass for updated crates
 - [x] Old `engine-core` directory removed
 
-**Timeline:** 30-45 minutes  
-**Dependencies:** Completed Phase 5.1-5.4  
+**Timeline:** 30-45 minutes 
+**Dependencies:** Completed Phase 5.1-5.4 
 **Next Phase:** 6.0 - Implementation Layer Updates
 
 ---
@@ -171,14 +171,14 @@ After completion, the core architecture will be:
 
 ```
 crates/core/
-├── engine-audio-core/      # Audio abstractions
-├── engine-camera-core/     # Camera abstractions  
-├── engine-ecs-core/        # ECS, math, memory, time
-├── engine-geometry-core/   # Geometry abstractions
-├── engine-materials-core/  # Material abstractions
-├── engine-physics-core/    # Physics abstractions
-├── engine-renderer-core/   # Rendering abstractions
-└── engine-scene-core/      # Scene abstractions
+├── engine-audio-core/   # Audio abstractions
+├── engine-camera-core/   # Camera abstractions 
+├── engine-ecs-core/    # ECS, math, memory, time
+├── engine-geometry-core/  # Geometry abstractions
+├── engine-materials-core/ # Material abstractions
+├── engine-physics-core/  # Physics abstractions
+├── engine-renderer-core/  # Rendering abstractions
+└── engine-scene-core/   # Scene abstractions
 ```
 
 All core crates will be consistently located and named, providing a clean foundation for the implementation layer.

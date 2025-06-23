@@ -70,11 +70,8 @@ MVP = Projection * View * Model
 
 ## Conversion to Other Systems
 
-### To Unity (Left-Handed)
+### To Left-Handed Systems
 - Negate Z coordinates
 - Adjust winding order
 - Flip projection matrix Z
-
-### To DirectX (Left-Handed)
-- Similar to Unity conversion
 - May need to adjust clip space Z range [0,1] vs [-1,1]

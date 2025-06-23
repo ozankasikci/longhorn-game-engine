@@ -335,7 +335,7 @@ pub struct CameraMatrices {
 impl Component for CameraMatrices {}
 
 // ============================================================================
-// NEW MESH COMPONENTS - Unity-style separation
+// NEW MESH COMPONENTS - Separate filter and renderer components
 // ============================================================================
 
 /// MeshFilter component - holds reference to mesh data

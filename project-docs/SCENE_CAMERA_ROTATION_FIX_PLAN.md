@@ -1,7 +1,7 @@
 # Scene Camera Rotation Fix Plan
 
 ## Problem Statement
-When right-clicking and dragging in the Scene View, the camera appears to move position instead of just rotating in place. This differs from Unity's behavior where the camera stays in the same position and only rotates to look around.
+When right-clicking and dragging in the Scene View, the camera appears to move position instead of just rotating in place. This differs from industry-standard behavior where the camera stays in the same position and only rotates to look around.
 
 ## Investigation Results
 
@@ -12,9 +12,9 @@ The `handle_wasd_movement()` function is being called every frame during navigat
 1. User right-clicks and drags mouse
 2. `is_navigating` is set to true
 3. Every frame while navigating:
-   - `apply_mouse_look()` correctly updates rotation only
-   - `handle_wasd_movement()` is ALSO called
-   - Movement might be applied due to incorrect input state
+  - `apply_mouse_look()` correctly updates rotation only
+  - `handle_wasd_movement()` is ALSO called
+  - Movement might be applied due to incorrect input state
 
 ### Key Code Locations
 - `scene_input.rs:68` - Calls `handle_scene_navigation()`
@@ -57,4 +57,4 @@ After the fix:
 - Right-click and drag will ONLY rotate the camera
 - Camera position will remain unchanged during rotation
 - WASD movement will only occur when keys are actually pressed
-- Behavior will match Unity's scene navigation
+- Behavior will match industry-standard scene navigation

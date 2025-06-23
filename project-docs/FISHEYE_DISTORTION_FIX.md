@@ -22,36 +22,36 @@ Modified both `world_to_screen` and `world_to_screen_enhanced` functions in `sce
 #### Before (Simplified Projection):
 ```rust
 fn world_to_screen(&self, world_pos: [f32; 3], camera_pos: [f32; 3], camera_rot: [f32; 3], view_center: egui::Pos2) -> (egui::Pos2, f32) {
-    // ... rotation calculations ...
-    let depth = final_z;
-    let fov_scale = 100.0; // Hardcoded value
-    let perspective_scale = fov_scale / depth.max(0.1);
-    let screen_x = view_center.x + (rotated_x * perspective_scale);
-    let screen_y = view_center.y - (final_y * perspective_scale);
-    (egui::pos2(screen_x, screen_y), depth)
+  // ... rotation calculations ...
+  let depth = final_z;
+  let fov_scale = 100.0; // Hardcoded value
+  let perspective_scale = fov_scale / depth.max(0.1);
+  let screen_x = view_center.x + (rotated_x * perspective_scale);
+  let screen_y = view_center.y - (final_y * perspective_scale);
+  (egui::pos2(screen_x, screen_y), depth)
 }
 ```
 
 #### After (Proper Perspective Projection):
 ```rust
 fn world_to_screen(&self, world_pos: [f32; 3], camera_pos: [f32; 3], camera_rot: [f32; 3], view_center: egui::Pos2, viewport_rect: egui::Rect) -> (egui::Pos2, f32) {
-    // ... rotation calculations ...
-    let depth = final_z;
-    
-    // Proper perspective projection with FOV and aspect ratio
-    let fov_radians = 60.0_f32.to_radians(); // 60 degree FOV
-    let aspect_ratio = viewport_rect.width() / viewport_rect.height();
-    let projection_scale = viewport_rect.height() / (2.0 * (fov_radians / 2.0).tan());
-    
-    // Project to NDC space
-    let ndc_x = (rotated_x / depth.max(0.1)) * (1.0 / aspect_ratio);
-    let ndc_y = final_y / depth.max(0.1);
-    
-    // Convert to screen coordinates
-    let screen_x = view_center.x + ndc_x * projection_scale;
-    let screen_y = view_center.y - ndc_y * projection_scale;
-    
-    (egui::pos2(screen_x, screen_y), depth)
+  // ... rotation calculations ...
+  let depth = final_z;
+  
+  // Proper perspective projection with FOV and aspect ratio
+  let fov_radians = 60.0_f32.to_radians(); // 60 degree FOV
+  let aspect_ratio = viewport_rect.width() / viewport_rect.height();
+  let projection_scale = viewport_rect.height() / (2.0 * (fov_radians / 2.0).tan());
+  
+  // Project to NDC space
+  let ndc_x = (rotated_x / depth.max(0.1)) * (1.0 / aspect_ratio);
+  let ndc_y = final_y / depth.max(0.1);
+  
+  // Convert to screen coordinates
+  let screen_x = view_center.x + ndc_x * projection_scale;
+  let screen_y = view_center.y - ndc_y * projection_scale;
+  
+  (egui::pos2(screen_x, screen_y), depth)
 }
 ```
 
@@ -70,11 +70,11 @@ The standard perspective projection formula used:
 2. **Aspect Ratio**: viewport.width / viewport.height
 3. **Projection Scale**: viewport.height / (2 * tan(FOV/2))
 4. **NDC Conversion**: 
-   - X: (world_x / depth) * (1 / aspect_ratio)
-   - Y: (world_y / depth)
+  - X: (world_x / depth) * (1 / aspect_ratio)
+  - Y: (world_y / depth)
 5. **Screen Conversion**: 
-   - X: center_x + ndc_x * projection_scale
-   - Y: center_y - ndc_y * projection_scale
+  - X: center_x + ndc_x * projection_scale
+  - Y: center_y - ndc_y * projection_scale
 
 ### Benefits
 1. **Correct Perspective**: Objects now appear with proper perspective, eliminating fisheye distortion

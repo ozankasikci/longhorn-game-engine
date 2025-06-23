@@ -17,56 +17,56 @@ Upgrade the existing `ecs_v2.rs` system to modern archetypal storage architectur
 #### 1. Archetypal Storage System
 ```rust
 struct Archetype {
-    entities: Vec<Entity>,
-    components: HashMap<TypeId, Box<dyn ComponentArray>>,
-    component_mask: ComponentMask,
+  entities: Vec<Entity>,
+  components: HashMap<TypeId, Box<dyn ComponentArray>>,
+  component_mask: ComponentMask,
 }
 
 trait ComponentArray {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn len(&self) -> usize;
-    fn swap_remove(&mut self, index: usize);
-    fn push(&mut self, component: Box<dyn Any>);
+  fn as_any(&self) -> &dyn Any;
+  fn as_any_mut(&mut self) -> &mut dyn Any;
+  fn len(&self) -> usize;
+  fn swap_remove(&mut self, index: usize);
+  fn push(&mut self, component: Box<dyn Any>);
 }
 ```
 
 #### 2. Query System
 ```rust
 struct Query<'w, Q: QueryData> {
-    world: &'w World,
-    archetype_filter: ArchetypeFilter,
-    _phantom: PhantomData<Q>,
+  world: &'w World,
+  archetype_filter: ArchetypeFilter,
+  _phantom: PhantomData<Q>,
 }
 
 trait QueryData {
-    type Item<'a>;
-    fn fetch<'a>(archetype: &'a Archetype, entity_index: usize) -> Self::Item<'a>;
-    fn matches_archetype(archetype: &Archetype) -> bool;
+  type Item<'a>;
+  fn fetch<'a>(archetype: &'a Archetype, entity_index: usize) -> Self::Item<'a>;
+  fn matches_archetype(archetype: &Archetype) -> bool;
 }
 ```
 
 #### 3. Change Detection
 ```rust
 struct ComponentTicks {
-    added: u32,
-    changed: u32,
+  added: u32,
+  changed: u32,
 }
 
 struct ChangeDetector {
-    current_tick: u32,
-    last_run_tick: u32,
+  current_tick: u32,
+  last_run_tick: u32,
 }
 ```
 
 #### 4. World Management
 ```rust
 struct WorldV2 {
-    archetypes: Vec<Archetype>,
-    entity_to_archetype: HashMap<Entity, (usize, usize)>, // (archetype_index, entity_index)
-    archetype_lookup: HashMap<ComponentMask, usize>,
-    next_entity_id: u32,
-    change_tick: u32,
+  archetypes: Vec<Archetype>,
+  entity_to_archetype: HashMap<Entity, (usize, usize)>, // (archetype_index, entity_index)
+  archetype_lookup: HashMap<ComponentMask, usize>,
+  next_entity_id: u32,
+  change_tick: u32,
 }
 ```
 

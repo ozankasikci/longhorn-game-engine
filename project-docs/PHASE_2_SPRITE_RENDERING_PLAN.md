@@ -78,18 +78,18 @@ Now that we have a working camera system and Scene View, the next step is to imp
 // Enhanced Sprite component for 3D integration
 #[derive(Debug, Clone)]
 pub struct Sprite3D {
-    pub sprite: Sprite,              // Base sprite data
-    pub billboard_mode: BillboardMode, // How sprite faces camera
-    pub depth_offset: f32,           // Z-fighting prevention
-    pub world_size: Vec2,            // Size in world units
+  pub sprite: Sprite,       // Base sprite data
+  pub billboard_mode: BillboardMode, // How sprite faces camera
+  pub depth_offset: f32,      // Z-fighting prevention
+  pub world_size: Vec2,      // Size in world units
 }
 
 #[derive(Debug, Clone)]
 pub enum BillboardMode {
-    None,                    // Fixed orientation
-    FaceCamera,              // Always face camera
-    CameraPlane,             // Align with camera plane
-    ConstrainedAxis(Vec3),   // Rotate around fixed axis
+  None,          // Fixed orientation
+  FaceCamera,       // Always face camera
+  CameraPlane,       // Align with camera plane
+  ConstrainedAxis(Vec3),  // Rotate around fixed axis
 }
 ```
 
@@ -98,25 +98,25 @@ pub enum BillboardMode {
 ```rust
 // In draw_simple_scene_view()
 fn draw_sprites(&mut self, ui: &mut egui::Ui, center: egui::Pos2, scale: f32) {
-    for (entity, (transform, sprite_renderer)) in self.world.query::<(Read<Transform>, Read<SpriteRenderer>)>().iter() {
-        // Project sprite position to screen
-        let screen_pos = project_to_screen(transform.position, center, scale);
-        
-        // Calculate sprite size in screen space
-        let sprite_size = calculate_sprite_screen_size(&sprite_renderer.sprite, transform.scale, scale);
-        
-        // Draw sprite rectangle with color
-        let sprite_rect = egui::Rect::from_center_size(screen_pos, sprite_size);
-        let color = get_sprite_color(&sprite_renderer.sprite);
-        
-        ui.painter().rect_filled(sprite_rect, egui::Rounding::ZERO, color);
-        
-        // Draw sprite bounds if selected
-        if self.selected_entity == Some(entity) {
-            ui.painter().rect_stroke(sprite_rect, egui::Rounding::ZERO, 
-                egui::Stroke::new(2.0, egui::Color32::YELLOW));
-        }
+  for (entity, (transform, sprite_renderer)) in self.world.query::<(Read<Transform>, Read<SpriteRenderer>)>().iter() {
+    // Project sprite position to screen
+    let screen_pos = project_to_screen(transform.position, center, scale);
+    
+    // Calculate sprite size in screen space
+    let sprite_size = calculate_sprite_screen_size(&sprite_renderer.sprite, transform.scale, scale);
+    
+    // Draw sprite rectangle with color
+    let sprite_rect = egui::Rect::from_center_size(screen_pos, sprite_size);
+    let color = get_sprite_color(&sprite_renderer.sprite);
+    
+    ui.painter().rect_filled(sprite_rect, egui::Rounding::ZERO, color);
+    
+    // Draw sprite bounds if selected
+    if self.selected_entity == Some(entity) {
+      ui.painter().rect_stroke(sprite_rect, egui::Rounding::ZERO, 
+        egui::Stroke::new(2.0, egui::Color32::YELLOW));
     }
+  }
 }
 ```
 
@@ -125,20 +125,20 @@ fn draw_sprites(&mut self, ui: &mut egui::Ui, center: egui::Pos2, scale: f32) {
 ```rust
 // System to update sprite rotations to face camera
 fn update_billboard_sprites(world: &mut WorldV2) {
-    let camera_transform = get_main_camera_transform(world);
-    
-    for (entity, (mut transform, sprite_3d)) in world.query_mut::<(Write<Transform>, Read<Sprite3D>)>().iter() {
-        match sprite_3d.billboard_mode {
-            BillboardMode::FaceCamera => {
-                let look_dir = (camera_transform.position - transform.position).normalize();
-                transform.rotation = look_at_rotation(look_dir);
-            }
-            BillboardMode::CameraPlane => {
-                transform.rotation = camera_transform.rotation;
-            }
-            _ => {} // No billboard behavior
-        }
+  let camera_transform = get_main_camera_transform(world);
+  
+  for (entity, (mut transform, sprite_3d)) in world.query_mut::<(Write<Transform>, Read<Sprite3D>)>().iter() {
+    match sprite_3d.billboard_mode {
+      BillboardMode::FaceCamera => {
+        let look_dir = (camera_transform.position - transform.position).normalize();
+        transform.rotation = look_at_rotation(look_dir);
+      }
+      BillboardMode::CameraPlane => {
+        transform.rotation = camera_transform.rotation;
+      }
+      _ => {} // No billboard behavior
     }
+  }
 }
 ```
 
@@ -149,15 +149,15 @@ fn update_billboard_sprites(world: &mut WorldV2) {
 // In editor initialization
 let sprite_entity = world.spawn();
 world.add_component(sprite_entity, Transform {
-    position: [0.0, 1.0, 0.0],
-    rotation: [0.0, 0.0, 0.0],
-    scale: [2.0, 2.0, 1.0], // 2x2 world units
+  position: [0.0, 1.0, 0.0],
+  rotation: [0.0, 0.0, 0.0],
+  scale: [2.0, 2.0, 1.0], // 2x2 world units
 }).unwrap();
 
 world.add_component(sprite_entity, SpriteRenderer {
-    sprite: Sprite::new().with_color(1.0, 0.0, 0.0, 1.0), // Red sprite
-    layer: 0,
-    enabled: true,
+  sprite: Sprite::new().with_color(1.0, 0.0, 0.0, 1.0), // Red sprite
+  layer: 0,
+  enabled: true,
 }).unwrap();
 
 world.add_component(sprite_entity, Name::new("Red Sprite")).unwrap();
@@ -189,7 +189,7 @@ world.add_component(sprite_entity, Name::new("Red Sprite")).unwrap();
 ### ✅ Phase 2.3 Complete When:
 - Full sprite editing workflow in Inspector
 - Visual sprite manipulation gizmos in Scene View
-- Professional Unity-like sprite development experience
+- Professional professional sprite development experience
 
 ## Integration with Existing Systems
 

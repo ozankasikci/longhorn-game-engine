@@ -225,7 +225,7 @@ impl SceneViewPanel {
                 // Disabled 2D overlay gizmos - using true 3D gizmos instead
                 // if !scene_navigation.is_navigating {
                 //     if let (Some(view), Some(proj)) = (camera_view_matrix, camera_projection_matrix) {
-                //         self.unity_gizmo.update(
+                //         self.gizmo.update(
                 //             ui, 
                 //             &response, 
                 //             rect, 

@@ -1,19 +1,19 @@
 # Longhorn Editor
 
-Unity-style game editor for the Longhorn Game Engine built with egui.
+Professional game editor for the Longhorn Game Engine built with egui.
 
 ## Module Structure
 
 The editor is organized into the following modules:
 
 ### Core Modules
-- `main.rs` (335 lines) - Main application entry point and UnityEditor struct
+- `main.rs` (335 lines) - Main application entry point and editor struct
 - `editor_state.rs` - Editor state management (GameObject, ConsoleMessage)
 - `types.rs` - Common types (PlayState, SceneNavigation, GizmoSystem, etc.)
 - `editor_coordinator.rs` - Coordinates play states and inter-panel communication
 
 ### UI Modules (`ui/`)
-- `style.rs` - Unity-style theming and visual setup
+- `style.rs` - Professional theming and visual setup
 - `toolbar.rs` - Play/pause controls and tool selection
 - `menu_bar.rs` - File, Edit, View menus
 - `tab_viewer.rs` - Docking system tab viewer implementation

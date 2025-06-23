@@ -23,10 +23,10 @@ Created a new crate with the following modules:
 ```rust
 #[async_trait]
 pub trait AssetImporter: Send + Sync {
-    type Asset: Send;
-    fn supported_extensions(&self) -> &[&str];
-    fn can_import(&self, path: &Path) -> bool;
-    async fn import(&self, path: &Path, context: &ImportContext) -> ImportResult<Self::Asset>;
+  type Asset: Send;
+  fn supported_extensions(&self) -> &[&str];
+  fn can_import(&self, path: &Path) -> bool;
+  async fn import(&self, path: &Path, context: &ImportContext) -> ImportResult<Self::Asset>;
 }
 ```
 
@@ -49,17 +49,17 @@ pub trait AssetImporter: Send + Sync {
 ### 3. Test Coverage
 - 12 comprehensive tests written and passing
 - Tests cover all major functionality:
-  - AssetImporter trait implementation
-  - Import context and settings
-  - Error handling
-  - Pipeline operations
-  - Job queue system
-  - Asset processing
-  - Progress tracking
-  - Cancellation
-  - Metadata tracking
-  - Async operations
-  - Batch imports
+ - AssetImporter trait implementation
+ - Import context and settings
+ - Error handling
+ - Pipeline operations
+ - Job queue system
+ - Asset processing
+ - Progress tracking
+ - Cancellation
+ - Metadata tracking
+ - Async operations
+ - Batch imports
 
 ## Benefits Achieved
 

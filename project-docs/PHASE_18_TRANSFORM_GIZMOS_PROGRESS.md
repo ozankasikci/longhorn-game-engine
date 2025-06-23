@@ -38,31 +38,31 @@ Missing:
 ```rust
 // New structure for 3D gizmo rendering
 pub struct Gizmo3D {
-    pub transform: Transform,
-    pub mode: GizmoMode,
-    pub highlighted_component: Option<GizmoComponent>,
-    pub active_component: Option<GizmoComponent>,
-    pub scale_factor: f32, // For constant screen size
+  pub transform: Transform,
+  pub mode: GizmoMode,
+  pub highlighted_component: Option<GizmoComponent>,
+  pub active_component: Option<GizmoComponent>,
+  pub scale_factor: f32, // For constant screen size
 }
 
 pub enum GizmoMode {
-    Translation,
-    Rotation,
-    Scale,
+  Translation,
+  Rotation,
+  Scale,
 }
 
 pub struct GizmoComponent3D {
-    pub axis: Option<Axis>,
-    pub plane: Option<Plane>,
-    pub component_type: ComponentType,
+  pub axis: Option<Axis>,
+  pub plane: Option<Plane>,
+  pub component_type: ComponentType,
 }
 
 pub enum ComponentType {
-    Arrow,      // Translation arrows
-    Circle,     // Rotation circles
-    Box,        // Scale boxes
-    Line,       // Connecting lines
-    Center,     // Center shapes
+  Arrow,   // Translation arrows
+  Circle,   // Rotation circles
+  Box,    // Scale boxes
+  Line,    // Connecting lines
+  Center,   // Center shapes
 }
 ```
 
@@ -71,25 +71,25 @@ pub enum ComponentType {
 #### Arrow Mesh (Translation)
 ```rust
 fn generate_arrow_mesh(length: f32, radius: f32) -> MeshData {
-    // Cylinder for shaft
-    // Cone for tip
-    // Total vertices: ~50
+  // Cylinder for shaft
+  // Cone for tip
+  // Total vertices: ~50
 }
 ```
 
 #### Circle Mesh (Rotation)
 ```rust
 fn generate_circle_mesh(radius: f32, segments: u32) -> MeshData {
-    // Torus or line loop
-    // Total vertices: segments
+  // Torus or line loop
+  // Total vertices: segments
 }
 ```
 
 #### Box Mesh (Scale)
 ```rust
 fn generate_box_mesh(size: f32) -> MeshData {
-    // Simple cube
-    // Total vertices: 24
+  // Simple cube
+  // Total vertices: 24
 }
 ```
 
@@ -97,28 +97,28 @@ fn generate_box_mesh(size: f32) -> MeshData {
 
 ```rust
 pub fn screen_to_world_ray(
-    mouse_pos: Vec2,
-    camera: &Camera,
-    viewport: &Viewport,
+  mouse_pos: Vec2,
+  camera: &Camera,
+  viewport: &Viewport,
 ) -> Ray {
-    // 1. Convert mouse to NDC (-1 to 1)
-    let ndc_x = (mouse_pos.x / viewport.width) * 2.0 - 1.0;
-    let ndc_y = 1.0 - (mouse_pos.y / viewport.height) * 2.0;
-    
-    // 2. Create near and far points
-    let near = Vec4::new(ndc_x, ndc_y, -1.0, 1.0);
-    let far = Vec4::new(ndc_x, ndc_y, 1.0, 1.0);
-    
-    // 3. Unproject to world space
-    let inv_view_proj = (camera.projection * camera.view).inverse();
-    let near_world = inv_view_proj * near;
-    let far_world = inv_view_proj * far;
-    
-    // 4. Create ray
-    let origin = near_world.xyz() / near_world.w;
-    let direction = (far_world.xyz() / far_world.w - origin).normalize();
-    
-    Ray { origin, direction }
+  // 1. Convert mouse to NDC (-1 to 1)
+  let ndc_x = (mouse_pos.x / viewport.width) * 2.0 - 1.0;
+  let ndc_y = 1.0 - (mouse_pos.y / viewport.height) * 2.0;
+  
+  // 2. Create near and far points
+  let near = Vec4::new(ndc_x, ndc_y, -1.0, 1.0);
+  let far = Vec4::new(ndc_x, ndc_y, 1.0, 1.0);
+  
+  // 3. Unproject to world space
+  let inv_view_proj = (camera.projection * camera.view).inverse();
+  let near_world = inv_view_proj * near;
+  let far_world = inv_view_proj * far;
+  
+  // 4. Create ray
+  let origin = near_world.xyz() / near_world.w;
+  let direction = (far_world.xyz() / far_world.w - origin).normalize();
+  
+  Ray { origin, direction }
 }
 ```
 
@@ -132,48 +132,48 @@ pub fn screen_to_world_ray(
 #### Drag Calculation
 ```rust
 fn calculate_drag_delta(
-    component: &GizmoComponent3D,
-    ray_start: &Ray,
-    ray_current: &Ray,
-    gizmo_transform: &Transform,
+  component: &GizmoComponent3D,
+  ray_start: &Ray,
+  ray_current: &Ray,
+  gizmo_transform: &Transform,
 ) -> TransformDelta {
-    match component.component_type {
-        ComponentType::Arrow => {
-            // Project onto axis line
-        },
-        ComponentType::Circle => {
-            // Calculate rotation angle
-        },
-        ComponentType::Box => {
-            // Calculate scale factor
-        },
-    }
+  match component.component_type {
+    ComponentType::Arrow => {
+      // Project onto axis line
+    },
+    ComponentType::Circle => {
+      // Calculate rotation angle
+    },
+    ComponentType::Box => {
+      // Calculate scale factor
+    },
+  }
 }
 ```
 
 ## Next Steps
 
 1. **Immediate (Today)**:
-   - Create `gizmo_3d.rs` module in renderer
-   - Implement arrow mesh generation
-   - Add gizmo rendering to render pass
+  - Create `gizmo_3d.rs` module in renderer
+  - Implement arrow mesh generation
+  - Add gizmo rendering to render pass
 
 2. **Tomorrow**:
-   - Implement ray casting system
-   - Add 3D hit testing
-   - Connect to transform updates
+  - Implement ray casting system
+  - Add 3D hit testing
+  - Connect to transform updates
 
 3. **This Week**:
-   - Add rotation and scale modes
-   - Implement keyboard shortcuts
-   - Polish visual feedback
+  - Add rotation and scale modes
+  - Implement keyboard shortcuts
+  - Polish visual feedback
 
 ## Technical Decisions
 
 1. **Rendering Approach**: Render gizmos in a separate pass after scene objects but before grid
 2. **Depth Testing**: Use depth test but render with slight bias to appear on top
 3. **Constant Size**: Scale gizmos based on camera distance in vertex shader
-4. **Color Scheme**: Follow Unity's standard (X=Red, Y=Green, Z=Blue)
+4. **Color Scheme**: Follow industry-standard standard (X=Red, Y=Green, Z=Blue)
 
 ## Known Issues
 

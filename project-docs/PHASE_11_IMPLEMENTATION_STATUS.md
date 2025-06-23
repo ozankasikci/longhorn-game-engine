@@ -5,53 +5,53 @@
 ### ✅ Completed Components (Phase 11.1 & 11.2)
 
 1. **Component Trait Enhancement**
-   - Added `ComponentClone` trait requirement to `Component`
-   - Implemented `ComponentClone` with methods:
-     - `clone_boxed()` - Create type-erased clone
-     - `as_any()` - Downcast references
-     - `into_any()` - Convert Box to Any
-   - Added blanket implementation for all `Clone` types
+  - Added `ComponentClone` trait requirement to `Component`
+  - Implemented `ComponentClone` with methods:
+   - `clone_boxed()` - Create type-erased clone
+   - `as_any()` - Downcast references
+   - `into_any()` - Convert Box to Any
+  - Added blanket implementation for all `Clone` types
 
 2. **Macro Support**
-   - Created `impl_component!` macro for future use
-   - All existing components already implement Clone
+  - Created `impl_component!` macro for future use
+  - All existing components already implement Clone
 
 3. **ComponentArrayTrait Enhancement**
-   - Added `clone_component_at()` method
-   - Added `get_ticks_at()` method
-   - Added `push_cloned()` method for type-erased components
+  - Added `clone_component_at()` method
+  - Added `get_ticks_at()` method
+  - Added `push_cloned()` method for type-erased components
 
 4. **ErasedComponentArray Updates**
-   - Implemented `clone_component_at()` using trait method
-   - Implemented `push_cloned()` with proper downcasting
-   - Added `get_ticks_at()` for tick retrieval
+  - Implemented `clone_component_at()` using trait method
+  - Implemented `push_cloned()` with proper downcasting
+  - Added `get_ticks_at()` for tick retrieval
 
 5. **Archetype Methods**
-   - Added `clone_component_at()` for component cloning
-   - Added `get_component_ticks_at()` for tick access
-   - Added `add_component_cloned()` with limitations
+  - Added `clone_component_at()` for component cloning
+  - Added `get_component_ticks_at()` for tick access
+  - Added `add_component_cloned()` with limitations
 
 ### 🚧 Current Limitations
 
 1. **Component Registry Required**
-   The main blocker is that we can't create new `ErasedComponentArray` instances without knowing the concrete type. This requires one of:
-   - A global component registry with type constructors
-   - Refactoring to store component factories
-   - Pre-creating arrays for all possible component types
+  The main blocker is that we can't create new `ErasedComponentArray` instances without knowing the concrete type. This requires one of:
+  - A global component registry with type constructors
+  - Refactoring to store component factories
+  - Pre-creating arrays for all possible component types
 
 2. **Migration Function Status**
-   - `clone_entity_components()` - Implemented but unused
-   - `migrate_entity_to_new_archetype()` - Returns error due to registry requirement
+  - `clone_entity_components()` - Implemented but unused
+  - `migrate_entity_to_new_archetype()` - Returns error due to registry requirement
 
 ### 📋 Remaining Work
 
 #### Phase 11.3: Migration Logic (Blocked)
 - Need component registry or alternative approach
 - Consider these options:
-  1. **Component Registry**: Map TypeId to factory functions
-  2. **Pre-allocation**: Create arrays for all known types
-  3. **Lazy Migration**: Only migrate when components are accessed
-  4. **Different Architecture**: Use trait objects differently
+ 1. **Component Registry**: Map TypeId to factory functions
+ 2. **Pre-allocation**: Create arrays for all known types
+ 3. **Lazy Migration**: Only migrate when components are accessed
+ 4. **Different Architecture**: Use trait objects differently
 
 #### Phase 11.4: Remove Component
 - Depends on migration working
@@ -67,18 +67,18 @@
 The current approach hits a fundamental limitation of Rust's type system - we can't create generic containers without knowing the concrete type. Options:
 
 1. **Implement Component Registry** (Recommended)
-   ```rust
-   static COMPONENT_REGISTRY: Lazy<HashMap<TypeId, fn() -> Box<dyn ErasedComponentArray>>> = ...
-   ```
+  ```rust
+  static COMPONENT_REGISTRY: Lazy<HashMap<TypeId, fn() -> Box<dyn ErasedComponentArray>>> = ...
+  ```
 
 2. **Use Bevy's Approach**
-   Study how Bevy handles this with its `ComponentDescriptor` system
+  Study how Bevy handles this with its `ComponentDescriptor` system
 
 3. **Simplify Requirements**
-   Accept bundle-only workflow as sufficient for now
+  Accept bundle-only workflow as sufficient for now
 
 4. **Alternative Architecture**
-   Redesign to avoid the need for dynamic component arrays
+  Redesign to avoid the need for dynamic component arrays
 
 ## Code Quality
 - ✅ All code compiles without warnings

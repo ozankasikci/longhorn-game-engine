@@ -1,12 +1,12 @@
 # Phase 8: Scene Navigation Controls - Implementation Plan
 
 ## Phase Overview
-Implement Unity/Unreal Engine style scene camera navigation using right-click + WASD controls for professional scene editing workflow.
+Implement modern engines Engine style scene camera navigation using right-click + WASD controls for professional scene editing workflow.
 
 ## Implementation Strategy
 
 ### Architecture Design
-Based on research, we'll implement a navigation system that follows Unity/Unreal standards:
+Based on research, we'll implement a navigation system that follows modern engines standards:
 - Right mouse button hold to enter navigation mode
 - WASD for movement, mouse for rotation
 - Speed control via mouse wheel and Shift modifier
@@ -29,13 +29,13 @@ Based on research, we'll implement a navigation system that follows Unity/Unreal
 ```rust
 #[derive(Debug, Clone)]
 pub struct SceneNavigation {
-    pub enabled: bool,
-    pub is_navigating: bool,
-    pub movement_speed: f32,
-    pub rotation_sensitivity: f32,
-    pub fast_movement_multiplier: f32,
-    pub last_mouse_pos: Option<egui::Pos2>,
-    pub scene_camera_transform: Transform,
+  pub enabled: bool,
+  pub is_navigating: bool,
+  pub movement_speed: f32,
+  pub rotation_sensitivity: f32,
+  pub fast_movement_multiplier: f32,
+  pub last_mouse_pos: Option<egui::Pos2>,
+  pub scene_camera_transform: Transform,
 }
 ```
 
@@ -84,16 +84,16 @@ pub struct SceneNavigation {
 **Math Implementation**:
 ```rust
 fn update_camera_rotation(&mut self, mouse_delta: egui::Vec2) {
-    let sensitivity = self.scene_navigation.rotation_sensitivity;
-    
-    // Horizontal rotation (Y-axis)
-    let yaw_delta = -mouse_delta.x * sensitivity;
-    
-    // Vertical rotation (X-axis) 
-    let pitch_delta = -mouse_delta.y * sensitivity;
-    
-    // Apply rotations to camera transform
-    self.apply_camera_rotation(yaw_delta, pitch_delta);
+  let sensitivity = self.scene_navigation.rotation_sensitivity;
+  
+  // Horizontal rotation (Y-axis)
+  let yaw_delta = -mouse_delta.x * sensitivity;
+  
+  // Vertical rotation (X-axis) 
+  let pitch_delta = -mouse_delta.y * sensitivity;
+  
+  // Apply rotations to camera transform
+  self.apply_camera_rotation(yaw_delta, pitch_delta);
 }
 ```
 
@@ -147,35 +147,35 @@ fn update_camera_rotation(&mut self, mouse_delta: egui::Vec2) {
 ### Input Event Flow
 ```rust
 fn handle_scene_navigation(&mut self, ui: &egui::Ui, response: &egui::Response) {
-    // 1. Check for right mouse button to start/stop navigation
-    if response.secondary_clicked() {
-        self.start_scene_navigation(response.hover_pos());
-    } else if response.secondary_released() {
-        self.end_scene_navigation();
-    }
-    
-    // 2. Handle navigation input during active navigation
-    if self.scene_navigation.is_navigating {
-        self.handle_navigation_input(ui, response);
-    }
+  // 1. Check for right mouse button to start/stop navigation
+  if response.secondary_clicked() {
+    self.start_scene_navigation(response.hover_pos());
+  } else if response.secondary_released() {
+    self.end_scene_navigation();
+  }
+  
+  // 2. Handle navigation input during active navigation
+  if self.scene_navigation.is_navigating {
+    self.handle_navigation_input(ui, response);
+  }
 }
 ```
 
 ### Camera Transform Updates
 ```rust
 fn update_scene_camera(&mut self, delta_time: f32) {
-    let nav = &mut self.scene_navigation;
-    
-    // Apply WASD movement
-    let movement = self.calculate_movement_vector(delta_time);
-    nav.scene_camera_transform.position[0] += movement.x;
-    nav.scene_camera_transform.position[1] += movement.y;
-    nav.scene_camera_transform.position[2] += movement.z;
-    
-    // Apply mouse rotation
-    if let Some(mouse_delta) = self.get_mouse_delta() {
-        self.apply_camera_rotation(mouse_delta);
-    }
+  let nav = &mut self.scene_navigation;
+  
+  // Apply WASD movement
+  let movement = self.calculate_movement_vector(delta_time);
+  nav.scene_camera_transform.position[0] += movement.x;
+  nav.scene_camera_transform.position[1] += movement.y;
+  nav.scene_camera_transform.position[2] += movement.z;
+  
+  // Apply mouse rotation
+  if let Some(mouse_delta) = self.get_mouse_delta() {
+    self.apply_camera_rotation(mouse_delta);
+  }
 }
 ```
 
@@ -195,9 +195,9 @@ fn update_scene_camera(&mut self, delta_time: f32) {
 ### Input Priority System
 ```rust
 enum InputMode {
-    Gizmo,       // Gizmo interaction active
-    Navigation,  // Scene navigation active  
-    Selection,   // Object selection mode
+  Gizmo,    // Gizmo interaction active
+  Navigation, // Scene navigation active 
+  Selection,  // Object selection mode
 }
 ```
 
@@ -218,12 +218,12 @@ enum InputMode {
 
 ### Quality Standards
 - Frame-rate independent movement (60+ FPS)
-- Unity/Unreal level responsiveness and feel
+- modern engines level responsiveness and feel
 - Intuitive speed scaling and sensitivity
 - Professional visual feedback
 
 ### User Experience Goals
-- Familiar workflow for Unity/Unreal users
+- Familiar workflow for modern engines users
 - Smooth learning curve for new users
 - Efficient scene exploration and editing
 - No disruptive mode switching
@@ -262,7 +262,7 @@ enum InputMode {
 
 ### User Experience Issues
 **Risk**: Confusing or unintuitive navigation
-**Mitigation**: Follow Unity/Unreal standards exactly
+**Mitigation**: Follow modern engines standards exactly
 
 ## Next Steps
 

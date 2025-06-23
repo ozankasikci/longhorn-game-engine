@@ -5,10 +5,10 @@
 ### 1. Dynamic Grid Sizing
 - Grid now adapts based on camera height
 - 4 levels of detail:
-  - Close (< 10m): 1m spacing, 50m extent
-  - Medium (10-50m): 5m spacing, 200m extent  
-  - Far (50-200m): 10m spacing, 500m extent
-  - Very far (> 200m): 50m spacing, 2000m extent
+ - Close (< 10m): 1m spacing, 50m extent
+ - Medium (10-50m): 5m spacing, 200m extent 
+ - Far (50-200m): 10m spacing, 500m extent
+ - Very far (> 200m): 50m spacing, 2000m extent
 
 ### 2. Line Clipping
 - Implemented proper near-plane clipping
@@ -64,4 +64,4 @@ The improved grid system provides:
 - Stable rendering without popping artifacts
 - Smooth transitions between LOD levels
 - Proper clipping at all camera angles
-- Professional appearance matching Unity/Unreal standards
+- Professional appearance matching modern engines standards

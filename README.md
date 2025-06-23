@@ -1,6 +1,6 @@
 # Longhorn Game Engine
 
-A modular, high-performance game engine written in Rust with a professional Unity-style editor.
+A modular, high-performance game engine written in Rust with a professional game editor.
 
 ![Longhorn Editor Screenshot](assets/longhorn-editor.png)
 
@@ -66,7 +66,7 @@ cargo run --bin longhorn-editor --release
 ## 🎯 Features
 
 ### Editor Features
-- **Unity-Style Interface**: Professional game editor with dockable panels
+- **Professional Interface**: Modern game editor with dockable panels
 - **Scene View**: Interactive 3D viewport with manipulation gizmos
 - **Hierarchy Panel**: Scene object management with drag & drop
 - **Inspector Panel**: Component-based object editing

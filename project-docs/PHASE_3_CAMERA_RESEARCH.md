@@ -53,7 +53,7 @@ Three comprehensive web searches were conducted covering:
 
 ### 4. Engine-Specific Insights
 
-#### Unity Camera Systems
+#### standard camera Systems
 - **Mobile Strength**: Excellent for mobile development due to lightweight infrastructure
 - **Cross-Platform**: Seamless operation across different gaming platforms
 - **Versatility**: Handles both 2D and 3D games effectively, including VR
@@ -88,9 +88,9 @@ Three comprehensive web searches were conducted covering:
 ```
 CameraComponent
 ├── Camera (core logic)
-│   ├── ViewMatrix management
-│   ├── ProjectionMatrix calculation
-│   └── Frustum culling
+│  ├── ViewMatrix management
+│  ├── ProjectionMatrix calculation
+│  └── Frustum culling
 ├── Viewport configuration
 └── RenderTarget management
 ```
@@ -156,7 +156,7 @@ CameraComponent
 - **2D/3D Support**: Full orthographic and perspective projection
 - **Multi-Camera**: Up to 4 simultaneous camera views
 - **Quality Scaling**: 3+ quality levels for different hardware tiers
-- **Editor Integration**: Real-time camera manipulation in Unity-style editor
+- **Editor Integration**: Real-time camera manipulation in professional editor
 
 ## Conclusion
 

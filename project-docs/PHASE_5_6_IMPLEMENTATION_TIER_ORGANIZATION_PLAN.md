@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**Phase:** 5.6 - Implementation Tier Organization  
-**Timeline:** 45-60 minutes  
-**Objective:** Organize remaining crates into proper 4-tier architecture (Core → Implementation → Integration → Application)  
+**Phase:** 5.6 - Implementation Tier Organization 
+**Timeline:** 45-60 minutes 
+**Objective:** Organize remaining crates into proper 4-tier architecture (Core → Implementation → Integration → Application) 
 **Priority:** High - Completes the architectural reorganization started in Phase 5
 
 ---
@@ -22,37 +22,37 @@
 **✅ Already in Core (Tier 1):**
 ```
 crates/core/
-├── engine-audio-core/      # Audio abstractions
-├── engine-camera-core/     # Camera abstractions  
-├── engine-ecs-core/        # ECS, math, memory, time
-├── engine-geometry-core/   # Geometry abstractions
-├── engine-materials-core/  # Material abstractions
-├── engine-physics-core/    # Physics abstractions
-├── engine-renderer-core/   # Rendering abstractions
-└── engine-scene-core/      # Scene abstractions
+├── engine-audio-core/   # Audio abstractions
+├── engine-camera-core/   # Camera abstractions 
+├── engine-ecs-core/    # ECS, math, memory, time
+├── engine-geometry-core/  # Geometry abstractions
+├── engine-materials-core/ # Material abstractions
+├── engine-physics-core/  # Physics abstractions
+├── engine-renderer-core/  # Rendering abstractions
+└── engine-scene-core/   # Scene abstractions
 ```
 
 **❌ Needs to be moved to Implementation (Tier 2):**
 ```
-crates/engine-audio/         → crates/implementation/engine-audio/
-crates/engine-camera/        → crates/implementation/engine-camera/
-crates/engine-physics/       → crates/implementation/engine-physics/
-crates/engine-input/         → crates/implementation/engine-input/
-crates/engine-assets/        → crates/implementation/engine-assets/
-crates/engine-scripting/     → crates/implementation/engine-scripting/
-crates/engine-ui/            → crates/implementation/engine-ui/
-crates/engine-platform/     → crates/implementation/engine-platform/
+crates/engine-audio/     → crates/implementation/engine-audio/
+crates/engine-camera/    → crates/implementation/engine-camera/
+crates/engine-physics/    → crates/implementation/engine-physics/
+crates/engine-input/     → crates/implementation/engine-input/
+crates/engine-assets/    → crates/implementation/engine-assets/
+crates/engine-scripting/   → crates/implementation/engine-scripting/
+crates/engine-ui/      → crates/implementation/engine-ui/
+crates/engine-platform/   → crates/implementation/engine-platform/
 crates/engine-renderer-wgpu/ → crates/implementation/engine-renderer-wgpu/
 ```
 
 **❌ Needs to be moved to Integration (Tier 3):**
 ```
-crates/engine-runtime/       → crates/integration/engine-runtime/
+crates/engine-runtime/    → crates/integration/engine-runtime/
 ```
 
 **❌ Needs to be moved to Application (Tier 4):**
 ```
-crates/engine-editor-egui/   → crates/application/engine-editor-egui/
+crates/engine-editor-egui/  → crates/application/engine-editor-egui/
 ```
 
 ---
@@ -62,32 +62,32 @@ crates/engine-editor-egui/   → crates/application/engine-editor-egui/
 ### **Final Target Structure:**
 ```
 crates/
-├── core/                    # Tier 1: Pure abstractions
-│   ├── engine-audio-core/
-│   ├── engine-camera-core/
-│   ├── engine-ecs-core/
-│   ├── engine-geometry-core/
-│   ├── engine-materials-core/
-│   ├── engine-physics-core/
-│   ├── engine-renderer-core/
-│   └── engine-scene-core/
+├── core/          # Tier 1: Pure abstractions
+│  ├── engine-audio-core/
+│  ├── engine-camera-core/
+│  ├── engine-ecs-core/
+│  ├── engine-geometry-core/
+│  ├── engine-materials-core/
+│  ├── engine-physics-core/
+│  ├── engine-renderer-core/
+│  └── engine-scene-core/
 │
-├── implementation/          # Tier 2: Concrete implementations
-│   ├── engine-audio/
-│   ├── engine-camera/
-│   ├── engine-physics/
-│   ├── engine-input/
-│   ├── engine-assets/
-│   ├── engine-scripting/
-│   ├── engine-ui/
-│   ├── engine-platform/
-│   └── engine-renderer-wgpu/
+├── implementation/     # Tier 2: Concrete implementations
+│  ├── engine-audio/
+│  ├── engine-camera/
+│  ├── engine-physics/
+│  ├── engine-input/
+│  ├── engine-assets/
+│  ├── engine-scripting/
+│  ├── engine-ui/
+│  ├── engine-platform/
+│  └── engine-renderer-wgpu/
 │
-├── integration/             # Tier 3: System integration
-│   └── engine-runtime/
+├── integration/       # Tier 3: System integration
+│  └── engine-runtime/
 │
-└── application/             # Tier 4: End-user applications
-    └── engine-editor-egui/
+└── application/       # Tier 4: End-user applications
+  └── engine-editor-egui/
 ```
 
 ---
@@ -97,7 +97,7 @@ crates/
 ### **Step 1: Create Directory Structure** (5 minutes)
 ```bash
 mkdir -p crates/implementation
-mkdir -p crates/integration  
+mkdir -p crates/integration 
 mkdir -p crates/application
 ```
 
@@ -152,40 +152,40 @@ Update `Cargo.toml` workspace members to reflect new paths:
 ```toml
 # FROM:
 members = [
-    "crates/engine-renderer-wgpu", 
-    "crates/engine-audio",
-    "crates/engine-physics",
-    # ... etc
+  "crates/engine-renderer-wgpu", 
+  "crates/engine-audio",
+  "crates/engine-physics",
+  # ... etc
 ]
 
 # TO:
 members = [
-    # Core abstractions (Tier 1)
-    "crates/core/engine-audio-core",
-    "crates/core/engine-ecs-core", 
-    "crates/core/engine-physics-core",
-    "crates/core/engine-renderer-core",
-    "crates/core/engine-geometry-core",
-    "crates/core/engine-materials-core",
-    "crates/core/engine-scene-core",
-    "crates/core/engine-camera-core",
-    
-    # Implementation layer (Tier 2)
-    "crates/implementation/engine-audio",
-    "crates/implementation/engine-camera",
-    "crates/implementation/engine-physics",
-    "crates/implementation/engine-input",
-    "crates/implementation/engine-assets",
-    "crates/implementation/engine-scripting",
-    "crates/implementation/engine-ui",
-    "crates/implementation/engine-platform",
-    "crates/implementation/engine-renderer-wgpu",
-    
-    # Integration layer (Tier 3)
-    "crates/integration/engine-runtime",
-    
-    # Application layer (Tier 4)
-    "crates/application/engine-editor-egui",
+  # Core abstractions (Tier 1)
+  "crates/core/engine-audio-core",
+  "crates/core/engine-ecs-core", 
+  "crates/core/engine-physics-core",
+  "crates/core/engine-renderer-core",
+  "crates/core/engine-geometry-core",
+  "crates/core/engine-materials-core",
+  "crates/core/engine-scene-core",
+  "crates/core/engine-camera-core",
+  
+  # Implementation layer (Tier 2)
+  "crates/implementation/engine-audio",
+  "crates/implementation/engine-camera",
+  "crates/implementation/engine-physics",
+  "crates/implementation/engine-input",
+  "crates/implementation/engine-assets",
+  "crates/implementation/engine-scripting",
+  "crates/implementation/engine-ui",
+  "crates/implementation/engine-platform",
+  "crates/implementation/engine-renderer-wgpu",
+  
+  # Integration layer (Tier 3)
+  "crates/integration/engine-runtime",
+  
+  # Application layer (Tier 4)
+  "crates/application/engine-editor-egui",
 ]
 ```
 
@@ -242,7 +242,7 @@ path = "crates/implementation/engine-audio"
 ## Success Criteria
 
 - [x] `crates/implementation/` directory created with 9 crates
-- [x] `crates/integration/` directory created with 1 crate  
+- [x] `crates/integration/` directory created with 1 crate 
 - [x] `crates/application/` directory created with 1 crate
 - [x] All workspace member paths updated
 - [x] All workspace dependency paths updated
@@ -250,8 +250,8 @@ path = "crates/implementation/engine-audio"
 - [x] Directory structure follows 4-tier architecture
 - [x] Old crate directories cleaned up
 
-**Timeline:** 45-60 minutes  
-**Dependencies:** Completed Phase 5.1-5.5  
+**Timeline:** 45-60 minutes 
+**Dependencies:** Completed Phase 5.1-5.5 
 **Next Phase:** 6.0 - Implementation Layer Updates
 
 ---
@@ -262,10 +262,10 @@ After completion, the workspace will have a clean 4-tier architecture:
 
 ```
 crates/
-├── core/           # 8 core abstraction crates
-├── implementation/ # 9 concrete implementation crates  
-├── integration/    # 1 system integration crate
-└── application/    # 1 end-user application crate
+├── core/      # 8 core abstraction crates
+├── implementation/ # 9 concrete implementation crates 
+├── integration/  # 1 system integration crate
+└── application/  # 1 end-user application crate
 ```
 
 This provides a professional, scalable foundation for the mobile game engine with clear separation of concerns and predictable organization patterns.

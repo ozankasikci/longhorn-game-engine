@@ -54,47 +54,47 @@ use wgpu::util::DeviceExt;
 use glam::Mat4;
 
 pub struct Renderer3D {
-    // Core resources
-    device: Arc<wgpu::Device>,
-    queue: Arc<wgpu::Queue>,
-    config: wgpu::SurfaceConfiguration,
-    
-    // Render targets
-    render_texture: wgpu::Texture,
-    render_view: wgpu::TextureView,
-    depth_texture: wgpu::Texture,
-    depth_view: wgpu::TextureView,
-    
-    // Pipeline
-    render_pipeline: wgpu::RenderPipeline,
-    
-    // Bind groups
-    camera_bind_group: wgpu::BindGroup,
-    camera_buffer: wgpu::Buffer,
-    
-    // Mesh data
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
+  // Core resources
+  device: Arc<wgpu::Device>,
+  queue: Arc<wgpu::Queue>,
+  config: wgpu::SurfaceConfiguration,
+  
+  // Render targets
+  render_texture: wgpu::Texture,
+  render_view: wgpu::TextureView,
+  depth_texture: wgpu::Texture,
+  depth_view: wgpu::TextureView,
+  
+  // Pipeline
+  render_pipeline: wgpu::RenderPipeline,
+  
+  // Bind groups
+  camera_bind_group: wgpu::BindGroup,
+  camera_buffer: wgpu::Buffer,
+  
+  // Mesh data
+  vertex_buffer: wgpu::Buffer,
+  index_buffer: wgpu::Buffer,
+  num_indices: u32,
 }
 
 impl Renderer3D {
-    pub async fn new(
-        device: Arc<wgpu::Device>,
-        queue: Arc<wgpu::Queue>,
-        width: u32,
-        height: u32,
-    ) -> Result<Self, anyhow::Error> {
-        // Implementation
-    }
-    
-    pub fn render(&mut self, scene: &RenderScene) -> Result<(), anyhow::Error> {
-        // Render to internal texture
-    }
-    
-    pub fn get_render_texture(&self) -> &wgpu::TextureView {
-        &self.render_view
-    }
+  pub async fn new(
+    device: Arc<wgpu::Device>,
+    queue: Arc<wgpu::Queue>,
+    width: u32,
+    height: u32,
+  ) -> Result<Self, anyhow::Error> {
+    // Implementation
+  }
+  
+  pub fn render(&mut self, scene: &RenderScene) -> Result<(), anyhow::Error> {
+    // Render to internal texture
+  }
+  
+  pub fn get_render_texture(&self) -> &wgpu::TextureView {
+    &self.render_view
+  }
 }
 ```
 
@@ -105,19 +105,19 @@ impl Renderer3D {
 use glam::{Mat4, Vec3};
 
 pub struct RenderScene {
-    pub camera: Camera,
-    pub objects: Vec<RenderObject>,
+  pub camera: Camera,
+  pub objects: Vec<RenderObject>,
 }
 
 pub struct Camera {
-    pub view_matrix: Mat4,
-    pub projection_matrix: Mat4,
+  pub view_matrix: Mat4,
+  pub projection_matrix: Mat4,
 }
 
 pub struct RenderObject {
-    pub transform: Mat4,
-    pub mesh_id: usize,
-    pub material_id: usize,
+  pub transform: Mat4,
+  pub mesh_id: usize,
+  pub material_id: usize,
 }
 ```
 
@@ -129,34 +129,34 @@ use egui::{Widget, Response, Ui, TextureId};
 use std::sync::{Arc, Mutex};
 
 pub struct EguiRenderWidget {
-    renderer: Arc<Mutex<Renderer3D>>,
-    texture_id: Option<TextureId>,
+  renderer: Arc<Mutex<Renderer3D>>,
+  texture_id: Option<TextureId>,
 }
 
 impl EguiRenderWidget {
-    pub fn new(renderer: Arc<Mutex<Renderer3D>>) -> Self {
-        Self {
-            renderer,
-            texture_id: None,
-        }
+  pub fn new(renderer: Arc<Mutex<Renderer3D>>) -> Self {
+    Self {
+      renderer,
+      texture_id: None,
     }
-    
-    pub fn render_scene(&mut self, scene: &RenderScene) {
-        let mut renderer = self.renderer.lock().unwrap();
-        renderer.render(scene).ok();
-    }
+  }
+  
+  pub fn render_scene(&mut self, scene: &RenderScene) {
+    let mut renderer = self.renderer.lock().unwrap();
+    renderer.render(scene).ok();
+  }
 }
 
 impl Widget for &mut EguiRenderWidget {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let rect = ui.available_rect();
-        
-        if let Some(texture_id) = self.texture_id {
-            ui.image(texture_id, rect.size())
-        } else {
-            ui.label("Renderer not initialized")
-        }
+  fn ui(self, ui: &mut Ui) -> Response {
+    let rect = ui.available_rect();
+    
+    if let Some(texture_id) = self.texture_id {
+      ui.image(texture_id, rect.size())
+    } else {
+      ui.label("Renderer not initialized")
     }
+  }
 }
 ```
 
@@ -165,33 +165,33 @@ impl Widget for &mut EguiRenderWidget {
 ### Basic Shader (shader.wgsl)
 ```wgsl
 struct CameraUniform {
-    view_proj: mat4x4<f32>,
+  view_proj: mat4x4<f32>,
 }
 
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct VertexInput {
-    @location(0) position: vec3<f32>,
-    @location(1) color: vec3<f32>,
+  @location(0) position: vec3<f32>,
+  @location(1) color: vec3<f32>,
 }
 
 struct VertexOutput {
-    @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec3<f32>,
+  @builtin(position) clip_position: vec4<f32>,
+  @location(0) color: vec3<f32>,
 }
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
-    var out: VertexOutput;
-    out.clip_position = camera.view_proj * vec4<f32>(in.position, 1.0);
-    out.color = in.color;
-    return out;
+  var out: VertexOutput;
+  out.clip_position = camera.view_proj * vec4<f32>(in.position, 1.0);
+  out.color = in.color;
+  return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(in.color, 1.0);
+  return vec4<f32>(in.color, 1.0);
 }
 ```
 
@@ -202,31 +202,31 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 use engine_renderer_3d::{Renderer3D, RenderScene, EguiRenderWidget};
 
 pub struct SceneView3D {
-    renderer: Arc<Mutex<Renderer3D>>,
-    widget: EguiRenderWidget,
+  renderer: Arc<Mutex<Renderer3D>>,
+  widget: EguiRenderWidget,
 }
 
 impl SceneView3D {
-    pub fn new(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>) -> Self {
-        let renderer = Renderer3D::new(device, queue, 800, 600)
-            .await
-            .expect("Failed to create renderer");
-        let renderer = Arc::new(Mutex::new(renderer));
-        let widget = EguiRenderWidget::new(renderer.clone());
-        
-        Self { renderer, widget }
-    }
+  pub fn new(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>) -> Self {
+    let renderer = Renderer3D::new(device, queue, 800, 600)
+      .await
+      .expect("Failed to create renderer");
+    let renderer = Arc::new(Mutex::new(renderer));
+    let widget = EguiRenderWidget::new(renderer.clone());
     
-    pub fn show(&mut self, ui: &mut egui::Ui, world: &World) {
-        // Convert ECS world to RenderScene
-        let scene = self.create_render_scene(world);
-        
-        // Render scene
-        self.widget.render_scene(&scene);
-        
-        // Display in UI
-        ui.add(&mut self.widget);
-    }
+    Self { renderer, widget }
+  }
+  
+  pub fn show(&mut self, ui: &mut egui::Ui, world: &World) {
+    // Convert ECS world to RenderScene
+    let scene = self.create_render_scene(world);
+    
+    // Render scene
+    self.widget.render_scene(&scene);
+    
+    // Display in UI
+    ui.add(&mut self.widget);
+  }
 }
 ```
 
@@ -259,22 +259,22 @@ impl SceneView3D {
 ```rust
 #[cfg(test)]
 mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_renderer_creation() {
-        // Test renderer can be created
-    }
-    
-    #[test]
-    fn test_render_empty_scene() {
-        // Test rendering works with no objects
-    }
-    
-    #[test]
-    fn test_render_single_cube() {
-        // Test basic mesh rendering
-    }
+  use super::*;
+  
+  #[test]
+  fn test_renderer_creation() {
+    // Test renderer can be created
+  }
+  
+  #[test]
+  fn test_render_empty_scene() {
+    // Test rendering works with no objects
+  }
+  
+  #[test]
+  fn test_render_single_cube() {
+    // Test basic mesh rendering
+  }
 }
 ```
 

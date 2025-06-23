@@ -12,15 +12,15 @@ Split the 1,619-line `ecs_v2.rs` file into logical, maintainable modules.
 ```
 crates/core/engine-ecs-core/src/
 ├── ecs_v2/
-│   ├── mod.rs              ✅ Public API and re-exports
-│   ├── entity.rs           ✅ Entity, EntityLocation, EntityAllocator
-│   ├── component.rs        ✅ ComponentArray, ComponentArrayTrait, Registry
-│   ├── archetype.rs        ✅ Archetype, ArchetypeId, ArchetypeStorage
-│   ├── world.rs            ✅ World struct and core operations
-│   ├── query.rs            ✅ Query, QueryData, QueryIter, filters
-│   ├── bundle.rs           ✅ Bundle trait and implementations
-│   └── test_utils.rs       ✅ Common test components and utilities
-└── ecs_v2_monolithic.rs.bak  ✅ Backup of original file
+│  ├── mod.rs       ✅ Public API and re-exports
+│  ├── entity.rs      ✅ Entity, EntityLocation, EntityAllocator
+│  ├── component.rs    ✅ ComponentArray, ComponentArrayTrait, Registry
+│  ├── archetype.rs    ✅ Archetype, ArchetypeId, ArchetypeStorage
+│  ├── world.rs      ✅ World struct and core operations
+│  ├── query.rs      ✅ Query, QueryData, QueryIter, filters
+│  ├── bundle.rs      ✅ Bundle trait and implementations
+│  └── test_utils.rs    ✅ Common test components and utilities
+└── ecs_v2_monolithic.rs.bak ✅ Backup of original file
 ```
 
 ## Completed Tasks
@@ -94,7 +94,7 @@ crates/core/engine-ecs-core/src/
 
 ## Module Line Counts
 - `entity.rs`: 268 lines ✅
-- `component.rs`: 435 lines ✅  
+- `component.rs`: 435 lines ✅ 
 - `archetype.rs`: 574 lines ⚠️ (slightly over 500)
 - `world.rs`: 677 lines ⚠️ (over 500, but reasonable for core container)
 - `query.rs`: 179 lines ✅

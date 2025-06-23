@@ -6,16 +6,16 @@ This research analyzes industry best practices for implementing a 4-tier archite
 
 ## Industry Analysis: Professional Game Engine Patterns
 
-### Unity Engine Architecture
+### game engine Architecture
 
 **Core Philosophy:** Separation of managed game logic from native performance-critical systems
 
 ```
-Unity Architecture:
-├── C# Game Logic Layer     # Pure game logic, component definitions
-├── Native Core (C++)       # Performance-critical engine systems  
-├── Platform Abstraction    # iOS, Android, Windows implementations
-└── Unity Editor           # Separate application consuming APIs
+component architecture:
+├── C# Game Logic Layer   # Pure game logic, component definitions
+├── Native Core (C++)    # Performance-critical engine systems 
+├── Platform Abstraction  # iOS, Android, Windows implementations
+└── modern game editor      # Separate application consuming APIs
 ```
 
 **Key Insights:**
@@ -30,10 +30,10 @@ Unity Architecture:
 
 ```
 Unreal Architecture:
-├── Core Module            # UObject system, reflection, fundamental types
-├── Engine Modules         # Rendering, physics, audio as separate modules
-├── Platform HAL           # Hardware Abstraction Layer
-└── Game Framework         # High-level game-specific functionality
+├── Core Module      # UObject system, reflection, fundamental types
+├── Engine Modules     # Rendering, physics, audio as separate modules
+├── Platform HAL      # Hardware Abstraction Layer
+└── Game Framework     # High-level game-specific functionality
 ```
 
 **Key Insights:**
@@ -48,10 +48,10 @@ Unreal Architecture:
 
 ```
 Godot Architecture:
-├── Scene System          # Core node-based game logic
-├── Abstract Servers      # Rendering, physics, audio servers (interfaces)
-├── Platform Drivers      # Platform-specific server implementations
-└── Editor Integration    # Same APIs for editor and games
+├── Scene System     # Core node-based game logic
+├── Abstract Servers   # Rendering, physics, audio servers (interfaces)
+├── Platform Drivers   # Platform-specific server implementations
+└── Editor Integration  # Same APIs for editor and games
 ```
 
 **Key Insights:**
@@ -69,30 +69,30 @@ Godot Architecture:
 ```rust
 // Core abstraction (pure, no dependencies)
 pub trait Renderer: Send + Sync {
-    fn render(&mut self, scene: &Scene) -> Result<()>;
-    fn resize(&mut self, width: u32, height: u32);
-    fn create_texture(&mut self, data: &[u8]) -> TextureHandle;
+  fn render(&mut self, scene: &Scene) -> Result<()>;
+  fn resize(&mut self, width: u32, height: u32);
+  fn create_texture(&mut self, data: &[u8]) -> TextureHandle;
 }
 
 // System using dependency injection
 pub struct GraphicsSystem<R: Renderer> {
-    renderer: R,
-    scene: Scene,
+  renderer: R,
+  scene: Scene,
 }
 
 impl<R: Renderer> GraphicsSystem<R> {
-    pub fn new(renderer: R) -> Self {
-        Self { 
-            renderer, 
-            scene: Scene::new() 
-        }
+  pub fn new(renderer: R) -> Self {
+    Self { 
+      renderer, 
+      scene: Scene::new() 
     }
-    
-    pub fn update(&mut self, world: &World) -> Result<()> {
-        // Pure graphics logic, no implementation details
-        self.scene.update_from_world(world);
-        self.renderer.render(&self.scene)
-    }
+  }
+  
+  pub fn update(&mut self, world: &World) -> Result<()> {
+    // Pure graphics logic, no implementation details
+    self.scene.update_from_world(world);
+    self.renderer.render(&self.scene)
+  }
 }
 
 // Usage with different implementations
@@ -111,26 +111,26 @@ let opengl_graphics = GraphicsSystem::new(OpenGLRenderer::new());
 
 ```rust
 pub trait System: Send + Sync {
-    fn name(&self) -> &str;
-    fn update(&mut self, world: &mut World, resources: &Resources, dt: f32);
-    fn depends_on(&self) -> &[&str] { &[] }
+  fn name(&self) -> &str;
+  fn update(&mut self, world: &mut World, resources: &Resources, dt: f32);
+  fn depends_on(&self) -> &[&str] { &[] }
 }
 
 pub struct Engine {
-    systems: Vec<(String, Box<dyn System>)>,
+  systems: Vec<(String, Box<dyn System>)>,
 }
 
 impl Engine {
-    pub fn add_system<S: System + 'static>(&mut self, system: S) {
-        self.systems.push((system.name().to_string(), Box::new(system)));
+  pub fn add_system<S: System + 'static>(&mut self, system: S) {
+    self.systems.push((system.name().to_string(), Box::new(system)));
+  }
+  
+  pub fn update(&mut self, world: &mut World, resources: &Resources, dt: f32) {
+    // Sort by dependencies, then update
+    for (_, system) in &mut self.systems {
+      system.update(world, resources, dt);
     }
-    
-    pub fn update(&mut self, world: &mut World, resources: &Resources, dt: f32) {
-        // Sort by dependencies, then update
-        for (_, system) in &mut self.systems {
-            system.update(world, resources, dt);
-        }
-    }
+  }
 }
 ```
 
@@ -146,7 +146,7 @@ impl Engine {
 ```rust
 // Core crate defines traits only
 pub trait AudioSystem {
-    fn play_sound(&mut self, handle: SoundHandle) -> Result<()>;
+  fn play_sound(&mut self, handle: SoundHandle) -> Result<()>;
 }
 
 // Implementation crates provide concrete types
@@ -178,32 +178,32 @@ type PlatformAudio = RodioAudioSystem;
 ```rust
 #[derive(Default)]
 pub struct MockRenderer {
-    render_calls: RefCell<Vec<Scene>>,
-    resize_calls: RefCell<Vec<(u32, u32)>>,
+  render_calls: RefCell<Vec<Scene>>,
+  resize_calls: RefCell<Vec<(u32, u32)>>,
 }
 
 impl Renderer for MockRenderer {
-    fn render(&mut self, scene: &Scene) -> Result<()> {
-        self.render_calls.borrow_mut().push(scene.clone());
-        Ok(())
-    }
-    
-    fn resize(&mut self, width: u32, height: u32) {
-        self.resize_calls.borrow_mut().push((width, height));
-    }
+  fn render(&mut self, scene: &Scene) -> Result<()> {
+    self.render_calls.borrow_mut().push(scene.clone());
+    Ok(())
+  }
+  
+  fn resize(&mut self, width: u32, height: u32) {
+    self.resize_calls.borrow_mut().push((width, height));
+  }
 }
 
 // Lightning-fast unit tests
 #[test]
 fn test_graphics_system_render_logic() {
-    let mock = MockRenderer::default();
-    let mut graphics = GraphicsSystem::new(mock);
-    let world = create_test_world();
-    
-    graphics.update(&world).unwrap();
-    
-    // Verify pure logic without GPU
-    assert_eq!(graphics.renderer.render_calls.borrow().len(), 1);
+  let mock = MockRenderer::default();
+  let mut graphics = GraphicsSystem::new(mock);
+  let world = create_test_world();
+  
+  graphics.update(&world).unwrap();
+  
+  // Verify pure logic without GPU
+  assert_eq!(graphics.renderer.render_calls.borrow().len(), 1);
 }
 ```
 
@@ -213,33 +213,33 @@ fn test_graphics_system_render_logic() {
 
 ```rust
 pub struct HeadlessWgpuRenderer {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    // No surface, no window
+  device: wgpu::Device,
+  queue: wgpu::Queue,
+  // No surface, no window
 }
 
 impl HeadlessWgpuRenderer {
-    pub async fn new() -> Self {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
-            compatible_surface: None, // Headless
-            ..Default::default()
-        }).await.unwrap();
-        
-        let (device, queue) = adapter.request_device(&Default::default(), None).await.unwrap();
-        
-        Self { device, queue }
-    }
+  pub async fn new() -> Self {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+    let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
+      compatible_surface: None, // Headless
+      ..Default::default()
+    }).await.unwrap();
+    
+    let (device, queue) = adapter.request_device(&Default::default(), None).await.unwrap();
+    
+    Self { device, queue }
+  }
 }
 
 #[tokio::test]
 async fn integration_test_real_wgpu() {
-    let renderer = HeadlessWgpuRenderer::new().await;
-    let mut graphics = GraphicsSystem::new(renderer);
-    
-    // Test real WGPU without window
-    let world = create_test_world();
-    graphics.update(&world).unwrap();
+  let renderer = HeadlessWgpuRenderer::new().await;
+  let mut graphics = GraphicsSystem::new(renderer);
+  
+  // Test real WGPU without window
+  let world = create_test_world();
+  graphics.update(&world).unwrap();
 }
 ```
 
@@ -251,20 +251,20 @@ async fn integration_test_real_wgpu() {
 use proptest::prelude::*;
 
 proptest! {
-    #[test]
-    fn test_camera_projection_roundtrip(
-        fov in 10.0f32..170.0,
-        aspect in 0.1f32..10.0,
-        near in 0.01f32..1.0,
-        far in 2.0f32..1000.0
-    ) {
-        let camera = Camera::perspective(fov, aspect, near, far);
-        let proj_matrix = camera.projection_matrix();
-        
-        // Test that projection math is consistent
-        prop_assert!(proj_matrix.determinant() != 0.0);
-        prop_assert!(proj_matrix.is_finite());
-    }
+  #[test]
+  fn test_camera_projection_roundtrip(
+    fov in 10.0f32..170.0,
+    aspect in 0.1f32..10.0,
+    near in 0.01f32..1.0,
+    far in 2.0f32..1000.0
+  ) {
+    let camera = Camera::perspective(fov, aspect, near, far);
+    let proj_matrix = camera.projection_matrix();
+    
+    // Test that projection math is consistent
+    prop_assert!(proj_matrix.determinant() != 0.0);
+    prop_assert!(proj_matrix.is_finite());
+  }
 }
 ```
 
@@ -277,15 +277,15 @@ proptest! {
 ```rust
 // Generic system: Zero runtime cost
 pub fn render_system<R: Renderer>(renderer: &mut R, world: &World) {
-    // Compiler optimizes this to direct calls
-    for entity in world.query::<(Transform, Mesh)>() {
-        renderer.draw_mesh(entity.mesh, entity.transform);
-    }
+  // Compiler optimizes this to direct calls
+  for entity in world.query::<(Transform, Mesh)>() {
+    renderer.draw_mesh(entity.mesh, entity.transform);
+  }
 }
 
 // Trait object: Runtime dispatch only when needed
 pub struct PluginRenderer {
-    inner: Box<dyn Renderer>,
+  inner: Box<dyn Renderer>,
 }
 ```
 
@@ -307,17 +307,17 @@ pub struct TextureHandle(pub u64);
 pub struct MeshHandle(pub u64);
 
 pub trait Renderer {
-    // Batch operations to minimize virtual calls
-    fn render_batch(&mut self, batch: &RenderBatch) -> Result<()>;
-    fn create_texture(&mut self, data: &TextureData) -> TextureHandle;
-    fn create_mesh(&mut self, data: &MeshData) -> MeshHandle;
+  // Batch operations to minimize virtual calls
+  fn render_batch(&mut self, batch: &RenderBatch) -> Result<()>;
+  fn create_texture(&mut self, data: &TextureData) -> TextureHandle;
+  fn create_mesh(&mut self, data: &MeshData) -> MeshHandle;
 }
 
 // Batch multiple operations together
 pub struct RenderBatch {
-    pub camera: CameraUniform,
-    pub meshes: Vec<(MeshHandle, Transform)>,
-    pub lights: Vec<Light>,
+  pub camera: CameraUniform,
+  pub meshes: Vec<(MeshHandle, Transform)>,
+  pub lights: Vec<Light>,
 }
 ```
 
@@ -327,46 +327,46 @@ pub struct RenderBatch {
 
 ```rust
 pub trait PerformanceManager {
-    fn get_device_tier(&self) -> DeviceTier;
-    fn get_thermal_state(&self) -> ThermalState;
-    fn get_battery_level(&self) -> f32;
+  fn get_device_tier(&self) -> DeviceTier;
+  fn get_thermal_state(&self) -> ThermalState;
+  fn get_battery_level(&self) -> f32;
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum DeviceTier {
-    Low,     // <2GB RAM, integrated GPU
-    Medium,  // 2-4GB RAM, mid-range GPU  
-    High,    // 4-8GB RAM, high-end GPU
-    Ultra,   // >8GB RAM, flagship GPU
+  Low,   // <2GB RAM, integrated GPU
+  Medium, // 2-4GB RAM, mid-range GPU 
+  High,  // 4-8GB RAM, high-end GPU
+  Ultra,  // >8GB RAM, flagship GPU
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ThermalState {
-    Cool,
-    Warm,
-    Hot,
-    Critical,
+  Cool,
+  Warm,
+  Hot,
+  Critical,
 }
 
 // Adaptive quality system
 pub struct AdaptiveRenderer<R: Renderer> {
-    renderer: R,
-    performance: Box<dyn PerformanceManager>,
-    current_quality: RenderQuality,
+  renderer: R,
+  performance: Box<dyn PerformanceManager>,
+  current_quality: RenderQuality,
 }
 
 impl<R: Renderer> AdaptiveRenderer<R> {
-    pub fn update_quality(&mut self) {
-        let thermal = self.performance.get_thermal_state();
-        let battery = self.performance.get_battery_level();
-        
-        self.current_quality = match (thermal, battery) {
-            (ThermalState::Critical, _) => RenderQuality::Low,
-            (ThermalState::Hot, _) => RenderQuality::Medium,
-            (_, battery) if battery < 0.2 => RenderQuality::Low,
-            _ => RenderQuality::High,
-        };
-    }
+  pub fn update_quality(&mut self) {
+    let thermal = self.performance.get_thermal_state();
+    let battery = self.performance.get_battery_level();
+    
+    self.current_quality = match (thermal, battery) {
+      (ThermalState::Critical, _) => RenderQuality::Low,
+      (ThermalState::Hot, _) => RenderQuality::Medium,
+      (_, battery) if battery < 0.2 => RenderQuality::Low,
+      _ => RenderQuality::High,
+    };
+  }
 }
 ```
 
@@ -378,17 +378,17 @@ impl<R: Renderer> AdaptiveRenderer<R> {
 ```
 bevy/
 ├── crates/
-│   ├── bevy_core/          # ECS, core types, utilities
-│   ├── bevy_app/           # Application framework
-│   ├── bevy_ecs/           # Entity Component System
-│   ├── bevy_render/        # Rendering abstractions
-│   ├── bevy_wgpu/          # WGPU implementation
-│   ├── bevy_pbr/           # PBR rendering
-│   ├── bevy_audio/         # Audio abstractions
-│   └── bevy_kira/          # Kira audio implementation
-├── examples/               # Integration examples
-├── tools/                  # Development tools
-└── benches/               # Performance benchmarks
+│  ├── bevy_core/     # ECS, core types, utilities
+│  ├── bevy_app/      # Application framework
+│  ├── bevy_ecs/      # Entity Component System
+│  ├── bevy_render/    # Rendering abstractions
+│  ├── bevy_wgpu/     # WGPU implementation
+│  ├── bevy_pbr/      # PBR rendering
+│  ├── bevy_audio/     # Audio abstractions
+│  └── bevy_kira/     # Kira audio implementation
+├── examples/        # Integration examples
+├── tools/         # Development tools
+└── benches/        # Performance benchmarks
 ```
 
 **Key Insights:**
@@ -400,14 +400,14 @@ bevy/
 **Amethyst Engine Structure (Before Archive):**
 ```
 amethyst/
-├── amethyst_core/          # Core utilities and types
-├── amethyst_derive/        # Proc macros
-├── amethyst_error/         # Error handling
-├── amethyst_assets/        # Asset system abstractions
-├── amethyst_renderer/      # Rendering abstractions
-├── amethyst_vulkan/        # Vulkan implementation
-├── amethyst_audio/         # Audio abstractions
-└── examples/               # Integration examples
+├── amethyst_core/     # Core utilities and types
+├── amethyst_derive/    # Proc macros
+├── amethyst_error/     # Error handling
+├── amethyst_assets/    # Asset system abstractions
+├── amethyst_renderer/   # Rendering abstractions
+├── amethyst_vulkan/    # Vulkan implementation
+├── amethyst_audio/     # Audio abstractions
+└── examples/        # Integration examples
 ```
 
 **Key Insights:**
@@ -420,57 +420,57 @@ amethyst/
 **Tier 1: Core Abstractions**
 ```
 crates/core/
-├── engine-core/            # ECS, math, fundamental types
-├── engine-graphics-core/   # Rendering abstractions and pure graphics logic
-├── engine-audio-core/      # Audio abstractions and DSP logic
-├── engine-physics-core/    # Physics abstractions and collision detection
-├── engine-assets-core/     # Asset system abstractions and loading logic
-├── engine-input-core/      # Input abstractions and event handling
-└── engine-platform/        # Platform abstractions (already good)
+├── engine-core/      # ECS, math, fundamental types
+├── engine-graphics-core/  # Rendering abstractions and pure graphics logic
+├── engine-audio-core/   # Audio abstractions and DSP logic
+├── engine-physics-core/  # Physics abstractions and collision detection
+├── engine-assets-core/   # Asset system abstractions and loading logic
+├── engine-input-core/   # Input abstractions and event handling
+└── engine-platform/    # Platform abstractions (already good)
 ```
 
 **Tier 2: Technology Implementations**
 ```
 crates/implementations/
-├── engine-renderer-wgpu/   # WGPU-based renderer implementation
+├── engine-renderer-wgpu/  # WGPU-based renderer implementation
 ├── engine-renderer-opengl/ # OpenGL renderer (future)
 ├── engine-renderer-mobile/ # Mobile-optimized renderer
-├── engine-audio-rodio/     # Rodio-based audio for desktop
-├── engine-audio-web/       # Web Audio API implementation
-├── engine-physics-rapier/  # Rapier physics implementation
-└── engine-assets-fs/       # Filesystem-based asset loading
+├── engine-audio-rodio/   # Rodio-based audio for desktop
+├── engine-audio-web/    # Web Audio API implementation
+├── engine-physics-rapier/ # Rapier physics implementation
+└── engine-assets-fs/    # Filesystem-based asset loading
 ```
 
 **Tier 3: System Integration**
 ```
 crates/integration/
-├── engine-graphics-integration/  # Graphics + Camera + ECS coordination
-├── engine-physics-integration/   # Physics + ECS + Collision handling
-├── engine-audio-integration/     # Audio + ECS + Spatial audio
-└── engine-runtime/              # System orchestration (already exists)
+├── engine-graphics-integration/ # Graphics + Camera + ECS coordination
+├── engine-physics-integration/  # Physics + ECS + Collision handling
+├── engine-audio-integration/   # Audio + ECS + Spatial audio
+└── engine-runtime/       # System orchestration (already exists)
 ```
 
 **Tier 4: Applications**
 ```
 apps/
-├── editor/                 # Unity-style game editor
-├── launcher/              # Game launcher and project manager
-├── benchmark/             # Performance benchmark suite
-└── templates/             # Game project templates
+├── editor/         # professional game editor
+├── launcher/       # Game launcher and project manager
+├── benchmark/       # Performance benchmark suite
+└── templates/       # Game project templates
 ```
 
 **Examples and Tools:**
 ```
-examples/                   # Integration examples (moved from crates)
-├── basic-rendering/        # Simple graphics example
-├── multi-camera/          # Camera switching demo
-├── physics-sandbox/       # Physics demonstration
-└── audio-showcase/        # Audio features demo
+examples/          # Integration examples (moved from crates)
+├── basic-rendering/    # Simple graphics example
+├── multi-camera/     # Camera switching demo
+├── physics-sandbox/    # Physics demonstration
+└── audio-showcase/    # Audio features demo
 
-tools/                     # Development tools
-├── asset-converter/       # Asset conversion utilities
-├── profiler/             # Engine-specific profiler
-└── build-scripts/        # Build automation
+tools/           # Development tools
+├── asset-converter/    # Asset conversion utilities
+├── profiler/       # Engine-specific profiler
+└── build-scripts/    # Build automation
 ```
 
 ### Dependency Management Strategy
@@ -505,7 +505,7 @@ default = ["wgpu-renderer", "rodio-audio", "rapier-physics"]
 wgpu-renderer = ["engine-renderer-wgpu", "wgpu"]
 opengl-renderer = ["engine-renderer-opengl", "gl"]
 
-# Audio implementations  
+# Audio implementations 
 rodio-audio = ["engine-audio-rodio", "rodio"]
 web-audio = ["engine-audio-web"]
 
@@ -525,19 +525,19 @@ desktop-features = ["wgpu-renderer", "rodio-audio"]
 
 **Tasks:**
 1. **Create `engine-graphics-core`:**
-   - Extract mesh, material, shader abstractions from `engine-graphics`
-   - Define `Renderer`, `ResourceManager`, and other core traits
-   - Move pure graphics math and geometry functions
+  - Extract mesh, material, shader abstractions from `engine-graphics`
+  - Define `Renderer`, `ResourceManager`, and other core traits
+  - Move pure graphics math and geometry functions
 
 2. **Create `engine-audio-core`:**
-   - Extract audio abstractions from `engine-audio`
-   - Define `AudioSystem`, `SoundSource`, and audio processing traits
-   - Move DSP and audio math functions
+  - Extract audio abstractions from `engine-audio`
+  - Define `AudioSystem`, `SoundSource`, and audio processing traits
+  - Move DSP and audio math functions
 
 3. **Create `engine-physics-core`:**
-   - Extract physics abstractions from `engine-physics`
-   - Define collision detection and physics simulation traits
-   - Move pure physics math and algorithms
+  - Extract physics abstractions from `engine-physics`
+  - Define collision detection and physics simulation traits
+  - Move pure physics math and algorithms
 
 **Success Criteria:**
 - Core crates have zero implementation dependencies (no wgpu, rodio, rapier)
@@ -550,19 +550,19 @@ desktop-features = ["wgpu-renderer", "rodio-audio"]
 
 **Tasks:**
 1. **Create `engine-renderer-wgpu`:**
-   - Move WGPU-specific code from `engine-graphics`
-   - Implement `Renderer` trait using WGPU
-   - Handle resource management and command buffer generation
+  - Move WGPU-specific code from `engine-graphics`
+  - Implement `Renderer` trait using WGPU
+  - Handle resource management and command buffer generation
 
 2. **Create `engine-audio-rodio`:**
-   - Move Rodio-specific code from `engine-audio`
-   - Implement audio traits using Rodio
-   - Handle platform-specific audio device management
+  - Move Rodio-specific code from `engine-audio`
+  - Implement audio traits using Rodio
+  - Handle platform-specific audio device management
 
 3. **Create `engine-physics-rapier`:**
-   - Move Rapier-specific code from `engine-physics`
-   - Implement physics traits using Rapier
-   - Handle 2D/3D physics world management
+  - Move Rapier-specific code from `engine-physics`
+  - Implement physics traits using Rapier
+  - Handle 2D/3D physics world management
 
 **Success Criteria:**
 - Implementation crates successfully implement core traits
@@ -575,19 +575,19 @@ desktop-features = ["wgpu-renderer", "rodio-audio"]
 
 **Tasks:**
 1. **Create `engine-graphics-integration`:**
-   - Coordinate graphics renderer with camera system
-   - Handle ECS queries for renderable entities
-   - Manage render passes and camera priorities
+  - Coordinate graphics renderer with camera system
+  - Handle ECS queries for renderable entities
+  - Manage render passes and camera priorities
 
 2. **Create `engine-physics-integration`:**
-   - Coordinate physics with ECS transform updates
-   - Handle collision event distribution to ECS
-   - Manage physics world synchronization
+  - Coordinate physics with ECS transform updates
+  - Handle collision event distribution to ECS
+  - Manage physics world synchronization
 
 3. **Update `engine-runtime`:**
-   - Modify system scheduling for new architecture
-   - Add dependency injection for implementations
-   - Handle cross-system communication
+  - Modify system scheduling for new architecture
+  - Add dependency injection for implementations
+  - Handle cross-system communication
 
 **Success Criteria:**
 - Integration layers successfully coordinate multiple systems
@@ -600,19 +600,19 @@ desktop-features = ["wgpu-renderer", "rodio-audio"]
 
 **Tasks:**
 1. **Move `engine-editor-egui` to `apps/editor/`:**
-   - Update dependencies to use new architecture
-   - Ensure editor works with abstracted systems
-   - Test all editor functionality
+  - Update dependencies to use new architecture
+  - Ensure editor works with abstracted systems
+  - Test all editor functionality
 
 2. **Reorganize examples:**
-   - Move examples from `engine-graphics/examples/` to root `examples/`
-   - Update examples to demonstrate new architecture
-   - Create examples for each tier of the architecture
+  - Move examples from `engine-graphics/examples/` to root `examples/`
+  - Update examples to demonstrate new architecture
+  - Create examples for each tier of the architecture
 
 3. **Update workspace configuration:**
-   - Update `Cargo.toml` with new crate structure
-   - Configure features and optional dependencies
-   - Update CI/CD to test all combinations
+  - Update `Cargo.toml` with new crate structure
+  - Configure features and optional dependencies
+  - Update CI/CD to test all combinations
 
 **Success Criteria:**
 - All applications compile and run with new architecture
@@ -628,31 +628,31 @@ desktop-features = ["wgpu-renderer", "rodio-audio"]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn bench_mesh_validation(c: &mut Criterion) {
-    let mesh = Mesh::cube();
-    c.bench_function("mesh validation", |b| {
-        b.iter(|| black_box(mesh.validate()))
-    });
+  let mesh = Mesh::cube();
+  c.bench_function("mesh validation", |b| {
+    b.iter(|| black_box(mesh.validate()))
+  });
 }
 
 fn bench_transform_matrix(c: &mut Criterion) {
-    let transform = Transform::new([1.0, 2.0, 3.0], [0.0, 45.0, 0.0], [1.0, 1.0, 1.0]);
-    c.bench_function("transform to matrix", |b| {
-        b.iter(|| black_box(transform.to_matrix()))
-    });
+  let transform = Transform::new([1.0, 2.0, 3.0], [0.0, 45.0, 0.0], [1.0, 1.0, 1.0]);
+  c.bench_function("transform to matrix", |b| {
+    b.iter(|| black_box(transform.to_matrix()))
+  });
 }
 ```
 
 **Integration benchmarks:**
 ```rust
 fn bench_render_system(c: &mut Criterion) {
-    let mut renderer = MockRenderer::new();
-    let world = create_test_world_with_1000_entities();
-    
-    c.bench_function("render 1000 entities", |b| {
-        b.iter(|| {
-            render_system(&mut renderer, &world);
-        })
-    });
+  let mut renderer = MockRenderer::new();
+  let world = create_test_world_with_1000_entities();
+  
+  c.bench_function("render 1000 entities", |b| {
+    b.iter(|| {
+      render_system(&mut renderer, &world);
+    })
+  });
 }
 ```
 
@@ -718,7 +718,7 @@ fn bench_render_system(c: &mut Criterion) {
 The 4-tier architecture separation provides a solid foundation for a production-ready mobile game engine. By separating concerns into Core → Implementation → Integration → Application layers, the engine achieves:
 
 - **Testability:** Pure core logic can be thoroughly unit tested
-- **Flexibility:** Implementations can be swapped based on platform or requirements  
+- **Flexibility:** Implementations can be swapped based on platform or requirements 
 - **Maintainability:** Clear boundaries and single responsibilities
 - **Performance:** Zero-cost abstractions where possible, efficient interfaces where needed
 - **Mobile-First:** Platform-specific optimizations and resource management

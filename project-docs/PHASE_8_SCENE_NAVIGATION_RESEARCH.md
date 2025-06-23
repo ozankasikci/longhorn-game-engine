@@ -1,23 +1,23 @@
 # Phase 8: Scene Navigation Controls - Research & Best Practices
 
 ## Overview
-Implement Unity/Unreal Engine style scene camera navigation using right-click + WASD controls for intuitive scene exploration and editing workflow.
+Implement modern engines Engine style scene camera navigation using right-click + WASD controls for intuitive scene exploration and editing workflow.
 
 ## Research Findings
 
-### Unity Editor Scene Navigation Standards
+### modern game editor Scene Navigation Standards
 
 **Flythrough Mode (Primary Control)**:
 - Hold right mouse button to enter flythrough mode
 - Mouse movement controls camera rotation (look around)
 - WASD keys control camera movement:
-  - W: Move forward
-  - S: Move backward  
-  - A: Move left (strafe)
-  - D: Move right (strafe)
+ - W: Move forward
+ - S: Move backward 
+ - A: Move left (strafe)
+ - D: Move right (strafe)
 - Q/E keys for vertical movement:
-  - Q: Move down
-  - E: Move up
+ - Q: Move down
+ - E: Move up
 - Hold Shift to increase movement speed
 - Mouse scroll wheel adjusts movement speed during navigation
 
@@ -61,25 +61,25 @@ Implement Unity/Unreal Engine style scene camera navigation using right-click + 
 ### Input Handling Architecture
 ```rust
 pub struct SceneNavigation {
-    pub enabled: bool,
-    pub movement_speed: f32,
-    pub rotation_sensitivity: f32,
-    pub fast_movement_multiplier: f32,
-    pub is_navigating: bool,
-    pub last_mouse_pos: Option<Vec2>,
+  pub enabled: bool,
+  pub movement_speed: f32,
+  pub rotation_sensitivity: f32,
+  pub fast_movement_multiplier: f32,
+  pub is_navigating: bool,
+  pub last_mouse_pos: Option<Vec2>,
 }
 
 pub enum NavigationInput {
-    StartNavigation(Vec2),  // Right mouse press + position
-    UpdateNavigation(Vec2), // Mouse movement during navigation
-    EndNavigation,          // Right mouse release
-    MoveForward(f32),      // W key + delta time
-    MoveBackward(f32),     // S key + delta time
-    MoveLeft(f32),         // A key + delta time
-    MoveRight(f32),        // D key + delta time
-    MoveUp(f32),           // E key + delta time  
-    MoveDown(f32),         // Q key + delta time
-    AdjustSpeed(f32),      // Mouse wheel
+  StartNavigation(Vec2), // Right mouse press + position
+  UpdateNavigation(Vec2), // Mouse movement during navigation
+  EndNavigation,     // Right mouse release
+  MoveForward(f32),   // W key + delta time
+  MoveBackward(f32),   // S key + delta time
+  MoveLeft(f32),     // A key + delta time
+  MoveRight(f32),    // D key + delta time
+  MoveUp(f32),      // E key + delta time 
+  MoveDown(f32),     // Q key + delta time
+  AdjustSpeed(f32),   // Mouse wheel
 }
 ```
 
@@ -147,7 +147,7 @@ pub enum NavigationInput {
 - No conflicts with gizmo system
 
 ### Professional Polish
-- Unity/Unreal level responsiveness
+- modern engines level responsiveness
 - Configurable sensitivity settings
 - Visual feedback for navigation state
 - Seamless transitions in/out of navigation
@@ -170,17 +170,17 @@ pub enum NavigationInput {
 
 ### Technical Risks
 1. **Input Conflicts**: Navigation vs gizmo interaction
-   - Mitigation: Clear priority system and state management
+  - Mitigation: Clear priority system and state management
 2. **Performance Impact**: Complex camera calculations
-   - Mitigation: Efficient math operations and caching
+  - Mitigation: Efficient math operations and caching
 3. **Platform Differences**: Mouse capture behavior
-   - Mitigation: Platform abstraction layer
+  - Mitigation: Platform abstraction layer
 
 ### User Experience Risks
 1. **Learning Curve**: Different from other 3D editors
-   - Mitigation: Follow Unity/Unreal standards exactly
+  - Mitigation: Follow modern engines standards exactly
 2. **Sensitivity Issues**: Too fast/slow movement
-   - Mitigation: Configurable settings with good defaults
+  - Mitigation: Configurable settings with good defaults
 
 ## Implementation Phases
 

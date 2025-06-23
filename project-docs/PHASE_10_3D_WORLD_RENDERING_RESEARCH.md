@@ -2,7 +2,7 @@
 
 ## Overview
 
-Research on best practices and techniques for implementing 3D world rendering in game engines, specifically focusing on integrating Unity-style editor Scene View with WGPU renderer and ECS component systems.
+Research on best practices and techniques for implementing 3D world rendering in game engines, specifically focusing on integrating professional editor Scene View with WGPU renderer and ECS component systems.
 
 ## Best Practices Research
 
@@ -65,7 +65,7 @@ Research on best practices and techniques for implementing 3D world rendering in
 **Pipeline Stages Architecture**:
 ```
 RENDER_STAGE_SETUP
-RENDER_STAGE_GEOMETRY_PASS  
+RENDER_STAGE_GEOMETRY_PASS 
 RENDER_STAGE_LIGHTING
 RENDER_STAGE_POST_PROCESSING
 ```
@@ -74,33 +74,33 @@ RENDER_STAGE_POST_PROCESSING
 
 ### Phase 1: Scene View Integration
 1. **Embed WGPU Renderer in Editor**
-   - Integrate `MultiCameraRenderer` into Scene View panel
-   - Replace empty viewport with actual 3D rendering
-   - Connect scene camera transform to WGPU camera
+  - Integrate `MultiCameraRenderer` into Scene View panel
+  - Replace empty viewport with actual 3D rendering
+  - Connect scene camera transform to WGPU camera
 
 ### Phase 2: ECS-Renderer Bridge
 1. **Component Query System**
-   - Query Transform + Mesh + Material components
-   - Extract component data to render buffers
-   - Handle component updates in real-time
+  - Query Transform + Mesh + Material components
+  - Extract component data to render buffers
+  - Handle component updates in real-time
 
 ### Phase 3: Dynamic Mesh Generation
 1. **Primitive Mesh Factory**
-   - Generate GPU buffers for Cube, Sphere, Plane
-   - Cache mesh resources for reuse
-   - Handle custom mesh loading
+  - Generate GPU buffers for Cube, Sphere, Plane
+  - Cache mesh resources for reuse
+  - Handle custom mesh loading
 
 ### Phase 4: Material System Integration
 1. **Shader Uniform Management**
-   - Connect Material component properties to shaders
-   - Handle texture binding and updates
-   - Support PBR material workflows
+  - Connect Material component properties to shaders
+  - Handle texture binding and updates
+  - Support PBR material workflows
 
 ### Phase 5: Lighting Integration
 1. **Dynamic Light System**
-   - Read Light components from ECS
-   - Update shader uniforms with light data
-   - Support multiple light types (directional, point, spot)
+  - Read Light components from ECS
+  - Update shader uniforms with light data
+  - Support multiple light types (directional, point, spot)
 
 ## Technical Recommendations
 

@@ -15,15 +15,15 @@ Fixed the `focus_on_selected_object` function in `scene_view/mod.rs`:
 ### Key Changes:
 1. **Updated component check**: Now checks for `MeshFilter` instead of old `Mesh` component
 2. **Improved camera positioning**:
-   - Camera is positioned behind and above the object for a nice 3/4 view
-   - Uses positive Z offset (behind) since camera looks down -Z axis
-   - Added slight X offset for better viewing angle
-   - View distance is proportional to object size (3x object radius, clamped between 2-10 units)
+  - Camera is positioned behind and above the object for a nice 3/4 view
+  - Uses positive Z offset (behind) since camera looks down -Z axis
+  - Added slight X offset for better viewing angle
+  - View distance is proportional to object size (3x object radius, clamped between 2-10 units)
 
 3. **Fixed rotation calculation**:
-   - Proper pitch calculation to look down at object
-   - Correct yaw calculation using `atan2(dx, -dz)` for our coordinate system
-   - Camera now properly faces the selected object
+  - Proper pitch calculation to look down at object
+  - Correct yaw calculation using `atan2(dx, -dz)` for our coordinate system
+  - Camera now properly faces the selected object
 
 ### Camera Positioning Formula:
 ```rust
@@ -32,9 +32,9 @@ let height_offset = view_distance * sin(angle) * 2.0;
 let horizontal_offset = view_distance * cos(angle);
 
 camera_position = [
-    object.x + horizontal_offset * 0.5,  // Slight X offset
-    object.y + height_offset,             // Above object
-    object.z + horizontal_offset          // Behind object
+  object.x + horizontal_offset * 0.5, // Slight X offset
+  object.y + height_offset,       // Above object
+  object.z + horizontal_offset     // Behind object
 ];
 ```
 

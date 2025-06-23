@@ -177,27 +177,27 @@ Implement a comprehensive asset import pipeline for the Longhorn Game Engine, st
 
 ### Crate Structure
 ```
-engine-asset-import/          # Core import pipeline
+engine-asset-import/     # Core import pipeline
 ├── src/
-│   ├── importer.rs          # AssetImporter trait
-│   ├── context.rs           # ImportContext
-│   ├── pipeline.rs          # Import pipeline
-│   ├── job.rs               # Import job system
-│   └── processor.rs         # Asset processors
+│  ├── importer.rs     # AssetImporter trait
+│  ├── context.rs      # ImportContext
+│  ├── pipeline.rs     # Import pipeline
+│  ├── job.rs        # Import job system
+│  └── processor.rs     # Asset processors
 
-engine-mesh-import/           # Mesh format importers
+engine-mesh-import/      # Mesh format importers
 ├── src/
-│   ├── obj/                 # OBJ importer
-│   ├── gltf/                # glTF importer
-│   ├── fbx/                 # FBX importer
-│   └── converter.rs         # Mesh conversion
+│  ├── obj/         # OBJ importer
+│  ├── gltf/        # glTF importer
+│  ├── fbx/         # FBX importer
+│  └── converter.rs     # Mesh conversion
 
-engine-texture-import/        # Texture importers
+engine-texture-import/    # Texture importers
 ├── src/
-│   ├── png/                 # PNG importer
-│   ├── jpeg/                # JPEG importer
-│   ├── compression/         # Texture compression
-│   └── mipmap.rs           # Mipmap generation
+│  ├── png/         # PNG importer
+│  ├── jpeg/        # JPEG importer
+│  ├── compression/     # Texture compression
+│  └── mipmap.rs      # Mipmap generation
 ```
 
 ### Key Design Decisions
@@ -210,7 +210,7 @@ engine-texture-import/        # Texture importers
 
 ### Dependencies
 - `gltf` - For glTF parsing
-- `obj` - For OBJ parsing  
+- `obj` - For OBJ parsing 
 - `image` - For texture loading
 - `rayon` - For parallel processing
 - `tokio` - For async runtime
@@ -218,58 +218,58 @@ engine-texture-import/        # Texture importers
 ## Success Criteria
 
 1. **Functionality**
-   - Successfully import OBJ, glTF, and FBX meshes
-   - Import textures in common formats
-   - Generate missing data (normals, UVs)
-   - Handle errors gracefully
+  - Successfully import OBJ, glTF, and FBX meshes
+  - Import textures in common formats
+  - Generate missing data (normals, UVs)
+  - Handle errors gracefully
 
 2. **Performance**
-   - Import a 1M polygon mesh in < 5 seconds
-   - Parallel processing for multiple imports
-   - Efficient memory usage
+  - Import a 1M polygon mesh in < 5 seconds
+  - Parallel processing for multiple imports
+  - Efficient memory usage
 
 3. **Usability**
-   - Intuitive import workflow
-   - Clear progress feedback
-   - Helpful error messages
-   - Drag-and-drop support
+  - Intuitive import workflow
+  - Clear progress feedback
+  - Helpful error messages
+  - Drag-and-drop support
 
 4. **Code Quality**
-   - Comprehensive test coverage (>80%)
-   - Well-documented APIs
-   - Clean separation of concerns
-   - No circular dependencies
+  - Comprehensive test coverage (>80%)
+  - Well-documented APIs
+  - Clean separation of concerns
+  - No circular dependencies
 
 ## Future Enhancements
 
 1. **Additional Formats**
-   - Collada (.dae)
-   - 3DS Max (.3ds)
-   - Blender (.blend)
-   - USD/USDZ
+  - Collada (.dae)
+  - 3DS Max (.3ds)
+  - Blender (.blend)
+  - USD/USDZ
 
 2. **Advanced Features**
-   - Animation import
-   - Skeleton/bone import
-   - Blend shapes/morph targets
-   - Physics mesh generation
+  - Animation import
+  - Skeleton/bone import
+  - Blend shapes/morph targets
+  - Physics mesh generation
 
 3. **Optimization**
-   - Mesh decimation
-   - Texture atlasing
-   - Batch importing
-   - Cloud-based processing
+  - Mesh decimation
+  - Texture atlasing
+  - Batch importing
+  - Cloud-based processing
 
 ## Risks and Mitigation
 
 1. **Format Complexity**: Some formats (FBX) are proprietary
-   - Mitigation: Use open-source parsers, focus on common subsets
+  - Mitigation: Use open-source parsers, focus on common subsets
 
 2. **Performance**: Large assets may block editor
-   - Mitigation: Async processing, progress indication
+  - Mitigation: Async processing, progress indication
 
 3. **Memory Usage**: Importing large assets
-   - Mitigation: Streaming, temporary file usage
+  - Mitigation: Streaming, temporary file usage
 
 4. **Compatibility**: Different tools export differently
-   - Mitigation: Flexible parsing, good error messages
+  - Mitigation: Flexible parsing, good error messages

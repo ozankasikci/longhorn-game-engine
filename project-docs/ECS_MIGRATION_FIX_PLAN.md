@@ -73,127 +73,127 @@ Use macros or build scripts to generate migration code for all component combina
 ### Phase 1: Add Component Cloning (2-3 hours)
 
 1. **Update Component Trait**
-   ```rust
-   pub trait Component: 'static + Send + Sync {
-       fn type_id() -> TypeId where Self: Sized {
-           TypeId::of::<Self>()
-       }
-       
-       // New method for cloning
-       fn clone_boxed(&self) -> Box<dyn Component>;
-   }
-   ```
+  ```rust
+  pub trait Component: 'static + Send + Sync {
+    fn type_id() -> TypeId where Self: Sized {
+      TypeId::of::<Self>()
+    }
+    
+    // New method for cloning
+    fn clone_boxed(&self) -> Box<dyn Component>;
+  }
+  ```
 
 2. **Implement for all components**
-   ```rust
-   impl Component for Transform {
-       fn clone_boxed(&self) -> Box<dyn Component> {
-           Box::new(self.clone())
-       }
-   }
-   ```
+  ```rust
+  impl Component for Transform {
+    fn clone_boxed(&self) -> Box<dyn Component> {
+      Box::new(self.clone())
+    }
+  }
+  ```
 
 3. **Update ErasedComponentArray**
-   - Add method to clone component at index
-   - Return type-erased Box<dyn Component>
+  - Add method to clone component at index
+  - Return type-erased Box<dyn Component>
 
 ### Phase 2: Implement Generic Migration (3-4 hours)
 
 1. **Create Component Migration Logic**
-   ```rust
-   fn migrate_entity_to_new_archetype<T: Component>(
-       &mut self,
-       entity: Entity,
-       old_location: EntityLocation,
-       target_archetype_id: ArchetypeId,
-       new_component: T,
-       new_component_ticks: ComponentTicks
-   ) -> Result<(), &'static str>
-   ```
+  ```rust
+  fn migrate_entity_to_new_archetype<T: Component>(
+    &mut self,
+    entity: Entity,
+    old_location: EntityLocation,
+    target_archetype_id: ArchetypeId,
+    new_component: T,
+    new_component_ticks: ComponentTicks
+  ) -> Result<(), &'static str>
+  ```
 
 2. **Migration Steps:**
-   - Get old archetype
-   - For each component type in old archetype:
-     - Clone component at entity's index
-     - Store in temporary collection
-   - Remove entity from old archetype
-   - Add entity to new archetype
-   - Add all cloned components to new archetype
-   - Add the new component
-   - Update entity location
+  - Get old archetype
+  - For each component type in old archetype:
+   - Clone component at entity's index
+   - Store in temporary collection
+  - Remove entity from old archetype
+  - Add entity to new archetype
+  - Add all cloned components to new archetype
+  - Add the new component
+  - Update entity location
 
 3. **Handle Edge Cases:**
-   - Entity that was swapped during removal
-   - Empty archetypes cleanup
-   - Component tick preservation
+  - Entity that was swapped during removal
+  - Empty archetypes cleanup
+  - Component tick preservation
 
 ### Phase 3: Testing & Validation (2 hours)
 
 1. **Unit Tests**
-   - Test single component entities
-   - Test adding components progressively
-   - Test removing components
-   - Test complex entities (5+ components)
+  - Test single component entities
+  - Test adding components progressively
+  - Test removing components
+  - Test complex entities (5+ components)
 
 2. **Integration Tests**
-   - Create full game objects (Transform + Mesh + Material + etc)
-   - Verify queries work correctly
-   - Test performance with many entities
+  - Create full game objects (Transform + Mesh + Material + etc)
+  - Verify queries work correctly
+  - Test performance with many entities
 
 3. **Editor Validation**
-   - Remove Transform-only workarounds
-   - Create proper 3D objects with all components
-   - Verify rendering with actual Mesh components
+  - Remove Transform-only workarounds
+  - Create proper 3D objects with all components
+  - Verify rendering with actual Mesh components
 
 ### Phase 4: Optimization (Optional, 2 hours)
 
 1. **Archetype Caching**
-   - Cache frequently used archetypes
-   - Pre-allocate space for common patterns
+  - Cache frequently used archetypes
+  - Pre-allocate space for common patterns
 
 2. **Migration Batching**
-   - Detect multiple component additions
-   - Migrate once instead of multiple times
+  - Detect multiple component additions
+  - Migrate once instead of multiple times
 
 3. **Component Storage**
-   - Use dense storage for common components
-   - Optimize memory layout
+  - Use dense storage for common components
+  - Optimize memory layout
 
 ## Implementation Priority
 
 1. **Immediate Fix** (This Sprint)
-   - Implement Phase 1 & 2
-   - Get basic multi-component entities working
-   - Unblock 3D rendering development
+  - Implement Phase 1 & 2
+  - Get basic multi-component entities working
+  - Unblock 3D rendering development
 
 2. **Polish** (Next Sprint)
-   - Complete Phase 3 testing
-   - Add error handling and logging
-   - Document the system
+  - Complete Phase 3 testing
+  - Add error handling and logging
+  - Document the system
 
 3. **Performance** (Future)
-   - Profile and optimize if needed
-   - Consider Phase 4 optimizations
+  - Profile and optimize if needed
+  - Consider Phase 4 optimizations
 
 ## Alternative Quick Fix
 
 If we need entities working immediately without implementing full migration:
 
 1. **Bundle Pattern**: Create component bundles that are added atomically
-   ```rust
-   let entity = world.spawn_bundle(GameObjectBundle {
-       transform: Transform::default(),
-       mesh: Mesh::default(),
-       material: Material::default(),
-       visibility: Visibility::default(),
-   });
-   ```
+  ```rust
+  let entity = world.spawn_bundle(GameObjectBundle {
+    transform: Transform::default(),
+    mesh: Mesh::default(),
+    material: Material::default(),
+    visibility: Visibility::default(),
+  });
+  ```
 
 2. **Fixed Archetypes**: Pre-define common component combinations
-   - Transform-only
-   - Transform + Mesh + Material + Visibility (standard 3D object)
-   - Transform + SpriteRenderer + Visibility (2D sprite)
-   - Transform + Camera (camera entity)
+  - Transform-only
+  - Transform + Mesh + Material + Visibility (standard 3D object)
+  - Transform + SpriteRenderer + Visibility (2D sprite)
+  - Transform + Camera (camera entity)
 
 This would allow immediate progress while the proper solution is implemented.
 
@@ -209,21 +209,21 @@ This would allow immediate progress while the proper solution is implemented.
 ## Risks & Mitigation
 
 1. **Performance Impact**
-   - Risk: Cloning components during migration could be slow
-   - Mitigation: Profile and optimize hot paths, consider pooling
+  - Risk: Cloning components during migration could be slow
+  - Mitigation: Profile and optimize hot paths, consider pooling
 
 2. **Memory Fragmentation**
-   - Risk: Frequent migrations could fragment memory
-   - Mitigation: Archetype pooling, periodic defragmentation
+  - Risk: Frequent migrations could fragment memory
+  - Mitigation: Archetype pooling, periodic defragmentation
 
 3. **Type Safety**
-   - Risk: Type-erased cloning could hide errors
-   - Mitigation: Comprehensive testing, debug assertions
+  - Risk: Type-erased cloning could hide errors
+  - Mitigation: Comprehensive testing, debug assertions
 
 ## Timeline Estimate
 
 - Research & Design: 1 hour
-- Implementation: 5-7 hours  
+- Implementation: 5-7 hours 
 - Testing: 2 hours
 - Documentation: 1 hour
 

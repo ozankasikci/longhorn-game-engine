@@ -1,7 +1,7 @@
 # ECS v2 Performance Results
 
-**Date:** December 6, 2025  
-**Test Environment:** Release build, 1000 entities  
+**Date:** December 6, 2025 
+**Test Environment:** Release build, 1000 entities 
 **Comparison:** Old HashMap-based ECS vs New Archetypal ECS
 
 ## Performance Metrics
@@ -12,7 +12,7 @@
 - **Result:** 1.53x slower for entity creation
 
 ### Query Iteration (1000 entities)
-- **Old ECS Query:** 4.5µs  
+- **Old ECS Query:** 4.5µs 
 - **New ECS Query:** 16.583µs
 - **Result:** 3.68x slower for basic queries
 
@@ -99,7 +99,7 @@ The new system's performance characteristics scale much better:
 The ECS v2 implementation successfully achieves its **architectural goals** despite showing slower performance on small datasets. This is expected and acceptable because:
 
 1. **Target Platform:** Mobile games benefit more from cache efficiency than raw speed
-2. **Scalability:** Performance gap will reverse at larger entity counts  
+2. **Scalability:** Performance gap will reverse at larger entity counts 
 3. **Feature Set:** Change detection and parallel potential outweigh current overhead
 4. **Industry Standard:** Follows proven Bevy/Legion architecture patterns
 
@@ -109,7 +109,7 @@ The ECS v2 implementation successfully achieves its **architectural goals** desp
 
 Future performance improvements can target:
 1. **Entity Creation:** Pool/batch entity creation
-2. **Query Optimization:** Specialized fast paths for common patterns  
+2. **Query Optimization:** Specialized fast paths for common patterns 
 3. **Parallel Queries:** Implement rayon-based parallel iteration
 4. **Memory Tuning:** Optimize archetype storage layouts
 

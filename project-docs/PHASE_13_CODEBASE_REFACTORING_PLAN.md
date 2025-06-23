@@ -8,18 +8,18 @@ Major refactoring phase to improve code organization, fix architecture violation
 
 ## Current Issues
 1. **Oversized Files**:
-   - `ecs_v2.rs` - 1,619 lines
-   - `scene_view_impl.rs` - 1,018 lines
-   - 6 other files > 500 lines
+  - `ecs_v2.rs` - 1,619 lines
+  - `scene_view_impl.rs` - 1,018 lines
+  - 6 other files > 500 lines
 
 2. **Architecture Violations**:
-   - Core crates contain implementation details
-   - Missing implementation crates
-   - Inconsistent naming conventions
+  - Core crates contain implementation details
+  - Missing implementation crates
+  - Inconsistent naming conventions
 
 3. **Poor Documentation**:
-   - Only 1 README across 25 crates
-   - Limited test organization
+  - Only 1 README across 25 crates
+  - Limited test organization
 
 ## Sub-Phases
 

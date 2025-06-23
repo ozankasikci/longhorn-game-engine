@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**Phase:** 5 - Architecture Separation of Concerns  
-**Timeline:** 6-8 hours total (4 sub-phases)  
-**Objective:** Implement 4-tier architecture separating pure domain logic from implementation details  
+**Phase:** 5 - Architecture Separation of Concerns 
+**Timeline:** 6-8 hours total (4 sub-phases) 
+**Objective:** Implement 4-tier architecture separating pure domain logic from implementation details 
 **Benefits:** Independent testing, swappable implementations, platform-specific optimizations
 
 ---
@@ -14,38 +14,38 @@
 ### **Tier 1: Core Abstractions** (Pure Domain Logic)
 ```
 crates/core/
-├── engine-core/            # ✅ ECS, math (already good)
-├── engine-graphics-core/   # 🆕 Pure graphics concepts, traits
-├── engine-audio-core/      # 🆕 Pure audio logic, DSP math
-├── engine-physics-core/    # 🆕 Pure physics algorithms
-├── engine-assets-core/     # 🆕 Asset system abstractions
-└── engine-platform/        # ✅ Platform abstractions (already good)
+├── engine-core/      # ✅ ECS, math (already good)
+├── engine-graphics-core/  # 🆕 Pure graphics concepts, traits
+├── engine-audio-core/   # 🆕 Pure audio logic, DSP math
+├── engine-physics-core/  # 🆕 Pure physics algorithms
+├── engine-assets-core/   # 🆕 Asset system abstractions
+└── engine-platform/    # ✅ Platform abstractions (already good)
 ```
 
 ### **Tier 2: Technology Implementations**
 ```
 crates/implementations/
-├── engine-renderer-wgpu/   # 🆕 WGPU-specific rendering
-├── engine-audio-rodio/     # 🆕 Rodio-specific audio
-├── engine-physics-rapier/  # 🆕 Rapier-specific physics
-└── engine-assets-fs/       # 🆕 Filesystem asset loading
+├── engine-renderer-wgpu/  # 🆕 WGPU-specific rendering
+├── engine-audio-rodio/   # 🆕 Rodio-specific audio
+├── engine-physics-rapier/ # 🆕 Rapier-specific physics
+└── engine-assets-fs/    # 🆕 Filesystem asset loading
 ```
 
 ### **Tier 3: System Integration**
 ```
 crates/integration/
-├── engine-graphics-integration/  # 🆕 Graphics + Camera + ECS
-├── engine-physics-integration/   # 🆕 Physics + ECS + Collision
-└── engine-runtime/              # ✅ System orchestration (existing)
+├── engine-graphics-integration/ # 🆕 Graphics + Camera + ECS
+├── engine-physics-integration/  # 🆕 Physics + ECS + Collision
+└── engine-runtime/       # ✅ System orchestration (existing)
 ```
 
 ### **Tier 4: Applications**
 ```
-apps/                       # 🆕 Move from crates/
-├── editor/                 # 📱 Unity-style editor
-└── templates/              # 🆕 Game templates
+apps/            # 🆕 Move from crates/
+├── editor/         # 📱 professional editor
+└── templates/       # 🆕 Game templates
 
-examples/                   # 🆕 Move from engine-graphics/examples/
+examples/          # 🆕 Move from engine-graphics/examples/
 ├── basic-rendering/
 ├── multi-camera/
 └── physics-demo/
@@ -62,18 +62,18 @@ examples/                   # 🆕 Move from engine-graphics/examples/
 #### Task 1.1: Create `engine-graphics-core` (60 minutes)
 ```rust
 // crates/core/engine-graphics-core/src/lib.rs
-pub mod mesh;           // Pure mesh definitions
-pub mod material;       // Material system traits  
-pub mod shader;         // Shader abstractions
-pub mod geometry;       // Geometric primitives
-pub mod color;          // Color management
-pub mod camera_traits;  // Camera system traits
+pub mod mesh;      // Pure mesh definitions
+pub mod material;    // Material system traits 
+pub mod shader;     // Shader abstractions
+pub mod geometry;    // Geometric primitives
+pub mod color;     // Color management
+pub mod camera_traits; // Camera system traits
 
 // Core rendering trait
 pub trait Renderer: Send + Sync {
-    fn render(&mut self, scene: &Scene) -> Result<()>;
-    fn resize(&mut self, width: u32, height: u32);
-    fn create_texture(&mut self, data: &[u8]) -> TextureHandle;
+  fn render(&mut self, scene: &Scene) -> Result<()>;
+  fn resize(&mut self, width: u32, height: u32);
+  fn create_texture(&mut self, data: &[u8]) -> TextureHandle;
 }
 ```
 
@@ -89,34 +89,34 @@ pub trait Renderer: Send + Sync {
 #### Task 1.2: Create `engine-audio-core` (45 minutes)
 ```rust
 // crates/core/engine-audio-core/src/lib.rs
-pub mod source;         // Audio source abstractions
-pub mod mixer;          // Audio mixing logic
-pub mod effects;        // Audio effects traits
-pub mod spatial;        // 3D spatial audio
+pub mod source;     // Audio source abstractions
+pub mod mixer;     // Audio mixing logic
+pub mod effects;    // Audio effects traits
+pub mod spatial;    // 3D spatial audio
 
 pub trait AudioSystem: Send + Sync {
-    fn play_sound(&mut self, handle: SoundHandle) -> Result<()>;
-    fn set_listener(&mut self, transform: Transform);
+  fn play_sound(&mut self, handle: SoundHandle) -> Result<()>;
+  fn set_listener(&mut self, transform: Transform);
 }
 ```
 
 **Extract from `engine-audio`:**
 - [ ] Pure audio processing logic
-- [ ] DSP math functions  
+- [ ] DSP math functions 
 - [ ] Audio system traits
 - [ ] Spatial audio calculations
 
 #### Task 1.3: Create `engine-physics-core` (45 minutes)
 ```rust
 // crates/core/engine-physics-core/src/lib.rs
-pub mod collision;      // Collision detection algorithms
-pub mod dynamics;       // Physics simulation math
-pub mod shapes;         // Collision shape definitions
+pub mod collision;   // Collision detection algorithms
+pub mod dynamics;    // Physics simulation math
+pub mod shapes;     // Collision shape definitions
 
 pub trait PhysicsWorld: Send + Sync {
-    fn step(&mut self, dt: f32);
-    fn add_body(&mut self, body: RigidBody) -> BodyHandle;
-    fn raycast(&self, ray: Ray) -> Option<RaycastHit>;
+  fn step(&mut self, dt: f32);
+  fn add_body(&mut self, body: RigidBody) -> BodyHandle;
+  fn raycast(&self, ray: Ray) -> Option<RaycastHit>;
 }
 ```
 
@@ -145,16 +145,16 @@ use engine_graphics_core::{Renderer, Mesh, Material};
 use wgpu::*;
 
 pub struct WgpuRenderer {
-    device: Device,
-    queue: Queue,
-    surface: Surface<'static>,
-    // WGPU-specific implementation
+  device: Device,
+  queue: Queue,
+  surface: Surface<'static>,
+  // WGPU-specific implementation
 }
 
 impl Renderer for WgpuRenderer {
-    fn render(&mut self, scene: &Scene) -> Result<()> {
-        // WGPU-specific rendering pipeline
-    }
+  fn render(&mut self, scene: &Scene) -> Result<()> {
+    // WGPU-specific rendering pipeline
+  }
 }
 ```
 
@@ -171,14 +171,14 @@ use engine_audio_core::AudioSystem;
 use rodio::*;
 
 pub struct RodioAudioSystem {
-    device: OutputDevice,
-    mixer: Mixer,
+  device: OutputDevice,
+  mixer: Mixer,
 }
 
 impl AudioSystem for RodioAudioSystem {
-    fn play_sound(&mut self, handle: SoundHandle) -> Result<()> {
-        // Rodio-specific audio playback
-    }
+  fn play_sound(&mut self, handle: SoundHandle) -> Result<()> {
+    // Rodio-specific audio playback
+  }
 }
 ```
 
@@ -194,15 +194,15 @@ use engine_physics_core::PhysicsWorld;
 use rapier2d::prelude::*;
 
 pub struct RapierPhysicsWorld {
-    rigid_body_set: RigidBodySet,
-    collider_set: ColliderSet,
-    physics_pipeline: PhysicsPipeline,
+  rigid_body_set: RigidBodySet,
+  collider_set: ColliderSet,
+  physics_pipeline: PhysicsPipeline,
 }
 
 impl PhysicsWorld for RapierPhysicsWorld {
-    fn step(&mut self, dt: f32) {
-        // Rapier-specific physics simulation
-    }
+  fn step(&mut self, dt: f32) {
+    // Rapier-specific physics simulation
+  }
 }
 ```
 
@@ -230,15 +230,15 @@ use engine_camera::CameraComponent;
 use engine_graphics_core::Renderer;
 
 pub struct GraphicsSystem<R: Renderer> {
-    renderer: R,
+  renderer: R,
 }
 
 impl<R: Renderer> GraphicsSystem<R> {
-    pub fn render_world(&mut self, world: &WorldV2) -> Result<()> {
-        // Extract cameras, meshes, transforms from ECS
-        // Coordinate multiple systems
-        // Call renderer with processed data
-    }
+  pub fn render_world(&mut self, world: &WorldV2) -> Result<()> {
+    // Extract cameras, meshes, transforms from ECS
+    // Coordinate multiple systems
+    // Call renderer with processed data
+  }
 }
 ```
 
@@ -273,7 +273,7 @@ mkdir -p examples/{basic-rendering,multi-camera,physics-demo}
 # Move applications
 mv crates/engine-editor-egui apps/editor
 
-# Move examples  
+# Move examples 
 mv crates/engine-graphics/examples/* examples/
 ```
 
@@ -282,23 +282,23 @@ mv crates/engine-graphics/examples/* examples/
 # Cargo.toml
 [workspace]
 members = [
-    # Core crates
-    "crates/core/engine-core",
-    "crates/core/engine-graphics-core",
-    "crates/core/engine-audio-core", 
-    "crates/core/engine-physics-core",
-    
-    # Implementation crates
-    "crates/implementations/engine-renderer-wgpu",
-    "crates/implementations/engine-audio-rodio",
-    "crates/implementations/engine-physics-rapier",
-    
-    # Integration crates
-    "crates/integration/engine-graphics-integration",
-    "crates/integration/engine-runtime",
-    
-    # Applications
-    "apps/editor",
+  # Core crates
+  "crates/core/engine-core",
+  "crates/core/engine-graphics-core",
+  "crates/core/engine-audio-core", 
+  "crates/core/engine-physics-core",
+  
+  # Implementation crates
+  "crates/implementations/engine-renderer-wgpu",
+  "crates/implementations/engine-audio-rodio",
+  "crates/implementations/engine-physics-rapier",
+  
+  # Integration crates
+  "crates/integration/engine-graphics-integration",
+  "crates/integration/engine-runtime",
+  
+  # Applications
+  "apps/editor",
 ]
 
 [features]
@@ -343,21 +343,21 @@ rapier-physics = ["engine-physics-rapier"]
 
 ### **High-Risk Areas**
 1. **Performance Regression** 
-   - **Mitigation:** Comprehensive benchmarking, zero-cost abstractions
-   - **Contingency:** Roll back if targets not met
+  - **Mitigation:** Comprehensive benchmarking, zero-cost abstractions
+  - **Contingency:** Roll back if targets not met
 
 2. **Integration Complexity**
-   - **Mitigation:** Start simple, add complexity incrementally  
-   - **Contingency:** Simplify interfaces if needed
+  - **Mitigation:** Start simple, add complexity incrementally 
+  - **Contingency:** Simplify interfaces if needed
 
 ### **Medium-Risk Areas**
 1. **Build System Complexity**
-   - **Mitigation:** Use proven feature management patterns
-   - **Contingency:** Reduce feature combinations
+  - **Mitigation:** Use proven feature management patterns
+  - **Contingency:** Reduce feature combinations
 
 2. **Testing Overhead**
-   - **Mitigation:** Invest in good mock implementations
-   - **Contingency:** Focus on integration tests if unit tests become unwieldy
+  - **Mitigation:** Invest in good mock implementations
+  - **Contingency:** Focus on integration tests if unit tests become unwieldy
 
 ---
 
@@ -375,12 +375,12 @@ rapier-physics = ["engine-physics-rapier"]
 
 ### **Quality Gates**
 - **Phase 5.1:** All core crates compile independently
-- **Phase 5.2:** Examples work with new implementations  
+- **Phase 5.2:** Examples work with new implementations 
 - **Phase 5.3:** Multi-camera demo functional
 - **Phase 5.4:** Complete workspace builds successfully
 
 ---
 
-**Phase 5 Status:** Ready for implementation  
-**Expected Duration:** 6-8 hours total  
+**Phase 5 Status:** Ready for implementation 
+**Expected Duration:** 6-8 hours total 
 **Expected Outcome:** Production-ready modular architecture with independent testing and swappable implementations

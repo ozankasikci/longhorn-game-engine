@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**Phase:** 5.4 - Camera Core Creation  
-**Timeline:** 1-2 hours  
-**Objective:** Create `engine-camera-core` with pure camera abstractions to complete the core architecture  
+**Phase:** 5.4 - Camera Core Creation 
+**Timeline:** 1-2 hours 
+**Objective:** Create `engine-camera-core` with pure camera abstractions to complete the core architecture 
 **Priority:** High - Completes the domain-driven core architecture (implementation updates deferred to later phase)
 
 ---
@@ -38,26 +38,26 @@
 
 ### **New Tier 1: Core Camera Abstractions**
 ```
-crates/core/engine-camera-core/    # Pure camera abstractions
+crates/core/engine-camera-core/  # Pure camera abstractions
 ├── src/
-│   ├── camera.rs           # Advanced camera traits and interfaces
-│   ├── projection.rs       # Advanced projection abstractions
-│   ├── viewport.rs         # Advanced viewport management
-│   ├── culling.rs          # Frustum culling abstractions
-│   ├── optimization.rs     # Mobile optimization interfaces
-│   └── lib.rs             # Module exports
+│  ├── camera.rs      # Advanced camera traits and interfaces
+│  ├── projection.rs    # Advanced projection abstractions
+│  ├── viewport.rs     # Advanced viewport management
+│  ├── culling.rs     # Frustum culling abstractions
+│  ├── optimization.rs   # Mobile optimization interfaces
+│  └── lib.rs       # Module exports
 └── Cargo.toml
 ```
 
 ### **Future Tier 2: Camera Implementation** (Later Phase)
 ```
-crates/engine-camera/              # Concrete camera implementation
+crates/engine-camera/       # Concrete camera implementation
 ├── src/
-│   ├── camera.rs          # Implements camera-core traits
-│   ├── frustum.rs         # Concrete frustum culling
-│   ├── mobile.rs          # Mobile-specific optimizations
-│   └── ecs.rs             # ECS v2 integration
-└── Cargo.toml             # Will depend on engine-camera-core
+│  ├── camera.rs     # Implements camera-core traits
+│  ├── frustum.rs     # Concrete frustum culling
+│  ├── mobile.rs     # Mobile-specific optimizations
+│  └── ecs.rs       # ECS v2 integration
+└── Cargo.toml       # Will depend on engine-camera-core
 ```
 *Note: Implementation updates deferred to focus on completing core architecture*
 
@@ -121,38 +121,38 @@ engine-camera (Tier 2)
 ### **Camera Management:**
 ```rust
 pub trait AdvancedCamera: Send + Sync {
-    fn frustum_culling(&self) -> &dyn FrustumCuller;
-    fn mobile_optimizations(&self) -> &dyn MobileOptimizer;
-    fn performance_settings(&self) -> CameraPerformanceSettings;
+  fn frustum_culling(&self) -> &dyn FrustumCuller;
+  fn mobile_optimizations(&self) -> &dyn MobileOptimizer;
+  fn performance_settings(&self) -> CameraPerformanceSettings;
 }
 
 pub trait FrustumCuller: Send + Sync {
-    fn cull_objects(&self, objects: &[BoundingBox]) -> CullingResult;
-    fn update_frustum(&mut self, view_proj: Mat4);
+  fn cull_objects(&self, objects: &[BoundingBox]) -> CullingResult;
+  fn update_frustum(&mut self, view_proj: Mat4);
 }
 
 pub trait MobileOptimizer: Send + Sync {
-    fn optimize_for_device(&mut self, device_info: &DeviceInfo);
-    fn get_recommended_settings(&self) -> CameraSettings;
+  fn optimize_for_device(&mut self, device_info: &DeviceInfo);
+  fn get_recommended_settings(&self) -> CameraSettings;
 }
 ```
 
 ### **Advanced Projections:**
 ```rust
 pub trait ProjectionBuilder: Send + Sync {
-    fn build_perspective(&self, params: PerspectiveParams) -> ProjectionMatrix;
-    fn build_orthographic(&self, params: OrthographicParams) -> ProjectionMatrix;
-    fn build_mobile_optimized(&self, device: &DeviceInfo) -> ProjectionMatrix;
+  fn build_perspective(&self, params: PerspectiveParams) -> ProjectionMatrix;
+  fn build_orthographic(&self, params: OrthographicParams) -> ProjectionMatrix;
+  fn build_mobile_optimized(&self, device: &DeviceInfo) -> ProjectionMatrix;
 }
 ```
 
 ### **Performance Abstractions:**
 ```rust
 pub struct CameraPerformanceSettings {
-    pub frustum_culling_enabled: bool,
-    pub lod_bias: f32,
-    pub render_distance: f32,
-    pub mobile_optimizations: bool,
+  pub frustum_culling_enabled: bool,
+  pub lod_bias: f32,
+  pub render_distance: f32,
+  pub mobile_optimizations: bool,
 }
 ```
 
@@ -215,6 +215,6 @@ thiserror = { workspace = true }
 - [x] Workspace compilation successful
 - [x] Documentation complete
 
-**Timeline:** 1-2 hours  
-**Dependencies:** Completed Phase 5.1-5.3  
+**Timeline:** 1-2 hours 
+**Dependencies:** Completed Phase 5.1-5.3 
 **Next Phase:** 6.0 - Implementation Layer Updates (Future)

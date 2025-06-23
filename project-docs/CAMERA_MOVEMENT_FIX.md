@@ -14,7 +14,7 @@ Created a new fixed navigation calculation in `navigation_fixed.rs` that correct
 ```rust
 // Camera basis vectors in world space
 let camera_right_world = [cos_yaw, 0.0, -sin_yaw];
-let camera_up_world = [sin_yaw * sin_pitch, cos_pitch, cos_yaw * sin_pitch];  
+let camera_up_world = [sin_yaw * sin_pitch, cos_pitch, cos_yaw * sin_pitch]; 
 let camera_forward_world = [sin_yaw * cos_pitch, -sin_pitch, cos_yaw * cos_pitch];
 
 // Transform movement from camera space to world space

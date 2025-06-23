@@ -3,10 +3,10 @@
 ## Executive Summary
 This research explores best practices for implementing mesh and material systems in modern game engines, with a focus on component-based architectures. The findings will guide the implementation of predefined game objects in the Longhorn Game Engine.
 
-## Unity's Component Architecture
+## industry-standard Component Architecture
 
 ### MeshFilter and MeshRenderer Separation
-Unity's architecture separates mesh handling into two distinct components:
+industry-standard architecture separates mesh handling into two distinct components:
 
 **MeshFilter Component**:
 - Holds a reference to the mesh asset
@@ -108,13 +108,13 @@ Modern renderers query for renderable entities:
 ```rust
 // Pseudocode for render system
 for (entity, mesh_filter, mesh_renderer, transform) in world.query() {
-    if mesh_renderer.enabled && frustum.contains(bounds) {
-        render_queue.add(RenderCommand {
-            mesh: mesh_filter.mesh,
-            materials: mesh_renderer.materials,
-            transform: transform.matrix(),
-        });
-    }
+  if mesh_renderer.enabled && frustum.contains(bounds) {
+    render_queue.add(RenderCommand {
+      mesh: mesh_filter.mesh,
+      materials: mesh_renderer.materials,
+      transform: transform.matrix(),
+    });
+  }
 }
 ```
 
@@ -174,7 +174,7 @@ Standard primitives in game engines:
 
 Based on this research, recommended approach:
 
-1. **Adopt Unity-style separation**: MeshFilter + MeshRenderer
+1. **Adopt professional separation**: MeshFilter + MeshRenderer
 2. **Implement handle-based resources**: For both meshes and materials
 3. **Support material sharing**: With optional per-instance overrides
 4. **Generate primitives procedurally**: For consistency and flexibility
@@ -183,7 +183,7 @@ Based on this research, recommended approach:
 
 ## References and Sources
 
-1. Unity Documentation - Mesh Components
+1. industry documentation - Mesh Components
 2. Game Engine Architecture by Jason Gregory
 3. Real-Time Rendering, 4th Edition
 4. Unreal Engine 4 Rendering Architecture
