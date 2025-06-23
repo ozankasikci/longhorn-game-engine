@@ -4,17 +4,6 @@ A modular, high-performance game engine written in Rust, specifically designed f
 
 ![Longhorn Editor Screenshot](assets/longhorn-editor.png)
 
-## 📱 Why Longhorn for Mobile Games?
-
-Longhorn is built from the ground up with mobile game development in mind:
-
-- **Mobile-First Architecture**: Every design decision prioritizes mobile performance and battery life
-- **Optimized Asset Pipeline**: Automatic texture compression, mesh optimization, and audio encoding for mobile
-- **Efficient Memory Usage**: Object pooling, resource streaming, and aggressive memory management
-- **Battery-Aware Rendering**: Dynamic quality adjustment based on thermal state and battery level
-- **Native Mobile Features**: Built-in support for touch input, accelerometer, haptics, and mobile-specific APIs
-- **Small Runtime**: Modular design allows you to ship only what you need, keeping app sizes small
-
 ## 🏗️ Architecture
 
 Longhorn is built with a clean, modular architecture using Rust workspaces, organized into core systems, implementations, and applications:
@@ -175,9 +164,6 @@ cargo clippy --workspace
 ```
 
 
-## 📚 Documentation
-
-- [Project Phases](docs/project/phases/) - Development roadmap and completed features
 
 ## 🤝 Contributing
 
