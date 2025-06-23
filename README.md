@@ -175,4 +175,4 @@ Contributions are welcome! Please read our contributing guidelines before submit
 
 ## 📄 License
 
-MIT OR Apache-2.0
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
