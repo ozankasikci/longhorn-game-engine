@@ -1,6 +1,7 @@
 //! Integration tests for engine-materials-core
 
 use engine_materials_core::*;
+use engine_materials_core::texture::TextureHandle;
 use glam::Vec3;
 
 #[test]
