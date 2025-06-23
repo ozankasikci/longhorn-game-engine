@@ -288,13 +288,13 @@ fn test_material_textures() {
     assert!(textures.occlusion.is_none());
 
     // Add some texture handles
-    textures.albedo = Some(1);
-    textures.normal = Some(2);
-    textures.metallic_roughness = Some(3);
+    textures.albedo = Some(TextureHandle(1));
+    textures.normal = Some(TextureHandle(2));
+    textures.metallic_roughness = Some(TextureHandle(3));
 
-    assert_eq!(textures.albedo, Some(1));
-    assert_eq!(textures.normal, Some(2));
-    assert_eq!(textures.metallic_roughness, Some(3));
+    assert_eq!(textures.albedo, Some(TextureHandle(1)));
+    assert_eq!(textures.normal, Some(TextureHandle(2)));
+    assert_eq!(textures.metallic_roughness, Some(TextureHandle(3)));
     assert!(textures.emission.is_none());
     assert!(textures.occlusion.is_none());
 }
