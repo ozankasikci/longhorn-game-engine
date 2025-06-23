@@ -4,6 +4,8 @@
 [![codecov](https://codecov.io/gh/ozankasikci/longhorn-game-engine/branch/main/graph/badge.svg)](https://codecov.io/gh/ozankasikci/longhorn-game-engine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+> **⚠️ Early Development Stage**: This game engine is currently in early development and is not yet ready for production use. APIs may change significantly, and many features are still being implemented.
+
 A modular, high-performance game engine written in Rust, specifically designed for mobile game development with a professional game editor.
 
 ![Longhorn Editor Screenshot](assets/longhorn-editor.png)
