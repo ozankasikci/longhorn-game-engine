@@ -48,7 +48,7 @@ jobs:
         RUST_BACKTRACE: 1
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: cobertura.xml
