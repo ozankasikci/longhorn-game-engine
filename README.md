@@ -1,6 +1,6 @@
 # Longhorn Game Engine
 
-A modular, high-performance game engine written in Rust with a professional game editor.
+A modular, high-performance game engine written in Rust, specifically designed for mobile game development with a professional game editor.
 
 ![Longhorn Editor Screenshot](assets/longhorn-editor.png)
 
@@ -148,26 +148,10 @@ cargo fmt --all
 cargo clippy --workspace
 ```
 
-### Creating a New Component
-
-Components are defined in the appropriate components crate:
-- 3D components: `crates/core/engine-components-3d`
-- 2D components: `crates/core/engine-components-2d`
-- UI components: `crates/core/engine-components-ui`
-
-Example component:
-```rust
-#[derive(Debug, Clone, Component)]
-pub struct Health {
-    pub current: f32,
-    pub max: f32,
-}
-```
 
 ## 📚 Documentation
 
 - [Project Phases](docs/project/phases/) - Development roadmap and completed features
-- API Documentation: Run `cargo doc --open`
 
 ## 🤝 Contributing
 
