@@ -1,7 +1,7 @@
 # Longhorn Game Engine
 
-[![CI](https://github.com/YOUR_USERNAME/longhorn-game-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/longhorn-game-engine/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/YOUR_USERNAME/longhorn-game-engine/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_USERNAME/longhorn-game-engine)
+[![CI](https://github.com/ozankasikci/longhorn-game-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ozankasikci/longhorn-game-engine/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/ozankasikci/longhorn-game-engine/branch/main/graph/badge.svg)](https://codecov.io/gh/ozankasikci/longhorn-game-engine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A modular, high-performance game engine written in Rust, specifically designed for mobile game development with a professional game editor.
