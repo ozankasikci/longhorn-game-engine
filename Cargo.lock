@@ -1712,33 +1712,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-editor-app"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "eframe",
- "egui",
- "egui_dock",
- "engine-camera-impl",
- "engine-components-2d",
- "engine-components-3d",
- "engine-components-ui",
- "engine-ecs-core",
- "engine-editor-panels",
- "engine-editor-scene-view",
- "engine-editor-ui",
- "engine-geometry-core",
- "engine-geometry-impl",
- "engine-renderer-3d",
- "engine-resource-core",
- "env_logger",
- "glam",
- "log",
- "pollster 0.3.0",
- "wgpu",
-]
-
-[[package]]
 name = "engine-editor-assets"
 version = "0.1.0"
 dependencies = [

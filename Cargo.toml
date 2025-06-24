@@ -42,7 +42,6 @@ members = [
     "crates/application/engine-editor-scene-view", 
     "crates/application/engine-editor-panels", 
     "crates/application/engine-editor-ui", 
-    "crates/application/engine-editor-app",
     "crates/application/engine-editor-assets",
     "crates/application/engine-editor-framework",
 ]
