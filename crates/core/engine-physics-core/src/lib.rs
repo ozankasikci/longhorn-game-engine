@@ -67,3 +67,71 @@ pub enum PhysicsError {
     #[error("Physics feature not supported: {0}")]
     NotSupported(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_physics_error_display() {
+        let errors = [
+            PhysicsError::InitializationFailed("test".to_string()),
+            PhysicsError::BodyNotFound("body123".to_string()),
+            PhysicsError::ColliderNotFound("collider456".to_string()),
+            PhysicsError::JointNotFound("joint789".to_string()),
+            PhysicsError::InvalidConfiguration("invalid config".to_string()),
+            PhysicsError::ConstraintViolation("constraint failed".to_string()),
+            PhysicsError::SimulationFailed("simulation error".to_string()),
+            PhysicsError::QueryFailed("query error".to_string()),
+            PhysicsError::NotSupported("feature xyz".to_string()),
+        ];
+
+        for error in &errors {
+            // Ensure all errors implement Display properly
+            let display_string = format!("{}", error);
+            assert!(!display_string.is_empty());
+
+            // Ensure all errors implement Debug properly
+            let debug_string = format!("{:?}", error);
+            assert!(!debug_string.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_physics_result_type() {
+        // Test that our Result type alias works
+        let success: Result<i32> = Ok(42);
+        let failure: Result<i32> = Err(PhysicsError::NotSupported("test".to_string()));
+
+        match success {
+            Ok(value) => assert_eq!(value, 42),
+            Err(_) => panic!("Should be success"),
+        }
+
+        match failure {
+            Ok(_) => panic!("Should be error"),
+            Err(error) => match error {
+                PhysicsError::NotSupported(msg) => assert_eq!(msg, "test"),
+                _ => panic!("Wrong error type"),
+            },
+        }
+    }
+
+    #[test]
+    fn test_physics_error_variants() {
+        // Test specific error message formatting
+        let init_error = PhysicsError::InitializationFailed("physics backend failed".to_string());
+        assert!(init_error
+            .to_string()
+            .contains("Physics world initialization failed"));
+        assert!(init_error.to_string().contains("physics backend failed"));
+
+        let body_error = PhysicsError::BodyNotFound("entity_42".to_string());
+        assert!(body_error.to_string().contains("Rigid body not found"));
+        assert!(body_error.to_string().contains("entity_42"));
+
+        let collider_error = PhysicsError::ColliderNotFound("collider_123".to_string());
+        assert!(collider_error.to_string().contains("Collider not found"));
+        assert!(collider_error.to_string().contains("collider_123"));
+    }
+}

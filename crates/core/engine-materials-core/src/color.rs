@@ -225,3 +225,225 @@ impl From<Vec3> for Color {
         Self::rgb(vec.x, vec.y, vec.z)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_color_creation() {
+        let color = Color::new(0.5, 0.6, 0.7, 0.8);
+        assert_eq!(color.r, 0.5);
+        assert_eq!(color.g, 0.6);
+        assert_eq!(color.b, 0.7);
+        assert_eq!(color.a, 0.8);
+    }
+
+    #[test]
+    fn test_color_rgb() {
+        let color = Color::rgb(0.1, 0.2, 0.3);
+        assert_eq!(color.r, 0.1);
+        assert_eq!(color.g, 0.2);
+        assert_eq!(color.b, 0.3);
+        assert_eq!(color.a, 1.0);
+    }
+
+    #[test]
+    fn test_color_gray() {
+        let color = Color::gray(0.5);
+        assert_eq!(color.r, 0.5);
+        assert_eq!(color.g, 0.5);
+        assert_eq!(color.b, 0.5);
+        assert_eq!(color.a, 1.0);
+    }
+
+    #[test]
+    fn test_predefined_colors() {
+        assert_eq!(Color::BLACK, Color::new(0.0, 0.0, 0.0, 1.0));
+        assert_eq!(Color::WHITE, Color::new(1.0, 1.0, 1.0, 1.0));
+        assert_eq!(Color::RED, Color::new(1.0, 0.0, 0.0, 1.0));
+        assert_eq!(Color::GREEN, Color::new(0.0, 1.0, 0.0, 1.0));
+        assert_eq!(Color::BLUE, Color::new(0.0, 0.0, 1.0, 1.0));
+        assert_eq!(Color::YELLOW, Color::new(1.0, 1.0, 0.0, 1.0));
+        assert_eq!(Color::CYAN, Color::new(0.0, 1.0, 1.0, 1.0));
+        assert_eq!(Color::MAGENTA, Color::new(1.0, 0.0, 1.0, 1.0));
+        assert_eq!(Color::TRANSPARENT, Color::new(0.0, 0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_color_from_hex() {
+        let color = Color::hex(0xFF0000); // Red
+        assert!((color.r - 1.0).abs() < 0.001);
+        assert!((color.g - 0.0).abs() < 0.001);
+        assert!((color.b - 0.0).abs() < 0.001);
+
+        let color = Color::hex(0x00FF00); // Green
+        assert!((color.r - 0.0).abs() < 0.001);
+        assert!((color.g - 1.0).abs() < 0.001);
+        assert!((color.b - 0.0).abs() < 0.001);
+
+        let color = Color::hex(0x0000FF); // Blue
+        assert!((color.r - 0.0).abs() < 0.001);
+        assert!((color.g - 0.0).abs() < 0.001);
+        assert!((color.b - 1.0).abs() < 0.001);
+
+        let color = Color::hex(0x808080); // Gray
+        assert!((color.r - 0.502).abs() < 0.01);
+        assert!((color.g - 0.502).abs() < 0.01);
+        assert!((color.b - 0.502).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_color_hsl() {
+        // Test red
+        let red = Color::hsl(0.0, 1.0, 0.5);
+        assert!((red.r - 1.0).abs() < 0.001);
+        assert!((red.g - 0.0).abs() < 0.001);
+        assert!((red.b - 0.0).abs() < 0.001);
+
+        // Test green
+        let green = Color::hsl(120.0, 1.0, 0.5);
+        assert!((green.r - 0.0).abs() < 0.001);
+        assert!((green.g - 1.0).abs() < 0.001);
+        assert!((green.b - 0.0).abs() < 0.001);
+
+        // Test blue
+        let blue = Color::hsl(240.0, 1.0, 0.5);
+        assert!((blue.r - 0.0).abs() < 0.001);
+        assert!((blue.g - 0.0).abs() < 0.001);
+        assert!((blue.b - 1.0).abs() < 0.001);
+
+        // Test gray (no saturation)
+        let gray = Color::hsl(0.0, 0.0, 0.5);
+        assert!((gray.r - 0.5).abs() < 0.001);
+        assert!((gray.g - 0.5).abs() < 0.001);
+        assert!((gray.b - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_color_to_hsl() {
+        // Test red
+        let (h, s, l) = Color::RED.to_hsl();
+        assert!((h - 0.0).abs() < 0.001);
+        assert!((s - 1.0).abs() < 0.001);
+        assert!((l - 0.5).abs() < 0.001);
+
+        // Test gray
+        let gray = Color::gray(0.5);
+        let (h, s, l) = gray.to_hsl();
+        assert_eq!(h, 0.0);
+        assert_eq!(s, 0.0);
+        assert!((l - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_srgb_linear_conversion() {
+        // Test conversion at boundary values
+        let color = Color::rgb(0.04045, 0.5, 1.0);
+        let linear = color.to_linear();
+        assert!((linear.r - 0.04045 / 12.92).abs() < 0.0001);
+
+        let srgb = linear.to_srgb();
+        assert!((srgb.r - color.r).abs() < 0.0001);
+        assert!((srgb.g - color.g).abs() < 0.0001);
+        assert!((srgb.b - color.b).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_color_operations() {
+        let c1 = Color::rgb(0.5, 0.5, 0.5);
+        let c2 = Color::rgb(0.2, 0.3, 0.4);
+
+        // Test scale
+        let scaled = c1.scale(2.0);
+        assert_eq!(scaled.r, 1.0);
+        assert_eq!(scaled.g, 1.0);
+        assert_eq!(scaled.b, 1.0);
+
+        // Test multiply
+        let multiplied = c1.multiply(&c2);
+        assert!((multiplied.r - 0.1).abs() < 0.001);
+        assert!((multiplied.g - 0.15).abs() < 0.001);
+        assert!((multiplied.b - 0.2).abs() < 0.001);
+
+        // Test add
+        let added = c1.add(&c2);
+        assert!((added.r - 0.7).abs() < 0.001);
+        assert!((added.g - 0.8).abs() < 0.001);
+        assert!((added.b - 0.9).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_color_lerp() {
+        let c1 = Color::BLACK;
+        let c2 = Color::WHITE;
+
+        let mid = c1.lerp(&c2, 0.5);
+        assert!((mid.r - 0.5).abs() < 0.001);
+        assert!((mid.g - 0.5).abs() < 0.001);
+        assert!((mid.b - 0.5).abs() < 0.001);
+
+        let same = c1.lerp(&c2, 0.0);
+        assert_eq!(same, c1);
+
+        let other = c1.lerp(&c2, 1.0);
+        assert_eq!(other, c2);
+
+        // Test clamping
+        let clamped = c1.lerp(&c2, 1.5);
+        assert_eq!(clamped, c2);
+    }
+
+    #[test]
+    fn test_luminance() {
+        assert!((Color::WHITE.luminance() - 1.0).abs() < 0.001);
+        assert!((Color::BLACK.luminance() - 0.0).abs() < 0.001);
+
+        // Standard luminance calculation
+        let color = Color::rgb(0.5, 0.5, 0.5);
+        let expected = 0.2126 * 0.5 + 0.7152 * 0.5 + 0.0722 * 0.5;
+        assert!((color.luminance() - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_conversions() {
+        let color = Color::rgb(0.1, 0.2, 0.3);
+
+        // Test to_vec3
+        let vec = color.to_vec3();
+        assert_eq!(vec.x, 0.1);
+        assert_eq!(vec.y, 0.2);
+        assert_eq!(vec.z, 0.3);
+
+        // Test to_array
+        let arr = color.to_array();
+        assert_eq!(arr, [0.1, 0.2, 0.3, 1.0]);
+
+        // Test to_rgb_array
+        let rgb_arr = color.to_rgb_array();
+        assert_eq!(rgb_arr, [0.1, 0.2, 0.3]);
+
+        // Test from conversions
+        assert_eq!(
+            Color::from([0.1, 0.2, 0.3, 0.4]),
+            Color::new(0.1, 0.2, 0.3, 0.4)
+        );
+        assert_eq!(Color::from([0.1, 0.2, 0.3]), Color::rgb(0.1, 0.2, 0.3));
+        assert_eq!(
+            Color::from((0.1, 0.2, 0.3, 0.4)),
+            Color::new(0.1, 0.2, 0.3, 0.4)
+        );
+        assert_eq!(Color::from((0.1, 0.2, 0.3)), Color::rgb(0.1, 0.2, 0.3));
+        assert_eq!(
+            Color::from(Vec3::new(0.1, 0.2, 0.3)),
+            Color::rgb(0.1, 0.2, 0.3)
+        );
+    }
+
+    #[test]
+    fn test_color_space_enum() {
+        assert_eq!(ColorSpace::Linear, ColorSpace::Linear);
+        assert_ne!(ColorSpace::Linear, ColorSpace::Srgb);
+        assert_ne!(ColorSpace::Hsl, ColorSpace::Hsv);
+    }
+}

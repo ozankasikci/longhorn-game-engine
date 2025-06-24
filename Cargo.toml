@@ -58,7 +58,7 @@ categories = ["game-engines", "graphics", "simulation"]
 
 [workspace.dependencies]
 # Math and utilities
-glam = "0.24"
+glam = { version = "0.24", features = ["serde"] }
 bytemuck = { version = "1.14", features = ["derive"] }
 
 # Graphics
