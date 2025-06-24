@@ -1,7 +1,7 @@
 //! Physics constraint abstractions
 
 use glam::Vec3;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Distance constraint component
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

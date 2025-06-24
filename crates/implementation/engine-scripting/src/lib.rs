@@ -1,18 +1,18 @@
 //! Scripting system for the mobile game engine
-//! 
+//!
 //! This crate provides scripting capabilities for game logic,
 //! allowing runtime behavior modification and extensibility.
 
-pub mod runtime;
 pub mod api;
 pub mod bindings;
 pub mod manager;
+pub mod runtime;
 pub mod types;
 
-pub use runtime::ScriptRuntime;
-pub use manager::ScriptManager;
 pub use api::ScriptApi;
-pub use types::{ScriptId, ScriptType, ScriptMetadata};
+pub use manager::ScriptManager;
+pub use runtime::ScriptRuntime;
+pub use types::{ScriptId, ScriptMetadata, ScriptType};
 
 /// Scripting system errors
 #[derive(Debug, thiserror::Error)]

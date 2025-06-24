@@ -21,7 +21,7 @@ impl Material {
             roughness: 0.5,
         }
     }
-    
+
     /// Create a material with specific albedo color
     pub fn with_color(name: String, color: Vec3) -> Self {
         Self {
@@ -31,17 +31,17 @@ impl Material {
             roughness: 0.5,
         }
     }
-    
+
     /// Default red material
     pub fn red() -> Self {
         Self::with_color("Red".to_string(), Vec3::new(1.0, 0.0, 0.0))
     }
-    
+
     /// Default green material
     pub fn green() -> Self {
         Self::with_color("Green".to_string(), Vec3::new(0.0, 1.0, 0.0))
     }
-    
+
     /// Default blue material
     pub fn blue() -> Self {
         Self::with_color("Blue".to_string(), Vec3::new(0.0, 0.0, 1.0))

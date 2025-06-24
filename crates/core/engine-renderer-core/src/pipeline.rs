@@ -1,9 +1,9 @@
-use engine_materials_core::{MaterialHandle, ShaderHandle};
 use engine_geometry_core::MeshHandle;
+use engine_materials_core::{MaterialHandle, ShaderHandle};
 
 pub trait RenderPipeline {
     type PipelineId;
-    
+
     fn create_pipeline(&mut self, descriptor: &PipelineDescriptor) -> Self::PipelineId;
     fn bind_pipeline(&mut self, id: &Self::PipelineId);
 }

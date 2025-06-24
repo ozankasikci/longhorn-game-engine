@@ -1,19 +1,19 @@
 //! User interface system for the mobile game engine
-//! 
+//!
 //! This crate provides immediate mode GUI capabilities using egui,
 //! supporting both game UI and editor interfaces.
 
-pub mod widgets;
-pub mod layout;
 pub mod context;
-pub mod renderer;
 pub mod events;
+pub mod layout;
+pub mod renderer;
 pub mod theme;
+pub mod widgets;
 
 pub use context::UiContext;
 pub use renderer::UiRenderer;
-pub use widgets::{Widget, Button, Text, Image, Panel};
 pub use theme::{Theme, ThemeManager};
+pub use widgets::{Button, Image, Panel, Text, Widget};
 
 /// UI system errors
 #[derive(Debug, thiserror::Error)]

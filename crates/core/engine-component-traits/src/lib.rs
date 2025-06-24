@@ -4,7 +4,10 @@ use std::any::{Any, TypeId};
 
 /// Component trait - marker for types that can be stored as components
 pub trait Component: 'static + Send + Sync + ComponentClone {
-    fn type_id() -> TypeId where Self: Sized {
+    fn type_id() -> TypeId
+    where
+        Self: Sized,
+    {
         TypeId::of::<Self>()
     }
 }
@@ -13,13 +16,13 @@ pub trait Component: 'static + Send + Sync + ComponentClone {
 pub trait ComponentClone {
     /// Clone this component as a type-erased box
     fn clone_boxed(&self) -> Box<dyn ComponentClone>;
-    
+
     /// Get as Any for downcasting
     fn as_any(&self) -> &dyn Any;
-    
+
     /// Get as mutable Any for downcasting
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    
+
     /// Convert boxed self to boxed Any
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
@@ -29,15 +32,15 @@ impl<T: Clone + Component + 'static> ComponentClone for T {
     fn clone_boxed(&self) -> Box<dyn ComponentClone> {
         Box::new(self.clone())
     }
-    
+
     fn as_any(&self) -> &dyn Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-    
+
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
@@ -69,15 +72,15 @@ impl ComponentTicks {
             changed: tick,
         }
     }
-    
+
     pub fn mark_changed(&mut self, tick: Tick) {
         self.changed = tick;
     }
-    
+
     pub fn is_added(&self, last_run: Tick) -> bool {
         self.added.is_newer_than(last_run)
     }
-    
+
     pub fn is_changed(&self, last_run: Tick) -> bool {
         self.changed.is_newer_than(last_run)
     }
@@ -91,15 +94,15 @@ impl Tick {
     pub fn new(value: u32) -> Self {
         Self(value)
     }
-    
+
     pub fn get(&self) -> u32 {
         self.0
     }
-    
+
     pub fn increment(&mut self) {
         self.0 = self.0.wrapping_add(1);
     }
-    
+
     pub fn is_newer_than(&self, other: Tick) -> bool {
         // Handle wrap-around for u32 tick values
         self.0.wrapping_sub(other.0) < u32::MAX / 2
@@ -109,8 +112,10 @@ impl Tick {
 // Bundle trait for inserting multiple components at once
 pub trait Bundle: Send + Sync + 'static {
     /// Get the type IDs of all components in this bundle
-    fn component_ids() -> Vec<TypeId> where Self: Sized;
-    
+    fn component_ids() -> Vec<TypeId>
+    where
+        Self: Sized;
+
     /// Convert this bundle into its component parts
     fn into_components(self) -> Vec<(TypeId, Box<dyn ComponentClone>)>;
 }

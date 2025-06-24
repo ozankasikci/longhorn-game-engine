@@ -1,9 +1,9 @@
-use crate::{ImportSettings, ImportError};
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use uuid::Uuid;
+use crate::{ImportError, ImportSettings};
 use dashmap::DashMap;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ImportJobId(Uuid);
@@ -43,45 +43,45 @@ impl ImportJob {
             error: None,
         }
     }
-    
+
     pub fn id(&self) -> ImportJobId {
         self.id
     }
-    
+
     pub fn source_path(&self) -> &PathBuf {
         &self.source_path
     }
-    
+
     pub fn settings(&self) -> &ImportSettings {
         &self.settings
     }
-    
+
     pub fn status(&self) -> ImportStatus {
         self.status
     }
-    
+
     pub fn set_status(&mut self, status: ImportStatus) {
         self.status = status;
     }
-    
+
     pub fn cancel(&mut self) {
         self.cancelled.store(true, Ordering::Relaxed);
         self.status = ImportStatus::Cancelled;
     }
-    
+
     pub fn is_cancelled(&self) -> bool {
         self.cancelled.load(Ordering::Relaxed)
     }
-    
+
     pub fn set_error(&mut self, error: ImportError) {
         self.error = Some(error);
         self.status = ImportStatus::Failed;
     }
-    
+
     pub fn error(&self) -> Option<&ImportError> {
         self.error.as_ref()
     }
-    
+
     pub fn cancellation_token(&self) -> Arc<AtomicBool> {
         self.cancelled.clone()
     }
@@ -99,34 +99,34 @@ impl ImportQueue {
             completed_jobs: DashMap::new(),
         }
     }
-    
+
     pub fn add_job(&self, job: ImportJob) {
         let id = job.id();
         self.pending_jobs.insert(id, job);
     }
-    
+
     pub fn take_next_job(&self) -> Option<ImportJob> {
         let entry = self.pending_jobs.iter().next()?;
         let (id, _) = entry.pair();
         let id = *id;
         drop(entry);
-        
+
         self.pending_jobs.remove(&id).map(|(_, job)| job)
     }
-    
+
     pub fn complete_job(&self, job: ImportJob) {
         let id = job.id();
         self.completed_jobs.insert(id, job);
     }
-    
+
     pub fn pending_count(&self) -> usize {
         self.pending_jobs.len()
     }
-    
+
     pub fn completed_count(&self) -> usize {
         self.completed_jobs.len()
     }
-    
+
     pub fn job_status(&self, id: ImportJobId) -> Option<ImportStatus> {
         if let Some(job) = self.pending_jobs.get(&id) {
             Some(job.status())
@@ -136,7 +136,7 @@ impl ImportQueue {
             None
         }
     }
-    
+
     pub fn cancel_job(&self, id: ImportJobId) -> bool {
         if let Some(mut job) = self.pending_jobs.get_mut(&id) {
             job.cancel();
@@ -145,9 +145,13 @@ impl ImportQueue {
             false
         }
     }
-    
-    pub fn get_job(&self, id: ImportJobId) -> Option<dashmap::mapref::one::Ref<ImportJobId, ImportJob>> {
-        self.pending_jobs.get(&id)
+
+    pub fn get_job(
+        &self,
+        id: ImportJobId,
+    ) -> Option<dashmap::mapref::one::Ref<ImportJobId, ImportJob>> {
+        self.pending_jobs
+            .get(&id)
             .or_else(|| self.completed_jobs.get(&id))
     }
 }

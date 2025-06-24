@@ -1,6 +1,6 @@
 //! Common types for the editor framework
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Scene object for editor state
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -24,7 +24,7 @@ impl HierarchyObject {
             children: None,
         }
     }
-    
+
     pub fn parent(name: &str, children: Vec<HierarchyObject>) -> Self {
         Self {
             name: name.to_string(),

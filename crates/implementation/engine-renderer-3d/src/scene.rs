@@ -1,10 +1,10 @@
 //! Scene representation for the renderer
-//! 
+//!
 //! This module provides the intermediate representation between the ECS world
 //! and the renderer, allowing for clean separation of concerns.
 
-use glam::{Mat4, Vec3};
 use crate::camera::Camera;
+use glam::{Mat4, Vec3};
 
 /// A complete scene ready for rendering
 #[derive(Debug, Clone)]
@@ -23,12 +23,12 @@ impl RenderScene {
             clear_color: [0.1, 0.1, 0.2, 1.0], // Dark blue background
         }
     }
-    
+
     /// Add a render object to the scene
     pub fn add_object(&mut self, object: RenderObject) {
         self.objects.push(object);
     }
-    
+
     /// Clear all objects from the scene
     pub fn clear_objects(&mut self) {
         self.objects.clear();

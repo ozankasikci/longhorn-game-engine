@@ -3,12 +3,22 @@
 /// Gamepad button enumeration
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum GamepadButton {
-    A, B, X, Y,
-    DPadUp, DPadDown, DPadLeft, DPadRight,
-    LeftShoulder, RightShoulder,
-    LeftTrigger, RightTrigger,
-    Start, Select,
-    LeftStick, RightStick,
+    A,
+    B,
+    X,
+    Y,
+    DPadUp,
+    DPadDown,
+    DPadLeft,
+    DPadRight,
+    LeftShoulder,
+    RightShoulder,
+    LeftTrigger,
+    RightTrigger,
+    Start,
+    Select,
+    LeftStick,
+    RightStick,
 }
 
 /// Gamepad state
@@ -23,7 +33,7 @@ impl GamepadState {
             // TODO: Initialize gamepad state
         }
     }
-    
+
     /// Check if a gamepad button is pressed
     pub fn is_pressed(&self, _button: GamepadButton) -> bool {
         // TODO: Implement gamepad button check

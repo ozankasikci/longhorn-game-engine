@@ -1,6 +1,6 @@
 //! Built-in engine systems
 
-use crate::{RuntimeResult, RuntimeError, System};
+use crate::{RuntimeError, RuntimeResult, System};
 
 /// Graphics system for rendering
 pub struct GraphicsSystem {
@@ -36,17 +36,17 @@ impl System for GraphicsSystem {
         log::info!("Initializing graphics system");
         Ok(())
     }
-    
+
     fn update(&mut self, _delta_time: f32) -> RuntimeResult<()> {
         // Graphics system update
         Ok(())
     }
-    
+
     fn shutdown(&mut self) -> RuntimeResult<()> {
         log::info!("Shutting down graphics system");
         Ok(())
     }
-    
+
     fn name(&self) -> &str {
         &self.name
     }
@@ -66,17 +66,17 @@ impl System for AudioSystem {
         log::info!("Initializing audio system");
         Ok(())
     }
-    
+
     fn update(&mut self, _delta_time: f32) -> RuntimeResult<()> {
         // Audio system update
         Ok(())
     }
-    
+
     fn shutdown(&mut self) -> RuntimeResult<()> {
         log::info!("Shutting down audio system");
         Ok(())
     }
-    
+
     fn name(&self) -> &str {
         &self.name
     }
@@ -96,17 +96,17 @@ impl System for PhysicsSystem {
         log::info!("Initializing physics system");
         Ok(())
     }
-    
+
     fn update(&mut self, _delta_time: f32) -> RuntimeResult<()> {
         // Physics system update
         Ok(())
     }
-    
+
     fn shutdown(&mut self) -> RuntimeResult<()> {
         log::info!("Shutting down physics system");
         Ok(())
     }
-    
+
     fn name(&self) -> &str {
         &self.name
     }
@@ -126,17 +126,17 @@ impl System for InputSystem {
         log::info!("Initializing input system");
         Ok(())
     }
-    
+
     fn update(&mut self, _delta_time: f32) -> RuntimeResult<()> {
         // Input system update
         Ok(())
     }
-    
+
     fn shutdown(&mut self) -> RuntimeResult<()> {
         log::info!("Shutting down input system");
         Ok(())
     }
-    
+
     fn name(&self) -> &str {
         &self.name
     }

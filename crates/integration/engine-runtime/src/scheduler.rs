@@ -1,19 +1,19 @@
 //! System scheduler for managing engine systems
 
-use crate::{RuntimeResult, RuntimeError};
+use crate::{RuntimeError, RuntimeResult};
 use std::collections::HashMap;
 
 /// System trait for engine systems
 pub trait System {
     /// Initialize the system
     fn initialize(&mut self) -> RuntimeResult<()>;
-    
+
     /// Update the system
     fn update(&mut self, delta_time: f32) -> RuntimeResult<()>;
-    
+
     /// Shutdown the system
     fn shutdown(&mut self) -> RuntimeResult<()>;
-    
+
     /// Get system name
     fn name(&self) -> &str;
 }
@@ -37,7 +37,7 @@ impl SystemScheduler {
             execution_order: Vec::new(),
         }
     }
-    
+
     /// Add a system to the scheduler
     pub fn add_system<S: System + 'static>(&mut self, system: S) -> RuntimeResult<()> {
         let name = system.name().to_string();
@@ -45,22 +45,23 @@ impl SystemScheduler {
         self.execution_order.push(name);
         Ok(())
     }
-    
+
     /// Set system execution order
     pub fn set_schedule(&mut self, schedule: Schedule) -> RuntimeResult<()> {
         // Validate that all systems in schedule exist
         for system_name in &schedule.systems {
             if !self.systems.contains_key(system_name) {
-                return Err(RuntimeError::ConfigurationError(
-                    format!("System '{}' not found", system_name)
-                ));
+                return Err(RuntimeError::ConfigurationError(format!(
+                    "System '{}' not found",
+                    system_name
+                )));
             }
         }
-        
+
         self.execution_order = schedule.systems;
         Ok(())
     }
-    
+
     /// Initialize all systems
     pub fn initialize(&mut self) -> RuntimeResult<()> {
         for system_name in &self.execution_order.clone() {
@@ -70,7 +71,7 @@ impl SystemScheduler {
         }
         Ok(())
     }
-    
+
     /// Update all systems
     pub fn update(&mut self, delta_time: f32) -> RuntimeResult<()> {
         for system_name in &self.execution_order.clone() {
@@ -80,7 +81,7 @@ impl SystemScheduler {
         }
         Ok(())
     }
-    
+
     /// Shutdown all systems
     pub fn shutdown(&mut self) -> RuntimeResult<()> {
         // Shutdown in reverse order
@@ -100,7 +101,7 @@ impl Schedule {
             systems: Vec::new(),
         }
     }
-    
+
     /// Add a system to the schedule
     pub fn add_system(mut self, system_name: &str) -> Self {
         self.systems.push(system_name.to_string());

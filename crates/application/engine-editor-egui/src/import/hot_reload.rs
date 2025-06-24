@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use std::collections::HashMap;
 use engine_resource_core::ResourceId;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub enum HotReloadEvent {
@@ -41,27 +41,41 @@ impl HotReloadWatcher {
             watched_assets: HashMap::new(),
         }
     }
-    
-    pub fn watch_asset(&mut self, resource_id: ResourceId, asset_path: PathBuf, source_path: PathBuf) {
-        self.watched_assets.insert(resource_id, WatchedAsset {
-            asset_path,
-            source_path,
-        });
+
+    pub fn watch_asset(
+        &mut self,
+        resource_id: ResourceId,
+        asset_path: PathBuf,
+        source_path: PathBuf,
+    ) {
+        self.watched_assets.insert(
+            resource_id,
+            WatchedAsset {
+                asset_path,
+                source_path,
+            },
+        );
     }
-    
+
     pub fn unwatch_asset(&mut self, resource_id: &ResourceId) {
         self.watched_assets.remove(resource_id);
     }
-    
+
     pub fn is_watching(&self, resource_id: &ResourceId) -> bool {
         self.watched_assets.contains_key(resource_id)
     }
-    
+
     pub fn handle_event(&self, event: HotReloadEvent) -> Vec<HotReloadAction> {
         match event {
-            HotReloadEvent::SourceModified { resource_id, source_path } => {
+            HotReloadEvent::SourceModified {
+                resource_id,
+                source_path,
+            } => {
                 if self.watched_assets.contains_key(&resource_id) {
-                    vec![HotReloadAction::Reimport { resource_id, source_path }]
+                    vec![HotReloadAction::Reimport {
+                        resource_id,
+                        source_path,
+                    }]
                 } else {
                     vec![]
                 }
@@ -75,7 +89,7 @@ impl HotReloadWatcher {
             }
         }
     }
-    
+
     pub fn get_watched_count(&self) -> usize {
         self.watched_assets.len()
     }

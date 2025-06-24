@@ -1,7 +1,7 @@
 //! Integration tests for engine-materials-core
 
-use engine_materials_core::*;
 use engine_materials_core::texture::TextureHandle;
+use engine_materials_core::*;
 use glam::Vec3;
 
 #[test]
@@ -34,7 +34,7 @@ fn test_color_creation_and_conversions() {
     let linear = Color::rgb(0.5, 0.5, 0.5);
     let srgb = linear.to_srgb();
     let back_to_linear = srgb.to_linear();
-    
+
     // Should be close to original after round-trip conversion
     assert!((linear.r - back_to_linear.r).abs() < 0.01);
     assert!((linear.g - back_to_linear.g).abs() < 0.01);
@@ -173,7 +173,7 @@ fn test_alpha_modes() {
     // Ensure they can be compared (PartialEq)
     assert_eq!(opaque, AlphaMode::Opaque);
     assert_ne!(opaque, blend);
-    
+
     // Test pattern matching
     match mask {
         AlphaMode::Mask { cutoff } => {
@@ -195,7 +195,7 @@ fn test_shader_creation_and_properties() {
         fn main() -> @builtin(position) vec4<f32> {
             return vec4<f32>(0.0, 0.0, 0.0, 1.0);
         }
-        "
+        ",
     );
 
     assert_eq!(vertex_shader.name, "basic_vertex");
@@ -211,7 +211,7 @@ fn test_shader_creation_and_properties() {
         "compiled_shader",
         ShaderType::Fragment,
         ShaderLanguage::SpirV,
-        binary_data.clone()
+        binary_data.clone(),
     );
 
     assert_eq!(spirv_shader.name, "compiled_shader");
@@ -225,8 +225,9 @@ fn test_shader_creation_and_properties() {
         "custom",
         ShaderType::Compute,
         ShaderLanguage::Hlsl,
-        "void MyCustomMain() {}"
-    ).with_entry_point("MyCustomMain");
+        "void MyCustomMain() {}",
+    )
+    .with_entry_point("MyCustomMain");
 
     assert_eq!(custom_shader.entry_point, "MyCustomMain");
 }
@@ -234,7 +235,7 @@ fn test_shader_creation_and_properties() {
 #[test]
 fn test_shader_program() {
     let mut program = ShaderProgram::new("basic_program");
-    
+
     assert_eq!(program.name, "basic_program");
     assert!(program.shaders.is_empty());
     assert!(!program.is_graphics_pipeline());
@@ -280,7 +281,7 @@ fn test_vertex_format_properties() {
 #[test]
 fn test_material_textures() {
     let mut textures = MaterialTextures::default();
-    
+
     // Initially all textures should be None
     assert!(textures.albedo.is_none());
     assert!(textures.metallic_roughness.is_none());

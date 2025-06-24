@@ -3,35 +3,35 @@
 //! Provides a configurable grid that can be rendered in the scene view
 //! to help with spatial orientation and object placement.
 
-use glam::{Vec3, Vec4, Mat4};
-use wgpu::util::DeviceExt;
+use glam::{Mat4, Vec3, Vec4};
 use std::sync::Arc;
+use wgpu::util::DeviceExt;
 
 /// Grid configuration
 #[derive(Debug, Clone)]
 pub struct GridConfig {
     /// Grid size in world units (total size, not radius)
     pub size: f32,
-    
+
     /// Spacing between grid lines
     pub spacing: f32,
-    
+
     /// Major line interval (every N lines is a major line)
     pub major_interval: u32,
-    
+
     /// Minor line color (RGBA)
     pub minor_color: [f32; 4],
-    
+
     /// Major line color (RGBA)
     pub major_color: [f32; 4],
-    
+
     /// Axis line colors (X=red, Z=blue)
     pub axis_x_color: [f32; 4],
     pub axis_z_color: [f32; 4],
-    
+
     /// Whether to fade grid lines with distance
     pub fade_distance: bool,
-    
+
     /// Maximum distance for grid visibility
     pub max_distance: f32,
 }
@@ -104,27 +104,27 @@ impl GridRenderer {
     ) -> Result<Self, anyhow::Error> {
         // Generate grid vertices
         let (vertices, indices) = generate_grid_mesh(&config);
-        
+
         // Create vertex buffer
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Grid Vertex Buffer"),
             contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
-        
+
         // Create index buffer
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Grid Index Buffer"),
             contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });
-        
+
         // Create shader
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Grid Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/grid.wgsl").into()),
         });
-        
+
         // Create uniform buffer
         let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Grid Uniform Buffer"),
@@ -132,43 +132,39 @@ impl GridRenderer {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        
+
         // Create bind group layout
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Grid Bind Group Layout"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
                 },
-            ],
+                count: None,
+            }],
         });
-        
+
         // Create bind group
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Grid Bind Group"),
             layout: &bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buffer.as_entire_binding(),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
         });
-        
+
         // Create pipeline layout
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Grid Pipeline Layout"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
-        
+
         // Create render pipeline
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Grid Pipeline"),
@@ -212,7 +208,7 @@ impl GridRenderer {
             },
             multiview: None,
         });
-        
+
         Ok(Self {
             vertex_buffer,
             index_buffer,
@@ -223,29 +219,29 @@ impl GridRenderer {
             config,
         })
     }
-    
+
     /// Update grid configuration
     pub fn update_config(&mut self, device: Arc<wgpu::Device>, config: GridConfig) {
         // Regenerate mesh if needed
         let (vertices, indices) = generate_grid_mesh(&config);
-        
+
         // Recreate buffers
         self.vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Grid Vertex Buffer"),
             contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
-        
+
         self.index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Grid Index Buffer"),
             contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });
-        
+
         self.num_indices = indices.len() as u32;
         self.config = config;
     }
-    
+
     /// Render the grid
     pub fn render<'a>(
         &'a self,
@@ -265,15 +261,15 @@ impl GridRenderer {
                 0.0,
             ],
         };
-        
+
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
-        
+
         // Set pipeline and resources
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        
+
         // Draw
         render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
     }
@@ -283,19 +279,19 @@ impl GridRenderer {
 fn generate_grid_mesh(config: &GridConfig) -> (Vec<GridVertex>, Vec<u16>) {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
-    
+
     let half_size = config.size / 2.0;
     let line_count = (config.size / config.spacing) as i32;
     let half_lines = line_count / 2;
-    
+
     let mut vertex_index = 0u16;
-    
+
     // Generate grid lines parallel to X axis (along Z)
     for i in -half_lines..=half_lines {
         let z = i as f32 * config.spacing;
         let is_major = i % config.major_interval as i32 == 0;
         let is_axis = i == 0;
-        
+
         let color = if is_axis {
             config.axis_x_color
         } else if is_major {
@@ -303,31 +299,31 @@ fn generate_grid_mesh(config: &GridConfig) -> (Vec<GridVertex>, Vec<u16>) {
         } else {
             config.minor_color
         };
-        
+
         // Start vertex
         vertices.push(GridVertex {
             position: [-half_size, 0.0, z],
             color,
         });
-        
+
         // End vertex
         vertices.push(GridVertex {
             position: [half_size, 0.0, z],
             color,
         });
-        
+
         // Add indices for this line
         indices.push(vertex_index);
         indices.push(vertex_index + 1);
         vertex_index += 2;
     }
-    
+
     // Generate grid lines parallel to Z axis (along X)
     for i in -half_lines..=half_lines {
         let x = i as f32 * config.spacing;
         let is_major = i % config.major_interval as i32 == 0;
         let is_axis = i == 0;
-        
+
         let color = if is_axis {
             config.axis_z_color
         } else if is_major {
@@ -335,24 +331,24 @@ fn generate_grid_mesh(config: &GridConfig) -> (Vec<GridVertex>, Vec<u16>) {
         } else {
             config.minor_color
         };
-        
+
         // Start vertex
         vertices.push(GridVertex {
             position: [x, 0.0, -half_size],
             color,
         });
-        
+
         // End vertex
         vertices.push(GridVertex {
             position: [x, 0.0, half_size],
             color,
         });
-        
+
         // Add indices for this line
         indices.push(vertex_index);
         indices.push(vertex_index + 1);
         vertex_index += 2;
     }
-    
+
     (vertices, indices)
 }

@@ -1,21 +1,21 @@
 //! Application trait and builder
 
-use crate::{RuntimeResult, RuntimeError};
+use crate::{RuntimeError, RuntimeResult};
 
 /// Application trait for game implementations
 pub trait Application {
     /// Initialize the application
     fn initialize(&mut self) -> RuntimeResult<()>;
-    
+
     /// Update the application logic
     fn update(&mut self, delta_time: f32) -> RuntimeResult<()>;
-    
+
     /// Render the application
     fn render(&mut self) -> RuntimeResult<()>;
-    
+
     /// Handle application events
     fn handle_event(&mut self, event: ApplicationEvent) -> RuntimeResult<()>;
-    
+
     /// Check if the application should exit
     fn should_exit(&self) -> bool;
 }
@@ -45,20 +45,20 @@ impl ApplicationBuilder {
             height: 600,
         }
     }
-    
+
     /// Set application title
     pub fn with_title(mut self, title: &str) -> Self {
         self.title = title.to_string();
         self
     }
-    
+
     /// Set application window size
     pub fn with_size(mut self, width: u32, height: u32) -> Self {
         self.width = width;
         self.height = height;
         self
     }
-    
+
     /// Build a basic application
     pub fn build(self) -> BasicApplication {
         BasicApplication {
@@ -83,17 +83,17 @@ impl Application for BasicApplication {
         log::info!("Initializing application: {}", self.title);
         Ok(())
     }
-    
+
     fn update(&mut self, _delta_time: f32) -> RuntimeResult<()> {
         // Basic update implementation
         Ok(())
     }
-    
+
     fn render(&mut self) -> RuntimeResult<()> {
         // Basic render implementation
         Ok(())
     }
-    
+
     fn handle_event(&mut self, event: ApplicationEvent) -> RuntimeResult<()> {
         match event {
             ApplicationEvent::WindowClose => {
@@ -108,7 +108,7 @@ impl Application for BasicApplication {
         }
         Ok(())
     }
-    
+
     fn should_exit(&self) -> bool {
         self.should_exit
     }

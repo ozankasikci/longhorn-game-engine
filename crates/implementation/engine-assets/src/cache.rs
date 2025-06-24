@@ -16,19 +16,19 @@ impl AssetCache {
             metadata: HashMap::new(),
         }
     }
-    
+
     /// Cache an asset
     pub fn insert<T>(&mut self, _id: AssetId, _asset: T, metadata: AssetMetadata) {
         // TODO: Implement asset caching
         self.metadata.insert(_id, metadata);
     }
-    
+
     /// Get a cached asset
     pub fn get<T>(&self, _id: AssetId) -> Option<&T> {
         // TODO: Implement asset retrieval
         None
     }
-    
+
     /// Remove an asset from cache
     pub fn remove(&mut self, id: AssetId) -> bool {
         // TODO: Implement asset removal

@@ -1,5 +1,5 @@
-use crate::{AudioData, AudioFormat, AudioError};
-use serde::{Serialize, Deserialize};
+use crate::{AudioData, AudioError, AudioFormat};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompressionFormat {
@@ -21,11 +21,15 @@ impl AudioCompressor {
     pub fn new() -> Self {
         Self
     }
-    
-    pub fn compress(&self, audio_data: &AudioData, options: &CompressionOptions) -> Result<AudioData, AudioError> {
+
+    pub fn compress(
+        &self,
+        audio_data: &AudioData,
+        options: &CompressionOptions,
+    ) -> Result<AudioData, AudioError> {
         // For this test implementation, we'll simulate compression
         // In a real implementation, you would use opus, vorbis, or mp3 encoders
-        
+
         match options.format {
             CompressionFormat::Opus => {
                 // Simulate Opus compression - typically achieves 10:1 or better compression for audio
@@ -37,15 +41,17 @@ impl AudioCompressor {
                     samples: vec![0u8; compressed_size],
                     duration_seconds: audio_data.duration_seconds,
                 };
-                
+
                 // Simulate some compressed data
                 for i in 0..compressed_size {
                     compressed.samples[i] = (i % 256) as u8;
                 }
-                
+
                 Ok(compressed)
             }
-            _ => Err(AudioError::ProcessingError("Compression format not implemented".to_string())),
+            _ => Err(AudioError::ProcessingError(
+                "Compression format not implemented".to_string(),
+            )),
         }
     }
 }

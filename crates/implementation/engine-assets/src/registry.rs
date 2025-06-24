@@ -17,12 +17,18 @@ impl AssetRegistry {
             next_id: 1,
         }
     }
-    
+
     /// Register a new asset
-    pub fn register(&mut self, asset_type: AssetType, path: String, size: u64, checksum: String) -> AssetId {
+    pub fn register(
+        &mut self,
+        asset_type: AssetType,
+        path: String,
+        size: u64,
+        checksum: String,
+    ) -> AssetId {
         let id = AssetId(self.next_id);
         self.next_id += 1;
-        
+
         let metadata = AssetMetadata {
             id,
             asset_type,
@@ -30,19 +36,20 @@ impl AssetRegistry {
             size,
             checksum,
         };
-        
+
         self.assets.insert(id, metadata);
         id
     }
-    
+
     /// Get asset metadata
     pub fn get_metadata(&self, id: AssetId) -> Option<&AssetMetadata> {
         self.assets.get(&id)
     }
-    
+
     /// List all assets of a specific type
     pub fn list_by_type(&self, asset_type: AssetType) -> Vec<&AssetMetadata> {
-        self.assets.values()
+        self.assets
+            .values()
             .filter(|metadata| metadata.asset_type == asset_type)
             .collect()
     }

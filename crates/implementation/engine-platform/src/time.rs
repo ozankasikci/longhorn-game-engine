@@ -19,17 +19,17 @@ impl Timer {
             start_time: Instant::now(),
         }
     }
-    
+
     /// Get elapsed time since timer creation
     pub fn elapsed(&self) -> Duration {
         self.start_time.elapsed()
     }
-    
+
     /// Get elapsed time in seconds
     pub fn elapsed_secs(&self) -> f32 {
         self.elapsed().as_secs_f32()
     }
-    
+
     /// Reset the timer
     pub fn reset(&mut self) {
         self.start_time = Instant::now();
@@ -43,7 +43,7 @@ impl Clock {
             last_frame: Instant::now(),
         }
     }
-    
+
     /// Tick the clock and return delta time
     pub fn tick(&mut self) -> Duration {
         let now = Instant::now();
@@ -51,7 +51,7 @@ impl Clock {
         self.last_frame = now;
         delta
     }
-    
+
     /// Get delta time in seconds
     pub fn delta_secs(&mut self) -> f32 {
         self.tick().as_secs_f32()

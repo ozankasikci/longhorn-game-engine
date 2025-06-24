@@ -21,13 +21,13 @@ impl MouseState {
             // TODO: Initialize mouse state
         }
     }
-    
+
     /// Check if a mouse button is pressed
     pub fn is_pressed(&self, _button: MouseButton) -> bool {
         // TODO: Implement mouse button check
         false
     }
-    
+
     /// Get mouse position
     pub fn position(&self) -> (f32, f32) {
         // TODO: Implement mouse position

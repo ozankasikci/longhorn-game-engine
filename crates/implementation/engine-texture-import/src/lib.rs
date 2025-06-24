@@ -1,28 +1,28 @@
-use engine_asset_import::{AssetImporter, ImportContext, ImportError as AssetImportError};
-use serde::{Serialize, Deserialize};
-use thiserror::Error;
-use std::path::Path;
 use async_trait::async_trait;
+use engine_asset_import::{AssetImporter, ImportContext, ImportError as AssetImportError};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+use thiserror::Error;
 
-pub mod dds;
-pub mod tga;
-pub mod processing;
 pub mod compression;
+pub mod dds;
+pub mod processing;
+pub mod tga;
 
 #[derive(Error, Debug)]
 pub enum TextureError {
     #[error("Unsupported texture format")]
     UnsupportedFormat,
-    
+
     #[error("Invalid texture data: {0}")]
     InvalidData(String),
-    
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("Image decoding error: {0}")]
     ImageError(#[from] image::ImageError),
-    
+
     #[error("Compression error: {0}")]
     CompressionError(String),
 }
@@ -129,30 +129,34 @@ impl TextureImporter {
     pub fn new() -> Self {
         Self
     }
-    
-    pub fn import(&self, data: &[u8], _context: &ImportContext) -> Result<TextureData, TextureError> {
+
+    pub fn import(
+        &self,
+        data: &[u8],
+        _context: &ImportContext,
+    ) -> Result<TextureData, TextureError> {
         // Try to detect format from data
         if data.len() < 8 {
             return Err(TextureError::InvalidData("Data too short".to_string()));
         }
-        
+
         // Check PNG signature
         if data.starts_with(&[137, 80, 78, 71, 13, 10, 26, 10]) {
             return self.import_png(data);
         }
-        
+
         // Check JPEG signature
         if data.starts_with(&[0xFF, 0xD8]) {
             return self.import_jpeg(data);
         }
-        
+
         Err(TextureError::UnsupportedFormat)
     }
-    
+
     fn import_png(&self, data: &[u8]) -> Result<TextureData, TextureError> {
         let img = image::load_from_memory_with_format(data, image::ImageFormat::Png)?;
         let rgba = img.to_rgba8();
-        
+
         Ok(TextureData {
             width: rgba.width(),
             height: rgba.height(),
@@ -161,11 +165,11 @@ impl TextureImporter {
             mipmaps: vec![],
         })
     }
-    
+
     fn import_jpeg(&self, data: &[u8]) -> Result<TextureData, TextureError> {
         let img = image::load_from_memory_with_format(data, image::ImageFormat::Jpeg)?;
         let rgba = img.to_rgba8();
-        
+
         Ok(TextureData {
             width: rgba.width(),
             height: rgba.height(),
@@ -179,16 +183,21 @@ impl TextureImporter {
 #[async_trait]
 impl AssetImporter for TextureImporter {
     type Asset = TextureData;
-    
+
     fn supported_extensions(&self) -> &[&str] {
         &["png", "jpg", "jpeg", "tga", "bmp", "dds"]
     }
-    
-    async fn import(&self, path: &Path, context: &ImportContext) -> Result<Self::Asset, AssetImportError> {
+
+    async fn import(
+        &self,
+        path: &Path,
+        context: &ImportContext,
+    ) -> Result<Self::Asset, AssetImportError> {
         // Read file data
-        let data = tokio::fs::read(path).await
+        let data = tokio::fs::read(path)
+            .await
             .map_err(|e| AssetImportError::IoError(e.to_string()))?;
-            
+
         // Import texture
         self.import(&data, context)
             .map_err(|e| AssetImportError::ProcessingError(e.to_string()))

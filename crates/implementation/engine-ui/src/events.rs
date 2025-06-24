@@ -27,12 +27,12 @@ impl UiEventManager {
             handlers: Vec::new(),
         }
     }
-    
+
     /// Add an event handler
     pub fn add_handler(&mut self, handler: Box<dyn UiEventHandler>) {
         self.handlers.push(handler);
     }
-    
+
     /// Dispatch an event to all handlers
     pub fn dispatch(&mut self, event: UiEvent) {
         for handler in &mut self.handlers {

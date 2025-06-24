@@ -1,8 +1,8 @@
 //! Vertex data structures and attribute definitions
 
-use glam::{Vec3, Vec2, Vec4};
-use serde::{Serialize, Deserialize};
 use bytemuck::{Pod, Zeroable};
+use glam::{Vec2, Vec3, Vec4};
+use serde::{Deserialize, Serialize};
 
 /// Standard vertex data structure for 3D meshes
 #[repr(C)]
@@ -133,31 +133,31 @@ impl Vertex {
             ..Default::default()
         }
     }
-    
+
     /// Set vertex normal
     pub fn with_normal(mut self, normal: Vec3) -> Self {
         self.normal = normal.normalize();
         self
     }
-    
+
     /// Set vertex UV coordinates
     pub fn with_uv(mut self, uv: Vec2) -> Self {
         self.uv = uv;
         self
     }
-    
+
     /// Set vertex color
     pub fn with_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
         self.color = [r, g, b, a];
         self
     }
-    
+
     /// Set vertex color from Vec4
     pub fn with_color_vec4(mut self, color: Vec4) -> Self {
         self.color = color.to_array();
         self
     }
-    
+
     /// Transform the vertex position and normal by a matrix
     pub fn transform(&mut self, transform: &glam::Mat4) {
         let pos = transform.transform_point3(self.position);
@@ -165,7 +165,7 @@ impl Vertex {
         self.position = pos;
         self.normal = normal;
     }
-    
+
     /// Create a transformed copy of this vertex
     pub fn transformed(&self, transform: &glam::Mat4) -> Self {
         let mut vertex = *self;
@@ -186,14 +186,14 @@ impl SkinnedVertex {
             bone_weights: [1.0, 0.0, 0.0, 0.0],
         }
     }
-    
+
     /// Set bone weights and indices
     pub fn with_bones(mut self, indices: [u32; 4], weights: [f32; 4]) -> Self {
         self.bone_indices = indices;
         self.bone_weights = weights;
         self
     }
-    
+
     /// Normalize bone weights to sum to 1.0
     pub fn normalize_weights(&mut self) {
         let sum = self.bone_weights.iter().sum::<f32>();
@@ -214,7 +214,7 @@ impl SimpleVertex2D {
             color: [1.0, 1.0, 1.0, 1.0],
         }
     }
-    
+
     /// Set vertex color
     pub fn with_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
         self.color = [r, g, b, a];
@@ -235,19 +235,19 @@ impl ParticleVertex {
             _padding: 0.0,
         }
     }
-    
+
     /// Set particle velocity
     pub fn with_velocity(mut self, velocity: Vec3) -> Self {
         self.velocity = velocity;
         self
     }
-    
+
     /// Set particle size
     pub fn with_size(mut self, size: f32) -> Self {
         self.size = size;
         self
     }
-    
+
     /// Set particle life
     pub fn with_life(mut self, life: f32) -> Self {
         self.life = life;
@@ -272,7 +272,7 @@ impl VertexData {
             }
         }
     }
-    
+
     /// Get the vertex stride in bytes
     pub fn vertex_stride(&self) -> u32 {
         match self {
@@ -283,7 +283,7 @@ impl VertexData {
             VertexData::Custom { stride, .. } => *stride,
         }
     }
-    
+
     /// Get the raw data as bytes
     pub fn as_bytes(&self) -> &[u8] {
         match self {
@@ -294,7 +294,7 @@ impl VertexData {
             VertexData::Custom { data, .. } => data,
         }
     }
-    
+
     /// Transform all vertices by a matrix (where applicable)
     pub fn transform(&mut self, transform: &glam::Mat4) {
         match self {
@@ -346,15 +346,22 @@ impl VertexAttributeFormat {
             Self::Snorm8x4 => 4,
         }
     }
-    
+
     /// Get the component count
     pub fn component_count(&self) -> u32 {
         match self {
             Self::Float32 | Self::Uint32 | Self::Sint32 => 1,
-            Self::Float32x2 | Self::Uint32x2 | Self::Sint32x2 | Self::Uint16x2 | Self::Sint16x2 => 2,
+            Self::Float32x2 | Self::Uint32x2 | Self::Sint32x2 | Self::Uint16x2 | Self::Sint16x2 => {
+                2
+            }
             Self::Float32x3 | Self::Uint32x3 | Self::Sint32x3 => 3,
-            Self::Float32x4 | Self::Uint32x4 | Self::Sint32x4 | Self::Uint16x4 | Self::Sint16x4 
-            | Self::Unorm8x4 | Self::Snorm8x4 => 4,
+            Self::Float32x4
+            | Self::Uint32x4
+            | Self::Sint32x4
+            | Self::Uint16x4
+            | Self::Sint16x4
+            | Self::Unorm8x4
+            | Self::Snorm8x4 => 4,
         }
     }
 }

@@ -7,40 +7,37 @@ use std::fmt;
 pub enum EcsError {
     /// Entity not found in the world
     EntityNotFound(crate::Entity),
-    
+
     /// Component type not registered
     ComponentNotRegistered(std::any::TypeId),
-    
+
     /// Component not found on entity
     ComponentNotFound {
         entity: crate::Entity,
         component_type: &'static str,
     },
-    
+
     /// Invalid entity (generation mismatch)
     InvalidEntity(crate::Entity),
-    
+
     /// Archetype not found
     ArchetypeNotFound,
-    
+
     /// Invalid component index
-    InvalidComponentIndex {
-        index: usize,
-        max: usize,
-    },
-    
+    InvalidComponentIndex { index: usize, max: usize },
+
     /// Type mismatch when casting components
     TypeMismatch {
         expected: &'static str,
         found: &'static str,
     },
-    
+
     /// Bundle operation failed
     BundleError(String),
-    
+
     /// Component type mismatch
     ComponentTypeMismatch,
-    
+
     /// Component not in archetype
     ComponentNotInArchetype,
 }
@@ -54,8 +51,15 @@ impl fmt::Display for EcsError {
             EcsError::ComponentNotRegistered(type_id) => {
                 write!(f, "Component type {:?} not registered", type_id)
             }
-            EcsError::ComponentNotFound { entity, component_type } => {
-                write!(f, "Component {} not found on entity {:?}", component_type, entity)
+            EcsError::ComponentNotFound {
+                entity,
+                component_type,
+            } => {
+                write!(
+                    f,
+                    "Component {} not found on entity {:?}",
+                    component_type, entity
+                )
             }
             EcsError::InvalidEntity(entity) => {
                 write!(f, "Invalid entity {:?} (generation mismatch)", entity)

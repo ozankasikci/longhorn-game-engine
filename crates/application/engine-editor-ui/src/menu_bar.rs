@@ -1,9 +1,9 @@
 // Menu bar - Longhorn-style editor menu bar
 
-use eframe::egui;
-use egui_dock::{DockState, NodeIndex};
 use crate::types::ConsoleMessage;
 use crate::types::PanelType;
+use eframe::egui;
+use egui_dock::{DockState, NodeIndex};
 
 pub struct MenuBar {}
 
@@ -12,9 +12,13 @@ impl MenuBar {
         Self {}
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, dock_state: &mut DockState<PanelType>) -> Vec<ConsoleMessage> {
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        dock_state: &mut DockState<PanelType>,
+    ) -> Vec<ConsoleMessage> {
         let mut messages = Vec::new();
-        
+
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("New Scene").clicked() {
@@ -39,7 +43,7 @@ impl MenuBar {
                     std::process::exit(0);
                 }
             });
-            
+
             ui.menu_button("Edit", |ui| {
                 if ui.button("Undo").clicked() {
                     // Undo
@@ -56,7 +60,7 @@ impl MenuBar {
                     ui.close_menu();
                 }
             });
-            
+
             ui.menu_button("Window", |ui| {
                 ui.label("Dockable Panels:");
                 ui.separator();
@@ -88,35 +92,36 @@ impl MenuBar {
                 ui.separator();
                 if ui.button("Reset Layout").clicked() {
                     // Reset to Longhorn-style layout with Scene and Game views
-                    let mut new_dock_state = DockState::new(vec![PanelType::SceneView, PanelType::GameView]);
-                    
+                    let mut new_dock_state =
+                        DockState::new(vec![PanelType::SceneView, PanelType::GameView]);
+
                     // Add Hierarchy to the left
                     let [_main, _left] = new_dock_state.main_surface_mut().split_left(
                         NodeIndex::root(),
                         0.2,
-                        vec![PanelType::Hierarchy]
+                        vec![PanelType::Hierarchy],
                     );
-                    
+
                     // Add Inspector to the right
                     let [_main, _right] = new_dock_state.main_surface_mut().split_right(
                         NodeIndex::root(),
                         0.8,
-                        vec![PanelType::Inspector]
+                        vec![PanelType::Inspector],
                     );
-                    
+
                     // Add Console to the bottom
                     let [_main, _bottom] = new_dock_state.main_surface_mut().split_below(
                         NodeIndex::root(),
                         0.7,
-                        vec![PanelType::Console]
+                        vec![PanelType::Console],
                     );
-                    
+
                     *dock_state = new_dock_state;
                     // Layout reset
                     ui.close_menu();
                 }
             });
-            
+
             ui.menu_button("Help", |ui| {
                 ui.label("Drag panel tabs to rearrange");
                 ui.label("Drop tabs on different areas to dock");
@@ -124,7 +129,7 @@ impl MenuBar {
                 ui.label("Right-click tabs for options");
             });
         });
-        
+
         messages
     }
 }

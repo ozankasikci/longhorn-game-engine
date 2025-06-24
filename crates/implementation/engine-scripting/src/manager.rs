@@ -1,6 +1,6 @@
 //! Script manager for coordinating script execution
 
-use crate::{ScriptResult, ScriptError, ScriptId};
+use crate::{ScriptError, ScriptId, ScriptResult};
 
 /// Central script manager
 pub struct ScriptManager {
@@ -14,7 +14,7 @@ impl ScriptManager {
             // TODO: Initialize script manager
         })
     }
-    
+
     /// Load a script
     pub fn load_script(&mut self, _path: &str) -> ScriptResult<ScriptId> {
         // TODO: Implement script loading

@@ -1,17 +1,17 @@
 //! Audio effects and processing abstractions
 
-use serde::{Serialize, Deserialize};
 use engine_ecs_core::Component;
+use serde::{Deserialize, Serialize};
 
 /// Audio effects component for entities
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioEffects {
     /// List of effects to apply
     pub effects: Vec<AudioEffect>,
-    
+
     /// Whether effects are enabled
     pub enabled: bool,
-    
+
     /// Dry/wet mix (0.0 = no effects, 1.0 = full effects)
     pub mix: f32,
 }
@@ -28,7 +28,6 @@ impl Default for AudioEffects {
 
 impl Component for AudioEffects {}
 
-
 /// Audio effect types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AudioEffect {
@@ -39,7 +38,7 @@ pub enum AudioEffect {
         /// Filter resonance
         resonance: f32,
     },
-    
+
     /// High-pass filter
     HighPass {
         /// Cutoff frequency in Hz
@@ -47,7 +46,7 @@ pub enum AudioEffect {
         /// Filter resonance
         resonance: f32,
     },
-    
+
     /// Band-pass filter
     BandPass {
         /// Center frequency in Hz
@@ -55,7 +54,7 @@ pub enum AudioEffect {
         /// Bandwidth in Hz
         bandwidth: f32,
     },
-    
+
     /// Reverb effect
     Reverb {
         /// Room size (0.0 to 1.0)
@@ -67,7 +66,7 @@ pub enum AudioEffect {
         /// Dry level (0.0 to 1.0)
         dry_level: f32,
     },
-    
+
     /// Echo/delay effect
     Echo {
         /// Delay time in seconds
@@ -77,7 +76,7 @@ pub enum AudioEffect {
         /// Wet level (0.0 to 1.0)
         wet_level: f32,
     },
-    
+
     /// Distortion effect
     Distortion {
         /// Drive amount (1.0 to 10.0+)
@@ -85,7 +84,7 @@ pub enum AudioEffect {
         /// Output level (0.0 to 1.0)
         level: f32,
     },
-    
+
     /// Compressor/limiter
     Compressor {
         /// Compression threshold in dB
@@ -97,7 +96,7 @@ pub enum AudioEffect {
         /// Release time in seconds
         release: f32,
     },
-    
+
     /// Equalizer (3-band)
     Equalizer {
         /// Low frequency gain in dB
@@ -107,7 +106,7 @@ pub enum AudioEffect {
         /// High frequency gain in dB
         high_gain: f32,
     },
-    
+
     /// Chorus effect
     Chorus {
         /// Modulation rate in Hz
@@ -119,7 +118,7 @@ pub enum AudioEffect {
         /// Wet level (0.0 to 1.0)
         wet_level: f32,
     },
-    
+
     /// Flanger effect
     Flanger {
         /// Modulation rate in Hz
@@ -139,7 +138,7 @@ impl AudioEffect {
             resonance: 1.0,
         }
     }
-    
+
     /// Create a simple high-pass filter
     pub fn high_pass(cutoff: f32) -> Self {
         Self::HighPass {
@@ -147,7 +146,7 @@ impl AudioEffect {
             resonance: 1.0,
         }
     }
-    
+
     /// Create a room reverb effect
     pub fn reverb_room() -> Self {
         Self::Reverb {
@@ -157,7 +156,7 @@ impl AudioEffect {
             dry_level: 0.7,
         }
     }
-    
+
     /// Create a hall reverb effect
     pub fn reverb_hall() -> Self {
         Self::Reverb {
@@ -167,7 +166,7 @@ impl AudioEffect {
             dry_level: 0.6,
         }
     }
-    
+
     /// Create a simple echo effect
     pub fn echo(delay_seconds: f32) -> Self {
         Self::Echo {
@@ -176,7 +175,7 @@ impl AudioEffect {
             wet_level: 0.4,
         }
     }
-    
+
     /// Create a soft compressor
     pub fn compressor_soft() -> Self {
         Self::Compressor {
@@ -186,7 +185,7 @@ impl AudioEffect {
             release: 0.1,
         }
     }
-    
+
     /// Check if this effect modifies frequency response
     pub fn affects_frequency(&self) -> bool {
         matches!(
@@ -197,7 +196,7 @@ impl AudioEffect {
                 | AudioEffect::Equalizer { .. }
         )
     }
-    
+
     /// Check if this effect adds spatial characteristics
     pub fn affects_space(&self) -> bool {
         matches!(
@@ -215,30 +214,30 @@ impl AudioEffects {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Add an effect
     pub fn add_effect(mut self, effect: AudioEffect) -> Self {
         self.effects.push(effect);
         self
     }
-    
+
     /// Set the dry/wet mix
     pub fn with_mix(mut self, mix: f32) -> Self {
         self.mix = mix.clamp(0.0, 1.0);
         self
     }
-    
+
     /// Enable/disable effects
     pub fn with_enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
-    
+
     /// Clear all effects
     pub fn clear(&mut self) {
         self.effects.clear();
     }
-    
+
     /// Check if any effects are active
     pub fn has_effects(&self) -> bool {
         self.enabled && !self.effects.is_empty()

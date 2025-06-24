@@ -2,7 +2,7 @@
 
 use engine_materials_core::Color;
 use glam::Vec3;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Light component for scene illumination
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,8 +42,8 @@ pub struct PointLight {
 pub struct SpotLight {
     pub direction: Vec3,
     pub range: f32,
-    pub inner_cone_angle: f32,  // In radians
-    pub outer_cone_angle: f32,  // In radians
+    pub inner_cone_angle: f32, // In radians
+    pub outer_cone_angle: f32, // In radians
     pub attenuation: Attenuation,
 }
 
@@ -117,7 +117,7 @@ impl Light {
             shadow_settings: ShadowSettings::default(),
         }
     }
-    
+
     /// Create a point light
     pub fn point(color: Color, intensity: f32, range: f32) -> Self {
         Self {
@@ -132,7 +132,7 @@ impl Light {
             shadow_settings: ShadowSettings::default(),
         }
     }
-    
+
     /// Create a spot light
     pub fn spot(
         direction: Vec3,
@@ -157,7 +157,7 @@ impl Light {
             shadow_settings: ShadowSettings::default(),
         }
     }
-    
+
     /// Create an area light
     pub fn area(color: Color, intensity: f32, width: f32, height: f32) -> Self {
         Self {
@@ -173,25 +173,25 @@ impl Light {
             shadow_settings: ShadowSettings::default(),
         }
     }
-    
+
     /// Enable or disable the light
     pub fn set_enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
-    
+
     /// Enable or disable shadow casting
     pub fn with_shadows(mut self, cast_shadows: bool) -> Self {
         self.cast_shadows = cast_shadows;
         self
     }
-    
+
     /// Set shadow settings
     pub fn with_shadow_settings(mut self, settings: ShadowSettings) -> Self {
         self.shadow_settings = settings;
         self
     }
-    
+
     /// Get light direction (for directional and spot lights)
     pub fn direction(&self) -> Option<Vec3> {
         match &self.light_type {
@@ -200,7 +200,7 @@ impl Light {
             _ => None,
         }
     }
-    
+
     /// Get light range (for point and spot lights)
     pub fn range(&self) -> Option<f32> {
         match &self.light_type {
@@ -209,13 +209,13 @@ impl Light {
             _ => None,
         }
     }
-    
+
     /// Check if light affects a point in space
     pub fn affects_point(&self, light_position: Vec3, point: Vec3) -> bool {
         if !self.enabled {
             return false;
         }
-        
+
         match &self.light_type {
             LightType::Directional(_) => true, // Affects everything
             LightType::Point(light) => {
@@ -227,7 +227,7 @@ impl Light {
                 if distance > light.range {
                     return false;
                 }
-                
+
                 let to_point = (point - light_position).normalize();
                 let angle = light.direction.dot(to_point).acos();
                 angle <= light.outer_cone_angle
@@ -238,13 +238,13 @@ impl Light {
             }
         }
     }
-    
+
     /// Calculate light contribution at a point
     pub fn calculate_contribution(&self, light_position: Vec3, point: Vec3, normal: Vec3) -> f32 {
         if !self.enabled || !self.affects_point(light_position, point) {
             return 0.0;
         }
-        
+
         match &self.light_type {
             LightType::Directional(light) => {
                 let dot = normal.dot(-light.direction).max(0.0);
@@ -254,40 +254,38 @@ impl Light {
                 let to_light = light_position - point;
                 let distance = to_light.length();
                 let light_dir = to_light / distance;
-                
+
                 let dot = normal.dot(light_dir).max(0.0);
-                let attenuation = 1.0 / (
-                    light.attenuation.constant +
-                    light.attenuation.linear * distance +
-                    light.attenuation.quadratic * distance * distance
-                );
-                
+                let attenuation = 1.0
+                    / (light.attenuation.constant
+                        + light.attenuation.linear * distance
+                        + light.attenuation.quadratic * distance * distance);
+
                 self.intensity * dot * attenuation
             }
             LightType::Spot(light) => {
                 let to_light = light_position - point;
                 let distance = to_light.length();
                 let light_dir = to_light / distance;
-                
+
                 let dot = normal.dot(light_dir).max(0.0);
-                let attenuation = 1.0 / (
-                    light.attenuation.constant +
-                    light.attenuation.linear * distance +
-                    light.attenuation.quadratic * distance * distance
-                );
-                
+                let attenuation = 1.0
+                    / (light.attenuation.constant
+                        + light.attenuation.linear * distance
+                        + light.attenuation.quadratic * distance * distance);
+
                 // Spot light cone falloff
                 let angle = light.direction.dot(-light_dir).acos();
                 let spot_factor = if angle <= light.inner_cone_angle {
                     1.0
                 } else if angle <= light.outer_cone_angle {
-                    let falloff = (light.outer_cone_angle - angle) / 
-                                 (light.outer_cone_angle - light.inner_cone_angle);
+                    let falloff = (light.outer_cone_angle - angle)
+                        / (light.outer_cone_angle - light.inner_cone_angle);
                     falloff.powf(2.0) // Smooth falloff
                 } else {
                     0.0
                 };
-                
+
                 self.intensity * dot * attenuation * spot_factor
             }
             LightType::Area(_) => {
@@ -309,7 +307,7 @@ impl Attenuation {
             quadratic: 1.0 / (range * range),
         }
     }
-    
+
     /// Create constant attenuation (no falloff)
     pub fn constant() -> Self {
         Self {
@@ -318,7 +316,7 @@ impl Attenuation {
             quadratic: 0.0,
         }
     }
-    
+
     /// Create realistic attenuation for given range
     pub fn realistic(range: f32) -> Self {
         Self {
@@ -341,7 +339,7 @@ impl ShadowSettings {
             far_plane: 200.0,
         }
     }
-    
+
     /// Create shadow settings for point light
     pub fn point(resolution: u32) -> Self {
         Self {
@@ -353,7 +351,7 @@ impl ShadowSettings {
             far_plane: 100.0,
         }
     }
-    
+
     /// Create shadow settings for spot light
     pub fn spot(resolution: u32) -> Self {
         Self {

@@ -1,6 +1,6 @@
 //! UI renderer implementation
 
-use crate::{UiResult, UiError};
+use crate::{UiError, UiResult};
 
 /// UI renderer for drawing UI elements
 pub struct UiRenderer {
@@ -14,7 +14,7 @@ impl UiRenderer {
             // TODO: Initialize UI renderer
         })
     }
-    
+
     /// Render the UI
     pub fn render(&mut self) -> UiResult<()> {
         // TODO: Implement UI rendering

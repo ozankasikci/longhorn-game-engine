@@ -1,9 +1,9 @@
 // Tab viewer implementation for the docking system
 
-use eframe::egui;
-use egui_dock::{TabViewer, NodeIndex, SurfaceIndex};
-use crate::types::PanelType;
 use crate::types::ConsoleMessage;
+use crate::types::PanelType;
+use eframe::egui;
+use egui_dock::{NodeIndex, SurfaceIndex, TabViewer};
 /// Trait for the editor application
 pub trait EditorApp {
     fn show_panel(&mut self, ui: &mut egui::Ui, panel_type: PanelType);
@@ -32,7 +32,13 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
         self.editor.show_panel(ui, *tab);
     }
 
-    fn context_menu(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab, _surface: SurfaceIndex, _node: NodeIndex) {
+    fn context_menu(
+        &mut self,
+        ui: &mut egui::Ui,
+        tab: &mut Self::Tab,
+        _surface: SurfaceIndex,
+        _node: NodeIndex,
+    ) {
         if ui.button("Close Tab").clicked() {
             // Panel closed
             ui.close_menu();

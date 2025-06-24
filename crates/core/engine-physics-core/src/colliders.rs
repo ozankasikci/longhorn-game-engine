@@ -1,8 +1,8 @@
 //! Collider abstractions
 
-use glam::{Vec2, Vec3};
-use serde::{Serialize, Deserialize};
 use engine_ecs_core::Component;
+use glam::{Vec2, Vec3};
+use serde::{Deserialize, Serialize};
 
 /// Handle to a physics collider
 pub type ColliderHandle = u32;
@@ -12,25 +12,25 @@ pub type ColliderHandle = u32;
 pub struct Collider {
     /// Shape of the collider
     pub shape: ColliderShape,
-    
+
     /// Offset from the entity's transform
     pub offset: Vec3,
-    
+
     /// Whether this collider is a sensor (no collision response)
     pub is_sensor: bool,
-    
+
     /// Collision groups for filtering
     pub collision_groups: CollisionGroups,
-    
+
     /// Physics material handle
     pub material: Option<u32>,
-    
+
     /// Density for mass calculation (kg/m³)
     pub density: f32,
-    
+
     /// User data for identification
     pub user_data: Option<u64>,
-    
+
     /// Whether this collider is enabled
     pub enabled: bool,
 }
@@ -52,31 +52,30 @@ impl Default for Collider {
 
 impl Component for Collider {}
 
-
 /// 2D collider component
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Collider2D {
     /// Shape of the collider
     pub shape: ColliderShape2D,
-    
+
     /// Offset from the entity's transform
     pub offset: Vec2,
-    
+
     /// Whether this collider is a sensor
     pub is_sensor: bool,
-    
+
     /// Collision groups for filtering
     pub collision_groups: CollisionGroups,
-    
+
     /// Physics material handle
     pub material: Option<u32>,
-    
+
     /// Density for mass calculation (kg/m²)
     pub density: f32,
-    
+
     /// User data for identification
     pub user_data: Option<u64>,
-    
+
     /// Whether this collider is enabled
     pub enabled: bool,
 }
@@ -98,49 +97,33 @@ impl Default for Collider2D {
 
 impl Component for Collider2D {}
 
-
 /// 3D collider shapes
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ColliderShape {
     /// Box collider
-    Box {
-        size: Vec3,
-    },
-    
+    Box { size: Vec3 },
+
     /// Sphere collider
-    Sphere {
-        radius: f32,
-    },
-    
+    Sphere { radius: f32 },
+
     /// Capsule collider
-    Capsule {
-        height: f32,
-        radius: f32,
-    },
-    
+    Capsule { height: f32, radius: f32 },
+
     /// Cylinder collider
-    Cylinder {
-        height: f32,
-        radius: f32,
-    },
-    
+    Cylinder { height: f32, radius: f32 },
+
     /// Cone collider
-    Cone {
-        height: f32,
-        radius: f32,
-    },
-    
+    Cone { height: f32, radius: f32 },
+
     /// Convex hull from points
-    ConvexHull {
-        points: Vec<Vec3>,
-    },
-    
+    ConvexHull { points: Vec<Vec3> },
+
     /// Triangle mesh (for static bodies only)
     TriangleMesh {
         vertices: Vec<Vec3>,
         indices: Vec<[u32; 3]>,
     },
-    
+
     /// Heightfield for terrain
     Heightfield {
         width: u32,
@@ -148,7 +131,7 @@ pub enum ColliderShape {
         heights: Vec<f32>,
         scale: Vec3,
     },
-    
+
     /// Compound shape (multiple shapes combined)
     Compound {
         shapes: Vec<(Vec3, ColliderShape)>, // (offset, shape)
@@ -159,32 +142,23 @@ pub enum ColliderShape {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ColliderShape2D {
     /// Box collider
-    Box {
-        size: Vec2,
-    },
-    
+    Box { size: Vec2 },
+
     /// Circle collider
-    Circle {
-        radius: f32,
-    },
-    
+    Circle { radius: f32 },
+
     /// Capsule collider
-    Capsule {
-        height: f32,
-        radius: f32,
-    },
-    
+    Capsule { height: f32, radius: f32 },
+
     /// Convex polygon
-    ConvexPolygon {
-        points: Vec<Vec2>,
-    },
-    
+    ConvexPolygon { points: Vec<Vec2> },
+
     /// Triangle mesh
     TriangleMesh {
         vertices: Vec<Vec2>,
         indices: Vec<[u32; 3]>,
     },
-    
+
     /// Compound shape
     Compound {
         shapes: Vec<(Vec2, ColliderShape2D)>,
@@ -196,7 +170,7 @@ pub enum ColliderShape2D {
 pub struct CollisionGroups {
     /// Which groups this collider belongs to (bit mask)
     pub memberships: u32,
-    
+
     /// Which groups this collider can collide with (bit mask)
     pub filter: u32,
 }
@@ -204,7 +178,7 @@ pub struct CollisionGroups {
 impl Default for CollisionGroups {
     fn default() -> Self {
         Self {
-            memberships: 1, // Group 1 by default
+            memberships: 1,   // Group 1 by default
             filter: u32::MAX, // Collide with all groups by default
         }
     }
@@ -213,15 +187,39 @@ impl Default for CollisionGroups {
 /// Predefined collision groups
 pub mod collision_groups {
     use super::CollisionGroups;
-    
-    pub const STATIC: CollisionGroups = CollisionGroups { memberships: 1 << 0, filter: u32::MAX };
-    pub const DYNAMIC: CollisionGroups = CollisionGroups { memberships: 1 << 1, filter: u32::MAX };
-    pub const PLAYER: CollisionGroups = CollisionGroups { memberships: 1 << 2, filter: u32::MAX };
-    pub const ENEMY: CollisionGroups = CollisionGroups { memberships: 1 << 3, filter: u32::MAX };
-    pub const PROJECTILE: CollisionGroups = CollisionGroups { memberships: 1 << 4, filter: u32::MAX };
-    pub const PICKUP: CollisionGroups = CollisionGroups { memberships: 1 << 5, filter: u32::MAX };
-    pub const TRIGGER: CollisionGroups = CollisionGroups { memberships: 1 << 6, filter: u32::MAX };
-    pub const UI: CollisionGroups = CollisionGroups { memberships: 1 << 7, filter: u32::MAX };
+
+    pub const STATIC: CollisionGroups = CollisionGroups {
+        memberships: 1 << 0,
+        filter: u32::MAX,
+    };
+    pub const DYNAMIC: CollisionGroups = CollisionGroups {
+        memberships: 1 << 1,
+        filter: u32::MAX,
+    };
+    pub const PLAYER: CollisionGroups = CollisionGroups {
+        memberships: 1 << 2,
+        filter: u32::MAX,
+    };
+    pub const ENEMY: CollisionGroups = CollisionGroups {
+        memberships: 1 << 3,
+        filter: u32::MAX,
+    };
+    pub const PROJECTILE: CollisionGroups = CollisionGroups {
+        memberships: 1 << 4,
+        filter: u32::MAX,
+    };
+    pub const PICKUP: CollisionGroups = CollisionGroups {
+        memberships: 1 << 5,
+        filter: u32::MAX,
+    };
+    pub const TRIGGER: CollisionGroups = CollisionGroups {
+        memberships: 1 << 6,
+        filter: u32::MAX,
+    };
+    pub const UI: CollisionGroups = CollisionGroups {
+        memberships: 1 << 7,
+        filter: u32::MAX,
+    };
 }
 
 /// Collision filter for complex filtering logic
@@ -229,13 +227,13 @@ pub mod collision_groups {
 pub struct CollisionFilter {
     /// Groups configuration
     pub groups: CollisionGroups,
-    
+
     /// Custom filter predicate (for runtime filtering)
     pub custom_filter: Option<String>, // Could be a script reference or rule name
-    
+
     /// Whether to use precise collision detection
     pub precise: bool,
-    
+
     /// Collision events to generate
     pub events: CollisionEvents,
 }
@@ -256,13 +254,13 @@ impl Default for CollisionFilter {
 pub struct CollisionEvents {
     /// Generate events when collision starts
     pub collision_started: bool,
-    
+
     /// Generate events while collision persists
     pub collision_persisted: bool,
-    
+
     /// Generate events when collision ends
     pub collision_ended: bool,
-    
+
     /// Generate sensor events (for triggers)
     pub sensor_events: bool,
 }
@@ -286,7 +284,7 @@ impl Collider {
             ..Default::default()
         }
     }
-    
+
     /// Create a sphere collider
     pub fn sphere(radius: f32) -> Self {
         Self {
@@ -294,7 +292,7 @@ impl Collider {
             ..Default::default()
         }
     }
-    
+
     /// Create a capsule collider
     pub fn capsule(height: f32, radius: f32) -> Self {
         Self {
@@ -302,7 +300,7 @@ impl Collider {
             ..Default::default()
         }
     }
-    
+
     /// Create a sensor collider (no collision response)
     pub fn sensor(shape: ColliderShape) -> Self {
         Self {
@@ -311,25 +309,25 @@ impl Collider {
             ..Default::default()
         }
     }
-    
+
     /// Set collision groups
     pub fn with_collision_groups(mut self, groups: CollisionGroups) -> Self {
         self.collision_groups = groups;
         self
     }
-    
+
     /// Set offset from transform
     pub fn with_offset(mut self, offset: Vec3) -> Self {
         self.offset = offset;
         self
     }
-    
+
     /// Set density
     pub fn with_density(mut self, density: f32) -> Self {
         self.density = density.max(0.001);
         self
     }
-    
+
     /// Calculate approximate volume based on shape
     pub fn volume(&self) -> f32 {
         match &self.shape {
@@ -349,16 +347,16 @@ impl Collider {
             _ => 1.0, // Default fallback for complex shapes
         }
     }
-    
+
     /// Calculate mass from density and volume
     pub fn calculate_mass(&self) -> f32 {
         self.density * self.volume()
     }
-    
+
     /// Check if this collider can collide with another
     pub fn can_collide_with(&self, other: &CollisionGroups) -> bool {
-        (self.collision_groups.filter & other.memberships) != 0 &&
-        (other.filter & self.collision_groups.memberships) != 0
+        (self.collision_groups.filter & other.memberships) != 0
+            && (other.filter & self.collision_groups.memberships) != 0
     }
 }
 
@@ -370,7 +368,7 @@ impl Collider2D {
             ..Default::default()
         }
     }
-    
+
     /// Create a circle collider
     pub fn circle(radius: f32) -> Self {
         Self {
@@ -378,7 +376,7 @@ impl Collider2D {
             ..Default::default()
         }
     }
-    
+
     /// Create a capsule collider
     pub fn capsule(height: f32, radius: f32) -> Self {
         Self {
@@ -386,7 +384,7 @@ impl Collider2D {
             ..Default::default()
         }
     }
-    
+
     /// Create a sensor collider
     pub fn sensor(shape: ColliderShape2D) -> Self {
         Self {
@@ -395,7 +393,7 @@ impl Collider2D {
             ..Default::default()
         }
     }
-    
+
     /// Calculate approximate area based on shape
     pub fn area(&self) -> f32 {
         match &self.shape {
@@ -409,7 +407,7 @@ impl Collider2D {
             _ => 1.0, // Default fallback
         }
     }
-    
+
     /// Calculate mass from density and area
     pub fn calculate_mass(&self) -> f32 {
         self.density * self.area()
@@ -419,19 +417,28 @@ impl Collider2D {
 impl CollisionGroups {
     /// Create groups that belong to and collide with specific groups
     pub fn new(memberships: u32, filter: u32) -> Self {
-        Self { memberships, filter }
+        Self {
+            memberships,
+            filter,
+        }
     }
-    
+
     /// Create groups that only belong to specific groups (collide with all)
     pub fn membership_only(memberships: u32) -> Self {
-        Self { memberships, filter: u32::MAX }
+        Self {
+            memberships,
+            filter: u32::MAX,
+        }
     }
-    
+
     /// Create groups that only filter specific groups (belong to group 1)
     pub fn filter_only(filter: u32) -> Self {
-        Self { memberships: 1, filter }
+        Self {
+            memberships: 1,
+            filter,
+        }
     }
-    
+
     /// Check if this group can collide with another
     pub fn can_collide_with(&self, other: &Self) -> bool {
         (self.filter & other.memberships) != 0 && (other.filter & self.memberships) != 0

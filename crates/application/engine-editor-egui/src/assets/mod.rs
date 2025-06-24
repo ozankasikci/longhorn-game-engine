@@ -4,4 +4,4 @@ pub use engine_editor_assets::create_default_textures;
 
 pub mod database;
 
-pub use database::{AssetDatabase, AssetEntry, AssetType, AssetMetadata};
+pub use database::{AssetDatabase, AssetEntry, AssetMetadata, AssetType};

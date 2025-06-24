@@ -13,11 +13,11 @@ pub struct GridLevel {
 /// Get appropriate grid level based on camera height
 pub fn get_grid_level(camera_height: f32) -> GridLevel {
     let height = camera_height.abs();
-    
+
     if height < 10.0 {
         // Close view - fine grid
-        GridLevel { 
-            spacing: 1.0, 
+        GridLevel {
+            spacing: 1.0,
             extent: 50.0,
             minor_alpha: 0.4,
             major_alpha: 0.7,
@@ -25,8 +25,8 @@ pub fn get_grid_level(camera_height: f32) -> GridLevel {
         }
     } else if height < 50.0 {
         // Medium view
-        GridLevel { 
-            spacing: 5.0, 
+        GridLevel {
+            spacing: 5.0,
             extent: 200.0,
             minor_alpha: 0.3,
             major_alpha: 0.6,
@@ -34,8 +34,8 @@ pub fn get_grid_level(camera_height: f32) -> GridLevel {
         }
     } else if height < 200.0 {
         // Far view
-        GridLevel { 
-            spacing: 10.0, 
+        GridLevel {
+            spacing: 10.0,
             extent: 500.0,
             minor_alpha: 0.25,
             major_alpha: 0.5,
@@ -43,8 +43,8 @@ pub fn get_grid_level(camera_height: f32) -> GridLevel {
         }
     } else {
         // Very far view
-        GridLevel { 
-            spacing: 50.0, 
+        GridLevel {
+            spacing: 50.0,
             extent: 2000.0,
             minor_alpha: 0.2,
             major_alpha: 0.4,
@@ -58,7 +58,7 @@ pub fn calculate_line_opacity(distance: f32, base_alpha: f32, camera_height: f32
     // Dynamic fade distances based on camera height
     let fade_start = camera_height.abs() * 2.0;
     let fade_end = camera_height.abs() * 10.0;
-    
+
     if distance < fade_start {
         base_alpha
     } else if distance > fade_end {
@@ -83,12 +83,12 @@ pub fn clip_line_to_near_plane(
     if start_depth > near_threshold && end_depth > near_threshold {
         return Some((start_world, end_world, start_depth, end_depth));
     }
-    
+
     // If both points are behind near plane, cull the line
     if start_depth <= near_threshold && end_depth <= near_threshold {
         return None;
     }
-    
+
     // Line crosses near plane - clip it
     let t = (near_threshold - start_depth) / (end_depth - start_depth);
     let clip_point = [
@@ -96,7 +96,7 @@ pub fn clip_line_to_near_plane(
         start_world[1] + t * (end_world[1] - start_world[1]),
         start_world[2] + t * (end_world[2] - start_world[2]),
     ];
-    
+
     if start_depth > near_threshold {
         // Start is visible, end is clipped
         Some((start_world, clip_point, start_depth, near_threshold))
@@ -114,12 +114,12 @@ pub fn is_line_in_bounds(
     margin: f32,
 ) -> bool {
     let expanded_rect = rect.expand(margin);
-    
+
     // Check if either endpoint is in bounds
     if expanded_rect.contains(start_screen) || expanded_rect.contains(end_screen) {
         return true;
     }
-    
+
     // Check if line crosses the rectangle
     // This is a simplified check - could be more precise
     let line_bounds = egui::Rect::from_two_pos(start_screen, end_screen);
@@ -141,7 +141,7 @@ pub fn get_line_style(
         } else {
             egui::Color32::from_rgba_unmultiplied(100, 100, 200, 255) // Blue for Z
         };
-        
+
         let alpha = calculate_line_opacity(distance, 1.0, camera_height);
         let color = egui::Color32::from_rgba_unmultiplied(
             base_color.r(),
@@ -149,25 +149,19 @@ pub fn get_line_style(
             base_color.b(),
             (alpha * 255.0) as u8,
         );
-        
+
         (2.0, color)
     } else if grid_coord % level.major_interval == 0 {
         // Major grid lines
         let alpha = calculate_line_opacity(distance, level.major_alpha, camera_height);
-        let color = egui::Color32::from_rgba_unmultiplied(
-            120, 120, 120,
-            (alpha * 255.0) as u8,
-        );
-        
+        let color = egui::Color32::from_rgba_unmultiplied(120, 120, 120, (alpha * 255.0) as u8);
+
         (1.0, color)
     } else {
         // Minor grid lines
         let alpha = calculate_line_opacity(distance, level.minor_alpha, camera_height);
-        let color = egui::Color32::from_rgba_unmultiplied(
-            80, 80, 80,
-            (alpha * 255.0) as u8,
-        );
-        
+        let color = egui::Color32::from_rgba_unmultiplied(80, 80, 80, (alpha * 255.0) as u8);
+
         (0.5, color)
     }
 }

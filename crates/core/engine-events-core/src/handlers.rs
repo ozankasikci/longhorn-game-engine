@@ -1,8 +1,8 @@
 //! Event handler utilities and common implementations
 
+use crate::{Event, EventHandlerTrait, EventTypeId, HandlerPriority};
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use serde::{Serialize, Deserialize};
-use crate::{Event, EventTypeId, EventHandlerTrait, HandlerPriority};
 
 /// Multi-threaded event handler wrapper
 pub struct ThreadSafeHandler<F> {
@@ -23,7 +23,7 @@ where
             event_type,
         }
     }
-    
+
     /// Create a new thread-safe handler with priority
     pub fn with_priority(handler: F, event_type: EventTypeId, priority: HandlerPriority) -> Self {
         Self {
@@ -45,11 +45,11 @@ where
             false
         }
     }
-    
+
     fn event_type(&self) -> EventTypeId {
         self.event_type
     }
-    
+
     fn priority(&self) -> HandlerPriority {
         self.priority
     }
@@ -77,9 +77,14 @@ where
             event_type,
         }
     }
-    
+
     /// Create a new conditional handler with priority
-    pub fn with_priority(handler: F, condition: C, event_type: EventTypeId, priority: HandlerPriority) -> Self {
+    pub fn with_priority(
+        handler: F,
+        condition: C,
+        event_type: EventTypeId,
+        priority: HandlerPriority,
+    ) -> Self {
         Self {
             handler,
             condition,
@@ -101,11 +106,11 @@ where
             false
         }
     }
-    
+
     fn event_type(&self) -> EventTypeId {
         self.event_type
     }
-    
+
     fn priority(&self) -> HandlerPriority {
         self.priority
     }
@@ -141,18 +146,18 @@ impl CompositeHandler {
             combination_mode: CombinationMode::Any,
         }
     }
-    
+
     /// Add a sub-handler
     pub fn add_handler(&mut self, handler: Box<dyn EventHandlerTrait>) {
         self.handlers.push(handler);
     }
-    
+
     /// Set combination mode
     pub fn with_combination_mode(mut self, mode: CombinationMode) -> Self {
         self.combination_mode = mode;
         self
     }
-    
+
     /// Set priority
     pub fn with_priority(mut self, priority: HandlerPriority) -> Self {
         self.priority = priority;
@@ -163,22 +168,16 @@ impl CompositeHandler {
 impl EventHandlerTrait for CompositeHandler {
     fn handle(&self, event: &dyn Event) -> bool {
         match self.combination_mode {
-            CombinationMode::Any => {
-                self.handlers.iter().any(|h| h.handle(event))
-            }
-            CombinationMode::All => {
-                self.handlers.iter().all(|h| h.handle(event))
-            }
-            CombinationMode::First => {
-                self.handlers.first().map_or(false, |h| h.handle(event))
-            }
+            CombinationMode::Any => self.handlers.iter().any(|h| h.handle(event)),
+            CombinationMode::All => self.handlers.iter().all(|h| h.handle(event)),
+            CombinationMode::First => self.handlers.first().map_or(false, |h| h.handle(event)),
         }
     }
-    
+
     fn event_type(&self) -> EventTypeId {
         self.event_type
     }
-    
+
     fn priority(&self) -> HandlerPriority {
         self.priority
     }
@@ -205,12 +204,15 @@ where
             event_type,
         }
     }
-    
+
     /// Get the current count
     pub fn get_count(&self) -> usize {
-        self.count.lock().unwrap_or_else(|_| panic!("Failed to lock count")).clone()
+        self.count
+            .lock()
+            .unwrap_or_else(|_| panic!("Failed to lock count"))
+            .clone()
     }
-    
+
     /// Reset the count
     pub fn reset_count(&self) {
         if let Ok(mut count) = self.count.lock() {
@@ -229,11 +231,11 @@ where
         }
         (self.handler)(event)
     }
-    
+
     fn event_type(&self) -> EventTypeId {
         self.event_type
     }
-    
+
     fn priority(&self) -> HandlerPriority {
         self.priority
     }
@@ -264,7 +266,7 @@ impl LoggingHandler {
             log_level: LogLevel::Debug,
         }
     }
-    
+
     /// Set log level
     pub fn with_log_level(mut self, level: LogLevel) -> Self {
         self.log_level = level;
@@ -275,21 +277,21 @@ impl LoggingHandler {
 impl EventHandlerTrait for LoggingHandler {
     fn handle(&self, event: &dyn Event) -> bool {
         let message = format!("Event handled: {:?}", event);
-        
+
         match self.log_level {
             LogLevel::Debug => log::debug!("{}", message),
             LogLevel::Info => log::info!("{}", message),
             LogLevel::Warn => log::warn!("{}", message),
             LogLevel::Error => log::error!("{}", message),
         }
-        
+
         false // Logging handlers don't consume events
     }
-    
+
     fn event_type(&self) -> EventTypeId {
         self.event_type
     }
-    
+
     fn priority(&self) -> HandlerPriority {
         self.priority
     }
@@ -318,12 +320,16 @@ where
             event_type,
         }
     }
-    
+
     /// Check if the handler can still process events
     pub fn can_handle(&self) -> bool {
-        self.current_count.lock().unwrap_or_else(|_| panic!("Failed to lock count")).clone() < self.max_count
+        self.current_count
+            .lock()
+            .unwrap_or_else(|_| panic!("Failed to lock count"))
+            .clone()
+            < self.max_count
     }
-    
+
     /// Reset the count
     pub fn reset(&self) {
         if let Ok(mut count) = self.current_count.lock() {
@@ -347,11 +353,11 @@ where
             false
         }
     }
-    
+
     fn event_type(&self) -> EventTypeId {
         self.event_type
     }
-    
+
     fn priority(&self) -> HandlerPriority {
         self.priority
     }

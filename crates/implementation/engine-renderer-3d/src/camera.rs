@@ -1,7 +1,7 @@
 //! Camera system for 3D rendering
 
 use glam::{Mat4, Vec3};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// 3D camera for rendering
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,31 +30,32 @@ impl Camera {
             is_main: false,
         }
     }
-    
+
     /// Create a camera from position and rotation (euler angles in radians)
     pub fn from_position_rotation(position: [f32; 3], rotation: [f32; 3], aspect: f32) -> Self {
         let pos = Vec3::from(position);
-        
+
         // rotation[0] = pitch (X rotation)
-        // rotation[1] = yaw (Y rotation)  
+        // rotation[1] = yaw (Y rotation)
         // rotation[2] = roll (Z rotation)
-        
+
         // Create quaternion from Euler angles using YXZ order (standard for FPS cameras)
-        let quat = glam::Quat::from_euler(glam::EulerRot::YXZ, rotation[1], rotation[0], rotation[2]);
-        
+        let quat =
+            glam::Quat::from_euler(glam::EulerRot::YXZ, rotation[1], rotation[0], rotation[2]);
+
         // Calculate forward direction from quaternion
         // In our coordinate system: default forward is -Z
         let forward = quat * Vec3::NEG_Z;
-        
+
         // Calculate target point (position + forward direction)
         let target = pos + forward;
-        
+
         // Calculate up vector from quaternion
         let up = quat * Vec3::Y;
-        
+
         log::info!("Camera from_position_rotation: pos={:?}, rot_rad={:?}, quat={:?}, forward={:?}, target={:?}", 
             position, rotation, quat, forward, target);
-        
+
         Self {
             position: pos,
             target,
@@ -66,33 +67,33 @@ impl Camera {
             is_main: false,
         }
     }
-    
+
     /// Get the view matrix
     pub fn view_matrix(&self) -> Mat4 {
         Mat4::look_at_rh(self.position, self.target, self.up)
     }
-    
+
     /// Get the projection matrix
     pub fn projection_matrix(&self) -> Mat4 {
         Mat4::perspective_rh(self.fov, self.aspect, self.near, self.far)
     }
-    
+
     /// Get the combined view-projection matrix
     pub fn view_proj_matrix(&self) -> Mat4 {
         self.projection_matrix() * self.view_matrix()
     }
-    
+
     /// Update the aspect ratio (call when window resizes)
     pub fn set_aspect(&mut self, aspect: f32) {
         self.aspect = aspect;
     }
-    
+
     /// Set the field of view
     pub fn with_fov(mut self, fov_degrees: f32) -> Self {
         self.fov = fov_degrees.to_radians();
         self
     }
-    
+
     /// Create a main camera
     pub fn main_camera() -> Self {
         Self {

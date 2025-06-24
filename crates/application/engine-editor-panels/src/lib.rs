@@ -1,5 +1,5 @@
 //! Editor panels for the Longhorn Game Engine
-//! 
+//!
 //! This crate contains the standard editor panels:
 //! - Inspector: Component property editing
 //! - Hierarchy: Scene object tree view
@@ -8,19 +8,19 @@
 //! - Game View: Runtime game preview
 
 use eframe::egui;
-use engine_ecs_core::{World, Entity};
+use engine_ecs_core::{Entity, World};
 
 /// Trait for all editor panels
 pub trait Panel: Send + Sync {
     /// Get the panel's display name
     fn name(&self) -> &str;
-    
+
     /// Show the panel UI
     fn show(&mut self, ui: &mut egui::Ui, world: &mut World, selected_entity: Option<Entity>);
-    
+
     /// Called when panel is focused
     fn on_focus(&mut self) {}
-    
+
     /// Called when panel loses focus
     fn on_blur(&mut self) {}
 }
@@ -29,24 +29,27 @@ pub trait Panel: Send + Sync {
 pub mod types;
 
 // Panel modules
-pub mod inspector;
-pub mod hierarchy;
 pub mod console;
-pub mod project;
-pub mod game_view;
-pub mod folder_manager;
 pub mod drag_drop;
-pub mod multi_selection;
-pub mod undo_redo;
-pub mod search;
+pub mod folder_manager;
+pub mod game_view;
+pub mod hierarchy;
+pub mod inspector;
 pub mod keyboard_shortcuts;
+pub mod multi_selection;
+pub mod project;
+pub mod search;
+pub mod undo_redo;
 
 // Re-export panels
-pub use inspector::InspectorPanel;
-pub use hierarchy::HierarchyPanel;
 pub use console::ConsolePanel;
-pub use project::ProjectPanel;
 pub use game_view::GameViewPanel;
+pub use hierarchy::HierarchyPanel;
+pub use inspector::InspectorPanel;
+pub use project::ProjectPanel;
 
 // Re-export commonly used types
-pub use types::{ConsoleMessage, ConsoleMessageType, PlayState, SceneTool, ProjectAsset, HierarchyObject, ObjectType, GizmoSystem};
+pub use types::{
+    ConsoleMessage, ConsoleMessageType, GizmoSystem, HierarchyObject, ObjectType, PlayState,
+    ProjectAsset, SceneTool,
+};

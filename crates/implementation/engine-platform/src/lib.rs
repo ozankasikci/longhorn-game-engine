@@ -1,19 +1,19 @@
 //! Platform abstraction layer for the mobile game engine
-//! 
+//!
 //! This crate provides platform-specific functionality and abstractions
 //! for different operating systems and devices.
 
-pub mod window;
 pub mod filesystem;
+pub mod mobile;
+pub mod system;
 pub mod threading;
 pub mod time;
-pub mod system;
-pub mod mobile;
+pub mod window;
 
-pub use window::{Window, WindowBuilder, WindowEvent};
 pub use filesystem::{FileSystem, Path};
-pub use time::{Timer, Clock};
-pub use system::{SystemInfo, Platform};
+pub use system::{Platform, SystemInfo};
+pub use time::{Clock, Timer};
+pub use window::{Window, WindowBuilder, WindowEvent};
 
 /// Platform system errors
 #[derive(Debug, thiserror::Error)]

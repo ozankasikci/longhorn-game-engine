@@ -1,7 +1,7 @@
 //! Force application abstractions
 
 use glam::Vec3;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Force application modes
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,7 +61,7 @@ impl Force {
             duration: None,
         }
     }
-    
+
     /// Create an impulse applied at center of mass
     pub fn impulse_at_center_of_mass(impulse: Vec3) -> Self {
         Self {
@@ -71,7 +71,7 @@ impl Force {
             duration: None,
         }
     }
-    
+
     /// Create a force applied at a world point
     pub fn at_world_point(force: Vec3, point: Vec3) -> Self {
         Self {
@@ -81,13 +81,13 @@ impl Force {
             duration: None,
         }
     }
-    
+
     /// Set duration for continuous force
     pub fn with_duration(mut self, duration: f32) -> Self {
         self.duration = Some(duration);
         self
     }
-    
+
     /// Set force mode
     pub fn with_mode(mut self, mode: ForceMode) -> Self {
         self.mode = mode;
@@ -104,7 +104,7 @@ impl Torque {
             duration: None,
         }
     }
-    
+
     /// Create a torque impulse
     pub fn impulse(impulse: Vec3) -> Self {
         Self {

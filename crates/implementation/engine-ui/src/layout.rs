@@ -32,13 +32,13 @@ impl Layout {
             spacing: 0.0,
         }
     }
-    
+
     /// Set alignment
     pub fn with_alignment(mut self, alignment: Alignment) -> Self {
         self.alignment = alignment;
         self
     }
-    
+
     /// Set spacing
     pub fn with_spacing(mut self, spacing: f32) -> Self {
         self.spacing = spacing;

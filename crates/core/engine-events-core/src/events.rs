@@ -1,7 +1,7 @@
 //! Core event abstractions
 
-use serde::{Serialize, Deserialize};
-use glam::{Vec2, Vec3, Quat};
+use glam::{Quat, Vec2, Vec3};
+use serde::{Deserialize, Serialize};
 
 /// Unique identifier for event types
 pub type EventTypeId = u32;
@@ -13,19 +13,23 @@ pub type EventId = u64;
 pub trait Event: Send + Sync + std::fmt::Debug + std::any::Any {
     /// Get the type ID for this event
     fn get_type_id(&self) -> EventTypeId;
-    
+
     /// Get a unique identifier for this event instance
     fn event_id(&self) -> EventId;
-    
+
     /// Get the timestamp when this event was created
     fn timestamp(&self) -> f64;
-    
+
     /// Check if this event should be consumed after handling
-    fn is_consumable(&self) -> bool { true }
-    
+    fn is_consumable(&self) -> bool {
+        true
+    }
+
     /// Get event priority (higher = more priority)
-    fn priority(&self) -> EventPriority { EventPriority::Normal }
-    
+    fn priority(&self) -> EventPriority {
+        EventPriority::Normal
+    }
+
     /// Get the event as Any for downcasting
     fn as_any(&self) -> &dyn std::any::Any;
 }
@@ -64,78 +68,189 @@ pub enum EngineEvent {
     AppShutdown,
     AppPaused,
     AppResumed,
-    
+
     /// Scene events
-    SceneLoaded { scene_id: String },
-    SceneUnloaded { scene_id: String },
-    SceneChanged { from: String, to: String },
-    
+    SceneLoaded {
+        scene_id: String,
+    },
+    SceneUnloaded {
+        scene_id: String,
+    },
+    SceneChanged {
+        from: String,
+        to: String,
+    },
+
     /// Entity lifecycle events
-    EntityCreated { entity: u32 },
-    EntityDestroyed { entity: u32 },
-    EntityEnabled { entity: u32 },
-    EntityDisabled { entity: u32 },
-    
+    EntityCreated {
+        entity: u32,
+    },
+    EntityDestroyed {
+        entity: u32,
+    },
+    EntityEnabled {
+        entity: u32,
+    },
+    EntityDisabled {
+        entity: u32,
+    },
+
     /// Component events
-    ComponentAdded { entity: u32, component_type: String },
-    ComponentRemoved { entity: u32, component_type: String },
-    ComponentChanged { entity: u32, component_type: String },
-    
+    ComponentAdded {
+        entity: u32,
+        component_type: String,
+    },
+    ComponentRemoved {
+        entity: u32,
+        component_type: String,
+    },
+    ComponentChanged {
+        entity: u32,
+        component_type: String,
+    },
+
     /// Transform events
-    TransformChanged { entity: u32, position: Vec3, rotation: Quat, scale: Vec3 },
-    
+    TransformChanged {
+        entity: u32,
+        position: Vec3,
+        rotation: Quat,
+        scale: Vec3,
+    },
+
     /// Collision events
-    CollisionEnter { entity1: u32, entity2: u32, point: Vec3, normal: Vec3 },
-    CollisionExit { entity1: u32, entity2: u32 },
-    CollisionStay { entity1: u32, entity2: u32, point: Vec3, normal: Vec3 },
-    
+    CollisionEnter {
+        entity1: u32,
+        entity2: u32,
+        point: Vec3,
+        normal: Vec3,
+    },
+    CollisionExit {
+        entity1: u32,
+        entity2: u32,
+    },
+    CollisionStay {
+        entity1: u32,
+        entity2: u32,
+        point: Vec3,
+        normal: Vec3,
+    },
+
     /// Trigger events
-    TriggerEnter { trigger: u32, other: u32 },
-    TriggerExit { trigger: u32, other: u32 },
-    TriggerStay { trigger: u32, other: u32 },
+    TriggerEnter {
+        trigger: u32,
+        other: u32,
+    },
+    TriggerExit {
+        trigger: u32,
+        other: u32,
+    },
+    TriggerStay {
+        trigger: u32,
+        other: u32,
+    },
 }
 
 /// Input events
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InputEvent {
     /// Keyboard events
-    KeyPressed { key: String, modifiers: InputModifiers },
-    KeyReleased { key: String, modifiers: InputModifiers },
-    
+    KeyPressed {
+        key: String,
+        modifiers: InputModifiers,
+    },
+    KeyReleased {
+        key: String,
+        modifiers: InputModifiers,
+    },
+
     /// Mouse events
-    MouseButtonPressed { button: MouseButton, position: Vec2 },
-    MouseButtonReleased { button: MouseButton, position: Vec2 },
-    MouseMoved { position: Vec2, delta: Vec2 },
-    MouseScrolled { delta: Vec2 },
-    
+    MouseButtonPressed {
+        button: MouseButton,
+        position: Vec2,
+    },
+    MouseButtonReleased {
+        button: MouseButton,
+        position: Vec2,
+    },
+    MouseMoved {
+        position: Vec2,
+        delta: Vec2,
+    },
+    MouseScrolled {
+        delta: Vec2,
+    },
+
     /// Touch events
-    TouchStarted { id: u32, position: Vec2 },
-    TouchMoved { id: u32, position: Vec2, delta: Vec2 },
-    TouchEnded { id: u32, position: Vec2 },
-    TouchCancelled { id: u32, position: Vec2 },
-    
+    TouchStarted {
+        id: u32,
+        position: Vec2,
+    },
+    TouchMoved {
+        id: u32,
+        position: Vec2,
+        delta: Vec2,
+    },
+    TouchEnded {
+        id: u32,
+        position: Vec2,
+    },
+    TouchCancelled {
+        id: u32,
+        position: Vec2,
+    },
+
     /// Gamepad events
-    GamepadConnected { id: u32 },
-    GamepadDisconnected { id: u32 },
-    GamepadButtonPressed { id: u32, button: String },
-    GamepadButtonReleased { id: u32, button: String },
-    GamepadAxisChanged { id: u32, axis: String, value: f32 },
+    GamepadConnected {
+        id: u32,
+    },
+    GamepadDisconnected {
+        id: u32,
+    },
+    GamepadButtonPressed {
+        id: u32,
+        button: String,
+    },
+    GamepadButtonReleased {
+        id: u32,
+        button: String,
+    },
+    GamepadAxisChanged {
+        id: u32,
+        axis: String,
+        value: f32,
+    },
 }
 
 /// Audio events
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AudioEvent {
     /// Audio playback events
-    AudioStarted { source: u32 },
-    AudioStopped { source: u32 },
-    AudioPaused { source: u32 },
-    AudioResumed { source: u32 },
-    AudioFinished { source: u32 },
-    
+    AudioStarted {
+        source: u32,
+    },
+    AudioStopped {
+        source: u32,
+    },
+    AudioPaused {
+        source: u32,
+    },
+    AudioResumed {
+        source: u32,
+    },
+    AudioFinished {
+        source: u32,
+    },
+
     /// Audio system events
-    AudioDeviceConnected { device_id: String },
-    AudioDeviceDisconnected { device_id: String },
-    AudioDeviceChanged { device_id: String },
+    AudioDeviceConnected {
+        device_id: String,
+    },
+    AudioDeviceDisconnected {
+        device_id: String,
+    },
+    AudioDeviceChanged {
+        device_id: String,
+    },
 }
 
 /// Rendering events
@@ -144,31 +259,63 @@ pub enum RenderEvent {
     /// Render pipeline events
     FrameStarted,
     FrameEnded,
-    RenderPassStarted { pass_name: String },
-    RenderPassEnded { pass_name: String },
-    
+    RenderPassStarted {
+        pass_name: String,
+    },
+    RenderPassEnded {
+        pass_name: String,
+    },
+
     /// Resource events
-    TextureLoaded { texture_id: String },
-    TextureUnloaded { texture_id: String },
-    ShaderCompiled { shader_id: String },
-    ShaderError { shader_id: String, error: String },
-    
+    TextureLoaded {
+        texture_id: String,
+    },
+    TextureUnloaded {
+        texture_id: String,
+    },
+    ShaderCompiled {
+        shader_id: String,
+    },
+    ShaderError {
+        shader_id: String,
+        error: String,
+    },
+
     /// Camera events
-    CameraChanged { entity: u32 },
-    ViewportResized { width: u32, height: u32 },
+    CameraChanged {
+        entity: u32,
+    },
+    ViewportResized {
+        width: u32,
+        height: u32,
+    },
 }
 
 /// UI events
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum UIEvent {
     /// Widget events
-    ButtonClicked { widget_id: String },
-    TextChanged { widget_id: String, text: String },
-    SliderChanged { widget_id: String, value: f32 },
-    
+    ButtonClicked {
+        widget_id: String,
+    },
+    TextChanged {
+        widget_id: String,
+        text: String,
+    },
+    SliderChanged {
+        widget_id: String,
+        value: f32,
+    },
+
     /// Window events
-    WindowResized { width: u32, height: u32 },
-    WindowMoved { x: i32, y: i32 },
+    WindowResized {
+        width: u32,
+        height: u32,
+    },
+    WindowMoved {
+        x: i32,
+        y: i32,
+    },
     WindowFocused,
     WindowUnfocused,
     WindowClosed,
@@ -178,13 +325,26 @@ pub enum UIEvent {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NetworkEvent {
     /// Connection events
-    Connected { peer_id: String },
-    Disconnected { peer_id: String },
-    ConnectionFailed { peer_id: String, error: String },
-    
+    Connected {
+        peer_id: String,
+    },
+    Disconnected {
+        peer_id: String,
+    },
+    ConnectionFailed {
+        peer_id: String,
+        error: String,
+    },
+
     /// Data events
-    DataReceived { peer_id: String, data: Vec<u8> },
-    DataSent { peer_id: String, bytes_sent: usize },
+    DataReceived {
+        peer_id: String,
+        data: Vec<u8>,
+    },
+    DataSent {
+        peer_id: String,
+        bytes_sent: usize,
+    },
 }
 
 /// Input modifiers
@@ -228,25 +388,25 @@ impl BaseEvent {
             target_entity: None,
         }
     }
-    
+
     /// Set event priority
     pub fn with_priority(mut self, priority: EventPriority) -> Self {
         self.priority = priority;
         self
     }
-    
+
     /// Set source entity
     pub fn with_source(mut self, entity: u32) -> Self {
         self.source_entity = Some(entity);
         self
     }
-    
+
     /// Set target entity
     pub fn with_target(mut self, entity: u32) -> Self {
         self.target_entity = Some(entity);
         self
     }
-    
+
     /// Make event non-consumable
     pub fn persistent(mut self) -> Self {
         self.consumable = false;

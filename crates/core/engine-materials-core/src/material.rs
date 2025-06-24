@@ -1,8 +1,8 @@
 //! Material system abstractions
 
-use crate::Color;
 use crate::texture::TextureHandle;
-use serde::{Serialize, Deserialize};
+use crate::Color;
+use serde::{Deserialize, Serialize};
 
 /// Handle for material resources
 pub type MaterialHandle = u64;

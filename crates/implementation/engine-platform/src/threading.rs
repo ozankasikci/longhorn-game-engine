@@ -1,7 +1,7 @@
 //! Platform threading utilities
 
-use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
 
 /// Thread pool for managing worker threads
 pub struct ThreadPool {
@@ -23,16 +23,16 @@ impl ThreadPool {
         let (sender, receiver) = std::sync::mpsc::channel();
         let receiver = Arc::new(Mutex::new(receiver));
         let mut workers = Vec::with_capacity(size);
-        
+
         for id in 0..size {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
-        
+
         Self { workers, sender }
     }
-    
+
     /// Execute a job on the thread pool
-    pub fn execute<F>(&self, f: F) 
+    pub fn execute<F>(&self, f: F)
     where
         F: FnOnce() + Send + 'static,
     {
@@ -46,7 +46,7 @@ impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<std::sync::mpsc::Receiver<Job>>>) -> Self {
         let handle = thread::spawn(move || loop {
             let job = receiver.lock().unwrap().recv();
-            
+
             match job {
                 Ok(job) => {
                     job();
@@ -56,7 +56,7 @@ impl Worker {
                 }
             }
         });
-        
+
         Self { handle }
     }
 }

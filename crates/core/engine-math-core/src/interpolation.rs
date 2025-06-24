@@ -1,6 +1,6 @@
 //! Interpolation functions for smooth animations and transitions
 
-use glam::{Vec2, Vec3, Vec4, Quat};
+use glam::{Quat, Vec2, Vec3, Vec4};
 
 /// Linear interpolation between two values
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
@@ -62,7 +62,7 @@ pub fn cubic_interpolate(y0: f32, y1: f32, y2: f32, y3: f32, t: f32) -> f32 {
     let a1 = y0 - y1 - a0;
     let a2 = y2 - y0;
     let a3 = y1;
-    
+
     a0 * t * t * t + a1 * t * t + a2 * t + a3
 }
 
@@ -126,7 +126,7 @@ pub fn ease_in_out_quad(t: f32) -> f32 {
 pub fn ease_out_bounce(t: f32) -> f32 {
     const N1: f32 = 7.5625;
     const D1: f32 = 2.75;
-    
+
     if t < 1.0 / D1 {
         N1 * t * t
     } else if t < 2.0 / D1 {

@@ -2,8 +2,8 @@
 
 pub mod constants;
 pub mod curves;
-pub mod interpolation;
 pub mod geometry;
+pub mod interpolation;
 pub mod physics_math;
 
 // Re-export all glam types and functions for convenience
@@ -12,8 +12,8 @@ pub use glam::*;
 // Re-export module contents for easy access
 pub use constants::*;
 pub use curves::*;
-pub use interpolation::*;
 pub use geometry::*;
+pub use interpolation::*;
 pub use physics_math::*;
 
 /// Convert degrees to radians

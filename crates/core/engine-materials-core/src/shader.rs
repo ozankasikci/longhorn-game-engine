@@ -1,6 +1,6 @@
 //! Core shader abstractions and management
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Handle for shader resources
 pub type ShaderHandle = u64;
@@ -155,7 +155,7 @@ impl Shader {
             entry_point: Self::default_entry_point(shader_type, language),
         }
     }
-    
+
     /// Create a new shader from binary data
     pub fn from_binary(
         name: &str,
@@ -171,22 +171,22 @@ impl Shader {
             entry_point: Self::default_entry_point(shader_type, language),
         }
     }
-    
+
     /// Set custom entry point
     pub fn with_entry_point(mut self, entry_point: &str) -> Self {
         self.entry_point = entry_point.to_string();
         self
     }
-    
+
     /// Get default entry point for shader type and language
-    /// 
+    ///
     /// Note: This provides common defaults. Implementation crates
     /// should override with language-specific logic if needed.
     fn default_entry_point(_shader_type: ShaderType, _language: ShaderLanguage) -> String {
         // Simple default - implementation crates handle language specifics
         "main".to_string()
     }
-    
+
     /// Get the source as text (if available)
     pub fn source_text(&self) -> Option<&str> {
         match &self.source {
@@ -194,7 +194,7 @@ impl Shader {
             ShaderSource::Binary(_) => None,
         }
     }
-    
+
     /// Get the source as binary data (if available)
     pub fn source_binary(&self) -> Option<&[u8]> {
         match &self.source {
@@ -215,11 +215,11 @@ impl ShaderProgram {
             compute_shader: None,
         }
     }
-    
+
     /// Add a shader to the program
     pub fn add_shader(&mut self, shader: ShaderHandle, shader_type: ShaderType) {
         self.shaders.push(shader);
-        
+
         match shader_type {
             ShaderType::Vertex => self.vertex_shader = Some(shader),
             ShaderType::Fragment => self.fragment_shader = Some(shader),
@@ -227,12 +227,12 @@ impl ShaderProgram {
             _ => {} // Other shader types stored in general list
         }
     }
-    
+
     /// Check if this is a graphics pipeline (has vertex + fragment)
     pub fn is_graphics_pipeline(&self) -> bool {
         self.vertex_shader.is_some() && self.fragment_shader.is_some()
     }
-    
+
     /// Check if this is a compute pipeline
     pub fn is_compute_pipeline(&self) -> bool {
         self.compute_shader.is_some()
@@ -267,18 +267,28 @@ impl VertexFormat {
             Self::Sint16x4 => 8,
         }
     }
-    
+
     /// Get the component count of this vertex format
     pub fn component_count(&self) -> u32 {
         match self {
             Self::Float32 | Self::Uint32 | Self::Sint32 => 1,
-            Self::Float32x2 | Self::Uint32x2 | Self::Sint32x2 
-            | Self::Float16x2 | Self::Uint8x2 | Self::Sint8x2 
-            | Self::Uint16x2 | Self::Sint16x2 => 2,
+            Self::Float32x2
+            | Self::Uint32x2
+            | Self::Sint32x2
+            | Self::Float16x2
+            | Self::Uint8x2
+            | Self::Sint8x2
+            | Self::Uint16x2
+            | Self::Sint16x2 => 2,
             Self::Float32x3 | Self::Uint32x3 | Self::Sint32x3 => 3,
-            Self::Float32x4 | Self::Uint32x4 | Self::Sint32x4 
-            | Self::Float16x4 | Self::Uint8x4 | Self::Sint8x4 
-            | Self::Uint16x4 | Self::Sint16x4 => 4,
+            Self::Float32x4
+            | Self::Uint32x4
+            | Self::Sint32x4
+            | Self::Float16x4
+            | Self::Uint8x4
+            | Self::Sint8x4
+            | Self::Uint16x4
+            | Self::Sint16x4 => 4,
         }
     }
 }

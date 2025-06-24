@@ -1,12 +1,12 @@
-pub mod pipeline;
 pub mod command;
-pub mod surface;
+pub mod pipeline;
 pub mod resource;
+pub mod surface;
 
-pub use pipeline::*;
 pub use command::*;
-pub use surface::*;
+pub use pipeline::*;
 pub use resource::*;
+pub use surface::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RendererError {

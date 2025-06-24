@@ -14,7 +14,7 @@ impl InputManager {
             // TODO: Initialize input manager
         })
     }
-    
+
     /// Update the input system
     pub fn update(&mut self) {
         // TODO: Implement input update

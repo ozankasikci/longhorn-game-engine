@@ -3,22 +3,22 @@
 use eframe::egui;
 
 // Re-export types from scene view crate
-pub use engine_editor_scene_view::types::{SceneNavigation, PlayState, SceneTool};
+pub use engine_editor_scene_view::types::{PlayState, SceneNavigation, SceneTool};
 
 /// Gizmo axis selection for movement constraints
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GizmoAxis {
-    X,   // Red axis - Left/Right
-    Y,   // Green axis - Up/Down  
-    Z,   // Blue axis - Forward/Backward
+    X, // Red axis - Left/Right
+    Y, // Green axis - Up/Down
+    Z, // Blue axis - Forward/Backward
 }
 
 /// Gizmo plane selection for planar movement
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GizmoPlane {
-    XY,  // Blue square - Z locked
-    XZ,  // Green square - Y locked
-    YZ,  // Red square - X locked
+    XY, // Blue square - Z locked
+    XZ, // Green square - Y locked
+    YZ, // Red square - X locked
 }
 
 /// Gizmo component that can be interacted with
@@ -26,14 +26,14 @@ pub enum GizmoPlane {
 pub enum GizmoComponent {
     Axis(GizmoAxis),
     Plane(GizmoPlane),
-    Center,  // Screen-space movement
+    Center, // Screen-space movement
 }
 
 /// Current gizmo interaction state
 #[derive(Debug, Clone)]
 pub enum GizmoInteractionState {
-    Idle,                                    // No interaction
-    Hovering(GizmoComponent),               // Mouse over component
+    Idle,                     // No interaction
+    Hovering(GizmoComponent), // Mouse over component
     Dragging {
         component: GizmoComponent,
         start_mouse_pos: egui::Pos2,
@@ -70,7 +70,7 @@ impl ProjectAsset {
             children: None,
         }
     }
-    
+
     pub fn folder(name: &str, children: Vec<ProjectAsset>) -> Self {
         Self {
             name: name.to_string(),
@@ -106,7 +106,7 @@ impl HierarchyObject {
             children: None,
         }
     }
-    
+
     pub fn parent(name: &str, children: Vec<HierarchyObject>) -> Self {
         Self {
             name: name.to_string(),
@@ -136,19 +136,19 @@ impl GizmoSystem {
             active_tool: SceneTool::Select,
         }
     }
-    
+
     pub fn get_active_tool(&self) -> SceneTool {
         self.active_tool
     }
-    
+
     pub fn set_active_tool(&mut self, tool: SceneTool) {
         self.active_tool = tool;
     }
-    
+
     pub fn enable_move_gizmo(&mut self) {
         self.active_tool = SceneTool::Move;
     }
-    
+
     pub fn disable_move_gizmo(&mut self) {
         self.active_tool = SceneTool::Select;
     }
@@ -158,7 +158,7 @@ impl engine_editor_scene_view::types::GizmoSystem for GizmoSystem {
     fn get_active_tool(&self) -> SceneTool {
         self.active_tool
     }
-    
+
     fn set_active_tool(&mut self, tool: SceneTool) {
         self.active_tool = tool;
     }

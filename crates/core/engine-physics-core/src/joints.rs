@@ -1,8 +1,8 @@
 //! Physics joint abstractions
 
-use glam::Vec3;
-use serde::{Serialize, Deserialize};
 use engine_ecs_core::Component;
+use glam::Vec3;
+use serde::{Deserialize, Serialize};
 
 /// Physics joint component
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -26,7 +26,6 @@ pub struct Joint {
 }
 
 impl Component for Joint {}
-
 
 /// Types of physics joints
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -126,40 +125,44 @@ impl Joint {
             enabled: true,
         }
     }
-    
+
     /// Create a hinge joint
     pub fn hinge(axis: Vec3) -> Self {
         Self {
-            joint_type: JointType::Hinge { axis, limits: None, motor: None },
-            ..Self::fixed()
-        }
-    }
-    
-    /// Create a spring joint
-    pub fn spring(stiffness: f32, damping: f32) -> Self {
-        Self {
-            joint_type: JointType::Spring { 
-                stiffness, 
-                damping, 
-                rest_length: 1.0 
+            joint_type: JointType::Hinge {
+                axis,
+                limits: None,
+                motor: None,
             },
             ..Self::fixed()
         }
     }
-    
+
+    /// Create a spring joint
+    pub fn spring(stiffness: f32, damping: f32) -> Self {
+        Self {
+            joint_type: JointType::Spring {
+                stiffness,
+                damping,
+                rest_length: 1.0,
+            },
+            ..Self::fixed()
+        }
+    }
+
     /// Set connected entity
     pub fn with_connected_entity(mut self, entity: u32) -> Self {
         self.connected_entity = Some(entity);
         self
     }
-    
+
     /// Set anchor points
     pub fn with_anchors(mut self, anchor: Vec3, connected_anchor: Vec3) -> Self {
         self.anchor = anchor;
         self.connected_anchor = connected_anchor;
         self
     }
-    
+
     /// Make joint breakable
     pub fn breakable(mut self, force: f32, torque: f32) -> Self {
         self.breakable = true;

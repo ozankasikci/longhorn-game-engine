@@ -1,4 +1,4 @@
-use engine_geometry_core::{MeshHandle, BufferHandle};
+use engine_geometry_core::{BufferHandle, MeshHandle};
 use engine_materials_core::{texture::TextureHandle, TextureUsage};
 
 pub trait ResourceManager {
@@ -36,7 +36,6 @@ bitflags::bitflags! {
         const COPY_DST = 1 << 5;
     }
 }
-
 
 #[derive(Debug, Clone, Copy)]
 pub enum MemoryType {

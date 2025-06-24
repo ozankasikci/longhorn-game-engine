@@ -1,24 +1,24 @@
 //! UI components for the mobile game engine
-//! 
+//!
 //! This crate provides UI-specific components for canvas rendering and layout.
 
-use serde::{Serialize, Deserialize};
 use engine_component_traits::Component;
+use serde::{Deserialize, Serialize};
 
 // Canvas Component for UI rendering
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Canvas {
-    pub render_mode: CanvasRenderMode,  // How the canvas is rendered
-    pub sorting_layer: i32,             // Global sorting layer
-    pub order_in_layer: i32,            // Order within the sorting layer
-    pub pixel_perfect: bool,            // Snap to pixel boundaries
+    pub render_mode: CanvasRenderMode, // How the canvas is rendered
+    pub sorting_layer: i32,            // Global sorting layer
+    pub order_in_layer: i32,           // Order within the sorting layer
+    pub pixel_perfect: bool,           // Snap to pixel boundaries
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CanvasRenderMode {
-    WorldSpace,                         // Rendered in 3D world space
-    ScreenSpaceOverlay,                 // Rendered as overlay on top of everything
-    ScreenSpaceCamera,                  // Rendered relative to a specific camera
+    WorldSpace,         // Rendered in 3D world space
+    ScreenSpaceOverlay, // Rendered as overlay on top of everything
+    ScreenSpaceCamera,  // Rendered relative to a specific camera
 }
 
 impl Default for Canvas {
@@ -46,16 +46,14 @@ impl Component for Name {}
 
 impl Name {
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-        }
+        Self { name: name.into() }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_canvas_default() {
         let canvas = Canvas::default();
@@ -64,12 +62,12 @@ mod tests {
         assert_eq!(canvas.order_in_layer, 0);
         assert!(canvas.pixel_perfect);
     }
-    
+
     #[test]
     fn test_name_creation() {
         let name = Name::new("Test Object");
         assert_eq!(name.name, "Test Object");
-        
+
         let name2 = Name::new(String::from("Another Object"));
         assert_eq!(name2.name, "Another Object");
     }

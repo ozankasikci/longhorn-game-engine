@@ -32,13 +32,13 @@ impl Window {
             // TODO: Initialize window
         })
     }
-    
+
     /// Get window size
     pub fn size(&self) -> (u32, u32) {
         // TODO: Implement window size
         (800, 600)
     }
-    
+
     /// Set window title
     pub fn set_title(&mut self, _title: &str) {
         // TODO: Implement window title setting
@@ -55,26 +55,26 @@ impl WindowBuilder {
             resizable: true,
         }
     }
-    
+
     /// Set window title
     pub fn with_title(mut self, title: &str) -> Self {
         self.title = title.to_string();
         self
     }
-    
+
     /// Set window size
     pub fn with_size(mut self, width: u32, height: u32) -> Self {
         self.width = width;
         self.height = height;
         self
     }
-    
+
     /// Set window resizable
     pub fn with_resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
     }
-    
+
     /// Build the window
     pub fn build(self) -> PlatformResult<Window> {
         // TODO: Build window from builder

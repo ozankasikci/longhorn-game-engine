@@ -35,12 +35,12 @@ impl ThemeManager {
             current_theme: Theme::default(),
         }
     }
-    
+
     /// Get the current theme
     pub fn current_theme(&self) -> &Theme {
         &self.current_theme
     }
-    
+
     /// Set the current theme
     pub fn set_theme(&mut self, theme: Theme) {
         self.current_theme = theme;

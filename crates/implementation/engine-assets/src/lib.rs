@@ -1,19 +1,19 @@
 //! Asset management system for the mobile game engine
-//! 
+//!
 //! This crate provides loading, caching, and management of game assets
 //! including textures, models, audio files, and other resources.
 
+pub mod cache;
+pub mod io;
 pub mod loader;
 pub mod manager;
-pub mod cache;
-pub mod types;
-pub mod io;
 pub mod registry;
+pub mod types;
 
-pub use manager::AssetManager;
-pub use loader::{AssetLoader, LoaderRegistry};
-pub use types::{AssetId, AssetType, AssetMetadata};
 pub use cache::AssetCache;
+pub use loader::{AssetLoader, LoaderRegistry};
+pub use manager::AssetManager;
+pub use types::{AssetId, AssetMetadata, AssetType};
 
 /// Asset system errors
 #[derive(Debug, thiserror::Error)]

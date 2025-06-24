@@ -1,8 +1,8 @@
 //! Physics world abstractions
 
-use glam::Vec3;
-use serde::{Serialize, Deserialize};
 use crate::Result;
+use glam::Vec3;
+use serde::{Deserialize, Serialize};
 
 /// Physics world configuration
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -86,49 +86,49 @@ pub struct PhysicsWorldStats {
 pub trait PhysicsWorld {
     /// Initialize the physics world
     fn initialize(&mut self, config: PhysicsWorldConfig) -> Result<()>;
-    
+
     /// Step the physics simulation
     fn step(&mut self, delta_time: f32) -> Result<()>;
-    
+
     /// Set gravity
     fn set_gravity(&mut self, gravity: Vec3) -> Result<()>;
-    
+
     /// Get current gravity
     fn get_gravity(&self) -> Vec3;
-    
+
     /// Add a rigid body to the world
     fn add_rigid_body(&mut self, body: crate::RigidBody) -> Result<crate::BodyHandle>;
-    
+
     /// Remove a rigid body from the world
     fn remove_rigid_body(&mut self, handle: crate::BodyHandle) -> Result<()>;
-    
+
     /// Add a collider to the world
     fn add_collider(&mut self, collider: crate::Collider) -> Result<crate::ColliderHandle>;
-    
+
     /// Remove a collider from the world
     fn remove_collider(&mut self, handle: crate::ColliderHandle) -> Result<()>;
-    
+
     /// Add a joint to the world
     fn add_joint(&mut self, joint: crate::Joint) -> Result<u32>;
-    
+
     /// Remove a joint from the world
     fn remove_joint(&mut self, handle: u32) -> Result<()>;
-    
+
     /// Get world statistics
     fn get_stats(&self) -> PhysicsWorldStats;
-    
+
     /// Clear all physics objects
     fn clear(&mut self) -> Result<()>;
-    
+
     /// Enable/disable physics simulation
     fn set_enabled(&mut self, enabled: bool);
-    
+
     /// Check if physics simulation is enabled
     fn is_enabled(&self) -> bool;
-    
+
     /// Set simulation timestep
     fn set_timestep(&mut self, timestep: f32);
-    
+
     /// Get current timestep
     fn get_timestep(&self) -> f32;
 }
@@ -141,12 +141,12 @@ impl PhysicsWorldConfig {
             ..Self::default()
         }
     }
-    
+
     /// Create config for 3D physics
     pub fn config_3d() -> Self {
         Self::default()
     }
-    
+
     /// Create config for platformer games
     pub fn platformer() -> Self {
         Self {
@@ -157,7 +157,7 @@ impl PhysicsWorldConfig {
             ..Self::default()
         }
     }
-    
+
     /// Create config for space/zero gravity
     pub fn zero_gravity() -> Self {
         Self {
@@ -165,7 +165,7 @@ impl PhysicsWorldConfig {
             ..Self::default()
         }
     }
-    
+
     /// Create config optimized for mobile
     pub fn mobile_optimized() -> Self {
         Self {

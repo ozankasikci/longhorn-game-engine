@@ -1,7 +1,7 @@
 use crate::ImportJobId;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::SystemTime;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportMetadata {
@@ -29,7 +29,7 @@ impl ImportMetadata {
             importer_name,
         }
     }
-    
+
     pub fn with_duration(mut self, duration_ms: u64) -> Self {
         self.import_duration_ms = duration_ms;
         self

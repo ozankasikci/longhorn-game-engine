@@ -1,7 +1,7 @@
-use std::path::PathBuf;
-use egui::{Context, Window, ScrollArea};
-use serde::{Serialize, Deserialize};
+use egui::{Context, ScrollArea, Window};
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub enum ImportResult {
@@ -35,9 +35,9 @@ impl Default for ImportSettings {
 
 impl ImportSettings {
     pub fn is_default(&self) -> bool {
-        self.scale == 1.0 
-            && !self.generate_lods 
-            && self.optimize_meshes 
+        self.scale == 1.0
+            && !self.generate_lods
+            && self.optimize_meshes
             && !self.auto_generate_collision
     }
 }
@@ -70,40 +70,40 @@ impl ImportDialog {
             file_dialog_result: None,
         }
     }
-    
+
     pub fn is_visible(&self) -> bool {
         self.visible
     }
-    
+
     pub fn selected_files(&self) -> &[PathBuf] {
         &self.selected_files
     }
-    
+
     pub fn import_settings(&self) -> &ImportSettings {
         &self.settings
     }
-    
+
     pub fn show_with_files(&mut self, files: Vec<PathBuf>) {
         self.selected_files = files;
         self.visible = true;
     }
-    
+
     pub fn hide(&mut self) {
         self.visible = false;
     }
-    
+
     pub fn open(&mut self) {
         self.visible = true;
     }
-    
+
     pub fn show(&mut self, ctx: &Context) -> Option<ImportResult> {
         if !self.visible {
             return None;
         }
-        
+
         let mut result = None;
         let mut should_close = false;
-        
+
         Window::new("Import Assets")
             .open(&mut self.visible)
             .resizable(true)
@@ -111,7 +111,7 @@ impl ImportDialog {
             .show(ctx, |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
                     ui.heading("Selected Files");
-                    
+
                     if ui.button("Browse...").clicked() {
                         // Open native file dialog
                         if let Some(files) = rfd::FileDialog::new()
@@ -130,12 +130,12 @@ impl ImportDialog {
                             }
                         }
                     }
-                    
+
                     if ui.button("Clear All").clicked() {
                         self.selected_files.clear();
                         self.selected_files_set.clear();
                     }
-                    
+
                     // Show selected files with remove buttons
                     let mut to_remove = None;
                     for (idx, file) in self.selected_files.iter().enumerate() {
@@ -146,88 +146,115 @@ impl ImportDialog {
                             }
                         });
                     }
-                    
+
                     // Remove file if requested
                     if let Some(idx) = to_remove {
                         let removed_file = self.selected_files.remove(idx);
                         self.selected_files_set.remove(&removed_file);
                     }
-                    
+
                     ui.separator();
-                    
+
                     ui.heading("Import Settings");
-                    
+
                     ui.horizontal(|ui| {
                         ui.label("Scale:");
-                        ui.add(egui::DragValue::new(&mut self.settings.scale)
-                            .speed(0.01)
-                            .range(0.001..=1000.0));
+                        ui.add(
+                            egui::DragValue::new(&mut self.settings.scale)
+                                .speed(0.01)
+                                .range(0.001..=1000.0),
+                        );
                     });
-                    
+
                     ui.checkbox(&mut self.settings.optimize_meshes, "Optimize Meshes");
                     ui.checkbox(&mut self.settings.generate_lods, "Generate LODs");
-                    
+
                     if self.settings.generate_lods {
                         ui.indent("lod_settings", |ui| {
                             ui.label("LOD Distances:");
                             if ui.button("Add LOD Level").clicked() {
                                 self.settings.lod_levels.push(50.0);
                             }
-                            
+
                             let mut to_remove = None;
                             for (i, distance) in self.settings.lod_levels.iter_mut().enumerate() {
                                 ui.horizontal(|ui| {
                                     ui.label(format!("LOD {}", i + 1));
-                                    ui.add(egui::DragValue::new(distance)
-                                        .speed(1.0)
-                                        .range(1.0..=1000.0));
+                                    ui.add(
+                                        egui::DragValue::new(distance)
+                                            .speed(1.0)
+                                            .range(1.0..=1000.0),
+                                    );
                                     if ui.button("X").clicked() {
                                         to_remove = Some(i);
                                     }
                                 });
                             }
-                            
+
                             if let Some(idx) = to_remove {
                                 self.settings.lod_levels.remove(idx);
                             }
                         });
                     }
-                    
-                    ui.checkbox(&mut self.settings.auto_generate_collision, "Auto Generate Collision");
-                    
+
+                    ui.checkbox(
+                        &mut self.settings.auto_generate_collision,
+                        "Auto Generate Collision",
+                    );
+
                     if self.settings.auto_generate_collision {
                         ui.indent("collision_settings", |ui| {
                             ui.label("Collision Type:");
-                            ui.radio_value(&mut self.settings.collision_type, CollisionType::Box, "Box");
-                            ui.radio_value(&mut self.settings.collision_type, CollisionType::Sphere, "Sphere");
-                            ui.radio_value(&mut self.settings.collision_type, CollisionType::Capsule, "Capsule");
-                            ui.radio_value(&mut self.settings.collision_type, CollisionType::ConvexHull, "Convex Hull");
-                            ui.radio_value(&mut self.settings.collision_type, CollisionType::TriangleMesh, "Triangle Mesh");
+                            ui.radio_value(
+                                &mut self.settings.collision_type,
+                                CollisionType::Box,
+                                "Box",
+                            );
+                            ui.radio_value(
+                                &mut self.settings.collision_type,
+                                CollisionType::Sphere,
+                                "Sphere",
+                            );
+                            ui.radio_value(
+                                &mut self.settings.collision_type,
+                                CollisionType::Capsule,
+                                "Capsule",
+                            );
+                            ui.radio_value(
+                                &mut self.settings.collision_type,
+                                CollisionType::ConvexHull,
+                                "Convex Hull",
+                            );
+                            ui.radio_value(
+                                &mut self.settings.collision_type,
+                                CollisionType::TriangleMesh,
+                                "Triangle Mesh",
+                            );
                         });
                     }
                 });
-                
+
                 ui.separator();
-                
+
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Cancel").clicked() {
                             result = Some(ImportResult::Cancel);
                             should_close = true;
                         }
-                        
+
                         ui.add_enabled_ui(!self.selected_files.is_empty(), |ui| {
                             if ui.button("Import").clicked() {
                                 // Import all selected files with the same settings
                                 if self.selected_files.len() == 1 {
                                     result = Some(ImportResult::Import(
-                                        self.selected_files[0].clone(), 
-                                        self.settings.clone()
+                                        self.selected_files[0].clone(),
+                                        self.settings.clone(),
                                     ));
                                 } else {
                                     result = Some(ImportResult::ImportBatch(
-                                        self.selected_files.clone(), 
-                                        self.settings.clone()
+                                        self.selected_files.clone(),
+                                        self.settings.clone(),
                                     ));
                                 }
                                 should_close = true;
@@ -236,13 +263,13 @@ impl ImportDialog {
                     });
                 });
             });
-        
+
         if should_close {
             self.visible = false;
             self.selected_files.clear();
             self.selected_files_set.clear();
         }
-        
+
         result
     }
 }

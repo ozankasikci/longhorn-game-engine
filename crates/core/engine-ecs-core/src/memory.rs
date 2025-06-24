@@ -12,7 +12,7 @@ impl<T> MemoryPool<T> {
             free_indices: Vec::new(),
         }
     }
-    
+
     pub fn allocate(&mut self, item: T) -> usize {
         if let Some(index) = self.free_indices.pop() {
             self.items[index] = Some(item);
@@ -23,7 +23,7 @@ impl<T> MemoryPool<T> {
             index
         }
     }
-    
+
     pub fn deallocate(&mut self, index: usize) -> Option<T> {
         if index < self.items.len() {
             if let Some(item) = self.items[index].take() {
@@ -36,11 +36,11 @@ impl<T> MemoryPool<T> {
             None
         }
     }
-    
+
     pub fn get(&self, index: usize) -> Option<&T> {
         self.items.get(index)?.as_ref()
     }
-    
+
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         self.items.get_mut(index)?.as_mut()
     }

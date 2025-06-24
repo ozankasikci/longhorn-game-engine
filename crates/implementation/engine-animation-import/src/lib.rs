@@ -1,28 +1,28 @@
-use engine_asset_import::{AssetImporter, ImportContext, ImportError as AssetImportError};
-use serde::{Serialize, Deserialize};
-use thiserror::Error;
-use std::path::Path;
 use async_trait::async_trait;
+use engine_asset_import::{AssetImporter, ImportContext, ImportError as AssetImportError};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+use thiserror::Error;
 
+pub mod compression;
 pub mod processing;
 pub mod retargeting;
-pub mod compression;
 pub mod validation;
 
 #[derive(Error, Debug)]
 pub enum AnimationError {
     #[error("Unsupported animation format")]
     UnsupportedFormat,
-    
+
     #[error("Invalid animation data: {0}")]
     InvalidData(String),
-    
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("Processing error: {0}")]
     ProcessingError(String),
-    
+
     #[error("Validation error: {0}")]
     ValidationError(String),
 }
@@ -114,28 +114,32 @@ impl AnimationImporter {
     pub fn new() -> Self {
         Self
     }
-    
-    pub fn import(&self, data: &[u8], _context: &ImportContext) -> Result<AnimationData, AnimationError> {
+
+    pub fn import(
+        &self,
+        data: &[u8],
+        _context: &ImportContext,
+    ) -> Result<AnimationData, AnimationError> {
         // Try to detect format from data
         if data.len() < 16 {
             return Err(AnimationError::InvalidData("Data too short".to_string()));
         }
-        
+
         // Check glTF (JSON or binary)
         if data.starts_with(b"{") || data.starts_with(b"glTF") {
             return Err(AnimationError::UnsupportedFormat);
         }
-        
+
         // Check FBX
         if data.starts_with(b"Kaydara FBX Binary") {
             return Err(AnimationError::UnsupportedFormat);
         }
-        
+
         // Check Collada/DAE (XML)
         if data.starts_with(b"<?xml") || data.starts_with(b"<COLLADA") {
             return Err(AnimationError::UnsupportedFormat);
         }
-        
+
         Err(AnimationError::UnsupportedFormat)
     }
 }
@@ -143,16 +147,21 @@ impl AnimationImporter {
 #[async_trait]
 impl AssetImporter for AnimationImporter {
     type Asset = AnimationData;
-    
+
     fn supported_extensions(&self) -> &[&str] {
         &["gltf", "glb", "fbx", "dae"]
     }
-    
-    async fn import(&self, path: &Path, context: &ImportContext) -> Result<Self::Asset, AssetImportError> {
+
+    async fn import(
+        &self,
+        path: &Path,
+        context: &ImportContext,
+    ) -> Result<Self::Asset, AssetImportError> {
         // Read file data
-        let data = tokio::fs::read(path).await
+        let data = tokio::fs::read(path)
+            .await
             .map_err(|e| AssetImportError::IoError(e.to_string()))?;
-            
+
         // Import animation
         self.import(&data, context)
             .map_err(|e| AssetImportError::ProcessingError(e.to_string()))

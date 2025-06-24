@@ -6,7 +6,7 @@ use crate::{AssetResult, AssetType};
 pub trait AssetLoader<T> {
     /// Load an asset from a path
     fn load(&self, path: &str) -> AssetResult<T>;
-    
+
     /// Get the supported asset type
     fn asset_type(&self) -> AssetType;
 }
@@ -23,12 +23,12 @@ impl LoaderRegistry {
             // TODO: Initialize loader registry
         }
     }
-    
+
     /// Register a loader for an asset type
-    pub fn register<T, L>(&mut self, _loader: L) 
-    where 
+    pub fn register<T, L>(&mut self, _loader: L)
+    where
         T: 'static,
-        L: AssetLoader<T> + 'static 
+        L: AssetLoader<T> + 'static,
     {
         // TODO: Implement loader registration
     }

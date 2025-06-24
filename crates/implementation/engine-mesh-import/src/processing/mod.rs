@@ -1,7 +1,7 @@
-pub mod uv_unwrap;
-pub mod normal_processor;
 pub mod batch;
+pub mod normal_processor;
+pub mod uv_unwrap;
 
-pub use uv_unwrap::{UVUnwrapper, UnwrapOptions, UnwrapMethod};
-pub use normal_processor::{NormalProcessor, NormalOptions, SmoothingMethod};
-pub use batch::{BatchProcessor, BatchOptions, OptimizationLevel, BatchResult};
+pub use batch::{BatchOptions, BatchProcessor, BatchResult, OptimizationLevel};
+pub use normal_processor::{NormalOptions, NormalProcessor, SmoothingMethod};
+pub use uv_unwrap::{UVUnwrapper, UnwrapMethod, UnwrapOptions};

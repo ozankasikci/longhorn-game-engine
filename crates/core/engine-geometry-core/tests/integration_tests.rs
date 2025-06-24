@@ -1,7 +1,7 @@
 //! Integration tests for engine-geometry-core
 
 use engine_geometry_core::*;
-use glam::{Vec3, Vec2};
+use glam::{Vec2, Vec3};
 
 #[test]
 fn test_vertex_creation_and_pod() {
@@ -49,23 +49,19 @@ fn test_mesh_creation_and_validation() {
 
     let indices = vec![0, 1, 2];
 
-    let mesh_data = MeshData::new(
-        "triangle".to_string(),
-        vertices,
-        indices,
-    );
+    let mesh_data = MeshData::new("triangle".to_string(), vertices, indices);
     let mesh = Mesh::from_data(mesh_data);
-    
+
     assert_eq!(mesh.name, "triangle");
     assert_eq!(mesh.vertex_count(), 3);
     assert_eq!(mesh.triangle_count(), 1);
     assert!(mesh.has_indices());
-    
+
     // Test bounds calculation
     let bounds = mesh.bounds;
     assert!(bounds.min.x >= -0.1); // Should be close to 0
-    assert!(bounds.max.x <= 1.1);  // Should be close to 1
-    assert!(bounds.max.y <= 1.1);  // Should be close to 1
+    assert!(bounds.max.x <= 1.1); // Should be close to 1
+    assert!(bounds.max.y <= 1.1); // Should be close to 1
 }
 
 // #[test]
@@ -91,15 +87,9 @@ fn test_mesh_creation_and_validation() {
 
 #[test]
 fn test_bounding_box_operations() {
-    let box1 = BoundingBox::new(
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::new(1.0, 1.0, 1.0)
-    );
+    let box1 = BoundingBox::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0));
 
-    let box2 = BoundingBox::new(
-        Vec3::new(0.5, 0.5, 0.5),
-        Vec3::new(1.5, 1.5, 1.5)
-    );
+    let box2 = BoundingBox::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5));
 
     // Test intersection
     assert!(box1.intersects_box(&box2));
@@ -108,7 +98,7 @@ fn test_bounding_box_operations() {
     // Test containment
     let point_inside = Vec3::new(0.5, 0.5, 0.5);
     let point_outside = Vec3::new(2.0, 2.0, 2.0);
-    
+
     assert!(box1.contains_point(point_inside));
     assert!(!box1.contains_point(point_outside));
 
@@ -149,7 +139,7 @@ fn test_spatial_operations() {
     // Test distance calculations using Vec3 methods
     let p1 = Vec3::new(0.0, 0.0, 0.0);
     let p2 = Vec3::new(3.0, 4.0, 0.0);
-    
+
     assert_eq!(p1.distance_squared(p2), 25.0);
     assert_eq!(p1.distance(p2), 5.0);
 
@@ -159,9 +149,9 @@ fn test_spatial_operations() {
         Vec3::new(1.0, 0.0, 0.0),
         Vec3::new(0.5, 1.0, 0.0),
     ];
-    
+
     let test_point = Vec3::new(0.5, 0.25, 0.0);
-    
+
     // Test that the point is reasonably close to the triangle
     let center = (triangle[0] + triangle[1] + triangle[2]) / 3.0;
     assert!((test_point - center).length() < 1.0);

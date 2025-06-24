@@ -1,7 +1,7 @@
 //! Types for UI components
 
 // Re-export common types from panels
-pub use engine_editor_panels::{ConsoleMessage, PlayState, SceneTool, GizmoSystem};
+pub use engine_editor_panels::{ConsoleMessage, GizmoSystem, PlayState, SceneTool};
 pub use engine_editor_scene_view::types::SceneNavigation;
 
 /// Different types of dockable panels

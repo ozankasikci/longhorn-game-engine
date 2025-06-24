@@ -1,5 +1,5 @@
-use crate::{MeshData, optimization::OptimizationPipeline, lod::LODGenerator};
 use crate::validation::{TopologyValidator, UVValidator};
+use crate::{lod::LODGenerator, optimization::OptimizationPipeline, MeshData};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OptimizationLevel {
@@ -42,7 +42,7 @@ impl BatchProcessor {
     pub fn new() -> Self {
         Self
     }
-    
+
     pub fn process_batch(
         &self,
         meshes: Vec<MeshData>,
@@ -50,18 +50,20 @@ impl BatchProcessor {
     ) -> Result<Vec<BatchResult>, String> {
         let results: Vec<BatchResult> = if options.parallel_processing {
             // In a real implementation, use rayon for parallel processing
-            meshes.into_iter()
+            meshes
+                .into_iter()
                 .map(|mesh| self.process_single(mesh, options))
                 .collect()
         } else {
-            meshes.into_iter()
+            meshes
+                .into_iter()
                 .map(|mesh| self.process_single(mesh, options))
                 .collect()
         };
-        
+
         Ok(results)
     }
-    
+
     fn process_single(&self, mesh: MeshData, options: &BatchOptions) -> BatchResult {
         let mut result = BatchResult {
             validation_passed: true,
@@ -69,22 +71,24 @@ impl BatchProcessor {
             lod_meshes: Vec::new(),
             errors: Vec::new(),
         };
-        
+
         // Validation
         if options.validate {
             let topology_validator = TopologyValidator::new();
             if let Err(e) = topology_validator.validate(&mesh) {
-                result.errors.push(format!("Topology validation failed: {}", e));
+                result
+                    .errors
+                    .push(format!("Topology validation failed: {}", e));
                 result.validation_passed = false;
             }
-            
+
             let uv_validator = UVValidator::new();
             let warnings = uv_validator.get_warnings(&mesh);
             for warning in warnings {
                 result.errors.push(format!("UV warning: {}", warning));
             }
         }
-        
+
         // Optimization
         let optimized = match options.optimization_level {
             OptimizationLevel::None => mesh.clone(),
@@ -97,7 +101,7 @@ impl BatchProcessor {
                     quantize_positions: false,
                     target_index_buffer_size: None,
                 };
-                
+
                 match pipeline.optimize(mesh.clone(), opt_options) {
                     Ok(optimized) => optimized,
                     Err(e) => {
@@ -107,29 +111,38 @@ impl BatchProcessor {
                 }
             }
         };
-        
+
         result.optimized_mesh = Some(optimized.clone());
-        
+
         // LOD generation
         if options.generate_lods {
             let lod_generator = LODGenerator::new();
             let lod_options = crate::lod::LODOptions {
                 levels: vec![
-                    crate::lod::LODLevel { distance: 10.0, quality: 1.0 },
-                    crate::lod::LODLevel { distance: 50.0, quality: 0.5 },
-                    crate::lod::LODLevel { distance: 100.0, quality: 0.25 },
+                    crate::lod::LODLevel {
+                        distance: 10.0,
+                        quality: 1.0,
+                    },
+                    crate::lod::LODLevel {
+                        distance: 50.0,
+                        quality: 0.5,
+                    },
+                    crate::lod::LODLevel {
+                        distance: 100.0,
+                        quality: 0.25,
+                    },
                 ],
                 preserve_boundaries: true,
                 preserve_seams: true,
                 preserve_uv_boundaries: true,
             };
-            
+
             match lod_generator.generate_lods(&optimized, &lod_options) {
                 Ok(lods) => result.lod_meshes = lods,
                 Err(e) => result.errors.push(format!("LOD generation failed: {}", e)),
             }
         }
-        
+
         result
     }
 }

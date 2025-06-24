@@ -1,8 +1,8 @@
 //! Physics query abstractions
 
+use crate::{BodyHandle, ColliderHandle, CollisionGroups};
 use glam::{Vec2, Vec3};
-use serde::{Serialize, Deserialize};
-use crate::{CollisionGroups, BodyHandle, ColliderHandle};
+use serde::{Deserialize, Serialize};
 
 /// Ray for physics queries
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -140,19 +140,19 @@ pub struct OverlapQuery2D {
 pub trait PhysicsQueries {
     /// Cast a ray and return the first hit
     fn raycast(&self, ray: &Ray, filter: &QueryFilter) -> Option<RaycastHit>;
-    
+
     /// Cast a ray and return all hits
     fn raycast_all(&self, ray: &Ray, filter: &QueryFilter) -> Vec<RaycastHit>;
-    
+
     /// Check if a shape overlaps with any colliders
     fn overlap_test(&self, query: &OverlapQuery) -> bool;
-    
+
     /// Get all entities overlapping with a shape
     fn overlap_all(&self, query: &OverlapQuery) -> Vec<u32>;
-    
+
     /// Get the closest point on any collider to a given point
     fn closest_point(&self, point: Vec3, filter: &QueryFilter) -> Option<(u32, Vec3)>;
-    
+
     /// Check if a point is inside any collider
     fn point_test(&self, point: Vec3, filter: &QueryFilter) -> Option<u32>;
 }
@@ -161,19 +161,19 @@ pub trait PhysicsQueries {
 pub trait PhysicsQueries2D {
     /// Cast a ray and return the first hit
     fn raycast(&self, ray: &Ray2D, filter: &QueryFilter) -> Option<RaycastHit2D>;
-    
+
     /// Cast a ray and return all hits
     fn raycast_all(&self, ray: &Ray2D, filter: &QueryFilter) -> Vec<RaycastHit2D>;
-    
+
     /// Check if a shape overlaps with any colliders
     fn overlap_test(&self, query: &OverlapQuery2D) -> bool;
-    
+
     /// Get all entities overlapping with a shape
     fn overlap_all(&self, query: &OverlapQuery2D) -> Vec<u32>;
-    
+
     /// Get the closest point on any collider to a given point
     fn closest_point(&self, point: Vec2, filter: &QueryFilter) -> Option<(u32, Vec2)>;
-    
+
     /// Check if a point is inside any collider
     fn point_test(&self, point: Vec2, filter: &QueryFilter) -> Option<u32>;
 }
@@ -187,7 +187,7 @@ impl Ray {
             max_distance,
         }
     }
-    
+
     /// Get point along the ray at given distance
     pub fn point_at_distance(&self, distance: f32) -> Vec3 {
         self.origin + self.direction * distance
@@ -203,7 +203,7 @@ impl Ray2D {
             max_distance,
         }
     }
-    
+
     /// Get point along the ray at given distance
     pub fn point_at_distance(&self, distance: f32) -> Vec2 {
         self.origin + self.direction * distance
@@ -215,7 +215,7 @@ impl QueryFilter {
     pub fn all() -> Self {
         Self::default()
     }
-    
+
     /// Create a filter for specific collision groups
     pub fn groups(groups: CollisionGroups) -> Self {
         Self {
@@ -223,7 +223,7 @@ impl QueryFilter {
             ..Self::default()
         }
     }
-    
+
     /// Create a filter that excludes specific entities
     pub fn exclude_entities(entities: Vec<u32>) -> Self {
         Self {
@@ -231,7 +231,7 @@ impl QueryFilter {
             ..Self::default()
         }
     }
-    
+
     /// Include sensors in the query
     pub fn with_sensors(mut self) -> Self {
         self.include_sensors = true;

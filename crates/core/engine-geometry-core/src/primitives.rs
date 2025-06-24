@@ -1,10 +1,10 @@
 //! Primitive shape abstractions and interfaces
-//! 
+//!
 //! This module defines the core abstractions for primitive shapes.
 //! Concrete implementations are provided by implementation crates.
 
 use crate::Mesh;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Primitive shape types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -137,7 +137,7 @@ impl PrimitiveParams {
             PrimitiveType::Torus => Self::Torus(SphereParams::default()),
         }
     }
-    
+
     /// Get the primitive type
     pub fn primitive_type(&self) -> PrimitiveType {
         match self {
@@ -155,48 +155,58 @@ impl PrimitiveParams {
 }
 
 /// Trait for primitive mesh generation
-/// 
+///
 /// This trait should be implemented by geometry implementation crates
 /// to provide actual mesh generation algorithms.
 pub trait PrimitiveGenerator: Send + Sync {
     /// Generate a mesh for the given primitive parameters
     fn generate(&self, params: &PrimitiveParams) -> crate::Result<Mesh>;
-    
+
     /// Generate a mesh for a primitive type with default parameters
     fn generate_default(&self, primitive_type: PrimitiveType) -> crate::Result<Mesh> {
         let params = PrimitiveParams::for_type(primitive_type);
         self.generate(&params)
     }
-    
+
     /// Check if this generator supports a specific primitive type
     fn supports(&self, primitive_type: PrimitiveType) -> bool;
-    
+
     /// Get a list of supported primitive types
     fn supported_types(&self) -> Vec<PrimitiveType>;
 }
 
 /// Simple primitive mesh factory trait
-/// 
+///
 /// Provides a simplified interface for common primitive generation.
 pub trait PrimitiveMeshFactory {
     /// Create a cube mesh
     fn cube(size: f32) -> crate::Result<Mesh>;
-    
+
     /// Create a sphere mesh
     fn sphere(radius: f32, rings: u32, sectors: u32) -> crate::Result<Mesh>;
-    
+
     /// Create a cylinder mesh
-    fn cylinder(top_radius: f32, bottom_radius: f32, height: f32, sectors: u32) -> crate::Result<Mesh>;
-    
+    fn cylinder(
+        top_radius: f32,
+        bottom_radius: f32,
+        height: f32,
+        sectors: u32,
+    ) -> crate::Result<Mesh>;
+
     /// Create a cone mesh
     fn cone(radius: f32, height: f32, sectors: u32) -> crate::Result<Mesh>;
-    
+
     /// Create a plane mesh
-    fn plane(width: f32, height: f32, subdivisions_x: u32, subdivisions_y: u32) -> crate::Result<Mesh>;
-    
+    fn plane(
+        width: f32,
+        height: f32,
+        subdivisions_x: u32,
+        subdivisions_y: u32,
+    ) -> crate::Result<Mesh>;
+
     /// Create a quad mesh
     fn quad() -> crate::Result<Mesh>;
-    
+
     /// Create a triangle mesh
     fn triangle() -> crate::Result<Mesh>;
 }
@@ -215,30 +225,30 @@ impl PrimitiveMeshBuilder {
             name: None,
         }
     }
-    
+
     /// Set custom parameters
     pub fn with_params(mut self, params: PrimitiveParams) -> Self {
         self.params = params;
         self
     }
-    
+
     /// Set mesh name
     pub fn with_name(mut self, name: String) -> Self {
         self.name = Some(name);
         self
     }
-    
+
     /// Build the mesh using the provided generator
     pub fn build(self, generator: &dyn PrimitiveGenerator) -> crate::Result<Mesh> {
         let mut mesh = generator.generate(&self.params)?;
-        
+
         if let Some(name) = self.name {
             mesh.set_name(name);
         }
-        
+
         Ok(mesh)
     }
-    
+
     /// Get the parameters
     pub fn params(&self) -> &PrimitiveParams {
         &self.params

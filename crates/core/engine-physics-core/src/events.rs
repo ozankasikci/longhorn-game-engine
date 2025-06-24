@@ -1,8 +1,8 @@
 //! Physics event abstractions
 
-use glam::{Vec2, Vec3};
-use serde::{Serialize, Deserialize};
 use crate::{BodyHandle, ColliderHandle};
+use glam::{Vec2, Vec3};
+use serde::{Deserialize, Serialize};
 
 /// Physics events that can be generated during simulation
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -117,19 +117,19 @@ pub struct BodySleepEvent {
 pub trait PhysicsEventListener {
     /// Called when a physics event occurs
     fn on_physics_event(&mut self, event: &PhysicsEvent);
-    
+
     /// Called specifically for collision events
     fn on_collision(&mut self, event: &CollisionEvent) {
         // Default implementation does nothing
         let _ = event;
     }
-    
+
     /// Called specifically for sensor events
     fn on_sensor(&mut self, event: &SensorEvent) {
         // Default implementation does nothing
         let _ = event;
     }
-    
+
     /// Called specifically for joint events
     fn on_joint_broken(&mut self, event: &JointBrokenEvent) {
         // Default implementation does nothing
@@ -155,31 +155,30 @@ impl PhysicsEventDispatcher {
             listeners: Vec::new(),
         }
     }
-    
+
     /// Add an event listener
     pub fn add_listener(&mut self, listener: Box<dyn PhysicsEventListener>) {
         self.listeners.push(listener);
     }
-    
+
     /// Remove all listeners
     pub fn clear_listeners(&mut self) {
         self.listeners.clear();
     }
-    
+
     /// Dispatch an event to all listeners
     pub fn dispatch(&mut self, event: &PhysicsEvent) {
         for listener in &mut self.listeners {
             listener.on_physics_event(event);
-            
+
             // Call specific event handlers
             match event {
-                PhysicsEvent::CollisionStarted(e) | 
-                PhysicsEvent::CollisionPersisted(e) | 
-                PhysicsEvent::CollisionEnded(e) => {
+                PhysicsEvent::CollisionStarted(e)
+                | PhysicsEvent::CollisionPersisted(e)
+                | PhysicsEvent::CollisionEnded(e) => {
                     listener.on_collision(e);
                 }
-                PhysicsEvent::SensorEntered(e) | 
-                PhysicsEvent::SensorExited(e) => {
+                PhysicsEvent::SensorEntered(e) | PhysicsEvent::SensorExited(e) => {
                     listener.on_sensor(e);
                 }
                 PhysicsEvent::JointBroken(e) => {
@@ -189,7 +188,7 @@ impl PhysicsEventDispatcher {
             }
         }
     }
-    
+
     /// Get number of registered listeners
     pub fn listener_count(&self) -> usize {
         self.listeners.len()
@@ -201,7 +200,7 @@ impl CollisionEvent {
     pub fn involves_entity(&self, entity: u32) -> bool {
         self.entity1 == entity || self.entity2 == entity
     }
-    
+
     /// Get the other entity involved (if the given entity is involved)
     pub fn get_other_entity(&self, entity: u32) -> Option<u32> {
         if self.entity1 == entity {
@@ -212,23 +211,26 @@ impl CollisionEvent {
             None
         }
     }
-    
+
     /// Get the average contact point
     pub fn average_contact_point(&self) -> Option<Vec3> {
         if self.contacts.is_empty() {
             return None;
         }
-        
-        let sum = self.contacts.iter()
+
+        let sum = self
+            .contacts
+            .iter()
             .map(|c| c.point)
             .fold(Vec3::ZERO, |acc, point| acc + point);
-        
+
         Some(sum / self.contacts.len() as f32)
     }
-    
+
     /// Get the maximum penetration depth
     pub fn max_penetration(&self) -> f32 {
-        self.contacts.iter()
+        self.contacts
+            .iter()
             .map(|c| c.penetration)
             .fold(0.0, f32::max)
     }

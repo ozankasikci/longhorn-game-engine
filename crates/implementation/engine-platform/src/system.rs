@@ -29,30 +29,30 @@ impl SystemInfo {
             memory_total: 0, // TODO: Implement memory detection
         }
     }
-    
+
     /// Detect the current platform
     pub fn detect_platform() -> Platform {
         #[cfg(target_os = "windows")]
         return Platform::Windows;
-        
+
         #[cfg(target_os = "macos")]
         return Platform::MacOS;
-        
+
         #[cfg(target_os = "linux")]
         return Platform::Linux;
-        
+
         #[cfg(target_os = "ios")]
         return Platform::Ios;
-        
+
         #[cfg(target_os = "android")]
         return Platform::Android;
-        
+
         #[cfg(target_arch = "wasm32")]
         return Platform::Web;
-        
+
         #[cfg(not(any(
             target_os = "windows",
-            target_os = "macos", 
+            target_os = "macos",
             target_os = "linux",
             target_os = "ios",
             target_os = "android",

@@ -1,14 +1,14 @@
 //! Event filtering abstractions
 
+use crate::{Event, EventPriority, EventTypeId};
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use serde::{Serialize, Deserialize};
-use crate::{Event, EventTypeId, EventPriority};
 
 /// Event filter trait for determining if events should be processed
 pub trait EventFilter: Send + Sync {
     /// Check if an event passes the filter
     fn passes(&self, event: &dyn Event) -> bool;
-    
+
     /// Get a description of what this filter does
     fn description(&self) -> String;
 }
@@ -20,7 +20,7 @@ impl EventFilter for AcceptAllFilter {
     fn passes(&self, _event: &dyn Event) -> bool {
         true
     }
-    
+
     fn description(&self) -> String {
         "Accept all events".to_string()
     }
@@ -33,7 +33,7 @@ impl EventFilter for RejectAllFilter {
     fn passes(&self, _event: &dyn Event) -> bool {
         false
     }
-    
+
     fn description(&self) -> String {
         "Reject all events".to_string()
     }
@@ -53,7 +53,7 @@ impl TypeFilter {
             whitelist_mode: true,
         }
     }
-    
+
     /// Create a blacklist filter (deny specified types)
     pub fn blacklist(types: Vec<EventTypeId>) -> Self {
         Self {
@@ -61,17 +61,17 @@ impl TypeFilter {
             whitelist_mode: false,
         }
     }
-    
+
     /// Add a type to the filter
     pub fn add_type(&mut self, type_id: EventTypeId) {
         self.allowed_types.insert(type_id);
     }
-    
+
     /// Remove a type from the filter
     pub fn remove_type(&mut self, type_id: EventTypeId) {
         self.allowed_types.remove(&type_id);
     }
-    
+
     /// Check if a type is in the filter
     pub fn contains_type(&self, type_id: EventTypeId) -> bool {
         self.allowed_types.contains(&type_id)
@@ -82,17 +82,25 @@ impl EventFilter for TypeFilter {
     fn passes(&self, event: &dyn Event) -> bool {
         let event_type = event.get_type_id();
         let is_in_set = self.allowed_types.contains(&event_type);
-        
+
         if self.whitelist_mode {
             is_in_set
         } else {
             !is_in_set
         }
     }
-    
+
     fn description(&self) -> String {
-        let mode = if self.whitelist_mode { "whitelist" } else { "blacklist" };
-        format!("Type filter ({}) with {} types", mode, self.allowed_types.len())
+        let mode = if self.whitelist_mode {
+            "whitelist"
+        } else {
+            "blacklist"
+        };
+        format!(
+            "Type filter ({}) with {} types",
+            mode,
+            self.allowed_types.len()
+        )
     }
 }
 
@@ -110,7 +118,7 @@ impl PriorityFilter {
             max_priority,
         }
     }
-    
+
     /// Create a filter that only allows events above a minimum priority
     pub fn min_priority(priority: EventPriority) -> Self {
         Self {
@@ -118,7 +126,7 @@ impl PriorityFilter {
             max_priority: EventPriority::Critical,
         }
     }
-    
+
     /// Create a filter that only allows events below a maximum priority
     pub fn max_priority(priority: EventPriority) -> Self {
         Self {
@@ -126,7 +134,7 @@ impl PriorityFilter {
             max_priority: priority,
         }
     }
-    
+
     /// Create a filter for a specific priority level only
     pub fn exact_priority(priority: EventPriority) -> Self {
         Self {
@@ -141,12 +149,15 @@ impl EventFilter for PriorityFilter {
         let priority = event.priority();
         priority >= self.min_priority && priority <= self.max_priority
     }
-    
+
     fn description(&self) -> String {
         if self.min_priority == self.max_priority {
             format!("Priority filter (exact: {:?})", self.min_priority)
         } else {
-            format!("Priority filter ({:?} to {:?})", self.min_priority, self.max_priority)
+            format!(
+                "Priority filter ({:?} to {:?})",
+                self.min_priority, self.max_priority
+            )
         }
     }
 }
@@ -165,7 +176,7 @@ impl EntityFilter {
             whitelist_mode: true,
         }
     }
-    
+
     /// Create a blacklist filter (deny events involving specified entities)
     pub fn blacklist(entities: Vec<u32>) -> Self {
         Self {
@@ -173,12 +184,12 @@ impl EntityFilter {
             whitelist_mode: false,
         }
     }
-    
+
     /// Add an entity to the filter
     pub fn add_entity(&mut self, entity: u32) {
         self.entities.insert(entity);
     }
-    
+
     /// Remove an entity from the filter
     pub fn remove_entity(&mut self, entity: u32) {
         self.entities.remove(&entity);
@@ -192,10 +203,18 @@ impl EventFilter for EntityFilter {
         // For now, we'll always return true since we can't access entity data generically
         true
     }
-    
+
     fn description(&self) -> String {
-        let mode = if self.whitelist_mode { "whitelist" } else { "blacklist" };
-        format!("Entity filter ({}) with {} entities", mode, self.entities.len())
+        let mode = if self.whitelist_mode {
+            "whitelist"
+        } else {
+            "blacklist"
+        };
+        format!(
+            "Entity filter ({}) with {} entities",
+            mode,
+            self.entities.len()
+        )
     }
 }
 
@@ -224,7 +243,7 @@ impl CompositeFilter {
             operation: LogicalOperation::And,
         }
     }
-    
+
     /// Create a new composite filter with OR operation
     pub fn or() -> Self {
         Self {
@@ -232,7 +251,7 @@ impl CompositeFilter {
             operation: LogicalOperation::Or,
         }
     }
-    
+
     /// Create a new composite filter with NOT operation
     pub fn not() -> Self {
         Self {
@@ -240,30 +259,23 @@ impl CompositeFilter {
             operation: LogicalOperation::Not,
         }
     }
-    
+
     /// Add a filter to the composition
     pub fn add_filter(&mut self, filter: Box<dyn EventFilter>) {
         self.filters.push(filter);
     }
-    
+
     /// Create a composite filter with multiple filters and operation
     pub fn with_filters(filters: Vec<Box<dyn EventFilter>>, operation: LogicalOperation) -> Self {
-        Self {
-            filters,
-            operation,
-        }
+        Self { filters, operation }
     }
 }
 
 impl EventFilter for CompositeFilter {
     fn passes(&self, event: &dyn Event) -> bool {
         match self.operation {
-            LogicalOperation::And => {
-                self.filters.iter().all(|f| f.passes(event))
-            }
-            LogicalOperation::Or => {
-                self.filters.iter().any(|f| f.passes(event))
-            }
+            LogicalOperation::And => self.filters.iter().all(|f| f.passes(event)),
+            LogicalOperation::Or => self.filters.iter().any(|f| f.passes(event)),
             LogicalOperation::Not => {
                 // For NOT operation, we expect exactly one filter
                 if self.filters.len() == 1 {
@@ -274,15 +286,19 @@ impl EventFilter for CompositeFilter {
             }
         }
     }
-    
+
     fn description(&self) -> String {
         let op_str = match self.operation {
             LogicalOperation::And => "AND",
             LogicalOperation::Or => "OR",
             LogicalOperation::Not => "NOT",
         };
-        
-        format!("Composite filter ({}) with {} sub-filters", op_str, self.filters.len())
+
+        format!(
+            "Composite filter ({}) with {} sub-filters",
+            op_str,
+            self.filters.len()
+        )
     }
 }
 
@@ -312,7 +328,7 @@ where
     fn passes(&self, event: &dyn Event) -> bool {
         (self.predicate)(event)
     }
-    
+
     fn description(&self) -> String {
         self.description.clone()
     }
@@ -321,7 +337,7 @@ where
 /// Filter that limits the number of events that can pass through
 pub struct RateLimitFilter {
     max_events: usize,
-    time_window: f32, // seconds
+    time_window: f32,           // seconds
     events_in_window: Vec<f64>, // timestamps
     description: String,
 }
@@ -336,13 +352,14 @@ impl RateLimitFilter {
             description: format!("Rate limit: {} events per {:.1}s", max_events, time_window),
         }
     }
-    
+
     /// Check if we can allow another event through
     fn can_pass(&mut self, current_time: f64) -> bool {
         // Remove old events outside the time window
         let cutoff_time = current_time - self.time_window as f64;
-        self.events_in_window.retain(|&timestamp| timestamp > cutoff_time);
-        
+        self.events_in_window
+            .retain(|&timestamp| timestamp > cutoff_time);
+
         // Check if we're under the limit
         if self.events_in_window.len() < self.max_events {
             self.events_in_window.push(current_time);
@@ -359,7 +376,7 @@ impl EventFilter for RateLimitFilter {
         // For now, always return true since we can't modify self in this trait method
         true
     }
-    
+
     fn description(&self) -> String {
         self.description.clone()
     }

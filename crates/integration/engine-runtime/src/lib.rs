@@ -1,18 +1,18 @@
 //! Runtime system for the mobile game engine
-//! 
+//!
 //! This crate orchestrates all engine systems and provides the main
 //! game loop and application lifecycle management.
 
-pub mod engine;
 pub mod application;
+pub mod engine;
 pub mod loop_;
 pub mod scheduler;
 pub mod systems;
 
-pub use engine::Engine;
 pub use application::{Application, ApplicationBuilder, ApplicationEvent};
+pub use engine::Engine;
 pub use loop_::GameLoop;
-pub use scheduler::{SystemScheduler, Schedule, System};
+pub use scheduler::{Schedule, System, SystemScheduler};
 
 /// Runtime system errors
 #[derive(Debug, thiserror::Error)]

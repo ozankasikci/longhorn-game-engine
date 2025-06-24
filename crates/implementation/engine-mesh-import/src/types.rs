@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use engine_asset_import::AssetImporter;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Vertex {
@@ -31,11 +31,11 @@ impl Material {
             properties: HashMap::new(),
         }
     }
-    
+
     pub fn name(&self) -> &str {
         &self.name
     }
-    
+
     pub fn set_property(&mut self, property: MaterialProperty) {
         let key = match &property {
             MaterialProperty::BaseColor(_) => "base_color",
@@ -48,7 +48,7 @@ impl Material {
         };
         self.properties.insert(key.to_string(), property);
     }
-    
+
     pub fn get_property(&self, key: &str) -> Option<&MaterialProperty> {
         self.properties.get(key)
     }

@@ -1,6 +1,6 @@
 //! Script runtime implementation
 
-use crate::{ScriptResult, ScriptError};
+use crate::{ScriptError, ScriptResult};
 
 /// Script runtime for executing scripts
 pub struct ScriptRuntime {
@@ -14,7 +14,7 @@ impl ScriptRuntime {
             // TODO: Initialize script runtime
         })
     }
-    
+
     /// Execute a script
     pub fn execute(&mut self, _script: &str) -> ScriptResult<()> {
         // TODO: Implement script execution

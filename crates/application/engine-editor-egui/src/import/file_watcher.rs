@@ -1,6 +1,6 @@
+use notify::{Event, EventKind, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::mpsc;
-use notify::{Watcher, RecursiveMode, Event, EventKind};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileWatchEvent {
@@ -25,10 +25,10 @@ impl ImportFileWatcher {
             event_sender,
         }
     }
-    
+
     pub fn watch_directory(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         let sender = self.event_sender.clone();
-        
+
         let mut watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
             if let Ok(event) = res {
                 match event.kind {
@@ -51,13 +51,13 @@ impl ImportFileWatcher {
                 }
             }
         })?;
-        
+
         watcher.watch(&path, RecursiveMode::Recursive)?;
         self.watcher = Some(watcher);
-        
+
         Ok(())
     }
-    
+
     #[cfg(test)]
     pub fn trigger_test_event(&self, event: FileWatchEvent) {
         if let Some(sender) = &self.test_sender {

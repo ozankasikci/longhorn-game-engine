@@ -40,10 +40,10 @@ impl Default for SceneNavigation {
 /// Current tool selected in scene view
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SceneTool {
-    Select,   // Q - Selection tool (default)
-    Move,     // W - Move tool with XYZ gizmo
-    Rotate,   // E - Rotation tool (future)
-    Scale,    // R - Scale tool (future)
+    Select, // Q - Selection tool (default)
+    Move,   // W - Move tool with XYZ gizmo
+    Rotate, // E - Rotation tool (future)
+    Scale,  // R - Scale tool (future)
 }
 
 impl Default for SceneTool {

@@ -1,25 +1,25 @@
 //! Physics material abstractions
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Physics material properties
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PhysicsMaterial {
     /// Coefficient of restitution (bounciness) 0.0 = no bounce, 1.0 = perfect bounce
     pub restitution: f32,
-    
+
     /// Coefficient of friction (0.0 = frictionless, 1.0+ = high friction)
     pub friction: f32,
-    
+
     /// Rolling friction coefficient (for rounded objects)
     pub rolling_friction: f32,
-    
+
     /// Density in kg/m³ (for mass calculation)
     pub density: f32,
-    
+
     /// Combine mode for restitution
     pub restitution_combine: CombineMode,
-    
+
     /// Combine mode for friction
     pub friction_combine: CombineMode,
 }
@@ -62,7 +62,7 @@ impl PhysicsMaterial {
             ..Default::default()
         }
     }
-    
+
     /// Rubber material (high bounce, good friction)
     pub fn rubber() -> Self {
         Self {
@@ -73,7 +73,7 @@ impl PhysicsMaterial {
             ..Default::default()
         }
     }
-    
+
     /// Metal material (no bounce, medium friction)
     pub fn metal() -> Self {
         Self {
@@ -84,7 +84,7 @@ impl PhysicsMaterial {
             ..Default::default()
         }
     }
-    
+
     /// Wood material (little bounce, good friction)
     pub fn wood() -> Self {
         Self {
@@ -95,7 +95,7 @@ impl PhysicsMaterial {
             ..Default::default()
         }
     }
-    
+
     /// Stone material (no bounce, high friction)
     pub fn stone() -> Self {
         Self {

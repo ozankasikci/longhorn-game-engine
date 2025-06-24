@@ -112,13 +112,13 @@ impl EditorSettings {
         }
         Self::default()
     }
-    
+
     /// Save settings to file
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(config_dir) = dirs::config_dir() {
             let longhorn_dir = config_dir.join("longhorn");
             std::fs::create_dir_all(&longhorn_dir)?;
-            
+
             let settings_path = longhorn_dir.join("editor_settings.toml");
             let contents = toml::to_string_pretty(self)?;
             std::fs::write(settings_path, contents)?;

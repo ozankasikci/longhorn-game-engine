@@ -39,7 +39,7 @@ impl ConsoleMessage {
             timestamp: std::time::Instant::now(),
         }
     }
-    
+
     pub fn warning(message: &str) -> Self {
         Self::Message {
             message: message.to_string(),
@@ -47,7 +47,7 @@ impl ConsoleMessage {
             timestamp: std::time::Instant::now(),
         }
     }
-    
+
     pub fn error(message: &str) -> Self {
         Self::Message {
             message: message.to_string(),
@@ -55,14 +55,13 @@ impl ConsoleMessage {
             timestamp: std::time::Instant::now(),
         }
     }
-    
+
     pub fn get_all_logs_as_string(messages: &[ConsoleMessage]) -> String {
-        messages.iter()
-            .filter_map(|msg| {
-                match msg {
-                    ConsoleMessage::Message { message, .. } => Some(message.clone()),
-                    ConsoleMessage::UserAction(_) => None,
-                }
+        messages
+            .iter()
+            .filter_map(|msg| match msg {
+                ConsoleMessage::Message { message, .. } => Some(message.clone()),
+                ConsoleMessage::UserAction(_) => None,
             })
             .collect::<Vec<_>>()
             .join("\n")
@@ -88,7 +87,7 @@ impl HierarchyObject {
             children: None,
         }
     }
-    
+
     pub fn parent(name: &str, children: Vec<HierarchyObject>) -> Self {
         Self {
             name: name.to_string(),

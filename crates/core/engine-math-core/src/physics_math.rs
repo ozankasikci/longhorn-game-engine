@@ -47,12 +47,23 @@ pub fn damping_force(velocity: f32, damping_coefficient: f32) -> f32 {
 }
 
 /// Calculate terminal velocity for an object in a fluid
-pub fn terminal_velocity(mass: f32, gravity: f32, drag_coefficient: f32, fluid_density: f32, cross_sectional_area: f32) -> f32 {
+pub fn terminal_velocity(
+    mass: f32,
+    gravity: f32,
+    drag_coefficient: f32,
+    fluid_density: f32,
+    cross_sectional_area: f32,
+) -> f32 {
     ((2.0 * mass * gravity) / (drag_coefficient * fluid_density * cross_sectional_area)).sqrt()
 }
 
 /// Calculate drag force
-pub fn drag_force(velocity: f32, drag_coefficient: f32, fluid_density: f32, cross_sectional_area: f32) -> f32 {
+pub fn drag_force(
+    velocity: f32,
+    drag_coefficient: f32,
+    fluid_density: f32,
+    cross_sectional_area: f32,
+) -> f32 {
     0.5 * drag_coefficient * fluid_density * cross_sectional_area * velocity * velocity
 }
 
@@ -132,7 +143,7 @@ pub fn coefficient_of_restitution(
 ) -> f32 {
     let relative_velocity_before = velocity1_before - velocity2_before;
     let relative_velocity_after = velocity1_after - velocity2_after;
-    
+
     if relative_velocity_before.abs() < f32::EPSILON {
         0.0
     } else {
@@ -150,10 +161,10 @@ pub fn elastic_collision_1d(
     let total_mass = mass1 + mass2;
     let momentum_conservation = mass1 * velocity1_initial + mass2 * velocity2_initial;
     let relative_velocity = velocity1_initial - velocity2_initial;
-    
+
     let velocity1_final = (momentum_conservation - mass2 * relative_velocity) / total_mass;
     let velocity2_final = (momentum_conservation + mass1 * relative_velocity) / total_mass;
-    
+
     (velocity1_final, velocity2_final)
 }
 
@@ -168,10 +179,14 @@ pub fn inelastic_collision_1d(
     let total_mass = mass1 + mass2;
     let momentum_conservation = mass1 * velocity1_initial + mass2 * velocity2_initial;
     let relative_velocity = velocity1_initial - velocity2_initial;
-    
-    let velocity1_final = (momentum_conservation - mass2 * coefficient_of_restitution * relative_velocity) / total_mass;
-    let velocity2_final = (momentum_conservation + mass1 * coefficient_of_restitution * relative_velocity) / total_mass;
-    
+
+    let velocity1_final = (momentum_conservation
+        - mass2 * coefficient_of_restitution * relative_velocity)
+        / total_mass;
+    let velocity2_final = (momentum_conservation
+        + mass1 * coefficient_of_restitution * relative_velocity)
+        / total_mass;
+
     (velocity1_final, velocity2_final)
 }
 
@@ -208,11 +223,7 @@ pub fn spring_frequency(mass: f32, spring_constant: f32) -> f32 {
 }
 
 /// Calculate projectile motion trajectory
-pub fn projectile_trajectory(
-    initial_velocity: Vec2,
-    gravity: f32,
-    time: f32,
-) -> Vec2 {
+pub fn projectile_trajectory(initial_velocity: Vec2, gravity: f32, time: f32) -> Vec2 {
     Vec2::new(
         initial_velocity.x * time,
         initial_velocity.y * time - 0.5 * gravity * time * time,
@@ -264,10 +275,10 @@ mod tests {
     fn test_moment_of_inertia() {
         let mass = 10.0;
         let radius = 2.0;
-        
+
         let sphere_moi = sphere_moment_of_inertia(mass, radius);
         assert!((sphere_moi - 16.0).abs() < f32::EPSILON); // (2/5) * 10 * 4 = 16
-        
+
         let cylinder_moi = cylinder_moment_of_inertia(mass, radius);
         assert!((cylinder_moi - 20.0).abs() < f32::EPSILON); // 0.5 * 10 * 4 = 20
     }
@@ -276,7 +287,7 @@ mod tests {
     fn test_spring_force() {
         let displacement = 0.1;
         let spring_constant = 100.0;
-        
+
         let force = spring_force(displacement, spring_constant);
         assert!((force - (-10.0)).abs() < f32::EPSILON);
     }
@@ -285,7 +296,7 @@ mod tests {
     fn test_kinetic_energy() {
         let mass = 5.0;
         let velocity = 10.0;
-        
+
         let ke = kinetic_energy(mass, velocity);
         assert!((ke - 250.0).abs() < f32::EPSILON); // 0.5 * 5 * 100 = 250
     }
@@ -296,9 +307,9 @@ mod tests {
         let mass2 = 1.0;
         let v1_initial = 5.0;
         let v2_initial = 0.0;
-        
+
         let (v1_final, v2_final) = elastic_collision_1d(mass1, mass2, v1_initial, v2_initial);
-        
+
         // For equal masses, velocities should exchange
         assert!((v1_final - 0.0).abs() < f32::EPSILON);
         assert!((v2_final - 5.0).abs() < f32::EPSILON);
@@ -309,9 +320,9 @@ mod tests {
         let initial_velocity = Vec2::new(10.0, 10.0);
         let gravity = 9.8;
         let time = 1.0;
-        
+
         let position = projectile_trajectory(initial_velocity, gravity, time);
-        
+
         assert!((position.x - 10.0).abs() < f32::EPSILON);
         assert!((position.y - 5.1).abs() < 0.1); // 10 - 0.5 * 9.8 * 1 = 5.1
     }
@@ -321,10 +332,10 @@ mod tests {
         let force = Vec3::new(10.0, 0.0, 0.0);
         let displacement = Vec3::new(5.0, 0.0, 0.0);
         let time = 2.0;
-        
+
         let work_done = work(force, displacement);
         assert!((work_done - 50.0).abs() < f32::EPSILON);
-        
+
         let power = power_from_work(work_done, time);
         assert!((power - 25.0).abs() < f32::EPSILON);
     }

@@ -16,14 +16,14 @@ impl LonghornFonts {
 /// Setup custom fonts for Longhorn-like appearance
 pub fn setup_custom_fonts(ctx: &egui::Context) {
     let fonts = egui::FontDefinitions::default();
-    
+
     // For now, use default fonts with adjusted sizes
     // TODO: Add custom Longhorn-like fonts later
     // Could add fonts like:
     // - Inter for UI text
     // - JetBrains Mono for code
     // - Roboto for general text
-    
+
     ctx.set_fonts(fonts);
 }
 
