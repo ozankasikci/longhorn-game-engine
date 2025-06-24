@@ -78,12 +78,13 @@ pub struct LoadingState {
 }
 
 /// Priority levels for resource loading
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum LoadingPriority {
     /// Background loading, no rush
     Low = 0,
 
     /// Normal priority
+    #[default]
     Normal = 1,
 
     /// High priority, load as soon as possible
@@ -91,12 +92,6 @@ pub enum LoadingPriority {
 
     /// Critical priority, block other loading if necessary
     Critical = 3,
-}
-
-impl Default for LoadingPriority {
-    fn default() -> Self {
-        LoadingPriority::Normal
-    }
 }
 
 impl LoadingState {
@@ -257,7 +252,6 @@ impl LoadingStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
     use std::time::Duration;
 
     #[test]

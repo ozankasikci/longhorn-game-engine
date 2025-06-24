@@ -1,8 +1,7 @@
 //! Resource loader trait definitions and abstractions
 
 use crate::metadata::ResourceMetadata;
-use crate::state::{LoadingPriority, LoadingState};
-use crate::{ResourceHandle, ResourceId};
+use crate::state::LoadingPriority;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::io;
@@ -54,7 +53,7 @@ pub trait ResourceLoader: Send + Sync {
     }
 
     /// Start streaming load (for large resources)
-    fn start_streaming(&self, path: &Path) -> LoaderResult<Box<dyn StreamingLoader>> {
+    fn start_streaming(&self, _path: &Path) -> LoaderResult<Box<dyn StreamingLoader>> {
         Err(LoaderError::StreamingNotSupported)
     }
 

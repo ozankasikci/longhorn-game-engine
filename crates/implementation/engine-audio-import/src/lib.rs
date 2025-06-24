@@ -123,6 +123,12 @@ pub struct AudioData {
 
 pub struct AudioImporter;
 
+impl Default for AudioImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioImporter {
     pub fn new() -> Self {
         Self

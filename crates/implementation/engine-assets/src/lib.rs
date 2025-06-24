@@ -33,11 +33,10 @@ pub type AssetResult<T> = Result<T, AssetError>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_asset_manager_creation() {
         // Placeholder test
-        assert!(true);
+        // Placeholder test
     }
 }

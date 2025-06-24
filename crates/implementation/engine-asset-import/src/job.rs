@@ -14,6 +14,12 @@ impl ImportJobId {
     }
 }
 
+impl Default for ImportJobId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImportStatus {
     Pending,
@@ -130,10 +136,8 @@ impl ImportQueue {
     pub fn job_status(&self, id: ImportJobId) -> Option<ImportStatus> {
         if let Some(job) = self.pending_jobs.get(&id) {
             Some(job.status())
-        } else if let Some(job) = self.completed_jobs.get(&id) {
-            Some(job.status())
         } else {
-            None
+            self.completed_jobs.get(&id).map(|job| job.status())
         }
     }
 
@@ -153,5 +157,11 @@ impl ImportQueue {
         self.pending_jobs
             .get(&id)
             .or_else(|| self.completed_jobs.get(&id))
+    }
+}
+
+impl Default for ImportQueue {
+    fn default() -> Self {
+        Self::new()
     }
 }

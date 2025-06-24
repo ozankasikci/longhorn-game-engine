@@ -425,6 +425,7 @@ impl MeshRenderer {
 use engine_component_traits::Bundle;
 
 /// Bundle for standard 3D game objects
+#[derive(Default)]
 pub struct GameObject3DBundle {
     pub transform: Transform,
     pub mesh: Mesh,
@@ -466,16 +467,6 @@ impl Bundle for GameObject3DBundle {
     }
 }
 
-impl Default for GameObject3DBundle {
-    fn default() -> Self {
-        Self {
-            transform: Transform::default(),
-            mesh: Mesh::default(),
-            material: Material::default(),
-            visibility: Visibility::default(),
-        }
-    }
-}
 
 /// Bundle for camera entities
 pub struct CameraBundle {

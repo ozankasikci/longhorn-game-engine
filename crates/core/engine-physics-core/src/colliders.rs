@@ -223,9 +223,10 @@ pub mod collision_groups {
 }
 
 /// Collision filter for complex filtering logic
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct CollisionFilter {
     /// Groups configuration
+    #[serde(default)]
     pub groups: CollisionGroups,
 
     /// Custom filter predicate (for runtime filtering)
@@ -235,18 +236,8 @@ pub struct CollisionFilter {
     pub precise: bool,
 
     /// Collision events to generate
+    #[serde(default)]
     pub events: CollisionEvents,
-}
-
-impl Default for CollisionFilter {
-    fn default() -> Self {
-        Self {
-            groups: CollisionGroups::default(),
-            custom_filter: None,
-            precise: false,
-            events: CollisionEvents::default(),
-        }
-    }
 }
 
 /// Configuration for what collision events to generate

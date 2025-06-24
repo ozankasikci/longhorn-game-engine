@@ -254,7 +254,7 @@ pub fn line_segments_intersect_2d(seg1: LineSegment2D, seg2: LineSegment2D) -> O
     let t1 = (d3.x * d2.y - d3.y * d2.x) / cross;
     let t2 = (d3.x * d1.y - d3.y * d1.x) / cross;
 
-    if t1 >= 0.0 && t1 <= 1.0 && t2 >= 0.0 && t2 <= 1.0 {
+    if (0.0..=1.0).contains(&t1) && (0.0..=1.0).contains(&t2) {
         Some(seg1.start + d1 * t1)
     } else {
         None

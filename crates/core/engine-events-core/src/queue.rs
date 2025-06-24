@@ -300,8 +300,6 @@ impl EventQueue {
     fn cleanup_expired_events(&mut self) {
         if let Some(max_age) = self.config.max_event_age {
             let current_time = get_current_time();
-            let mut expired_count = 0;
-
             // Convert to vec, filter expired events, then rebuild heap
             let mut events: Vec<_> = self.events.drain().collect();
             let old_len = events.len();
@@ -311,7 +309,7 @@ impl EventQueue {
                 age <= max_age as f64
             });
 
-            expired_count = old_len - events.len();
+            let expired_count = old_len - events.len();
             self.events = events.into_iter().collect();
 
             self.stats.events_expired += expired_count as u64;

@@ -24,6 +24,12 @@ pub enum ValidationError {
 
 pub struct MeshValidator;
 
+impl Default for MeshValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MeshValidator {
     pub fn new() -> Self {
         Self
@@ -62,7 +68,7 @@ impl MeshValidator {
                 + vertex.normal[1] * vertex.normal[1]
                 + vertex.normal[2] * vertex.normal[2];
 
-            if normal_length_sq > 0.0 && (normal_length_sq < 0.9 || normal_length_sq > 1.1) {
+            if normal_length_sq > 0.0 && !(0.9..=1.1).contains(&normal_length_sq) {
                 // Allow some tolerance for normalized normals
                 return Err(ValidationError::InvalidNormal);
             }

@@ -2,6 +2,12 @@ use crate::{AnimationData, AnimationError, Channel, InterpolationType, Keyframe}
 
 pub struct KeyframeOptimizer;
 
+impl Default for KeyframeOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KeyframeOptimizer {
     pub fn new() -> Self {
         Self
@@ -65,6 +71,12 @@ impl KeyframeOptimizer {
 }
 
 pub struct FpsConverter;
+
+impl Default for FpsConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl FpsConverter {
     pub fn new() -> Self {

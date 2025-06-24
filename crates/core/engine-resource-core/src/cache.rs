@@ -1,7 +1,7 @@
 //! Resource caching abstractions with eviction policies
 
 use crate::manager::CachePolicy;
-use crate::{ResourceHandle, ResourceId, WeakResourceHandle};
+use crate::ResourceId;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
@@ -459,11 +459,13 @@ mod tests {
 
     #[test]
     fn test_cache_stats() {
-        let mut stats = CacheStats::default();
-        stats.hits = 80;
-        stats.misses = 20;
-        stats.resource_count = 100;
-        stats.current_size_bytes = 1024 * 1024; // 1MB
+        let mut stats = CacheStats {
+            hits: 80,
+            misses: 20,
+            resource_count: 100,
+            current_size_bytes: 1024 * 1024,
+            ..Default::default()
+        };
 
         stats.calculate_hit_rate();
         stats.calculate_average_size();

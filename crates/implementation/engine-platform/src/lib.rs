@@ -33,11 +33,10 @@ pub type PlatformResult<T> = Result<T, PlatformError>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_platform_detection() {
         // Placeholder test
-        assert!(true);
+        // Placeholder test
     }
 }

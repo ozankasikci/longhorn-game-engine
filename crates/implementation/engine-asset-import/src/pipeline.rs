@@ -47,3 +47,9 @@ impl ImportPipeline {
         self.importers.len()
     }
 }
+
+impl Default for ImportPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}

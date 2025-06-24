@@ -61,6 +61,12 @@ impl<I: Send, O: Send> ProcessorChain<I, O> {
     }
 }
 
+impl<I: Send, O: Send> Default for ProcessorChain<I, O> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // Common processor implementations
 
 pub struct IdentityProcessor<T> {

@@ -292,7 +292,7 @@ impl SpatialQuery {
         let s = (-s1.y * (a1.x - b1.x) + s1.x * (a1.y - b1.y)) / (-s2.x * s1.y + s1.x * s2.y);
         let t = (s2.x * (a1.y - b1.y) - s2.y * (a1.x - b1.x)) / (-s2.x * s1.y + s1.x * s2.y);
 
-        if s >= 0.0 && s <= 1.0 && t >= 0.0 && t <= 1.0 {
+        if (0.0..=1.0).contains(&s) && (0.0..=1.0).contains(&t) {
             // Intersection detected
             Some(Vec3::new(a1.x + (t * s1.x), a1.y + (t * s1.y), 0.0))
         } else {

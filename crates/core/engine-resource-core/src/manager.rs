@@ -1,11 +1,8 @@
 //! Resource manager trait definitions and core abstractions
 
-use crate::cache::ResourceCache;
 use crate::loader::ResourceLoader;
-use crate::metadata::ResourceMetadata;
-use crate::{LoadingState, ResourceHandle, ResourceId, ResourceState, WeakResourceHandle};
+use crate::{LoadingState, ResourceHandle, ResourceId};
 use serde::{Deserialize, Serialize};
-use std::any::Any;
 use std::sync::Arc;
 
 /// Core trait for resource managers
@@ -98,12 +95,13 @@ pub enum ResourceManagerError {
 }
 
 /// Cache policy for resource management
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum CachePolicy {
     /// Never evict resources automatically
     NoEviction,
 
     /// Evict least recently used resources when memory limit is reached
+    #[default]
     LeastRecentlyUsed,
 
     /// Evict least frequently used resources when memory limit is reached
@@ -118,12 +116,6 @@ pub enum CachePolicy {
         max_resource_count: u32,
         eviction_threshold: f32, // 0.0 to 1.0
     },
-}
-
-impl Default for CachePolicy {
-    fn default() -> Self {
-        CachePolicy::LeastRecentlyUsed
-    }
 }
 
 /// Memory usage statistics
@@ -340,9 +332,11 @@ mod tests {
 
     #[test]
     fn test_memory_usage() {
-        let mut usage = MemoryUsage::default();
-        usage.total_bytes = 1024 * 1024; // 1MB
-        usage.limit_bytes = Some(10 * 1024 * 1024); // 10MB
+        let usage = MemoryUsage {
+            total_bytes: 1024 * 1024,
+            limit_bytes: Some(10 * 1024 * 1024),
+            ..Default::default()
+        };
 
         assert_eq!(usage.usage_percentage(), Some(10.0));
         assert!(!usage.is_above_threshold(50.0));

@@ -248,10 +248,9 @@ impl Archetype {
     /// Initialize component arrays for all types in the archetype
     pub fn initialize_components(&mut self) -> EcsResult<()> {
         for &type_id in self.id.type_ids() {
-            if !self.components.contains_key(&type_id) {
+            if let std::collections::hash_map::Entry::Vacant(e) = self.components.entry(type_id) {
                 if let Some(array) = create_component_array(type_id) {
-                    self.components
-                        .insert(type_id, ErasedComponentArray::new(array));
+                    e.insert(ErasedComponentArray::new(array));
                 } else {
                     return Err(EcsError::ComponentNotRegistered(type_id));
                 }

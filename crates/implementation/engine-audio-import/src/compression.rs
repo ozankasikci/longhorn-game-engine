@@ -17,6 +17,12 @@ pub struct CompressionOptions {
 
 pub struct AudioCompressor;
 
+impl Default for AudioCompressor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioCompressor {
     pub fn new() -> Self {
         Self

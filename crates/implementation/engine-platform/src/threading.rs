@@ -43,7 +43,7 @@ impl ThreadPool {
 
 impl Worker {
     /// Create a new worker
-    fn new(id: usize, receiver: Arc<Mutex<std::sync::mpsc::Receiver<Job>>>) -> Self {
+    fn new(_id: usize, receiver: Arc<Mutex<std::sync::mpsc::Receiver<Job>>>) -> Self {
         let handle = thread::spawn(move || loop {
             let job = receiver.lock().unwrap().recv();
 

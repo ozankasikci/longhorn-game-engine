@@ -13,6 +13,9 @@ use rayon::prelude::*;
 use std::any::TypeId;
 use std::collections::HashMap;
 
+/// Type alias for complex component clone result
+type ClonedComponents = Vec<(TypeId, Box<dyn ComponentClone>, ComponentTicks)>;
+
 /// Data-Oriented World - stores entities in archetypes for cache efficiency
 ///
 /// The World manages:
@@ -104,11 +107,11 @@ impl World {
 
     /// Ensure an archetype exists in the world
     fn ensure_archetype_exists(&mut self, archetype_id: ArchetypeId) {
-        if !self.archetypes.contains_key(&archetype_id) {
-            let mut archetype = Archetype::new(archetype_id.clone());
+        self.archetypes.entry(archetype_id.clone()).or_insert_with(|| {
+            let mut archetype = Archetype::new(archetype_id);
             let _ = archetype.initialize_components(); // Ignore errors for now
-            self.archetypes.insert(archetype_id, archetype);
-        }
+            archetype
+        });
     }
 
     /// Clone all components from an entity in an archetype
@@ -116,7 +119,7 @@ impl World {
         &self,
         entity: Entity,
         location: &EntityLocation,
-    ) -> EcsResult<Vec<(TypeId, Box<dyn ComponentClone>, ComponentTicks)>> {
+    ) -> EcsResult<ClonedComponents> {
         let archetype = self
             .archetypes
             .get(&location.archetype_id)
@@ -290,7 +293,7 @@ impl World {
 
         // Clone components except the one being removed
         let mut components_to_keep = Vec::new();
-        if let Some(archetype) = self.archetypes.get(&location.archetype_id()) {
+        if let Some(archetype) = self.archetypes.get(location.archetype_id()) {
             for type_id in location.archetype_id().type_ids() {
                 if *type_id != TypeId::of::<T>() {
                     if let Some(component) =

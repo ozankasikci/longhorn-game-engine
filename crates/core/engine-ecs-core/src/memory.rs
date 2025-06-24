@@ -45,3 +45,9 @@ impl<T> MemoryPool<T> {
         self.items.get_mut(index)?.as_mut()
     }
 }
+
+impl<T> Default for MemoryPool<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

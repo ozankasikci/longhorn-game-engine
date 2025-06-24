@@ -594,12 +594,12 @@ mod tests {
     fn test_metadata_value() {
         let string_val = MetadataValue::String("test".to_string());
         let int_val = MetadataValue::Integer(42);
-        let float_val = MetadataValue::Float(3.14);
+        let float_val = MetadataValue::Float(std::f64::consts::PI);
         let bool_val = MetadataValue::Boolean(true);
 
         assert_eq!(string_val.as_string(), Some("test"));
         assert_eq!(int_val.as_integer(), Some(42));
-        assert_eq!(float_val.as_float(), Some(3.14));
+        assert_eq!(float_val.as_float(), Some(std::f64::consts::PI));
         assert_eq!(bool_val.as_boolean(), Some(true));
 
         // Test type conversion

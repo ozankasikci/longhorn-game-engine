@@ -2,7 +2,7 @@
 
 use crate::{BoundingBox, GeometryError, Result, Vertex, VertexData};
 use engine_resource_core::Resource;
-use glam::{Mat4, Vec3};
+use glam::Mat4;
 use serde::{Deserialize, Serialize};
 
 /// Handle for mesh resources

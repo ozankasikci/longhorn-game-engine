@@ -1,7 +1,7 @@
 //! Rigid body abstractions
 
 use engine_ecs_core::Component;
-use glam::{Quat, Vec2, Vec3};
+use glam::{Vec2, Vec3};
 use serde::{Deserialize, Serialize};
 
 /// Handle to a physics body

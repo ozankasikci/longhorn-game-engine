@@ -207,10 +207,9 @@ where
 
     /// Get the current count
     pub fn get_count(&self) -> usize {
-        self.count
+        *self.count
             .lock()
             .unwrap_or_else(|_| panic!("Failed to lock count"))
-            .clone()
     }
 
     /// Reset the count
@@ -323,10 +322,9 @@ where
 
     /// Check if the handler can still process events
     pub fn can_handle(&self) -> bool {
-        self.current_count
+        *self.current_count
             .lock()
             .unwrap_or_else(|_| panic!("Failed to lock count"))
-            .clone()
             < self.max_count
     }
 

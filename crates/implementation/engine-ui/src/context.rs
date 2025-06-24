@@ -1,6 +1,6 @@
 //! UI context for managing UI state
 
-use crate::{UiError, UiResult};
+use crate::UiResult;
 
 /// UI context for managing UI state and rendering
 pub struct UiContext {

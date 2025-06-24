@@ -153,9 +153,8 @@ impl TextureResizer {
                 let src_idx = ((src_y * texture.width + src_x) as usize) * bytes_per_pixel;
                 let dst_idx = ((y * new_width + x) as usize) * bytes_per_pixel;
 
-                for c in 0..bytes_per_pixel {
-                    new_data[dst_idx + c] = texture.data[src_idx + c];
-                }
+                new_data[dst_idx..dst_idx + bytes_per_pixel]
+                    .copy_from_slice(&texture.data[src_idx..src_idx + bytes_per_pixel]);
             }
         }
 

@@ -2,6 +2,12 @@ use crate::{AnimationData, AnimationError};
 
 pub struct AnimationValidator;
 
+impl Default for AnimationValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnimationValidator {
     pub fn new() -> Self {
         Self

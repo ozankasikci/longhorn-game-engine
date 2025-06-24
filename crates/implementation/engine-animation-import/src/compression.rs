@@ -8,6 +8,12 @@ pub struct CompressionOptions {
 
 pub struct AnimationCompressor;
 
+impl Default for AnimationCompressor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnimationCompressor {
     pub fn new() -> Self {
         Self

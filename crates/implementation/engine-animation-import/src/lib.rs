@@ -110,6 +110,12 @@ impl Default for AnimationSettings {
 
 pub struct AnimationImporter;
 
+impl Default for AnimationImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnimationImporter {
     pub fn new() -> Self {
         Self

@@ -32,11 +32,10 @@ pub type InputResult<T> = Result<T, InputError>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_input_manager_creation() {
         // Placeholder test
-        assert!(true);
+        // Placeholder test
     }
 }

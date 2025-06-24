@@ -18,7 +18,7 @@ pub struct ThemeManager {
 
 impl Theme {
     /// Create a default theme
-    pub fn default() -> Self {
+    pub fn new_default() -> Self {
         Self {
             name: "Default".to_string(),
             background_color: (0.2, 0.2, 0.2, 1.0),
@@ -28,11 +28,17 @@ impl Theme {
     }
 }
 
+impl Default for ThemeManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThemeManager {
     /// Create a new theme manager
     pub fn new() -> Self {
         Self {
-            current_theme: Theme::default(),
+            current_theme: Theme::new_default(),
         }
     }
 

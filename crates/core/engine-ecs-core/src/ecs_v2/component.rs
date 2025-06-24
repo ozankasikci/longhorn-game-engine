@@ -146,6 +146,12 @@ impl<T: Component> ComponentArray<T> {
     }
 }
 
+impl<T: Component> Default for ComponentArray<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Component> ComponentArrayTrait for ComponentArray<T> {
     fn swap_remove(&mut self, index: usize) {
         self.data.swap_remove(index);

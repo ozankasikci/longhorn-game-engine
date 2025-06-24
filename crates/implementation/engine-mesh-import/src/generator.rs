@@ -3,6 +3,12 @@ use glam::Vec3;
 
 pub struct NormalGenerator;
 
+impl Default for NormalGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NormalGenerator {
     pub fn new() -> Self {
         Self
@@ -42,8 +48,8 @@ impl NormalGenerator {
 
             // Add face normal to each vertex
             if !face_normal.is_nan() {
-                for i in 0..3 {
-                    let idx = face[i] as usize;
+                for &vertex_index in face {
+                    let idx = vertex_index as usize;
                     let vertex = &mut mesh_data.vertices[idx];
                     vertex.normal[0] += face_normal.x;
                     vertex.normal[1] += face_normal.y;

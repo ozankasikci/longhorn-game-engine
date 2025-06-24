@@ -12,6 +12,12 @@ pub struct AudioAnalysis {
 
 pub struct AudioAnalyzer;
 
+impl Default for AudioAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioAnalyzer {
     pub fn new() -> Self {
         Self

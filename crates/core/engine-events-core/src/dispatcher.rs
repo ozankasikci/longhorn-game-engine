@@ -1,6 +1,6 @@
 //! Event dispatcher abstractions
 
-use crate::{Event, EventError, EventTypeId, Result};
+use crate::{Event, EventTypeId, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -103,12 +103,12 @@ impl EventDispatcher {
         type_id: EventTypeId,
         handler: Box<dyn EventHandlerTrait>,
     ) -> Result<()> {
-        let handlers = self.handlers.entry(type_id).or_insert_with(Vec::new);
+        let handlers = self.handlers.entry(type_id).or_default();
         handlers.push(handler);
 
         // Sort by priority if enabled
         if self.config.sort_handlers_by_priority {
-            handlers.sort_by(|a, b| b.priority().cmp(&a.priority()));
+            handlers.sort_by_key(|b| std::cmp::Reverse(b.priority()));
         }
 
         self.stats.handlers_registered = self.count_handlers();
@@ -121,8 +121,7 @@ impl EventDispatcher {
 
         // Sort by priority if enabled
         if self.config.sort_handlers_by_priority {
-            self.global_handlers
-                .sort_by(|a, b| b.priority().cmp(&a.priority()));
+            self.global_handlers.sort_by_key(|b| std::cmp::Reverse(b.priority()));
         }
 
         self.stats.handlers_registered = self.count_handlers();
@@ -205,10 +204,9 @@ impl EventDispatcher {
         // Re-sort handlers if priority sorting was enabled
         if self.config.sort_handlers_by_priority {
             for handlers in self.handlers.values_mut() {
-                handlers.sort_by(|a, b| b.priority().cmp(&a.priority()));
+                handlers.sort_by_key(|b| std::cmp::Reverse(b.priority()));
             }
-            self.global_handlers
-                .sort_by(|a, b| b.priority().cmp(&a.priority()));
+            self.global_handlers.sort_by_key(|b| std::cmp::Reverse(b.priority()));
         }
     }
 

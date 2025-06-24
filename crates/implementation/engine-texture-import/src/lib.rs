@@ -94,17 +94,10 @@ impl Default for TextureSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ImportSettings {
+    #[serde(default)]
     pub texture_settings: TextureSettings,
-}
-
-impl Default for ImportSettings {
-    fn default() -> Self {
-        Self {
-            texture_settings: TextureSettings::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

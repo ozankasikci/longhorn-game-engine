@@ -60,6 +60,12 @@ impl<Q: QueryData> Query<Q> {
     }
 }
 
+impl<Q: QueryData> Default for Query<Q> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Mutable query builder
 pub struct QueryMut<Q: QueryData> {
     _phantom: PhantomData<Q>,
@@ -70,6 +76,12 @@ impl<Q: QueryData> QueryMut<Q> {
         Self {
             _phantom: PhantomData,
         }
+    }
+}
+
+impl<Q: QueryData> Default for QueryMut<Q> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

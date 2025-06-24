@@ -227,7 +227,7 @@ impl<T: AudioManager> AudioSystem for AudioSystemImpl<T> {
             // Track the playback
             self.entity_playbacks
                 .entry(entity)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(playback_handle);
         }
 

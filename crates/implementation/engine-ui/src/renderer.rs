@@ -1,6 +1,6 @@
 //! UI renderer implementation
 
-use crate::{UiError, UiResult};
+use crate::UiResult;
 
 /// UI renderer for drawing UI elements
 pub struct UiRenderer {

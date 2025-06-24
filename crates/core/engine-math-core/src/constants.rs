@@ -8,22 +8,22 @@ pub use consts::*;
 // Game-specific mathematical constants
 
 /// Golden ratio (φ) - useful for aesthetically pleasing proportions
-pub const GOLDEN_RATIO: f32 = 1.618033988749894;
+pub const GOLDEN_RATIO: f32 = 1.618_034;
 
 /// Square root of 2 - useful for diagonal calculations
-pub const SQRT_2: f32 = 1.4142135623730951;
+pub const SQRT_2: f32 = consts::SQRT_2;
 
 /// Square root of 3 - useful for hexagonal and triangular calculations
-pub const SQRT_3: f32 = 1.7320508075688772;
+pub const SQRT_3: f32 = 1.732_050_8;
 
 /// Natural logarithm of 2
-pub const LN_2: f32 = 0.6931471805599453;
+pub const LN_2: f32 = consts::LN_2;
 
 /// Natural logarithm of 10
-pub const LN_10: f32 = 2.302585092994046;
+pub const LN_10: f32 = consts::LN_10;
 
 /// Inverse of PI (1/π)
-pub const INV_PI: f32 = 0.31830988618379067;
+pub const INV_PI: f32 = consts::FRAC_1_PI;
 
 /// Twice PI (2π) - full circle in radians
 pub const TWO_PI: f32 = 2.0 * PI;
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_constants() {
-        assert!((GOLDEN_RATIO - 1.618033988749894).abs() < EPSILON);
+        assert!((GOLDEN_RATIO - 1.618_034).abs() < EPSILON);
         assert!((TWO_PI - (2.0 * PI)).abs() < EPSILON);
         assert!((DEG_TO_RAD * 180.0 - PI).abs() < EPSILON);
         assert!((RAD_TO_DEG * PI - 180.0).abs() < EPSILON);

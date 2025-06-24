@@ -40,3 +40,9 @@ impl ImportBatch {
         self.jobs.iter()
     }
 }
+
+impl Default for ImportBatch {
+    fn default() -> Self {
+        Self::new()
+    }
+}

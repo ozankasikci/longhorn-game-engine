@@ -9,6 +9,12 @@ pub struct BoneMapping {
 
 pub struct AnimationRetargeter;
 
+impl Default for AnimationRetargeter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnimationRetargeter {
     pub fn new() -> Self {
         Self

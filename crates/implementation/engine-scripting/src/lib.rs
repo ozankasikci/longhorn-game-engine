@@ -32,11 +32,10 @@ pub type ScriptResult<T> = Result<T, ScriptError>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_script_manager_creation() {
         // Placeholder test
-        assert!(true);
+        // Placeholder test
     }
 }

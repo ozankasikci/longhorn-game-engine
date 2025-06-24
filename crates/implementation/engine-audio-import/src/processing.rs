@@ -5,6 +5,12 @@ use rubato::{
 
 pub struct SampleRateConverter;
 
+impl Default for SampleRateConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SampleRateConverter {
     pub fn new() -> Self {
         Self
@@ -68,8 +74,8 @@ impl SampleRateConverter {
                 if !output.is_empty() && !output[0].is_empty() {
                     let output_len = output[0].len();
                     for i in 0..output_len {
-                        for ch in 0..channels {
-                            new_samples.extend_from_slice(&output[ch][i].to_le_bytes());
+                        for output_channel in &output[..channels] {
+                            new_samples.extend_from_slice(&output_channel[i].to_le_bytes());
                         }
                     }
                 } else {
@@ -97,10 +103,10 @@ impl SampleRateConverter {
                 let mut new_samples = vec![0u8; new_len];
 
                 // Simple linear interpolation
-                for i in 0..new_len {
+                for (i, new_sample) in new_samples.iter_mut().enumerate() {
                     let src_idx = (i as f32 / ratio) as usize;
                     if src_idx < audio_data.samples.len() {
-                        new_samples[i] = audio_data.samples[src_idx];
+                        *new_sample = audio_data.samples[src_idx];
                     }
                 }
 
@@ -123,6 +129,12 @@ impl SampleRateConverter {
 }
 
 pub struct ChannelConverter;
+
+impl Default for ChannelConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ChannelConverter {
     pub fn new() -> Self {
@@ -163,6 +175,12 @@ impl ChannelConverter {
 }
 
 pub struct AudioNormalizer;
+
+impl Default for AudioNormalizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AudioNormalizer {
     pub fn new() -> Self {
@@ -217,6 +235,12 @@ pub struct TrimOptions {
     pub min_silence_duration: f32,
     pub trim_start: bool,
     pub trim_end: bool,
+}
+
+impl Default for SilenceTrimmer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SilenceTrimmer {
