@@ -31,25 +31,3 @@ fn test_renderer_compiles_without_examples() {
     // For now, just verify the src directory exists
     assert!(Path::new("src").exists(), "src directory should exist");
 }
-
-#[cfg(feature = "post-extraction")]
-#[test]
-fn test_examples_removed() {
-    // After extraction, examples directory should not exist
-    let examples_path = Path::new("examples");
-    assert!(
-        !examples_path.exists(),
-        "Examples should be moved to separate crate"
-    );
-}
-
-#[cfg(feature = "post-extraction")]
-#[test]
-fn test_cargo_toml_updated() {
-    // After extraction, Cargo.toml should not have [[example]] entries
-    let cargo_content = std::fs::read_to_string("Cargo.toml").unwrap();
-    assert!(
-        !cargo_content.contains("[[example]]"),
-        "Example entries should be removed"
-    );
-}

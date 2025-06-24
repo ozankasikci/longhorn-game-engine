@@ -7,7 +7,7 @@
 use engine_components_3d::{Material as EcsMaterial, Mesh, MeshType, Transform};
 use engine_ecs_core::ecs_v2::{component::register_component, World};
 use engine_renderer_3d::{Camera, EcsRendererIntegration, Renderer3D};
-use glam::{Vec3, Vec4Swizzles};
+use glam::Vec4Swizzles;
 use std::sync::Arc;
 
 #[tokio::main]

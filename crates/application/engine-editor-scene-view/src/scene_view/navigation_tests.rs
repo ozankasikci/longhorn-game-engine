@@ -3,7 +3,6 @@
 
 use super::navigation::SceneNavigator;
 use crate::types::{SceneNavigation, SceneTool};
-use crate::ConsoleMessage;
 use eframe::egui;
 use engine_components_3d::Transform;
 
@@ -31,7 +30,6 @@ fn create_test_scene_navigation() -> SceneNavigation {
 #[cfg(test)]
 mod camera_rotation_tests {
     use super::*;
-    use std::f32::consts::PI;
 
     #[test]
     fn test_mouse_look_horizontal_rotation() {
@@ -42,7 +40,7 @@ mod camera_rotation_tests {
 
         // WHEN: Mouse moves horizontally to the right
         let mouse_delta = egui::Vec2::new(100.0, 0.0);
-        let _messages = SceneNavigator::apply_mouse_look(&mut scene_nav, mouse_delta);
+        SceneNavigator::apply_mouse_look(&mut scene_nav, mouse_delta);
 
         // THEN: Camera should rotate in the correct direction (negative yaw for right movement)
         let final_yaw = scene_nav.scene_camera_transform.rotation[1];
@@ -68,7 +66,7 @@ mod camera_rotation_tests {
 
         // WHEN: Mouse moves vertically down
         let mouse_delta = egui::Vec2::new(0.0, 50.0);
-        let _messages = SceneNavigator::apply_mouse_look(&mut scene_nav, mouse_delta);
+        SceneNavigator::apply_mouse_look(&mut scene_nav, mouse_delta);
 
         // THEN: Camera should pitch down (negative pitch for down movement)
         let final_pitch = scene_nav.scene_camera_transform.rotation[0];
@@ -93,7 +91,7 @@ mod camera_rotation_tests {
 
         // WHEN: Mouse moves far up (should exceed pitch limit)
         let extreme_mouse_delta = egui::Vec2::new(0.0, -1000.0);
-        let _messages = SceneNavigator::apply_mouse_look(&mut scene_nav, extreme_mouse_delta);
+        SceneNavigator::apply_mouse_look(&mut scene_nav, extreme_mouse_delta);
 
         // THEN: Pitch should be clamped to maximum upward angle
         assert!(scene_nav.scene_camera_transform.rotation[0] >= -1.5);
@@ -127,8 +125,8 @@ mod camera_rotation_tests {
 
         // WHEN: Same mouse movement is applied to both
         let mouse_delta = egui::Vec2::new(100.0, 0.0);
-        let _messages1 = SceneNavigator::apply_mouse_look(&mut scene_nav_low, mouse_delta);
-        let _messages2 = SceneNavigator::apply_mouse_look(&mut scene_nav_high, mouse_delta);
+        SceneNavigator::apply_mouse_look(&mut scene_nav_low, mouse_delta);
+        SceneNavigator::apply_mouse_look(&mut scene_nav_high, mouse_delta);
 
         // THEN: High sensitivity should result in higher velocity and more rotation
         let low_velocity = scene_nav_low.rotation_velocity[1].abs();
@@ -170,7 +168,7 @@ mod camera_rotation_feel_tests {
         let small_delta = egui::Vec2::new(10.0, 0.0);
         let mut rotations = Vec::new();
 
-        for i in 0..5 {
+        for _i in 0..5 {
             let initial_yaw = scene_nav.scene_camera_transform.rotation[1];
             SceneNavigator::apply_mouse_look(&mut scene_nav, small_delta);
             let rotation_delta = scene_nav.scene_camera_transform.rotation[1] - initial_yaw;

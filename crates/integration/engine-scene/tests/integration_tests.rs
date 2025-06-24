@@ -2,7 +2,10 @@
 
 use engine_components_3d::Transform;
 use engine_materials_core::Color;
-use engine_scene::light::{Attenuation, DirectionalLight, Light, LightType, PointLight, ShadowSettings, SpotLight, AreaLight};
+use engine_scene::light::{
+    AreaLight, Attenuation, DirectionalLight, Light, LightType, PointLight, ShadowSettings,
+    SpotLight,
+};
 use engine_scene::transform::TransformMatrix;
 use engine_scene::*;
 use glam::{Mat4, Vec3};
@@ -92,7 +95,7 @@ fn test_transform_matrix_conversion() {
 
 #[test]
 fn test_scene_node_creation() {
-    let mut node = SceneNode::new("test_node");
+    let node = SceneNode::new("test_node");
     assert!(node.children.is_empty());
 }
 
@@ -151,8 +154,8 @@ fn test_scene_creation_and_management() {
     assert_eq!(scene.name, "TestScene");
 
     // Add nodes to scene
-    let node1 = scene.add_node(SceneNode::new("node1"));
-    let node2 = scene.add_node(SceneNode::new("node2"));
+    let _node1 = scene.add_node(SceneNode::new("node1"));
+    let _node2 = scene.add_node(SceneNode::new("node2"));
     // Both nodes will be root nodes since no parent is set
 }
 
@@ -316,7 +319,7 @@ fn test_multiple_lights_in_scene() {
         let mut node = SceneNode::new("point_light");
         node.components.light = Some(engine_components_3d::Light {
             light_type: engine_components_3d::LightType::Point { range: 20.0 },
-            color: [1.0, 1.0, 0.0], // Yellow  
+            color: [1.0, 1.0, 0.0], // Yellow
             intensity: 50.0,
         });
         node
@@ -340,9 +343,11 @@ fn test_multiple_lights_in_scene() {
 
 #[test]
 fn test_scene_metadata() {
-    let mut metadata = SceneMetadata::default();
-    metadata.author = Some("Test Author".to_string());
-    metadata.description = Some("A test scene".to_string());
+    let mut metadata = SceneMetadata {
+        author: Some("Test Author".to_string()),
+        description: Some("A test scene".to_string()),
+        ..Default::default()
+    };
     metadata.tags.push("test".to_string());
     metadata.tags.push("example".to_string());
 

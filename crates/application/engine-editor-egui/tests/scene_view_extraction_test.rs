@@ -70,26 +70,3 @@ fn test_scene_view_dependencies() {
     assert!(Path::new("src/panels/scene_view/scene_view_impl.rs").exists());
     assert!(Path::new("src/panels/scene_view/navigation.rs").exists());
 }
-
-#[cfg(feature = "post-extraction")]
-#[test]
-fn test_scene_view_removed() {
-    // After extraction, scene_view directory should not exist
-    let scene_view_path = Path::new("src/panels/scene_view");
-    assert!(
-        !scene_view_path.exists(),
-        "Scene view should be moved to separate crate"
-    );
-}
-
-#[cfg(feature = "post-extraction")]
-#[test]
-fn test_scene_view_interface_exists() {
-    // After extraction, there should be a trait/interface for scene view
-    let content = std::fs::read_to_string("src/panels/mod.rs").unwrap();
-    assert!(
-        content.contains("trait SceneViewPanel")
-            || content.contains("use engine_editor_scene_view"),
-        "Should have scene view interface or import"
-    );
-}

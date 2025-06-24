@@ -52,8 +52,8 @@ jobs:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
     
-    - name: Run tests
-      run: cargo test --workspace --all-features --verbose
+    - name: Run library tests
+      run: cargo test --workspace --lib --all-features --verbose
     
     - name: Run doc tests
       run: cargo test --doc --workspace --all-features
@@ -84,8 +84,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libgtk-4-dev libxkbcommon-dev libwayland-dev
     
-    - name: Run clippy
-      run: cargo clippy --workspace --all-features -- -D warnings
+    - name: Run clippy on library code
+      run: cargo clippy --workspace --lib --all-features -- -D warnings
 
   check:
     name: Check

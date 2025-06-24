@@ -424,11 +424,11 @@ mod tests {
 
     #[test]
     fn test_culling_stats() {
-        let mut stats = CullingStats::default();
-
-        stats.total_tests = 10;
-        stats.visible_objects = 3;
-        stats.culled_objects = 7;
+        let stats = CullingStats {
+            total_tests: 10,
+            visible_objects: 3,
+            culled_objects: 7,
+        };
 
         assert!((stats.culling_efficiency() - 70.0).abs() < 0.001);
         assert!((stats.visibility_percentage() - 30.0).abs() < 0.001);

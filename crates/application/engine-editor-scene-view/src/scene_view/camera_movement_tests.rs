@@ -242,7 +242,7 @@ mod tests {
         let cos_pitch = pitch.cos();
 
         // Forward vector from navigation.rs
-        let forward = Vec3::new(-yaw.sin() * cos_pitch, pitch.sin(), -yaw.cos() * cos_pitch);
+        let _forward = Vec3::new(-yaw.sin() * cos_pitch, pitch.sin(), -yaw.cos() * cos_pitch);
 
         // Right vector from navigation.rs
         let right = Vec3::new(-yaw.cos(), 0.0, yaw.sin());
