@@ -4,10 +4,10 @@
 //! converting ECS entities with 3D components into render objects.
 
 use engine_components_3d::{
-    Material as EcsMaterial, Mesh, MeshFilter, MeshRenderer, MeshType, Transform,
+    Material as EcsMaterial, Mesh, MeshType, Transform,
 };
 use engine_ecs_core::ecs_v2::{Entity, World};
-use glam::{Mat4, Vec3, Vec4Swizzles};
+use glam::{Mat4, Vec3};
 use std::collections::HashMap;
 
 use crate::{Camera, RenderObject, RenderScene};
@@ -171,7 +171,7 @@ impl EcsRenderBridge {
         let transform_entities: HashMap<Entity, &Transform> =
             world.query_legacy::<Transform>().collect();
         let mesh_entities: HashMap<Entity, &Mesh> = world.query_legacy::<Mesh>().collect();
-        let material_entities: HashMap<Entity, &EcsMaterial> =
+        let _material_entities: HashMap<Entity, &EcsMaterial> =
             world.query_legacy::<EcsMaterial>().collect();
 
         // Find entities that have transform and mesh components and add to scene

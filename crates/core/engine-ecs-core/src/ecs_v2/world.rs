@@ -107,11 +107,13 @@ impl World {
 
     /// Ensure an archetype exists in the world
     fn ensure_archetype_exists(&mut self, archetype_id: ArchetypeId) {
-        self.archetypes.entry(archetype_id.clone()).or_insert_with(|| {
-            let mut archetype = Archetype::new(archetype_id);
-            let _ = archetype.initialize_components(); // Ignore errors for now
-            archetype
-        });
+        self.archetypes
+            .entry(archetype_id.clone())
+            .or_insert_with(|| {
+                let mut archetype = Archetype::new(archetype_id);
+                let _ = archetype.initialize_components(); // Ignore errors for now
+                archetype
+            });
     }
 
     /// Clone all components from an entity in an archetype

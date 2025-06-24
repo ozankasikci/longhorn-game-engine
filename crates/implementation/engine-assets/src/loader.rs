@@ -16,6 +16,12 @@ pub struct LoaderRegistry {
     // TODO: Implement loader registry
 }
 
+impl Default for LoaderRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LoaderRegistry {
     /// Create a new loader registry
     pub fn new() -> Self {

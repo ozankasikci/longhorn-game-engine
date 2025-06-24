@@ -4,7 +4,7 @@
 //! and resource pooling for optimal performance.
 
 use crate::texture::{TextureDescriptor, TextureManager};
-use crate::{Material, Mesh, Vertex};
+use crate::{Material, Mesh};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use wgpu::{util::DeviceExt, Buffer, BufferUsages, Device, Queue};

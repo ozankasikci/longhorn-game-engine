@@ -29,6 +29,12 @@ pub struct Schedule {
     systems: Vec<String>,
 }
 
+impl Default for SystemScheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SystemScheduler {
     /// Create a new system scheduler
     pub fn new() -> Self {
@@ -91,6 +97,12 @@ impl SystemScheduler {
             }
         }
         Ok(())
+    }
+}
+
+impl Default for Schedule {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

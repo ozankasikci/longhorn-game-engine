@@ -109,8 +109,7 @@ pub fn create_test_world() -> crate::ecs_v2::world::World {
     use crate::ecs_v2::world::World;
 
     register_test_components();
-    let world = World::new();
-    world
+    World::new()
 }
 
 /// Assert that two floats are approximately equal

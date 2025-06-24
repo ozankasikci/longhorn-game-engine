@@ -1,6 +1,6 @@
 //! Built-in engine systems
 
-use crate::{RuntimeError, RuntimeResult, System};
+use crate::{RuntimeResult, System};
 
 /// Graphics system for rendering
 pub struct GraphicsSystem {
@@ -20,6 +20,12 @@ pub struct PhysicsSystem {
 /// Input system for user input
 pub struct InputSystem {
     name: String,
+}
+
+impl Default for GraphicsSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GraphicsSystem {
@@ -49,6 +55,12 @@ impl System for GraphicsSystem {
 
     fn name(&self) -> &str {
         &self.name
+    }
+}
+
+impl Default for AudioSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -82,6 +94,12 @@ impl System for AudioSystem {
     }
 }
 
+impl Default for PhysicsSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PhysicsSystem {
     /// Create a new physics system
     pub fn new() -> Self {
@@ -109,6 +127,12 @@ impl System for PhysicsSystem {
 
     fn name(&self) -> &str {
         &self.name
+    }
+}
+
+impl Default for InputSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

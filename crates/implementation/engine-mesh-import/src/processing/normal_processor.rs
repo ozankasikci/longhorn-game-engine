@@ -34,6 +34,12 @@ impl Default for NormalOptions {
 
 pub struct NormalProcessor;
 
+impl Default for NormalProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NormalProcessor {
     pub fn new() -> Self {
         Self
@@ -61,7 +67,7 @@ impl NormalProcessor {
     fn generate_flat_normals(
         &self,
         mesh: &mut MeshData,
-        options: &NormalOptions,
+        _options: &NormalOptions,
     ) -> Result<(), NormalError> {
         // For flat shading, each vertex of a face gets the face normal
         let mut new_vertices = Vec::new();
@@ -146,7 +152,7 @@ impl NormalProcessor {
     fn generate_angle_based_normals(
         &self,
         mesh: &mut MeshData,
-        threshold_degrees: f32,
+        _threshold_degrees: f32,
         options: &NormalOptions,
     ) -> Result<(), NormalError> {
         // First generate smooth normals

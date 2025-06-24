@@ -5,6 +5,12 @@ use std::path::Path;
 
 pub struct FbxImporter;
 
+impl Default for FbxImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FbxImporter {
     pub fn new() -> Self {
         Self

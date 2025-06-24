@@ -1,7 +1,7 @@
 //! Transform matrix utilities for efficient rendering
 
 use engine_components_3d::Transform;
-use glam::{Mat4, Quat, Vec3};
+use glam::Mat4;
 
 /// Precomputed transform matrix for efficient rendering
 #[derive(Debug, Clone)]

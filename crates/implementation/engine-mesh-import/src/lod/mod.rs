@@ -26,6 +26,12 @@ pub struct LODOptions {
 
 pub struct LODGenerator;
 
+impl Default for LODGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LODGenerator {
     pub fn new() -> Self {
         Self

@@ -1,6 +1,6 @@
 //! Application trait and builder
 
-use crate::{RuntimeError, RuntimeResult};
+use crate::RuntimeResult;
 
 /// Application trait for game implementations
 pub trait Application {
@@ -34,6 +34,12 @@ pub struct ApplicationBuilder {
     title: String,
     width: u32,
     height: u32,
+}
+
+impl Default for ApplicationBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ApplicationBuilder {

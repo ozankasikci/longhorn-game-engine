@@ -25,6 +25,12 @@ impl Default for RepairOptions {
 
 pub struct MeshRepairer;
 
+impl Default for MeshRepairer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MeshRepairer {
     pub fn new() -> Self {
         Self
@@ -133,7 +139,7 @@ impl MeshRepairer {
         uv_diff[0].abs() < 0.01 && uv_diff[1].abs() < 0.01
     }
 
-    fn fix_winding_order(&self, mesh: &mut MeshData) -> Result<(), String> {
+    fn fix_winding_order(&self, _mesh: &mut MeshData) -> Result<(), String> {
         // Simple check: ensure consistent winding by checking face normals
         // This is a simplified implementation
         Ok(())

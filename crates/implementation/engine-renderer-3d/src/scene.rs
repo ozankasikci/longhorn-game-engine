@@ -4,7 +4,7 @@
 //! and the renderer, allowing for clean separation of concerns.
 
 use crate::camera::Camera;
-use glam::{Mat4, Vec3};
+use glam::Mat4;
 
 /// A complete scene ready for rendering
 #[derive(Debug, Clone)]

@@ -2,6 +2,12 @@ use crate::{ImportContext, TextureData, TextureError, TextureFormat};
 
 pub struct TGAImporter;
 
+impl Default for TGAImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TGAImporter {
     pub fn new() -> Self {
         Self

@@ -11,6 +11,12 @@ enum ImporterType {
     Fbx(crate::FbxImporter),
 }
 
+impl Default for MeshImportRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MeshImportRegistry {
     pub fn new() -> Self {
         let mut registry = Self {

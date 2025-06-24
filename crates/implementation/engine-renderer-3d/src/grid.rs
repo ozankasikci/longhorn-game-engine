@@ -3,7 +3,7 @@
 //! Provides a configurable grid that can be rendered in the scene view
 //! to help with spatial orientation and object placement.
 
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Mat4, Vec3};
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 

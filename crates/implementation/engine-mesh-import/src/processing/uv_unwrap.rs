@@ -33,6 +33,12 @@ impl Default for UnwrapOptions {
 
 pub struct UVUnwrapper;
 
+impl Default for UVUnwrapper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UVUnwrapper {
     pub fn new() -> Self {
         Self

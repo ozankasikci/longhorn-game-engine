@@ -467,8 +467,8 @@ impl Bundle for GameObject3DBundle {
     }
 }
 
-
 /// Bundle for camera entities
+#[derive(Default)]
 pub struct CameraBundle {
     pub transform: Transform,
     pub camera: Camera,
@@ -501,14 +501,6 @@ impl Bundle for CameraBundle {
     }
 }
 
-impl Default for CameraBundle {
-    fn default() -> Self {
-        Self {
-            transform: Transform::default(),
-            camera: Camera::default(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

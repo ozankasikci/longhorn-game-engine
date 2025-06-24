@@ -150,12 +150,14 @@ fn test_material_creation_and_properties() {
     assert!(!default_material.unlit);
 
     // Test custom material creation
-    let mut custom_material = Material::default();
-    custom_material.name = "Metal".to_string();
+    let mut custom_material = Material {
+        name: "Metal".to_string(),
+        double_sided: true,
+        ..Default::default()
+    };
     custom_material.pbr.albedo = Color::rgb(0.7, 0.7, 0.8);
     custom_material.pbr.metallic = 1.0;
     custom_material.pbr.roughness = 0.1;
-    custom_material.double_sided = true;
 
     assert_eq!(custom_material.name, "Metal");
     assert_eq!(custom_material.pbr.metallic, 1.0);

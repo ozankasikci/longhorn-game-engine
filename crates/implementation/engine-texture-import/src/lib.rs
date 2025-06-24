@@ -118,6 +118,12 @@ pub struct TextureData {
 
 pub struct TextureImporter;
 
+impl Default for TextureImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextureImporter {
     pub fn new() -> Self {
         Self

@@ -9,6 +9,12 @@ pub struct AssetCache {
     metadata: HashMap<AssetId, AssetMetadata>,
 }
 
+impl Default for AssetCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AssetCache {
     /// Create a new asset cache
     pub fn new() -> Self {

@@ -14,6 +14,12 @@ pub struct CompressionOptions {
 
 pub struct TextureCompressor;
 
+impl Default for TextureCompressor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextureCompressor {
     pub fn new() -> Self {
         Self

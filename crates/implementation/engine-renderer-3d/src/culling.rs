@@ -4,7 +4,7 @@
 //! that are outside the camera's view, improving rendering performance.
 
 use crate::{Camera, RenderObject};
-use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
+use glam::{Mat4, Vec3, Vec4};
 
 /// A plane in 3D space defined by a normal vector and distance from origin
 #[derive(Debug, Clone, Copy)]

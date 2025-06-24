@@ -1,6 +1,6 @@
 //! Main game loop implementation
 
-use crate::{Application, ApplicationEvent, RuntimeError, RuntimeResult};
+use crate::{Application, RuntimeResult};
 use std::time::{Duration, Instant};
 
 /// Main game loop

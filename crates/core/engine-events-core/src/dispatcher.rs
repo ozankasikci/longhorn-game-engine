@@ -121,7 +121,8 @@ impl EventDispatcher {
 
         // Sort by priority if enabled
         if self.config.sort_handlers_by_priority {
-            self.global_handlers.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+            self.global_handlers
+                .sort_by_key(|b| std::cmp::Reverse(b.priority()));
         }
 
         self.stats.handlers_registered = self.count_handlers();
@@ -206,7 +207,8 @@ impl EventDispatcher {
             for handlers in self.handlers.values_mut() {
                 handlers.sort_by_key(|b| std::cmp::Reverse(b.priority()));
             }
-            self.global_handlers.sort_by_key(|b| std::cmp::Reverse(b.priority()));
+            self.global_handlers
+                .sort_by_key(|b| std::cmp::Reverse(b.priority()));
         }
     }
 

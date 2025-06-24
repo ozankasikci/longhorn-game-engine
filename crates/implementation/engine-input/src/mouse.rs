@@ -14,6 +14,12 @@ pub struct MouseState {
     // TODO: Implement mouse state
 }
 
+impl Default for MouseState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MouseState {
     /// Create a new mouse state
     pub fn new() -> Self {

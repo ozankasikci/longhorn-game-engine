@@ -26,6 +26,12 @@ pub struct GamepadState {
     // TODO: Implement gamepad state
 }
 
+impl Default for GamepadState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GamepadState {
     /// Create a new gamepad state
     pub fn new() -> Self {

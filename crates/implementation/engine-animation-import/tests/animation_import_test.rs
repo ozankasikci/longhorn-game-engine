@@ -119,11 +119,11 @@ fn test_animation_settings() {
     // Test 4: Verify animation import settings
     let mut settings = AnimationSettings::default();
 
-    assert_eq!(settings.optimize_keyframes, true);
+    assert!(settings.optimize_keyframes);
     assert_eq!(settings.compression_tolerance, 0.001);
     assert_eq!(settings.target_fps, None);
-    assert_eq!(settings.import_bone_animations, true);
-    assert_eq!(settings.import_blend_shapes, true);
+    assert!(settings.import_bone_animations);
+    assert!(settings.import_blend_shapes);
 
     // Modify settings
     settings.target_fps = Some(30.0);

@@ -39,6 +39,25 @@ impl ThreadPool {
         let job = Box::new(f);
         self.sender.send(job).unwrap();
     }
+
+    /// Get the number of worker threads
+    pub fn worker_count(&self) -> usize {
+        self.workers.len()
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        // Close the channel by dropping the sender
+        // This will cause worker threads to exit their loops
+        
+        // Wait for all workers to finish
+        for worker in self.workers.drain(..) {
+            if let Err(e) = worker.handle.join() {
+                eprintln!("Worker thread panicked: {:?}", e);
+            }
+        }
+    }
 }
 
 impl Worker {

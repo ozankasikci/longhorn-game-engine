@@ -56,6 +56,12 @@ pub struct KeyboardState {
     // TODO: Implement keyboard state
 }
 
+impl Default for KeyboardState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KeyboardState {
     /// Create a new keyboard state
     pub fn new() -> Self {

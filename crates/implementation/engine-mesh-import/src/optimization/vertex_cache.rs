@@ -17,6 +17,12 @@ impl Default for CacheOptions {
 
 pub struct VertexCacheOptimizer;
 
+impl Default for VertexCacheOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VertexCacheOptimizer {
     pub fn new() -> Self {
         Self
@@ -67,7 +73,7 @@ impl VertexCacheOptimizer {
     fn optimize_indices(
         &self,
         indices: &[u32],
-        vertex_count: usize,
+        _vertex_count: usize,
         _options: &CacheOptions,
     ) -> Vec<u32> {
         // Simple optimization: sort triangles by first vertex index

@@ -121,7 +121,7 @@ fn test_mesh_data_memory_usage() {
 
     let expected_vertex_size = 3 * std::mem::size_of::<Vertex>();
     let expected_index_size = 3 * std::mem::size_of::<u32>();
-    let expected_submesh_size = 1 * std::mem::size_of::<engine_geometry_core::SubMesh>();
+    let expected_submesh_size = std::mem::size_of::<engine_geometry_core::SubMesh>();
     let expected_total = expected_vertex_size + expected_index_size + expected_submesh_size;
 
     assert_eq!(mesh_data.memory_usage(), expected_total);

@@ -5,6 +5,12 @@ use std::path::Path;
 
 pub struct ObjImporter;
 
+impl Default for ObjImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ObjImporter {
     pub fn new() -> Self {
         Self
@@ -75,8 +81,8 @@ impl ObjImporter {
                     // Face
                     if parts.len() >= 4 {
                         // Parse face vertices (we only support triangles for now)
-                        for i in 1..=3 {
-                            let vertex_data = parts[i];
+                        for item in parts.iter().take(3 + 1).skip(1) {
+                            let vertex_data = item;
                             let components: Vec<&str> = vertex_data.split('/').collect();
 
                             let pos_idx = components[0].parse::<usize>().map_err(|_| {

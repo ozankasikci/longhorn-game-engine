@@ -14,6 +14,12 @@ pub struct QualityMetrics {
 
 pub struct MeshAnalyzer;
 
+impl Default for MeshAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MeshAnalyzer {
     pub fn new() -> Self {
         Self

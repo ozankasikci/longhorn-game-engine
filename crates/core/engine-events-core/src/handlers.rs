@@ -170,7 +170,7 @@ impl EventHandlerTrait for CompositeHandler {
         match self.combination_mode {
             CombinationMode::Any => self.handlers.iter().any(|h| h.handle(event)),
             CombinationMode::All => self.handlers.iter().all(|h| h.handle(event)),
-            CombinationMode::First => self.handlers.first().map_or(false, |h| h.handle(event)),
+            CombinationMode::First => self.handlers.first().is_some_and(|h| h.handle(event)),
         }
     }
 
@@ -207,7 +207,8 @@ where
 
     /// Get the current count
     pub fn get_count(&self) -> usize {
-        *self.count
+        *self
+            .count
             .lock()
             .unwrap_or_else(|_| panic!("Failed to lock count"))
     }
@@ -322,7 +323,8 @@ where
 
     /// Check if the handler can still process events
     pub fn can_handle(&self) -> bool {
-        *self.current_count
+        *self
+            .current_count
             .lock()
             .unwrap_or_else(|_| panic!("Failed to lock count"))
             < self.max_count

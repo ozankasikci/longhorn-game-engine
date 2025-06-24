@@ -20,6 +20,12 @@ pub struct UiEventManager {
     handlers: Vec<Box<dyn UiEventHandler>>,
 }
 
+impl Default for UiEventManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UiEventManager {
     /// Create a new UI event manager
     pub fn new() -> Self {

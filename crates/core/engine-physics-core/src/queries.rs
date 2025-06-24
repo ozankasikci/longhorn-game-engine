@@ -65,7 +65,7 @@ pub struct RaycastHit2D {
 }
 
 /// Query filter for physics queries
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct QueryFilter {
     /// Collision groups to check against
     pub groups: Option<CollisionGroups>,
@@ -77,16 +77,6 @@ pub struct QueryFilter {
     pub custom_predicate: Option<String>,
 }
 
-impl Default for QueryFilter {
-    fn default() -> Self {
-        Self {
-            groups: None,
-            exclude_entities: Vec::new(),
-            include_sensors: false,
-            custom_predicate: None,
-        }
-    }
-}
 
 /// Shape for overlap queries
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

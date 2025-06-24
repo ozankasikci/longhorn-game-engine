@@ -1,6 +1,6 @@
 //! Frustum culling system implementation
 
-use engine_camera_core::{BoundingVolume, CullingResult, FrustumCuller, FrustumCullerFactory};
+use engine_camera_core::{CullingResult, FrustumCuller, FrustumCullerFactory};
 use glam::{Mat4, Vec3};
 
 /// Frustum for culling operations
@@ -260,6 +260,7 @@ impl FrustumCullerFactory for DefaultFrustumCullerFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use engine_camera_core::BoundingVolume;
 
     #[test]
     fn test_frustum_plane() {

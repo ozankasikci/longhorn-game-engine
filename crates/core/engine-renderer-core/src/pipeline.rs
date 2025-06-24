@@ -1,5 +1,4 @@
-use engine_geometry_core::MeshHandle;
-use engine_materials_core::{MaterialHandle, ShaderHandle};
+use engine_materials_core::ShaderHandle;
 
 pub trait RenderPipeline {
     type PipelineId;

@@ -12,6 +12,12 @@ pub struct Clock {
     last_frame: Instant,
 }
 
+impl Default for Timer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Timer {
     /// Create a new timer
     pub fn new() -> Self {
@@ -33,6 +39,12 @@ impl Timer {
     /// Reset the timer
     pub fn reset(&mut self) {
         self.start_time = Instant::now();
+    }
+}
+
+impl Default for Clock {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

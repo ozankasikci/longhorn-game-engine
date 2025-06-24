@@ -348,7 +348,7 @@ pub enum NetworkEvent {
 }
 
 /// Input modifiers
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct InputModifiers {
     pub ctrl: bool,
     pub alt: bool,
@@ -414,13 +414,3 @@ impl BaseEvent {
     }
 }
 
-impl Default for InputModifiers {
-    fn default() -> Self {
-        Self {
-            ctrl: false,
-            alt: false,
-            shift: false,
-            meta: false,
-        }
-    }
-}

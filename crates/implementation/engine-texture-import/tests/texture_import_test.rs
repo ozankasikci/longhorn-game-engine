@@ -4,9 +4,8 @@
 
 use engine_asset_import::{ImportContext, ImportSettings};
 use engine_texture_import::{
-    TextureData, TextureError, TextureFormat, TextureImporter, TextureSettings,
+    TextureData, TextureFormat, TextureImporter, TextureSettings,
 };
-use std::path::PathBuf;
 
 #[test]
 fn test_png_import() {
@@ -60,7 +59,7 @@ fn test_texture_settings() {
     // Test 3: Verify texture import settings
     let mut settings = TextureSettings::default();
 
-    assert_eq!(settings.generate_mipmaps, true);
+    assert!(settings.generate_mipmaps);
     assert_eq!(
         settings.compression,
         engine_texture_import::CompressionType::None
@@ -191,7 +190,7 @@ fn test_mipmap_generation() {
 
     assert_eq!(texture_data.mipmaps[1].width, 1);
     assert_eq!(texture_data.mipmaps[1].height, 1);
-    assert_eq!(texture_data.mipmaps[1].data.len(), 1 * 1 * 4);
+    assert_eq!(texture_data.mipmaps[1].data.len(), 4);
 }
 
 #[test]

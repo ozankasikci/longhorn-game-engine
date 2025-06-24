@@ -2,6 +2,12 @@ use crate::{MipmapLevel, TextureData, TextureError, TextureFormat};
 
 pub struct MipmapGenerator;
 
+impl Default for MipmapGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MipmapGenerator {
     pub fn new() -> Self {
         Self
@@ -99,6 +105,12 @@ pub struct ResizeOptions {
 
 pub struct TextureResizer;
 
+impl Default for TextureResizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextureResizer {
     pub fn new() -> Self {
         Self
@@ -174,6 +186,12 @@ pub struct NormalMapOptions {
 
 pub struct NormalMapProcessor;
 
+impl Default for NormalMapProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NormalMapProcessor {
     pub fn new() -> Self {
         Self
@@ -197,7 +215,7 @@ impl NormalMapProcessor {
         for y in 0..height {
             for x in 0..width {
                 // Sample neighboring heights
-                let center = self.sample_height(&texture.data, x, y, width, height);
+                let _center = self.sample_height(&texture.data, x, y, width, height);
                 let left = self.sample_height(&texture.data, x - 1, y, width, height);
                 let right = self.sample_height(&texture.data, x + 1, y, width, height);
                 let up = self.sample_height(&texture.data, x, y - 1, width, height);
@@ -242,6 +260,12 @@ impl NormalMapProcessor {
 }
 
 pub struct FormatConverter;
+
+impl Default for FormatConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl FormatConverter {
     pub fn new() -> Self {

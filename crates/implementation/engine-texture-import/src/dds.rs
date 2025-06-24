@@ -2,6 +2,12 @@ use crate::{ImportContext, TextureData, TextureError, TextureFormat};
 
 pub struct DDSImporter;
 
+impl Default for DDSImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DDSImporter {
     pub fn new() -> Self {
         Self

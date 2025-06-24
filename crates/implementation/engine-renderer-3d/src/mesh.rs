@@ -1,6 +1,5 @@
 //! Mesh data structures and management
 
-use bytemuck::{Pod, Zeroable};
 
 /// Re-export from renderer for convenience
 pub use crate::renderer::Vertex;

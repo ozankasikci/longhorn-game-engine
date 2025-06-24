@@ -1,6 +1,6 @@
 //! Main engine implementation
 
-use crate::{Application, GameLoop, RuntimeError, RuntimeResult};
+use crate::{Application, GameLoop, RuntimeResult};
 
 /// Main game engine
 pub struct Engine {
@@ -17,7 +17,7 @@ impl Engine {
 
     /// Run the engine with an application
     pub fn run<A: Application>(&mut self, app: A) -> RuntimeResult<()> {
-        let mut game_loop = GameLoop::new(app)?;
+        let game_loop = GameLoop::new(app)?;
         game_loop.run()
     }
 

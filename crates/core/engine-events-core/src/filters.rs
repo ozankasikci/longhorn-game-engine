@@ -197,7 +197,7 @@ impl EntityFilter {
 }
 
 impl EventFilter for EntityFilter {
-    fn passes(&self, event: &dyn Event) -> bool {
+    fn passes(&self, _event: &dyn Event) -> bool {
         // Note: This is a simplified implementation
         // In a real implementation, we'd need a way to extract entity information from events
         // For now, we'll always return true since we can't access entity data generically
@@ -335,6 +335,7 @@ where
 }
 
 /// Filter that limits the number of events that can pass through
+#[allow(dead_code)]
 pub struct RateLimitFilter {
     max_events: usize,
     time_window: f32,           // seconds
@@ -354,6 +355,7 @@ impl RateLimitFilter {
     }
 
     /// Check if we can allow another event through
+    #[allow(dead_code)]
     fn can_pass(&mut self, current_time: f64) -> bool {
         // Remove old events outside the time window
         let cutoff_time = current_time - self.time_window as f64;

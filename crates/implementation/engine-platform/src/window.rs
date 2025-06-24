@@ -45,6 +45,12 @@ impl Window {
     }
 }
 
+impl Default for WindowBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WindowBuilder {
     /// Create a new window builder
     pub fn new() -> Self {

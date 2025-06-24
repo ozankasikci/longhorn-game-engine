@@ -1,11 +1,10 @@
 //! Primitive mesh generators and geometric shapes
 
 use engine_geometry_core::{
-    ConeParams, CubeParams, CylinderParams, Mesh, MeshData, PlaneParams, PrimitiveGenerator,
-    PrimitiveMeshFactory, PrimitiveParams, PrimitiveType, SphereParams, Vertex,
+    Mesh, MeshData, PrimitiveGenerator,
+    PrimitiveMeshFactory, PrimitiveParams, PrimitiveType, Vertex,
 };
 use glam::{Vec2, Vec3};
-use serde::{Deserialize, Serialize};
 
 /// Default primitive generator implementation
 #[derive(Debug, Clone, Default)]

@@ -18,12 +18,18 @@ pub enum UVError {
 
 pub struct UVValidator;
 
+impl Default for UVValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UVValidator {
     pub fn new() -> Self {
         Self
     }
 
-    pub fn validate(&self, mesh: &MeshData) -> Result<(), UVError> {
+    pub fn validate(&self, _mesh: &MeshData) -> Result<(), UVError> {
         // Basic validation always passes, warnings are separate
         Ok(())
     }

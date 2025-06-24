@@ -3,6 +3,12 @@ use std::collections::HashMap;
 
 pub struct MeshOptimizer;
 
+impl Default for MeshOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MeshOptimizer {
     pub fn new() -> Self {
         Self

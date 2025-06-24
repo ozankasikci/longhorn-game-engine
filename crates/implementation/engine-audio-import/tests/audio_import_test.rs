@@ -89,7 +89,7 @@ fn test_audio_settings() {
 
     assert_eq!(settings.target_sample_rate, None);
     assert_eq!(settings.target_channel_layout, None);
-    assert_eq!(settings.normalize, false);
+    assert!(!settings.normalize);
     assert_eq!(settings.compression_quality, 0.9);
 
     // Modify settings

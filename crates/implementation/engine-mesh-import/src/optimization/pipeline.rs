@@ -31,6 +31,12 @@ impl Default for OptimizationOptions {
 
 pub struct OptimizationPipeline;
 
+impl Default for OptimizationPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OptimizationPipeline {
     pub fn new() -> Self {
         Self

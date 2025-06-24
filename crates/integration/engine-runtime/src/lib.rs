@@ -32,11 +32,9 @@ pub type RuntimeResult<T> = Result<T, RuntimeError>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_engine_creation() {
-        // Placeholder test
-        assert!(true);
+        // Placeholder test - this test just ensures the module compiles
     }
 }

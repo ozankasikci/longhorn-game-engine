@@ -5,6 +5,12 @@ use std::path::Path;
 
 pub struct GltfImporter;
 
+impl Default for GltfImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GltfImporter {
     pub fn new() -> Self {
         Self

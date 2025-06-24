@@ -4,7 +4,7 @@
 //! with proper 3D rendering and constant screen-space sizing.
 
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Quat, Vec3, Vec4};
+use glam::{Mat4, Vec3};
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 
@@ -99,6 +99,7 @@ pub struct GizmoRenderer3D {
     plane_xz_mesh: GizmoMesh, // Cyan plane for XZ movement
     plane_yz_mesh: GizmoMesh, // Magenta plane for YZ movement
     circle_mesh: GizmoMesh,
+    #[allow(dead_code)]
     box_mesh: GizmoMesh,
 
     // Uniforms
@@ -259,6 +260,7 @@ impl GizmoRenderer3D {
     }
 
     /// Render the gizmo
+    #[allow(clippy::too_many_arguments)]
     pub fn render<'a>(
         &'a self,
         render_pass: &mut wgpu::RenderPass<'a>,
@@ -428,12 +430,13 @@ impl GizmoRenderer3D {
     }
 
     /// Render scale gizmo (lines with boxes)
-    fn render_scale_gizmo<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+    fn render_scale_gizmo<'a>(&'a self, _render_pass: &mut wgpu::RenderPass<'a>) {
         // Similar to translation but with boxes at ends
         // Implementation similar to arrows but with box mesh
     }
 
     /// Helper to render a plane - not used anymore since we have specific plane meshes
+    #[allow(dead_code)]
     fn render_plane<'a>(
         &'a self,
         _render_pass: &mut wgpu::RenderPass<'a>,
@@ -466,6 +469,7 @@ impl GizmoRenderer3D {
 }
 
 /// Create arrow mesh for translation gizmo - pointing up in Y  
+#[allow(dead_code)]
 fn create_arrow_mesh(device: &wgpu::Device) -> GizmoMesh {
     // Default white color for backward compatibility
     create_arrow_mesh_with_color(device, [1.0, 1.0, 1.0, 1.0])
@@ -484,7 +488,7 @@ fn create_arrow_mesh_with_color(device: &wgpu::Device, color: [f32; 4]) -> Gizmo
     let segments = 12; // More segments for smoother cylinder
 
     // Create cylindrical shaft
-    let base_offset = 0;
+    let _base_offset = 0;
     for i in 0..segments {
         let angle = (i as f32 / segments as f32) * std::f32::consts::TAU;
         let x = angle.cos() * shaft_radius;

@@ -38,6 +38,12 @@ pub struct BatchResult {
 
 pub struct BatchProcessor;
 
+impl Default for BatchProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BatchProcessor {
     pub fn new() -> Self {
         Self

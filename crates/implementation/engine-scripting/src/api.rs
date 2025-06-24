@@ -5,6 +5,12 @@ pub struct ScriptApi {
     // TODO: Implement script API
 }
 
+impl Default for ScriptApi {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScriptApi {
     /// Create a new script API
     pub fn new() -> Self {

@@ -58,7 +58,7 @@ vt 0.5 1.0
 f 1/1/1 2/2/1 3/3/1
 "#;
 
-    let context = ImportContext::new(ImportSettings::default());
+    let _context = ImportContext::new(ImportSettings::default());
 
     // Test parsing OBJ content
     let mesh_data = importer.parse_obj_content(test_obj).unwrap();

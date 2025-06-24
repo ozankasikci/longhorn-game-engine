@@ -19,6 +19,12 @@ pub enum ConversionError {
 
 pub struct MeshConverter;
 
+impl Default for MeshConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MeshConverter {
     pub fn new() -> Self {
         Self

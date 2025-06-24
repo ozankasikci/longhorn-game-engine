@@ -1,4 +1,4 @@
-use engine_geometry_core::{BufferHandle, MeshHandle};
+use engine_geometry_core::BufferHandle;
 use engine_materials_core::{texture::TextureHandle, TextureUsage};
 
 pub trait ResourceManager {

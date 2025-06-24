@@ -33,11 +33,10 @@ pub type UiResult<T> = Result<T, UiError>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_ui_context_creation() {
         // Placeholder test
-        assert!(true);
+        // Placeholder test
     }
 }
