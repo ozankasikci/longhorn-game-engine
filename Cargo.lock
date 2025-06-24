@@ -1831,6 +1831,7 @@ dependencies = [
  "engine-resource-core",
  "glam",
  "log",
+ "tempfile",
 ]
 
 [[package]]

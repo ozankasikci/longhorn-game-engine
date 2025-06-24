@@ -198,7 +198,12 @@ impl LonghornEditor {
             inspector_panel: InspectorPanel::new(),
             hierarchy_panel: HierarchyPanel::new(),
             console_panel: ConsolePanel::new(),
-            project_panel: ProjectPanel::new(),
+            project_panel: {
+                let mut panel = ProjectPanel::new();
+                // Set the project root to the current working directory
+                panel.set_project_root(std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")));
+                panel
+            },
             toolbar: Toolbar::new(),
             menu_bar: MenuBar::new(),
             game_view_panel: GameViewPanel::new(),

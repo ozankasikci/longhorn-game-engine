@@ -34,6 +34,12 @@ pub mod hierarchy;
 pub mod console;
 pub mod project;
 pub mod game_view;
+pub mod folder_manager;
+pub mod drag_drop;
+pub mod multi_selection;
+pub mod undo_redo;
+pub mod search;
+pub mod keyboard_shortcuts;
 
 // Re-export panels
 pub use inspector::InspectorPanel;

@@ -30,3 +30,6 @@ glam = { workspace = true }
 # For shared types
 engine-editor-scene-view = { path = "../engine-editor-scene-view" }
 engine-editor-assets = { path = "../engine-editor-assets" }
+
+[dev-dependencies]
+tempfile = "3.8"
