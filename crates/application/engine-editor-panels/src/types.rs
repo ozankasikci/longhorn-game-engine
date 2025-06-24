@@ -1,7 +1,5 @@
 //! Shared types for editor panels
 
-use eframe::egui;
-
 // Re-export from scene view
 pub use engine_editor_scene_view::types::{PlayState, SceneTool};
 

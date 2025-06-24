@@ -4,21 +4,20 @@ use crate::types::{ConsoleMessage, HierarchyObject, SceneTool};
 use eframe::egui;
 use engine_components_2d::SpriteRenderer;
 use engine_components_3d::{
-    Light, LightType, Material, Mesh, MeshFilter, MeshRenderer, MeshType, Transform, Visibility,
+    Light, Material, Mesh, MeshFilter, MeshRenderer, MeshType, Transform, Visibility,
 };
 use engine_components_ui::{Canvas, Name};
 use engine_ecs_core::{Entity, World};
 use engine_renderer_3d::Camera;
 
+#[derive(Default)]
 pub struct HierarchyPanel {
     selected_object: Option<String>,
 }
 
 impl HierarchyPanel {
     pub fn new() -> Self {
-        Self {
-            selected_object: None,
-        }
+        Self::default()
     }
 
     pub fn show(
@@ -125,7 +124,7 @@ impl HierarchyPanel {
 
                     // Update gizmo position if move tool is active
                     if gizmo_system.get_active_tool() == SceneTool::Move {
-                        if let Some(transform) = world.get_component::<Transform>(entity) {
+                        if let Some(_transform) = world.get_component::<Transform>(entity) {
                             gizmo_system.enable_move_gizmo();
                         }
                     }
@@ -224,7 +223,7 @@ fn create_cube_entity(world: &mut World) -> Entity {
         .unwrap();
 
     // Generate cube mesh data
-    let mesh_data = create_cube_mesh_data(1.0);
+    let _mesh_data = create_cube_mesh_data(1.0);
 
     // Create mesh handle (in a real system, this would be managed by a resource manager)
     let mesh_id = 1000 + world.entity_count() as u64; // Unique ID for each cube
@@ -287,7 +286,7 @@ fn create_sphere_entity(world: &mut World) -> Entity {
         .unwrap();
 
     // Generate sphere mesh data
-    let mesh_data = create_sphere_mesh_data(1.0, 16, 32);
+    let _mesh_data = create_sphere_mesh_data(1.0, 16, 32);
 
     // Create mesh handle
     let mesh_id = 2000 + world.entity_count() as u64;
@@ -349,7 +348,7 @@ fn create_plane_entity(world: &mut World) -> Entity {
         .unwrap();
 
     // Generate plane mesh data
-    let mesh_data = create_plane_mesh_data(10.0, 10.0, 1, 1);
+    let _mesh_data = create_plane_mesh_data(10.0, 10.0, 1, 1);
 
     // Create mesh handle
     let mesh_id = 3000 + world.entity_count() as u64;

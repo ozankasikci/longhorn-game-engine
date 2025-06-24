@@ -1,17 +1,19 @@
 // Scene rendering logic
 
-use crate::types::SceneNavigation;
-use crate::ConsoleMessage;
 use eframe::egui;
 use engine_components_2d::SpriteRenderer;
-use engine_components_3d::{
-    Camera, Light, MainCamera, Material, Mesh, MeshType, Transform, Visibility,
-};
+use engine_components_3d::{Camera, MainCamera, Mesh, Transform};
 use engine_components_ui::Name;
 use engine_ecs_core::{Entity, World};
 
 /// Helper for rendering 3D scenes in the editor
 pub struct SceneRenderer {}
+
+impl Default for SceneRenderer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SceneRenderer {
     pub fn new() -> Self {
@@ -79,13 +81,10 @@ impl SceneRenderer {
         }
 
         // If no main camera found, return the first camera entity
-        for (entity, _) in world.query_legacy::<Camera>() {
-            if world.get_component::<Transform>(entity).is_some() {
-                return Some(entity);
-            }
-        }
-
-        None
+        world
+            .query_legacy::<Camera>()
+            .map(|(entity, _)| entity)
+            .find(|&entity| world.get_component::<Transform>(entity).is_some())
     }
 
     /// Render the scene from the camera's perspective using perspective projection
@@ -101,8 +100,8 @@ impl SceneRenderer {
 
         // Camera position and view parameters
         let camera_pos = camera_transform.position;
-        let fov_rad = camera.fov_degrees.to_radians();
-        let aspect_ratio = rect.width() / rect.height();
+        let _fov_rad = camera.fov_degrees.to_radians();
+        let _aspect_ratio = rect.width() / rect.height();
 
         // Calculate view frustum dimensions at different depths
         let render_scale = 100.0; // Scale factor for rendering

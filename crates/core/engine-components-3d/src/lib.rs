@@ -501,7 +501,6 @@ impl Bundle for CameraBundle {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

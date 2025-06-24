@@ -12,9 +12,6 @@ use engine_geometry_core::{MeshData, Vertex};
 use engine_resource_core::{ResourceHandle, ResourceId};
 use glam::{Vec2, Vec3};
 
-// CameraBundle is now just a tuple of components
-type CameraBundle = (Transform, Camera, Name);
-
 /// Creates a default world with sample entities for the editor
 pub fn create_default_world() -> (World, Entity) {
     let mut world = World::new();

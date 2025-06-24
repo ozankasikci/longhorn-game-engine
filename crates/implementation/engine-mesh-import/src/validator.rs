@@ -53,7 +53,9 @@ impl MeshValidator {
 
             // Check for degenerate triangles
             for chunk in mesh_data.indices.chunks(3) {
-                if chunk.len() == 3 && (chunk[0] == chunk[1] || chunk[1] == chunk[2] || chunk[0] == chunk[2]) {
+                if chunk.len() == 3
+                    && (chunk[0] == chunk[1] || chunk[1] == chunk[2] || chunk[0] == chunk[2])
+                {
                     return Err(ValidationError::DegenerateTriangle);
                 }
             }

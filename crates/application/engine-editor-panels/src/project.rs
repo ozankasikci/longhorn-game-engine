@@ -1,7 +1,7 @@
 // Project panel - displays project assets and file browser
 
 use crate::drag_drop::{handle_drag_source, handle_drop_target, DragDropState, DragItem};
-use crate::folder_manager::{FolderManager, FolderOperationError};
+use crate::folder_manager::FolderManager;
 use crate::keyboard_shortcuts::{ShortcutAction, ShortcutManager};
 use crate::multi_selection::MultiSelection;
 use crate::search::SearchFilter;
@@ -33,8 +33,8 @@ pub struct ProjectPanel {
     needs_refresh: bool,
 }
 
-impl ProjectPanel {
-    pub fn new() -> Self {
+impl Default for ProjectPanel {
+    fn default() -> Self {
         Self {
             folder_manager: None,
             selected_path: None,
@@ -57,6 +57,12 @@ impl ProjectPanel {
             cached_assets: None,
             needs_refresh: true,
         }
+    }
+}
+
+impl ProjectPanel {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn set_project_root(&mut self, project_root: impl Into<PathBuf>) {
@@ -242,6 +248,7 @@ impl ProjectPanel {
         self.drag_drop_state.render_drag_preview(ui);
     }
 
+    #[allow(dead_code)]
     fn show_project_asset(&mut self, ui: &mut egui::Ui, asset: &ProjectAsset) {
         let mut path = PathBuf::new();
         self.show_project_asset_with_path(ui, asset, &mut path);
@@ -288,15 +295,16 @@ impl ProjectPanel {
                                     &self.all_visible_paths,
                                 );
                             } else {
-                                self.multi_selection.select_single(asset_path.clone());
+                                self.multi_selection.select_single(asset_path.to_path_buf());
                             }
                         } else if modifiers.ctrl || modifiers.command {
-                            self.multi_selection.toggle_selection(asset_path.clone());
+                            self.multi_selection
+                                .toggle_selection(asset_path.to_path_buf());
                         } else {
-                            self.multi_selection.select_single(asset_path.clone());
+                            self.multi_selection.select_single(asset_path.to_path_buf());
                         }
 
-                        self.selected_path = Some(asset_path.clone());
+                        self.selected_path = Some(asset_path.to_path_buf());
                     }
 
                     response
@@ -310,24 +318,24 @@ impl ProjectPanel {
                 });
 
                 // Handle drag source
-                let drag_item = DragItem::Folder(asset_path.clone());
+                let drag_item = DragItem::Folder(asset_path.to_path_buf());
                 handle_drag_source(ui, &mut self.drag_drop_state, drag_item, &response.0);
 
                 // Handle drop target
                 if let Some((dropped_item, _)) = handle_drop_target(
                     ui,
                     &mut self.drag_drop_state,
-                    asset_path.clone(),
+                    asset_path.to_path_buf(),
                     &response.0,
                 ) {
-                    self.handle_drop(dropped_item, asset_path.clone());
+                    self.handle_drop(dropped_item, asset_path.to_path_buf());
                 }
 
                 // Context menu for folders
                 response.0.context_menu(|ui| {
                     if ui.button("New Folder").clicked() {
                         self.show_new_folder_dialog = true;
-                        self.parent_path_for_new_folder = asset_path.clone();
+                        self.parent_path_for_new_folder = asset_path.to_path_buf();
                         self.new_folder_name.clear();
                         self.error_message = None;
                         ui.close_menu();
@@ -335,14 +343,14 @@ impl ProjectPanel {
 
                     if ui.button("Rename").clicked() {
                         self.show_rename_dialog = true;
-                        self.rename_path = asset_path.clone();
+                        self.rename_path = asset_path.to_path_buf();
                         self.rename_new_name = asset.name.clone();
                         self.error_message = None;
                         ui.close_menu();
                     }
 
                     if ui.button("Delete").clicked() {
-                        self.confirm_delete_path = Some(asset_path.clone());
+                        self.confirm_delete_path = Some(asset_path.to_path_buf());
                         ui.close_menu();
                     }
 
@@ -381,21 +389,22 @@ impl ProjectPanel {
                                 &self.all_visible_paths,
                             );
                         } else {
-                            self.multi_selection.select_single(asset_path.clone());
+                            self.multi_selection.select_single(asset_path.to_path_buf());
                         }
                     } else if modifiers.ctrl || modifiers.command {
                         // Ctrl/Cmd+Click: Toggle selection
-                        self.multi_selection.toggle_selection(asset_path.clone());
+                        self.multi_selection
+                            .toggle_selection(asset_path.to_path_buf());
                     } else {
                         // Normal click: Select single
-                        self.multi_selection.select_single(asset_path.clone());
+                        self.multi_selection.select_single(asset_path.to_path_buf());
                     }
 
-                    self.selected_path = Some(asset_path.clone());
+                    self.selected_path = Some(asset_path.to_path_buf());
                 }
 
                 // Handle drag source for files
-                let drag_item = DragItem::File(asset_path.clone());
+                let drag_item = DragItem::File(asset_path.to_path_buf());
                 handle_drag_source(ui, &mut self.drag_drop_state, drag_item, &response);
 
                 // Context menu for files
@@ -552,11 +561,7 @@ impl ProjectPanel {
                 if let Some(folder_manager) = &self.folder_manager {
                     // Read folder contents before deletion for undo
                     let contents =
-                        if let Ok(data) = std::fs::read(&folder_manager.project_root.join(&path)) {
-                            data
-                        } else {
-                            Vec::new() // For directories, we'll store empty data
-                        };
+                        std::fs::read(folder_manager.project_root.join(&path)).unwrap_or_default();
 
                     delete_result = folder_manager.delete_folder(&path);
 
@@ -664,7 +669,7 @@ impl ProjectPanel {
     fn collect_visible_paths(&mut self, assets: &[ProjectAsset], current_path: &mut PathBuf) {
         for asset in assets {
             let asset_path = current_path.join(&asset.name);
-            self.all_visible_paths.push(asset_path.clone());
+            self.all_visible_paths.push(asset_path);
 
             if let Some(children) = &asset.children {
                 current_path.push(&asset.name);
@@ -724,7 +729,7 @@ impl ProjectPanel {
                         if let Some(source_parent) = source.parent() {
                             if let Some(item_name) = source.file_name() {
                                 let current_path = target_parent.join(item_name);
-                                if let Err(err) =
+                                if let Err(_err) =
                                     folder_manager.move_folder(&current_path, source_parent)
                                 {
                                     // Try as file if folder move fails
@@ -851,7 +856,7 @@ impl ProjectPanel {
     fn handle_asset_selection(
         &mut self,
         response: &egui::Response,
-        asset_path: &PathBuf,
+        asset_path: &Path,
         ui: &mut egui::Ui,
     ) {
         if response.clicked() {
@@ -867,15 +872,16 @@ impl ProjectPanel {
                     self.multi_selection
                         .select_range(&last, asset_path, &self.all_visible_paths);
                 } else {
-                    self.multi_selection.select_single(asset_path.clone());
+                    self.multi_selection.select_single(asset_path.to_path_buf());
                 }
             } else if modifiers.ctrl || modifiers.command {
-                self.multi_selection.toggle_selection(asset_path.clone());
+                self.multi_selection
+                    .toggle_selection(asset_path.to_path_buf());
             } else {
-                self.multi_selection.select_single(asset_path.clone());
+                self.multi_selection.select_single(asset_path.to_path_buf());
             }
 
-            self.selected_path = Some(asset_path.clone());
+            self.selected_path = Some(asset_path.to_path_buf());
         }
     }
 
@@ -883,18 +889,21 @@ impl ProjectPanel {
         &mut self,
         ui: &mut egui::Ui,
         response: &egui::Response,
-        asset_path: &PathBuf,
+        asset_path: &Path,
         asset_name: &str,
     ) {
         // Handle drag source
-        let drag_item = DragItem::Folder(asset_path.clone());
+        let drag_item = DragItem::Folder(asset_path.to_path_buf());
         handle_drag_source(ui, &mut self.drag_drop_state, drag_item, response);
 
         // Handle drop target
-        if let Some((dropped_item, _)) =
-            handle_drop_target(ui, &mut self.drag_drop_state, asset_path.clone(), response)
-        {
-            self.handle_drop(dropped_item, asset_path.clone());
+        if let Some((dropped_item, _)) = handle_drop_target(
+            ui,
+            &mut self.drag_drop_state,
+            asset_path.to_path_buf(),
+            response,
+        ) {
+            self.handle_drop(dropped_item, asset_path.to_path_buf());
         }
 
         // Context menu for folders
@@ -908,7 +917,7 @@ impl ProjectPanel {
                 .clicked()
             {
                 self.show_new_folder_dialog = true;
-                self.parent_path_for_new_folder = asset_path.clone();
+                self.parent_path_for_new_folder = asset_path.to_path_buf();
                 self.new_folder_name.clear();
                 self.error_message = None;
                 ui.close_menu();
@@ -923,7 +932,7 @@ impl ProjectPanel {
                 .clicked()
             {
                 self.show_rename_dialog = true;
-                self.rename_path = asset_path.clone();
+                self.rename_path = asset_path.to_path_buf();
                 self.rename_new_name = asset_name.to_string();
                 self.error_message = None;
                 ui.close_menu();
@@ -937,7 +946,7 @@ impl ProjectPanel {
                 ))
                 .clicked()
             {
-                self.confirm_delete_path = Some(asset_path.clone());
+                self.confirm_delete_path = Some(asset_path.to_path_buf());
                 ui.close_menu();
             }
 
@@ -954,10 +963,10 @@ impl ProjectPanel {
         &mut self,
         ui: &mut egui::Ui,
         response: &egui::Response,
-        asset_path: &PathBuf,
+        asset_path: &Path,
     ) {
         // Handle drag source for files
-        let drag_item = DragItem::File(asset_path.clone());
+        let drag_item = DragItem::File(asset_path.to_path_buf());
         handle_drag_source(ui, &mut self.drag_drop_state, drag_item, response);
 
         // Context menu for files
@@ -1003,7 +1012,7 @@ impl ProjectPanel {
                         target_parent,
                     } => {
                         // Redo move
-                        if let Err(err) = folder_manager.move_folder(&source, &target_parent) {
+                        if let Err(_err) = folder_manager.move_folder(&source, &target_parent) {
                             // Try as file if folder move fails
                             if let Err(err) = folder_manager.move_file(&source, &target_parent) {
                                 self.error_message = Some(format!("Failed to redo move: {}", err));

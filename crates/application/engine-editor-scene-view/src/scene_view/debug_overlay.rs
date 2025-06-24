@@ -82,7 +82,6 @@ pub fn draw_movement_debug_overlay(
         egui::FontId::monospace(14.0),
         egui::Color32::GREEN,
     );
-    y_offset += line_height;
 
     // Draw compass in bottom-right
     let compass_center = rect.max - egui::vec2(100.0, 100.0);

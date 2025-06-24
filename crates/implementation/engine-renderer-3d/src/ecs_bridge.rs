@@ -3,9 +3,7 @@
 //! This module provides the bridge between the ECS world and the 3D renderer,
 //! converting ECS entities with 3D components into render objects.
 
-use engine_components_3d::{
-    Material as EcsMaterial, Mesh, MeshType, Transform,
-};
+use engine_components_3d::{Material as EcsMaterial, Mesh, MeshType, Transform};
 use engine_ecs_core::ecs_v2::{Entity, World};
 use glam::{Mat4, Vec3};
 use std::collections::HashMap;
@@ -377,6 +375,7 @@ impl EcsRendererIntegration {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use glam::{Vec3, Vec4Swizzles};
 
     #[test]
     fn test_transform_to_matrix() {

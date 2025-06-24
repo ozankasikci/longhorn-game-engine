@@ -11,7 +11,7 @@ pub struct SceneNavigator;
 impl SceneNavigator {
     /// Transform movement vector by camera rotation (for WASD movement)
     pub fn transform_movement_by_camera(
-        camera_transform: &Transform,
+        _camera_transform: &Transform,
         movement: [f32; 3],
     ) -> [f32; 3] {
         // Simple transformation - could be improved with proper matrix math
@@ -88,7 +88,7 @@ impl SceneNavigator {
             return;
         }
 
-        let mut movement = [0.0, 0.0, 0.0];
+        let mut movement = [0.0f32, 0.0f32, 0.0f32];
         let speed = if ui.input(|i| i.modifiers.shift) {
             scene_nav.movement_speed * scene_nav.fast_movement_multiplier
         } else {
@@ -118,10 +118,9 @@ impl SceneNavigator {
         }
 
         // Apply movement if any
-        let movement_magnitude = ((movement[0] * movement[0]
-            + movement[1] * movement[1]
-            + movement[2] * movement[2]) as f32)
-            .sqrt();
+        let movement_magnitude =
+            (movement[0] * movement[0] + movement[1] * movement[1] + movement[2] * movement[2])
+                .sqrt();
         if movement_magnitude > 0.001 {
             // Normalize movement vector
             movement[0] /= movement_magnitude;
@@ -175,14 +174,14 @@ impl SceneNavigator {
         // Use the response object's drag detection for reliable input in docked panels
         let is_dragging = response.dragged_by(egui::PointerButton::Secondary);
         let drag_started = response.drag_started_by(egui::PointerButton::Secondary);
-        let drag_stopped = response.drag_released_by(egui::PointerButton::Secondary);
+        let drag_stopped = response.drag_stopped_by(egui::PointerButton::Secondary);
 
         // Get pointer position from context
         let ctx = ui.ctx();
         let pointer_pos = ctx.input(|i| i.pointer.hover_pos());
 
         // Check if mouse is in rect
-        let mouse_in_rect = pointer_pos.map_or(false, |pos| rect.contains(pos));
+        let mouse_in_rect = pointer_pos.is_some_and(|pos| rect.contains(pos));
 
         // Start navigation on drag start
         if drag_started && mouse_in_rect && !scene_navigation.is_navigating {

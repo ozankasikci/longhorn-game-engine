@@ -31,6 +31,12 @@ pub enum Axis {
     YZ, // Plane movement in Y and Z
 }
 
+impl Default for Gizmo3DInput {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Gizmo3DInput {
     pub fn new() -> Self {
         Self {
@@ -103,7 +109,7 @@ impl Gizmo3DInput {
                 );
                 handled = true;
             }
-        } else if response.drag_released_by(egui::PointerButton::Primary) && self.dragging {
+        } else if response.drag_stopped_by(egui::PointerButton::Primary) && self.dragging {
             // End drag
             eprintln!("3D GIZMO INPUT: Ending drag");
             self.end_drag();
@@ -176,6 +182,7 @@ impl Gizmo3DInput {
         self.drag_plane_point = Some(world_pos);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn update_drag(
         &mut self,
         mouse_pos: egui::Pos2,

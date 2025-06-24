@@ -1,21 +1,20 @@
 // Inspector panel - shows and edits components of selected entities
 
 use eframe::egui;
-use engine_components_2d::{Sprite, SpriteRenderer};
+use engine_components_2d::SpriteRenderer;
 use engine_components_3d::{Light, Material, MeshFilter, MeshRenderer, Transform, Visibility};
 use engine_components_ui::{Canvas, Name};
 use engine_ecs_core::{Entity, World};
 use engine_renderer_3d::Camera;
 
+#[derive(Default)]
 pub struct InspectorPanel {
     show_add_component_dialog: bool,
 }
 
 impl InspectorPanel {
     pub fn new() -> Self {
-        Self {
-            show_add_component_dialog: false,
-        }
+        Self::default()
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, world: &mut World, selected_entity: Option<Entity>) {
@@ -33,7 +32,7 @@ impl InspectorPanel {
                     .clicked()
                 {
                     let mut info = String::new();
-                    info.push_str(&format!("=== Entity Information ===\n"));
+                    info.push_str("=== Entity Information ===\n");
                     info.push_str(&format!("Entity ID: {}\n", selected_entity.id()));
 
                     // Get entity name
@@ -43,7 +42,7 @@ impl InspectorPanel {
 
                     // Get transform
                     if let Some(transform) = world.get_component::<Transform>(selected_entity) {
-                        info.push_str(&format!("\nTransform:\n"));
+                        info.push_str("\nTransform:\n");
                         info.push_str(&format!(
                             "  Position: [{:.2}, {:.2}, {:.2}]\n",
                             transform.position[0], transform.position[1], transform.position[2]
@@ -62,12 +61,12 @@ impl InspectorPanel {
 
                     // Get mesh info
                     if world.get_component::<MeshFilter>(selected_entity).is_some() {
-                        info.push_str(&format!("\nMesh: MeshFilter + MeshRenderer\n"));
+                        info.push_str("\nMesh: MeshFilter + MeshRenderer\n");
                     }
 
                     // Get material info
                     if let Some(material) = world.get_component::<Material>(selected_entity) {
-                        info.push_str(&format!("\nMaterial:\n"));
+                        info.push_str("\nMaterial:\n");
                         info.push_str(&format!(
                             "  Color: [{:.2}, {:.2}, {:.2}, {:.2}]\n",
                             material.color[0],
@@ -282,7 +281,7 @@ impl InspectorPanel {
                                 .add(
                                     egui::DragValue::new(&mut color[0])
                                         .speed(0.01)
-                                        .clamp_range(0.0..=1.0),
+                                        .range(0.0..=1.0),
                                 )
                                 .changed();
                             ui.label("G:");
@@ -290,7 +289,7 @@ impl InspectorPanel {
                                 .add(
                                     egui::DragValue::new(&mut color[1])
                                         .speed(0.01)
-                                        .clamp_range(0.0..=1.0),
+                                        .range(0.0..=1.0),
                                 )
                                 .changed();
                             ui.label("B:");
@@ -298,7 +297,7 @@ impl InspectorPanel {
                                 .add(
                                     egui::DragValue::new(&mut color[2])
                                         .speed(0.01)
-                                        .clamp_range(0.0..=1.0),
+                                        .range(0.0..=1.0),
                                 )
                                 .changed();
                             ui.label("A:");
@@ -306,7 +305,7 @@ impl InspectorPanel {
                                 .add(
                                     egui::DragValue::new(&mut color[3])
                                         .speed(0.01)
-                                        .clamp_range(0.0..=1.0),
+                                        .range(0.0..=1.0),
                                 )
                                 .changed();
                             ui.end_row();
@@ -316,7 +315,7 @@ impl InspectorPanel {
                                 .add(
                                     egui::DragValue::new(&mut metallic)
                                         .speed(0.01)
-                                        .clamp_range(0.0..=1.0),
+                                        .range(0.0..=1.0),
                                 )
                                 .changed();
                             ui.end_row();
@@ -326,7 +325,7 @@ impl InspectorPanel {
                                 .add(
                                     egui::DragValue::new(&mut roughness)
                                         .speed(0.01)
-                                        .clamp_range(0.0..=1.0),
+                                        .range(0.0..=1.0),
                                 )
                                 .changed();
                             ui.end_row();
@@ -338,7 +337,7 @@ impl InspectorPanel {
                                 .add(
                                     egui::DragValue::new(&mut emissive[0])
                                         .speed(0.01)
-                                        .clamp_range(0.0..=10.0),
+                                        .range(0.0..=10.0),
                                 )
                                 .changed();
                             ui.label("G:");
@@ -346,7 +345,7 @@ impl InspectorPanel {
                                 .add(
                                     egui::DragValue::new(&mut emissive[1])
                                         .speed(0.01)
-                                        .clamp_range(0.0..=10.0),
+                                        .range(0.0..=10.0),
                                 )
                                 .changed();
                             ui.label("B:");
@@ -354,7 +353,7 @@ impl InspectorPanel {
                                 .add(
                                     egui::DragValue::new(&mut emissive[2])
                                         .speed(0.01)
-                                        .clamp_range(0.0..=10.0),
+                                        .range(0.0..=10.0),
                                 )
                                 .changed();
                             ui.end_row();
@@ -593,7 +592,7 @@ impl InspectorPanel {
                         Ok(_) => {
                             self.show_add_component_dialog = false;
                         }
-                        Err(e) => {}
+                        Err(_e) => {}
                     }
                 }
 
@@ -603,7 +602,7 @@ impl InspectorPanel {
                         Ok(_) => {
                             self.show_add_component_dialog = false;
                         }
-                        Err(e) => {}
+                        Err(_e) => {}
                     }
                 }
 
@@ -613,7 +612,7 @@ impl InspectorPanel {
                         Ok(_) => {
                             self.show_add_component_dialog = false;
                         }
-                        Err(e) => {}
+                        Err(_e) => {}
                     }
                 }
 
@@ -623,7 +622,7 @@ impl InspectorPanel {
                         Ok(_) => {
                             self.show_add_component_dialog = false;
                         }
-                        Err(e) => {}
+                        Err(_e) => {}
                     }
                 }
 
@@ -641,7 +640,7 @@ impl InspectorPanel {
                             Ok(_) => {
                                 self.show_add_component_dialog = false;
                             }
-                            Err(e) => {}
+                            Err(_e) => {}
                         }
                     }
                 }
@@ -657,7 +656,7 @@ impl InspectorPanel {
                             Ok(_) => {
                                 self.show_add_component_dialog = false;
                             }
-                            Err(e) => {}
+                            Err(_e) => {}
                         }
                     }
                 }
@@ -671,7 +670,7 @@ impl InspectorPanel {
                         Ok(_) => {
                             self.show_add_component_dialog = false;
                         }
-                        Err(e) => {}
+                        Err(_e) => {}
                     }
                 }
 
@@ -681,7 +680,7 @@ impl InspectorPanel {
                         Ok(_) => {
                             self.show_add_component_dialog = false;
                         }
-                        Err(e) => {}
+                        Err(_e) => {}
                     }
                 }
 

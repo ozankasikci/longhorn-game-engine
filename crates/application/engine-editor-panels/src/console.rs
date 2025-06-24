@@ -3,15 +3,14 @@
 use crate::types::{ConsoleMessage, ConsoleMessageType};
 use eframe::egui;
 
+#[derive(Default)]
 pub struct ConsolePanel {
     pub console_messages: Vec<ConsoleMessage>,
 }
 
 impl ConsolePanel {
     pub fn new() -> Self {
-        Self {
-            console_messages: Vec::new(),
-        }
+        Self::default()
     }
 
     pub fn add_messages(&mut self, mut messages: Vec<ConsoleMessage>) {

@@ -3,11 +3,12 @@
 use crate::types::{ConsoleMessage, PlayState};
 use eframe::egui;
 
+#[derive(Default)]
 pub struct GameViewPanel {}
 
 impl GameViewPanel {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 
     pub fn show(
@@ -15,7 +16,7 @@ impl GameViewPanel {
         ui: &mut egui::Ui,
         play_state: PlayState,
     ) -> (Vec<ConsoleMessage>, Option<egui::Rect>) {
-        let mut messages = Vec::new();
+        let messages = Vec::new();
 
         // Game View header
         ui.horizontal(|ui| {

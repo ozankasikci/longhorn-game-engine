@@ -50,7 +50,7 @@ impl Drop for ThreadPool {
     fn drop(&mut self) {
         // Close the channel by dropping the sender
         // This will cause worker threads to exit their loops
-        
+
         // Wait for all workers to finish
         for worker in self.workers.drain(..) {
             if let Err(e) = worker.handle.join() {

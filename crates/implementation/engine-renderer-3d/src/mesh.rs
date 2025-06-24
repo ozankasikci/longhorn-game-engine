@@ -1,6 +1,5 @@
 //! Mesh data structures and management
 
-
 /// Re-export from renderer for convenience
 pub use crate::renderer::Vertex;
 

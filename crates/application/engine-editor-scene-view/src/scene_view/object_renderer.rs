@@ -1,12 +1,6 @@
 // Object rendering logic for the scene view
 
-use crate::ConsoleMessage;
 use eframe::egui;
-use engine_components_2d::SpriteRenderer;
-use engine_components_3d::{Material, Mesh, MeshType, Transform};
-use engine_components_ui::Name;
-use engine_ecs_core::{Entity, World};
-use engine_renderer_3d::Camera;
 
 /// Renders a camera entity in the scene view
 pub fn render_camera(

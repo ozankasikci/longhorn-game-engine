@@ -413,10 +413,10 @@ mod tests {
     #[test]
     fn test_bounding_volume_point() {
         let identity_matrix = Mat4::IDENTITY;
-        let frustum = Frustum::from_view_projection_matrix(identity_matrix);
+        let _frustum = Frustum::from_view_projection_matrix(identity_matrix);
 
-        let point_inside = BoundingVolume::point(Vec3::new(0.0, 0.0, -1.0));
-        let point_outside = BoundingVolume::point(Vec3::new(100.0, 0.0, -1.0));
+        let _point_inside = BoundingVolume::point(Vec3::new(0.0, 0.0, -1.0));
+        let _point_outside = BoundingVolume::point(Vec3::new(100.0, 0.0, -1.0));
 
         // Note: These tests depend on the specific frustum extraction implementation
         // For a proper test, we'd need a known camera setup

@@ -3,9 +3,7 @@
 // This test defines the expected behavior for texture import functionality
 
 use engine_asset_import::{ImportContext, ImportSettings};
-use engine_texture_import::{
-    TextureData, TextureFormat, TextureImporter, TextureSettings,
-};
+use engine_texture_import::{TextureData, TextureFormat, TextureImporter, TextureSettings};
 
 #[test]
 fn test_png_import() {

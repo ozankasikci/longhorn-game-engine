@@ -83,3 +83,9 @@ impl PlayStateManager {
         self.play_state
     }
 }
+
+impl Default for PlayStateManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}

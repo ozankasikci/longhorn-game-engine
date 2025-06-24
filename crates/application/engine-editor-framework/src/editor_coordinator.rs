@@ -67,3 +67,9 @@ impl EditorCoordinator {
         self.play_state_manager.delta_time
     }
 }
+
+impl Default for EditorCoordinator {
+    fn default() -> Self {
+        Self::new()
+    }
+}

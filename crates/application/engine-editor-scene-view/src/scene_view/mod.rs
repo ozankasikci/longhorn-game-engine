@@ -17,7 +17,7 @@ mod navigation_tests;
 
 use crate::types::{ConsoleMessage, GizmoSystem, SceneNavigation};
 use eframe::egui;
-use engine_components_3d::{MeshFilter, Transform};
+use engine_components_3d::Transform;
 use engine_components_ui::Name;
 use engine_ecs_core::{Entity, World};
 use glam::{Mat4, Vec3};
@@ -68,7 +68,7 @@ fn focus_on_selected_object(
 
 /// Get camera view and projection matrices for 3D projection
 fn get_camera_matrices(
-    world: &World,
+    _world: &World,
     scene_navigation: &SceneNavigation,
     viewport_rect: egui::Rect,
 ) -> (Option<Mat4>, Option<Mat4>) {
@@ -117,15 +117,24 @@ impl SceneViewPanel {
             gizmo_3d_input: gizmo_3d_input::Gizmo3DInput::new(),
         }
     }
+}
 
+impl Default for SceneViewPanel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SceneViewPanel {
     /// Main entry point for rendering the scene view
+    #[allow(clippy::too_many_arguments)]
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
         world: &mut World,
         selected_entity: Option<Entity>,
         scene_navigation: &mut SceneNavigation,
-        gizmo_system: &mut dyn GizmoSystem,
+        _gizmo_system: &mut dyn GizmoSystem,
         scene_renderer: &mut scene_view_impl::SceneViewRenderer,
         play_state: crate::PlayState,
     ) -> Vec<ConsoleMessage> {
@@ -203,7 +212,7 @@ impl SceneViewPanel {
         };
 
         // Handle navigation only if gizmo didn't handle the input
-        let mut console_messages = if gizmo_handled {
+        let console_messages = if gizmo_handled {
             // If gizmo handled input, ensure we maintain focus
             response.request_focus();
             Vec::new()

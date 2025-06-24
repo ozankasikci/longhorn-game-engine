@@ -234,6 +234,7 @@ impl FolderManager {
         self.load_directory(&full_path)
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn load_directory(&self, dir_path: &Path) -> Result<Vec<ProjectAsset>, FolderOperationError> {
         let mut assets = Vec::new();
 

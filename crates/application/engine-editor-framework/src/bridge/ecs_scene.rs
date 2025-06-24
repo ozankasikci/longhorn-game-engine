@@ -7,3 +7,9 @@ impl EcsSceneBridge {
         Self
     }
 }
+
+impl Default for EcsSceneBridge {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -1,17 +1,10 @@
 // Scene view implementation - 3D scene rendering with engine-renderer-3d
 
-use super::object_renderer;
 use crate::types::{PlayState, SceneNavigation};
-use crate::ConsoleMessage;
 use eframe::egui;
-use engine_components_2d::{Sprite, SpriteRenderer};
-use engine_components_3d::{
-    Light, Material, Mesh, MeshFilter, MeshRenderer, MeshType, Transform, Visibility,
-};
-use engine_components_ui::Name;
+use engine_components_3d::{MeshFilter, Transform};
 use engine_ecs_core::{Entity, World};
 use engine_renderer_3d::{Camera, CameraController, EcsRenderBridge, EguiRenderWidget, Renderer3D};
-use glam::Mat4;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -35,7 +28,15 @@ impl SceneViewRenderer {
             editor_camera: super::ecs_camera_bridge::EditorCameraManager::new(),
         }
     }
+}
 
+impl Default for SceneViewRenderer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SceneViewRenderer {
     /// Initialize the 3D renderer (call this when we have wgpu context)
     pub fn initialize_renderer(
         &mut self,
@@ -96,6 +97,7 @@ impl SceneViewRenderer {
     }
 
     /// Main scene rendering function - Using engine-renderer-3d
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_scene(
         &mut self,
         world: &mut World,
@@ -104,7 +106,7 @@ impl SceneViewRenderer {
         response: &egui::Response,
         scene_navigation: &mut SceneNavigation,
         selected_entity: Option<Entity>,
-        play_state: PlayState,
+        _play_state: PlayState,
     ) {
         // Initialize editor camera in ECS if needed
         self.editor_camera.initialize(world);
@@ -123,7 +125,7 @@ impl SceneViewRenderer {
 
         // Get camera from ECS for rendering
         let camera = if let Some(entity) = self.editor_camera.camera_entity {
-            if let (Some(transform), Some(cam)) = (
+            if let (Some(transform), Some(_cam)) = (
                 world.get_component::<engine_components_3d::Transform>(entity),
                 world.get_component::<engine_components_3d::Camera>(entity),
             ) {
@@ -152,7 +154,8 @@ impl SceneViewRenderer {
         self.camera_controller.camera = camera;
 
         // If we have the renderer initialized, use it
-        if let (Some(render_widget), Some(ecs_bridge)) = (&mut self.render_widget, &self.ecs_bridge)
+        if let (Some(render_widget), Some(_ecs_bridge)) =
+            (&mut self.render_widget, &self.ecs_bridge)
         {
             log::info!(
                 "SCENE VIEW: Using 3D renderer with camera at pos={:?}",
@@ -323,7 +326,7 @@ impl SceneViewRenderer {
         );
 
         // Draw simple 2D representation of entities
-        let entities_with_transforms: Vec<_> = world
+        let _entities_with_transforms: Vec<_> = world
             .query_legacy::<Transform>()
             .map(|(entity, _)| entity)
             .collect();

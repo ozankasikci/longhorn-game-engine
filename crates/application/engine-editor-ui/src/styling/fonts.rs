@@ -28,7 +28,7 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
 }
 
 /// Apply font styling to egui style
-pub fn apply_longhorn_font_styles(style: &mut egui::Style) {
+pub fn apply_longhorn_font_styles(_style: &mut egui::Style) {
     // Font styling can be added here when custom fonts are implemented
     // For now, rely on default font configuration
 }

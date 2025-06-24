@@ -1,8 +1,8 @@
 //! Primitive mesh generators and geometric shapes
 
 use engine_geometry_core::{
-    Mesh, MeshData, PrimitiveGenerator,
-    PrimitiveMeshFactory, PrimitiveParams, PrimitiveType, Vertex,
+    Mesh, MeshData, PrimitiveGenerator, PrimitiveMeshFactory, PrimitiveParams, PrimitiveType,
+    Vertex,
 };
 use glam::{Vec2, Vec3};
 

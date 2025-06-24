@@ -11,7 +11,15 @@ impl MenuBar {
     pub fn new() -> Self {
         Self {}
     }
+}
 
+impl Default for MenuBar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MenuBar {
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,

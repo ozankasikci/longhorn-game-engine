@@ -1,6 +1,5 @@
 // Tab viewer implementation for the docking system
 
-use crate::types::ConsoleMessage;
 use crate::types::PanelType;
 use eframe::egui;
 use egui_dock::{NodeIndex, SurfaceIndex, TabViewer};
@@ -35,7 +34,7 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
     fn context_menu(
         &mut self,
         ui: &mut egui::Ui,
-        tab: &mut Self::Tab,
+        _tab: &mut Self::Tab,
         _surface: SurfaceIndex,
         _node: NodeIndex,
     ) {

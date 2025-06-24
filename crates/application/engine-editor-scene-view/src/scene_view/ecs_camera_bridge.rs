@@ -15,6 +15,12 @@ pub struct EditorCameraManager {
     pub fps_controller: FPSCameraController,
 }
 
+impl Default for EditorCameraManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EditorCameraManager {
     pub fn new() -> Self {
         let mut fps_controller = FPSCameraController::new();
@@ -147,9 +153,9 @@ impl EditorCameraManager {
     }
 
     /// Update camera aspect ratio
-    pub fn update_aspect_ratio(&self, world: &mut World, aspect_ratio: f32) {
+    pub fn update_aspect_ratio(&self, world: &mut World, _aspect_ratio: f32) {
         if let Some(entity) = self.camera_entity {
-            if let Some(camera) = world.get_component_mut::<Camera>(entity) {
+            if let Some(_camera) = world.get_component_mut::<Camera>(entity) {
                 // The aspect ratio is calculated dynamically from viewport,
                 // but we can store a hint here if needed
             }

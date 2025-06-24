@@ -301,7 +301,7 @@ impl MaterialGroup {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use glam::Mat4;
+    use glam::{Mat4, Vec3};
 
     fn create_test_object(material_id: u32, position: Vec3) -> RenderObject {
         let transform = Mat4::from_translation(position);

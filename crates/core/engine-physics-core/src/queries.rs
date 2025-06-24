@@ -77,7 +77,6 @@ pub struct QueryFilter {
     pub custom_predicate: Option<String>,
 }
 
-
 /// Shape for overlap queries
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum QueryShape {

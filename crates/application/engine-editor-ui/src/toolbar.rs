@@ -1,6 +1,5 @@
 // Toolbar - Longhorn-style editor toolbar with scene tools and play controls
 
-use crate::types::ConsoleMessage;
 use crate::types::{GizmoSystem, PlayState, SceneNavigation, SceneTool};
 use eframe::egui;
 use engine_components_3d::Transform;
@@ -12,7 +11,16 @@ impl Toolbar {
     pub fn new() -> Self {
         Self {}
     }
+}
 
+impl Default for Toolbar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Toolbar {
+    #[allow(clippy::too_many_arguments)]
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
@@ -67,7 +75,7 @@ impl Toolbar {
                 gizmo_system.set_active_tool(SceneTool::Move);
                 // Enable move gizmo if an entity is selected
                 if let Some(entity) = selected_entity {
-                    if let Some(transform) = world.get_component::<Transform>(entity) {
+                    if let Some(_transform) = world.get_component::<Transform>(entity) {
                         gizmo_system.enable_move_gizmo();
                     }
                 }
@@ -179,7 +187,7 @@ impl Toolbar {
                     .on_hover_text("Focus camera on selected object")
                     .clicked()
                 {
-                    if let Some(ref obj) = selected_object {
+                    if let Some(ref _obj) = selected_object {
                         // Focused on object
                     }
                 }

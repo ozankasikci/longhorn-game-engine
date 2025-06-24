@@ -1,10 +1,11 @@
 //! Integration tests for engine-scene
 
-use engine_components_3d::{Light, LightType, Transform};
+use engine_components_3d::Transform;
 use engine_materials_core::Color;
+use engine_scene::light::{Attenuation, DirectionalLight, Light, LightType, PointLight, ShadowSettings, SpotLight, AreaLight};
 use engine_scene::transform::TransformMatrix;
 use engine_scene::*;
-use glam::{Mat4, Quat, Vec3};
+use glam::{Mat4, Vec3};
 
 // Note: These tests were written for a different Transform API
 // Commenting out tests that don't match the current API
@@ -107,14 +108,16 @@ fn test_node_hierarchy_operations() {
     hierarchy.set_parent(child1, Some(root)).unwrap();
     hierarchy.set_parent(child2, Some(root)).unwrap();
 
-    // Check parent-child relationships
-    assert_eq!(hierarchy.get_parent(child1), Some(root));
-    assert_eq!(hierarchy.get_parent(child2), Some(root));
+    // Check parent-child relationships by examining nodes
+    assert_eq!(hierarchy.get_node(child1).unwrap().parent, Some(root));
+    assert_eq!(hierarchy.get_node(child2).unwrap().parent, Some(root));
 
     let children = hierarchy.get_children(root);
     assert_eq!(children.len(), 2);
-    assert!(children.contains(&child1));
-    assert!(children.contains(&child2));
+    // Children are nodes, we need to check their IDs
+    let child_ids: Vec<NodeId> = children.iter().map(|node| node.id).collect();
+    assert!(child_ids.contains(&child1));
+    assert!(child_ids.contains(&child2));
 }
 
 #[test]
@@ -255,7 +258,7 @@ fn test_light_component() {
     assert!(directional.cast_shadows);
 
     match &directional.light_type {
-        LightType::Directional(light) => {
+        LightType::Directional(_light) => {
             assert_eq!(directional.intensity, 1.0);
         }
         _ => panic!("Expected directional light"),
@@ -283,9 +286,9 @@ fn test_area_light_properties() {
 fn test_scene_node_light_component() {
     let mut node = SceneNode::new("test_node");
 
-    // Add a point light to the node
-    let point_light = Light {
-        light_type: LightType::Point { range: 10.0 },
+    // Add a point light to the node (using components-3d Light)
+    let point_light = engine_components_3d::Light {
+        light_type: engine_components_3d::LightType::Point { range: 10.0 },
         color: [1.0, 1.0, 1.0],
         intensity: 100.0,
     };
@@ -301,8 +304,8 @@ fn test_multiple_lights_in_scene() {
     // Create multiple nodes with different lights
     let directional_light_node = scene.add_node({
         let mut node = SceneNode::new("directional_light");
-        node.components.light = Some(Light {
-            light_type: LightType::Directional,
+        node.components.light = Some(engine_components_3d::Light {
+            light_type: engine_components_3d::LightType::Directional,
             color: [1.0, 1.0, 1.0],
             intensity: 0.5,
         });
@@ -311,9 +314,9 @@ fn test_multiple_lights_in_scene() {
 
     let point_light_node = scene.add_node({
         let mut node = SceneNode::new("point_light");
-        node.components.light = Some(Light {
-            light_type: LightType::Point { range: 20.0 },
-            color: [1.0, 1.0, 0.0], // Yellow
+        node.components.light = Some(engine_components_3d::Light {
+            light_type: engine_components_3d::LightType::Point { range: 20.0 },
+            color: [1.0, 1.0, 0.0], // Yellow  
             intensity: 50.0,
         });
         node
