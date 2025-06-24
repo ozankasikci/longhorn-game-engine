@@ -2,8 +2,8 @@
 
 use engine_components_3d::{Light, LightType, Transform};
 use engine_materials_core::Color;
-use engine_scene::*;
 use engine_scene::transform::TransformMatrix;
+use engine_scene::*;
 use glam::{Mat4, Quat, Vec3};
 
 // Note: These tests were written for a different Transform API
@@ -320,8 +320,18 @@ fn test_multiple_lights_in_scene() {
     });
 
     // Verify both lights were added
-    assert!(scene.get_node(directional_light_node).unwrap().components.light.is_some());
-    assert!(scene.get_node(point_light_node).unwrap().components.light.is_some());
+    assert!(scene
+        .get_node(directional_light_node)
+        .unwrap()
+        .components
+        .light
+        .is_some());
+    assert!(scene
+        .get_node(point_light_node)
+        .unwrap()
+        .components
+        .light
+        .is_some());
     assert_eq!(scene.light_nodes().len(), 2);
 }
 

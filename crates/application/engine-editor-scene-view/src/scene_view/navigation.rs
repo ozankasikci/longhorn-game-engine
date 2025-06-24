@@ -10,7 +10,10 @@ pub struct SceneNavigator;
 
 impl SceneNavigator {
     /// Transform movement vector by camera rotation (for WASD movement)
-    pub fn transform_movement_by_camera(camera_transform: &Transform, movement: [f32; 3]) -> [f32; 3] {
+    pub fn transform_movement_by_camera(
+        camera_transform: &Transform,
+        movement: [f32; 3],
+    ) -> [f32; 3] {
         // Simple transformation - could be improved with proper matrix math
         // For now, just return the movement as-is (no camera transformation)
         // This allows tests to pass while indicating the feature isn't fully implemented

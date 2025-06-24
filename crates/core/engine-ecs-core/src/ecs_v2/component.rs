@@ -28,15 +28,15 @@ static COMPONENT_REGISTRY: Lazy<Mutex<HashMap<TypeId, ComponentArrayFactory>>> =
 /// ```rust
 /// use engine_ecs_core::ecs_v2::register_component;
 /// use engine_component_traits::Component;
-/// 
+///
 /// #[derive(Clone, Debug)]
 /// struct Position { x: f32, y: f32 }
 /// impl Component for Position {}
-/// 
+///
 /// #[derive(Clone, Debug)]
 /// struct Velocity { x: f32, y: f32 }
 /// impl Component for Velocity {}
-/// 
+///
 /// register_component::<Position>();
 /// register_component::<Velocity>();
 /// ```
