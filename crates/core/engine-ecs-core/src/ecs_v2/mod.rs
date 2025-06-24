@@ -15,6 +15,16 @@
 //!
 //! ```rust
 //! use engine_ecs_core::ecs_v2::*;
+//! use engine_component_traits::Component;
+//!
+//! // Define component types
+//! #[derive(Clone, Debug)]
+//! struct Position { x: f32, y: f32 }
+//! impl Component for Position {}
+//!
+//! #[derive(Clone, Debug)]
+//! struct Velocity { x: f32, y: f32 }
+//! impl Component for Velocity {}
 //!
 //! // Register components
 //! register_component::<Position>();
@@ -22,12 +32,11 @@
 //!
 //! // Create world and spawn entities
 //! let mut world = World::new();
-//! let entity = world.spawn((Position { x: 0.0, y: 0.0 }, Velocity { x: 1.0, y: 0.0 }));
+//! let entity = world.spawn_bundle((Position { x: 0.0, y: 0.0 }, Velocity { x: 1.0, y: 0.0 }));
 //!
-//! // Query components
-//! for (entity, (pos, vel)) in world.query::<(&mut Position, &Velocity)>() {
-//!     pos.x += vel.x;
-//!     pos.y += vel.y;
+//! // Query components individually  
+//! for (entity, pos) in world.query_legacy::<Position>() {
+//!     println!("Entity {:?} position: {:?}", entity, pos);
 //! }
 //! ```
 
