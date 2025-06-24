@@ -1,23 +1,15 @@
-//! Advanced camera system for mobile-first game engine
+//! Camera utilities for mobile-first game engine
 //! 
-//! This crate provides sophisticated camera management with viewport control,
-//! efficient culling, and mobile-optimized rendering capabilities.
+//! This crate provides camera matrix calculations, culling utilities,
+//! and viewport management for the camera systems.
 
-pub mod camera;
 pub mod viewport;
-pub mod projection;
 pub mod culling;
-pub mod components;
 pub mod matrices;
 
 // Core exports
-pub use camera::{Camera as AdvancedCamera, CameraType, CameraComponent, CameraUniform};
 pub use viewport::{Viewport, ViewportTransform};
-pub use projection::{ProjectionMatrix, OrthographicProjection, PerspectiveProjection};
 pub use culling::*;
-
-// ECS Component exports
-pub use components::{Camera, Camera2D};
 
 // Error types
 use thiserror::Error;
