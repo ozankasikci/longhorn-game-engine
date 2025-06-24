@@ -4,7 +4,7 @@
 //! converting ECS entities with 3D components into render objects.
 
 use std::collections::HashMap;
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Vec3, Vec4Swizzles};
 use engine_ecs_core::ecs_v2::{World, Entity};
 use engine_components_3d::{Transform, Material as EcsMaterial, MeshFilter, MeshRenderer, Mesh, MeshType};
 

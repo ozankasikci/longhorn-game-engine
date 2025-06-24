@@ -82,7 +82,7 @@ impl<T: AudioManager> AudioSystem for AudioSystemImpl<T> {
         self.audio_manager.update(delta_time)?;
         
         // Process all entities with AudioSource components
-        for (entity, audio_source) in world.query::<AudioSource>() {
+        for (entity, audio_source) in world.query_legacy::<AudioSource>() {
             // Check if we need to start playing
             if audio_source.play_on_awake && audio_source.state == crate::PlaybackState::Stopped {
                 self.play_entity_audio(world, entity)?;
@@ -126,7 +126,7 @@ impl<T: AudioManager> AudioSystem for AudioSystemImpl<T> {
         };
         
         // Update spatial audio sources
-        for (entity, spatial_source) in world.query::<SpatialAudioSource>() {
+        for (entity, spatial_source) in world.query_legacy::<SpatialAudioSource>() {
             if !spatial_source.enabled {
                 continue;
             }
@@ -165,7 +165,7 @@ impl<T: AudioManager> AudioSystem for AudioSystemImpl<T> {
     
     fn update_streaming_sources(&mut self, world: &World, _delta_time: f32) -> Result<()> {
         // Process streaming audio sources
-        for (_entity, streaming_source) in world.query::<StreamingAudioSource>() {
+        for (_entity, streaming_source) in world.query_legacy::<StreamingAudioSource>() {
             // Check if streaming source needs attention
             if streaming_source.auto_play && streaming_source.is_ready() && !streaming_source.is_playing() {
                 // Could trigger playback here
@@ -181,7 +181,7 @@ impl<T: AudioManager> AudioSystem for AudioSystemImpl<T> {
     
     fn process_audio_effects(&mut self, world: &World) -> Result<()> {
         // Process entities with audio effects
-        for (_entity, effects) in world.query::<AudioEffects>() {
+        for (_entity, effects) in world.query_legacy::<AudioEffects>() {
             if effects.has_effects() {
                 // Effects processing would be handled by the audio manager implementation
                 // This is where we'd apply real-time audio effects

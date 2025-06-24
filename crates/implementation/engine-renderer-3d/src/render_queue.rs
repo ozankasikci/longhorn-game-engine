@@ -4,7 +4,7 @@
 //! to minimize state changes and optimize GPU performance.
 
 use crate::{RenderObject, Camera};
-use glam::{Mat4, Vec3, Vec4Swizzles};
+use glam::{Vec3, Vec4Swizzles};
 use std::cmp::Ordering;
 
 /// Sorting strategy for render objects

@@ -2,7 +2,6 @@
 
 use engine_camera_core::{FrustumCuller, FrustumCullerFactory, CullingResult, BoundingVolume};
 use glam::{Mat4, Vec3};
-use serde::{Serialize, Deserialize};
 
 /// Frustum for culling operations
 #[derive(Debug, Clone)]

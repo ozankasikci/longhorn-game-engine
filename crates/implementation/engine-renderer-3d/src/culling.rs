@@ -417,8 +417,8 @@ mod tests {
         stats.visible_objects = 3;
         stats.culled_objects = 7;
         
-        assert_eq!(stats.culling_efficiency(), 70.0);
-        assert_eq!(stats.visibility_percentage(), 30.0);
+        assert!((stats.culling_efficiency() - 70.0).abs() < 0.001);
+        assert!((stats.visibility_percentage() - 30.0).abs() < 0.001);
     }
     
     #[test]
