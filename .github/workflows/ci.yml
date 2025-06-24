@@ -87,6 +87,55 @@ jobs:
     - name: Run clippy on library code
       run: cargo clippy --workspace --lib --all-features -- -D warnings
 
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+    
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+    
+    - name: Generate code coverage
+      run: |
+        # Test core crates that don't depend on system GUI libraries
+        cargo llvm-cov --lcov --output-path lcov.info \
+          -p engine-ecs-core \
+          -p engine-math-core \
+          -p engine-component-traits \
+          -p engine-components-3d \
+          -p engine-components-2d \
+          -p engine-geometry-core \
+          -p engine-resource-core \
+          -p engine-events-core \
+          -p engine-materials-core \
+          -p engine-physics-core \
+          -p engine-audio-core \
+          -p engine-renderer-core
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: lcov.info
+        flags: core
+        name: core-coverage
+        fail_ci_if_error: false
+        verbose: true
+    
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage-report
+        path: lcov.info
+
   check:
     name: Check
     runs-on: ubuntu-latest
