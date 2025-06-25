@@ -75,6 +75,8 @@ impl WgpuDevice {
 
 // Import texture types from texture module
 pub use crate::texture::{WgpuTexture, WgpuTextureView, WgpuSampler};
+// Import bind group types from bind_group module
+pub use crate::bind_group::{WgpuBindGroup, WgpuBindGroupLayout};
 
 /// Convert engine texture usage to WGPU texture usage
 fn convert_texture_usage(usage: TextureUsage) -> wgpu::TextureUsages {
@@ -99,15 +101,7 @@ fn convert_texture_usage(usage: TextureUsage) -> wgpu::TextureUsages {
     wgpu_usage
 }
 
-pub struct WgpuBindGroup;
-impl GraphicsBindGroup for WgpuBindGroup {
-    fn layout(&self) -> &dyn GraphicsBindGroupLayout { todo!() }
-}
-
-pub struct WgpuBindGroupLayout;
-impl GraphicsBindGroupLayout for WgpuBindGroupLayout {
-    fn binding_count(&self) -> u32 { todo!() }
-}
+// Bind group types are now imported from bind_group module
 
 pub struct WgpuCommandEncoder;
 impl GraphicsCommandEncoder for WgpuCommandEncoder {
@@ -237,11 +231,51 @@ impl GraphicsDevice for WgpuDevice {
     }
     
     fn create_bind_group_layout(&self, desc: &BindGroupLayoutDescriptor) -> Result<Self::BindGroupLayout> {
-        todo!()
+        let entries: Vec<wgpu::BindGroupLayoutEntry> = desc.entries.iter().map(|entry| {
+            wgpu::BindGroupLayoutEntry {
+                binding: entry.binding,
+                visibility: crate::bind_group::convert_shader_stages(entry.visibility),
+                ty: crate::bind_group::convert_binding_type(entry.ty.clone()),
+                count: entry.count.map(|c| std::num::NonZeroU32::new(c).unwrap()),
+            }
+        }).collect();
+        
+        let wgpu_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: None,
+            entries: &entries,
+        });
+        
+        Ok(WgpuBindGroupLayout::new(wgpu_layout, desc.entries.len() as u32))
     }
     
     fn create_bind_group(&self, desc: &BindGroupDescriptor) -> Result<Self::BindGroup> {
-        todo!()
+        // Convert binding resources
+        let entries: Result<Vec<wgpu::BindGroupEntry>> = desc.entries.iter().map(|entry| {
+            let resource = match &entry.resource {
+                BindingResource::Buffer(buffer_binding) => {
+                    // We need to convert from trait object to concrete type
+                    // This is a limitation of the current design - we'll handle it for now
+                    return Err(GraphicsError::InvalidOperation(
+                        "Buffer binding not yet implemented - requires concrete buffer access".to_string()
+                    ));
+                },
+                BindingResource::TextureView(_view) => {
+                    return Err(GraphicsError::InvalidOperation(
+                        "Texture view binding not yet implemented - requires concrete view access".to_string()
+                    ));
+                },
+                BindingResource::Sampler(_sampler) => {
+                    return Err(GraphicsError::InvalidOperation(
+                        "Sampler binding not yet implemented - requires concrete sampler access".to_string()
+                    ));
+                },
+            };
+        }).collect();
+        
+        // For now, return an error until we implement proper resource binding
+        Err(GraphicsError::InvalidOperation(
+            "Bind group creation not fully implemented yet".to_string()
+        ))
     }
     
     fn create_command_encoder(&self) -> Result<Self::CommandEncoder> {
@@ -488,6 +522,100 @@ mod tests {
             };
             let hdr_texture = device.create_texture(&hdr_desc);
             assert!(hdr_texture.is_ok());
+        });
+    }
+    
+    #[test]
+    fn test_device_create_bind_group_layout() {
+        pollster::block_on(async {
+            let device = create_test_device().await;
+            
+            let desc = BindGroupLayoutDescriptor {
+                entries: vec![
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::VERTEX,
+                        ty: BindingType::Uniform,
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
+                            sample_type: TextureSampleType::Float { filterable: true },
+                            view_dimension: TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler { filtering: true },
+                        count: None,
+                    },
+                ],
+            };
+            
+            let layout = device.create_bind_group_layout(&desc).expect("Failed to create bind group layout");
+            assert_eq!(layout.binding_count(), 3);
+        });
+    }
+    
+    #[test]
+    fn test_bind_group_layout_with_storage_buffer() {
+        pollster::block_on(async {
+            let device = create_test_device().await;
+            
+            let desc = BindGroupLayoutDescriptor {
+                entries: vec![
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::Storage,
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::StorageReadOnly,
+                        count: None,
+                    },
+                ],
+            };
+            
+            let layout = device.create_bind_group_layout(&desc).expect("Failed to create storage layout");
+            assert_eq!(layout.binding_count(), 2);
+        });
+    }
+    
+    #[test] 
+    fn test_bind_group_creation_returns_error() {
+        pollster::block_on(async {
+            let device = create_test_device().await;
+            
+            // Create a simple layout
+            let layout_desc = BindGroupLayoutDescriptor {
+                entries: vec![
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::VERTEX,
+                        ty: BindingType::Uniform,
+                        count: None,
+                    },
+                ],
+            };
+            
+            let layout = device.create_bind_group_layout(&layout_desc).expect("Failed to create layout");
+            
+            // Try to create bind group - should return error for now
+            let bind_group_desc = BindGroupDescriptor {
+                layout: &layout,
+                entries: vec![], // Empty for now since we can't create proper resources yet
+            };
+            
+            let result = device.create_bind_group(&bind_group_desc);
+            assert!(result.is_err());
         });
     }
 }
