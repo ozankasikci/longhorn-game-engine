@@ -1,7 +1,9 @@
 [package]
 name = "engine-graphics-wgpu"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "graphics wgpu for Longhorn Game Engine"
 
 [dependencies]
 engine-graphics-traits = { path = "../../core/engine-graphics-traits" }

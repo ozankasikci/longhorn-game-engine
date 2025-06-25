@@ -3,6 +3,7 @@ name = "engine-components-3d"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "components 3d for Longhorn Game Engine"
 
 [dependencies]
 engine-component-traits = { path = "../engine-component-traits" }

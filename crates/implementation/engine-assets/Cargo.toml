@@ -3,6 +3,7 @@ name = "engine-assets"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "assets for Longhorn Game Engine"
 
 [dependencies]
 engine-ecs-core = { workspace = true }

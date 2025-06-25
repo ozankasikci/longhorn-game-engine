@@ -3,6 +3,7 @@ name = "engine-ecs-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Core ecs functionality for Longhorn Game Engine"
 
 [dependencies]
 glam = { workspace = true }

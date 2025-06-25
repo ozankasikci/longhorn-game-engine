@@ -3,6 +3,7 @@ name = "engine-geometry-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Core geometry functionality for Longhorn Game Engine"
 
 [dependencies]
 # Pure dependencies only - no implementation-specific crates

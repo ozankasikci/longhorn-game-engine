@@ -3,6 +3,7 @@ name = "engine-renderer-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Core renderer functionality for Longhorn Game Engine"
 
 [dependencies]
 engine-geometry-core = { workspace = true }

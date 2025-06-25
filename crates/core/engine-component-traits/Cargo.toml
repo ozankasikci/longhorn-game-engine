@@ -3,6 +3,7 @@ name = "engine-component-traits"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "component traits for Longhorn Game Engine"
 
 [dependencies]
 serde = { workspace = true }

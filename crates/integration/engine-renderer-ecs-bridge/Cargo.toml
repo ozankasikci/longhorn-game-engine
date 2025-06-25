@@ -3,6 +3,7 @@ name = "engine-renderer-ecs-bridge"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "renderer ecs bridge for Longhorn Game Engine"
 
 [dependencies]
 engine-renderer-core = { workspace = true }

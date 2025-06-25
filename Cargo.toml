@@ -47,6 +47,9 @@ members = [
     "crates/application/engine-editor-ui", 
     "crates/application/engine-editor-assets",
     "crates/application/engine-editor-framework",
+    
+    # Tools
+    "crates/tools/structure-validator",
 ]
 
 [workspace.package]

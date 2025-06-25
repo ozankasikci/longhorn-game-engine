@@ -1,7 +1,9 @@
 [package]
 name = "engine-graphics-traits"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "graphics traits for Longhorn Game Engine"
 
 [dependencies]
 bytemuck = { version = "1.14", features = ["derive"] }

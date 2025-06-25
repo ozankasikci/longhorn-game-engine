@@ -3,6 +3,7 @@ name = "engine-editor-egui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "editor egui for Longhorn Game Engine"
 
 [[bin]]
 name = "longhorn-editor"

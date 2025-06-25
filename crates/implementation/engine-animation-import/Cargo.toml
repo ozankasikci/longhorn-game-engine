@@ -3,6 +3,7 @@ name = "engine-animation-import"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "animation import functionality for Longhorn Game Engine"
 
 [dependencies]
 engine-asset-import = { workspace = true }

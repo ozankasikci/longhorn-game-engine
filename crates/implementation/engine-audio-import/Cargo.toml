@@ -3,6 +3,7 @@ name = "engine-audio-import"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "audio import functionality for Longhorn Game Engine"
 
 [dependencies]
 engine-asset-import = { workspace = true }
