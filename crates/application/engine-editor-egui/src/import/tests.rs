@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn test_import_progress_tracking() {
         // Test 6: Verify import progress UI
-        use {ImportProgress, ImportTask};
+        use crate::import::progress::{ImportProgress, ImportStatus, ImportTask};
 
         let mut progress = ImportProgress::new();
 
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn test_import_error_handling() {
         // Test 7: Verify import error handling and display
-        use {ImportError, ImportErrorDialog};
+        use crate::import::error::{ImportError, ImportErrorDialog, ImportErrorType};
 
         let mut error_dialog = ImportErrorDialog::new();
 

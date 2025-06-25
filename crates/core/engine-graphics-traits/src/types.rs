@@ -38,12 +38,12 @@ impl BufferUsage {
     pub const COPY_SRC: Self = Self(1 << 4);
     /// Buffer can be copied to
     pub const COPY_DST: Self = Self(1 << 5);
-    
+
     /// Combine usage flags
     pub const fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
     }
-    
+
     /// Check if usage contains specific flags
     pub const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) == other.0
@@ -102,12 +102,12 @@ impl TextureUsage {
     pub const STORAGE_BINDING: Self = Self(1 << 3);
     /// Texture can be rendered to
     pub const RENDER_ATTACHMENT: Self = Self(1 << 4);
-    
+
     /// Combine usage flags
     pub const fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
     }
-    
+
     /// Check if usage contains specific flags
     pub const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) == other.0
@@ -148,7 +148,7 @@ impl Color {
     pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
-    
+
     /// Black color
     pub const BLACK: Self = Self::new(0.0, 0.0, 0.0, 1.0);
     /// White color
@@ -160,7 +160,7 @@ impl Color {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_buffer_usage_flags() {
         let usage = BufferUsage::VERTEX.union(BufferUsage::COPY_DST);
@@ -168,7 +168,7 @@ mod tests {
         assert!(usage.contains(BufferUsage::COPY_DST));
         assert!(!usage.contains(BufferUsage::INDEX));
     }
-    
+
     #[test]
     fn test_texture_usage_flags() {
         let usage = TextureUsage::TEXTURE_BINDING.union(TextureUsage::COPY_DST);
@@ -176,7 +176,7 @@ mod tests {
         assert!(usage.contains(TextureUsage::COPY_DST));
         assert!(!usage.contains(TextureUsage::RENDER_ATTACHMENT));
     }
-    
+
     #[test]
     fn test_color_constants() {
         assert_eq!(Color::BLACK.r, 0.0);

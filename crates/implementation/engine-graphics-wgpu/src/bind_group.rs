@@ -1,6 +1,6 @@
 use engine_graphics_traits::{
-    GraphicsBindGroup, GraphicsBindGroupLayout, BindingType, ShaderStages,
-    TextureSampleType, TextureViewDimension,
+    BindingType, GraphicsBindGroup, GraphicsBindGroupLayout, ShaderStages, TextureSampleType,
+    TextureViewDimension,
 };
 use std::sync::Arc;
 
@@ -18,7 +18,7 @@ impl WgpuBindGroupLayout {
             binding_count,
         }
     }
-    
+
     /// Get the underlying WGPU bind group layout
     pub fn raw(&self) -> &wgpu::BindGroupLayout {
         &self.layout
@@ -45,7 +45,7 @@ impl WgpuBindGroup {
             layout,
         }
     }
-    
+
     /// Get the underlying WGPU bind group
     pub fn raw(&self) -> &wgpu::BindGroup {
         &self.bind_group
@@ -61,7 +61,7 @@ impl GraphicsBindGroup for WgpuBindGroup {
 /// Convert engine shader stages to WGPU shader stages
 pub fn convert_shader_stages(stages: ShaderStages) -> wgpu::ShaderStages {
     let mut wgpu_stages = wgpu::ShaderStages::empty();
-    
+
     if stages.contains(ShaderStages::VERTEX) {
         wgpu_stages |= wgpu::ShaderStages::VERTEX;
     }
@@ -71,7 +71,7 @@ pub fn convert_shader_stages(stages: ShaderStages) -> wgpu::ShaderStages {
     if stages.contains(ShaderStages::COMPUTE) {
         wgpu_stages |= wgpu::ShaderStages::COMPUTE;
     }
-    
+
     wgpu_stages
 }
 
@@ -93,20 +93,20 @@ pub fn convert_binding_type(binding_type: BindingType) -> wgpu::BindingType {
             has_dynamic_offset: false,
             min_binding_size: None,
         },
-        BindingType::Texture { sample_type, view_dimension, multisampled } => {
-            wgpu::BindingType::Texture {
-                sample_type: convert_texture_sample_type(sample_type),
-                view_dimension: convert_texture_view_dimension(view_dimension),
-                multisampled,
-            }
+        BindingType::Texture {
+            sample_type,
+            view_dimension,
+            multisampled,
+        } => wgpu::BindingType::Texture {
+            sample_type: convert_texture_sample_type(sample_type),
+            view_dimension: convert_texture_view_dimension(view_dimension),
+            multisampled,
         },
-        BindingType::Sampler { filtering } => wgpu::BindingType::Sampler(
-            if filtering {
-                wgpu::SamplerBindingType::Filtering
-            } else {
-                wgpu::SamplerBindingType::NonFiltering
-            }
-        ),
+        BindingType::Sampler { filtering } => wgpu::BindingType::Sampler(if filtering {
+            wgpu::SamplerBindingType::Filtering
+        } else {
+            wgpu::SamplerBindingType::NonFiltering
+        }),
     }
 }
 
@@ -119,7 +119,7 @@ fn convert_texture_sample_type(sample_type: TextureSampleType) -> wgpu::TextureS
             } else {
                 wgpu::TextureSampleType::Float { filterable: false }
             }
-        },
+        }
         TextureSampleType::Sint => wgpu::TextureSampleType::Sint,
         TextureSampleType::Uint => wgpu::TextureSampleType::Uint,
         TextureSampleType::Depth => wgpu::TextureSampleType::Depth,
@@ -142,15 +142,15 @@ fn convert_texture_view_dimension(dimension: TextureViewDimension) -> wgpu::Text
 mod tests {
     use super::*;
     use engine_graphics_traits::{
-        BindGroupLayoutDescriptor, BindGroupLayoutEntry, FilterMode, AddressMode,
+        AddressMode, BindGroupLayoutDescriptor, BindGroupLayoutEntry, FilterMode,
     };
-    
+
     async fn create_test_device() -> (wgpu::Device, wgpu::Queue) {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
-        
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -159,7 +159,7 @@ mod tests {
             })
             .await
             .expect("Failed to request adapter");
-        
+
         adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -172,12 +172,12 @@ mod tests {
             .await
             .expect("Failed to request device")
     }
-    
+
     #[test]
     fn test_bind_group_layout_creation() {
         pollster::block_on(async {
             let (device, _queue) = create_test_device().await;
-            
+
             let wgpu_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Test Layout"),
                 entries: &[
@@ -203,36 +203,34 @@ mod tests {
                     },
                 ],
             });
-            
+
             let layout = WgpuBindGroupLayout::new(wgpu_layout, 2);
             assert_eq!(layout.binding_count(), 2);
         });
     }
-    
+
     #[test]
     fn test_bind_group_creation() {
         pollster::block_on(async {
             let (device, _queue) = create_test_device().await;
-            
+
             // Create layout first
             let wgpu_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Test Layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                ],
+                    count: None,
+                }],
             });
-            
+
             let layout = Arc::new(WgpuBindGroupLayout::new(wgpu_layout, 1));
-            
+
             // Create buffer for binding
             let buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("Test Buffer"),
@@ -240,42 +238,38 @@ mod tests {
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
-            
+
             // Create a second layout for the bind group since we can't clone the first one
             let wgpu_layout2 = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Test Layout 2"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                ],
+                    count: None,
+                }],
             });
-            
+
             // Create bind group
             let wgpu_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("Test Bind Group"),
                 layout: &wgpu_layout2,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: buffer.as_entire_binding(),
-                    },
-                ],
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                }],
             });
-            
+
             let layout2 = Arc::new(WgpuBindGroupLayout::new(wgpu_layout2, 1));
             let bind_group = WgpuBindGroup::new(wgpu_bind_group, layout2);
             assert_eq!(bind_group.layout().binding_count(), 1);
         });
     }
-    
+
     #[test]
     fn test_shader_stages_conversion() {
         let test_cases = vec![
@@ -283,40 +277,49 @@ mod tests {
             (ShaderStages::FRAGMENT, wgpu::ShaderStages::FRAGMENT),
             (ShaderStages::COMPUTE, wgpu::ShaderStages::COMPUTE),
         ];
-        
+
         for (engine_stages, expected_wgpu) in test_cases {
             let converted = convert_shader_stages(engine_stages);
             assert_eq!(converted, expected_wgpu);
         }
-        
+
         // Test combined stages
         let combined = ShaderStages::VERTEX_FRAGMENT;
         let converted = convert_shader_stages(combined);
         assert!(converted.contains(wgpu::ShaderStages::VERTEX));
         assert!(converted.contains(wgpu::ShaderStages::FRAGMENT));
     }
-    
+
     #[test]
     fn test_binding_type_conversions() {
         // Test buffer bindings
         let uniform = convert_binding_type(BindingType::Uniform);
         match uniform {
-            wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, .. } => {},
+            wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                ..
+            } => {}
             _ => panic!("Wrong binding type for uniform"),
         }
-        
+
         let storage = convert_binding_type(BindingType::Storage);
         match storage {
-            wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Storage { read_only: false }, .. } => {},
+            wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Storage { read_only: false },
+                ..
+            } => {}
             _ => panic!("Wrong binding type for storage"),
         }
-        
+
         let storage_ro = convert_binding_type(BindingType::StorageReadOnly);
         match storage_ro {
-            wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Storage { read_only: true }, .. } => {},
+            wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                ..
+            } => {}
             _ => panic!("Wrong binding type for read-only storage"),
         }
-        
+
         // Test texture binding
         let texture = convert_binding_type(BindingType::Texture {
             sample_type: TextureSampleType::Float { filterable: true },
@@ -324,72 +327,78 @@ mod tests {
             multisampled: false,
         });
         match texture {
-            wgpu::BindingType::Texture { 
+            wgpu::BindingType::Texture {
                 sample_type: wgpu::TextureSampleType::Float { filterable: true },
                 view_dimension: wgpu::TextureViewDimension::D2,
                 multisampled: false,
-            } => {},
+            } => {}
             _ => panic!("Wrong binding type for texture"),
         }
-        
+
         // Test sampler binding
         let sampler = convert_binding_type(BindingType::Sampler { filtering: true });
         match sampler {
-            wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering) => {},
+            wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering) => {}
             _ => panic!("Wrong binding type for sampler"),
         }
     }
-    
+
     #[test]
     fn test_texture_sample_type_conversions() {
         assert_eq!(
             convert_texture_sample_type(TextureSampleType::Float { filterable: true }),
             wgpu::TextureSampleType::Float { filterable: true }
         );
-        
+
         assert_eq!(
             convert_texture_sample_type(TextureSampleType::Float { filterable: false }),
             wgpu::TextureSampleType::Float { filterable: false }
         );
-        
+
         assert_eq!(
             convert_texture_sample_type(TextureSampleType::Sint),
             wgpu::TextureSampleType::Sint
         );
-        
+
         assert_eq!(
             convert_texture_sample_type(TextureSampleType::Uint),
             wgpu::TextureSampleType::Uint
         );
-        
+
         assert_eq!(
             convert_texture_sample_type(TextureSampleType::Depth),
             wgpu::TextureSampleType::Depth
         );
     }
-    
+
     #[test]
     fn test_texture_view_dimension_conversions() {
         let test_cases = vec![
             (TextureViewDimension::D1, wgpu::TextureViewDimension::D1),
             (TextureViewDimension::D2, wgpu::TextureViewDimension::D2),
-            (TextureViewDimension::D2Array, wgpu::TextureViewDimension::D2Array),
+            (
+                TextureViewDimension::D2Array,
+                wgpu::TextureViewDimension::D2Array,
+            ),
             (TextureViewDimension::Cube, wgpu::TextureViewDimension::Cube),
-            (TextureViewDimension::CubeArray, wgpu::TextureViewDimension::CubeArray),
+            (
+                TextureViewDimension::CubeArray,
+                wgpu::TextureViewDimension::CubeArray,
+            ),
             (TextureViewDimension::D3, wgpu::TextureViewDimension::D3),
         ];
-        
+
         for (engine_dim, expected_wgpu) in test_cases {
             let converted = convert_texture_view_dimension(engine_dim);
             assert_eq!(converted, expected_wgpu);
         }
     }
-    
+
     #[test]
     fn test_complex_bind_group_layout() {
         pollster::block_on(async {
             let (device, _queue) = create_test_device().await;
-            
+
             // Create a complex layout with multiple binding types
             let wgpu_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Complex Layout"),
@@ -436,7 +445,7 @@ mod tests {
                     },
                 ],
             });
-            
+
             let layout = WgpuBindGroupLayout::new(wgpu_layout, 4);
             assert_eq!(layout.binding_count(), 4);
         });

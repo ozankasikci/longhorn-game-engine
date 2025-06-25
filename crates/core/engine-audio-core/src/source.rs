@@ -241,10 +241,10 @@ mod tests {
 
     #[test]
     fn test_playback_state_checks() {
-        let mut source = AudioSource::default();
-
-        // Test stopped state
-        source.state = PlaybackState::Stopped;
+        let mut source = AudioSource {
+            state: PlaybackState::Stopped,
+            ..Default::default()
+        };
         assert!(!source.is_playing());
         assert!(source.is_stopped());
         assert!(!source.is_paused());

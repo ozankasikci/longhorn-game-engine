@@ -1,6 +1,6 @@
 use engine_graphics_traits::{
-    GraphicsTexture, GraphicsTextureView, GraphicsSampler, 
-    Extent3d, TextureFormat, FilterMode, AddressMode
+    AddressMode, Extent3d, FilterMode, GraphicsSampler, GraphicsTexture, GraphicsTextureView,
+    TextureFormat,
 };
 use std::sync::Arc;
 
@@ -24,7 +24,7 @@ impl WgpuTexture {
         };
         let mip_level_count = texture.mip_level_count();
         let sample_count = texture.sample_count();
-        
+
         Self {
             texture: Arc::new(texture),
             dimensions,
@@ -33,7 +33,7 @@ impl WgpuTexture {
             sample_count,
         }
     }
-    
+
     /// Get the underlying WGPU texture
     pub fn raw(&self) -> &wgpu::Texture {
         &self.texture
@@ -44,15 +44,15 @@ impl GraphicsTexture for WgpuTexture {
     fn dimensions(&self) -> Extent3d {
         self.dimensions
     }
-    
+
     fn format(&self) -> TextureFormat {
         self.format
     }
-    
+
     fn mip_level_count(&self) -> u32 {
         self.mip_level_count
     }
-    
+
     fn sample_count(&self) -> u32 {
         self.sample_count
     }
@@ -74,7 +74,7 @@ impl WgpuTextureView {
             format,
         }
     }
-    
+
     /// Get the underlying WGPU texture view
     pub fn raw(&self) -> &wgpu::TextureView {
         &self.view
@@ -85,7 +85,7 @@ impl GraphicsTextureView for WgpuTextureView {
     fn texture(&self) -> &dyn GraphicsTexture {
         &*self.texture
     }
-    
+
     fn format(&self) -> TextureFormat {
         self.format
     }
@@ -120,7 +120,7 @@ impl WgpuSampler {
             address_mode_w,
         }
     }
-    
+
     /// Get the underlying WGPU sampler
     pub fn raw(&self) -> &wgpu::Sampler {
         &self.sampler
@@ -131,19 +131,19 @@ impl GraphicsSampler for WgpuSampler {
     fn min_filter(&self) -> FilterMode {
         self.min_filter
     }
-    
+
     fn mag_filter(&self) -> FilterMode {
         self.mag_filter
     }
-    
+
     fn address_mode_u(&self) -> AddressMode {
         self.address_mode_u
     }
-    
+
     fn address_mode_v(&self) -> AddressMode {
         self.address_mode_v
     }
-    
+
     fn address_mode_w(&self) -> AddressMode {
         self.address_mode_w
     }
@@ -180,17 +180,17 @@ pub fn convert_address_mode(mode: AddressMode) -> wgpu::AddressMode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_graphics_traits::{TextureDescriptor, TextureUsage, SamplerDescriptor};
-    
+    use engine_graphics_traits::{SamplerDescriptor, TextureDescriptor, TextureUsage};
+
     #[allow(unused_imports)]
     use super::*;
-    
+
     async fn create_test_device() -> (wgpu::Device, wgpu::Queue) {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
-        
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -199,7 +199,7 @@ mod tests {
             })
             .await
             .expect("Failed to request adapter");
-        
+
         adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -212,12 +212,12 @@ mod tests {
             .await
             .expect("Failed to request device")
     }
-    
+
     #[test]
     fn test_texture_creation() {
         pollster::block_on(async {
             let (device, _queue) = create_test_device().await;
-            
+
             let wgpu_texture = device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("Test Texture"),
                 size: wgpu::Extent3d {
@@ -232,9 +232,9 @@ mod tests {
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[],
             });
-            
+
             let texture = WgpuTexture::new(wgpu_texture, TextureFormat::Rgba8Unorm);
-            
+
             assert_eq!(texture.dimensions().width, 256);
             assert_eq!(texture.dimensions().height, 256);
             assert_eq!(texture.dimensions().depth_or_array_layers, 1);
@@ -243,12 +243,12 @@ mod tests {
             assert_eq!(texture.sample_count(), 1);
         });
     }
-    
+
     #[test]
     fn test_texture_view_creation() {
         pollster::block_on(async {
             let (device, _queue) = create_test_device().await;
-            
+
             let wgpu_texture = device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("Test Texture"),
                 size: wgpu::Extent3d {
@@ -263,7 +263,7 @@ mod tests {
                 usage: wgpu::TextureUsages::TEXTURE_BINDING,
                 view_formats: &[],
             });
-            
+
             // Create a separate texture for the view test since we can't clone wgpu::Texture
             let texture2 = device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("Test Texture 2"),
@@ -279,21 +279,22 @@ mod tests {
                 usage: wgpu::TextureUsages::TEXTURE_BINDING,
                 view_formats: &[],
             });
-            
+
             let texture = Arc::new(WgpuTexture::new(texture2, TextureFormat::Rgba8UnormSrgb));
             let wgpu_view = wgpu_texture.create_view(&wgpu::TextureViewDescriptor::default());
-            let view = WgpuTextureView::new(wgpu_view, texture.clone(), TextureFormat::Rgba8UnormSrgb);
-            
+            let view =
+                WgpuTextureView::new(wgpu_view, texture.clone(), TextureFormat::Rgba8UnormSrgb);
+
             assert_eq!(view.format(), TextureFormat::Rgba8UnormSrgb);
             assert_eq!(view.texture().dimensions().width, 512);
         });
     }
-    
+
     #[test]
     fn test_sampler_creation() {
         pollster::block_on(async {
             let (device, _queue) = create_test_device().await;
-            
+
             let wgpu_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
                 label: Some("Test Sampler"),
                 address_mode_u: wgpu::AddressMode::Repeat,
@@ -303,7 +304,7 @@ mod tests {
                 min_filter: wgpu::FilterMode::Nearest,
                 ..Default::default()
             });
-            
+
             let sampler = WgpuSampler::new(
                 wgpu_sampler,
                 FilterMode::Nearest,
@@ -312,7 +313,7 @@ mod tests {
                 AddressMode::ClampToEdge,
                 AddressMode::MirrorRepeat,
             );
-            
+
             assert_eq!(sampler.min_filter(), FilterMode::Nearest);
             assert_eq!(sampler.mag_filter(), FilterMode::Linear);
             assert_eq!(sampler.address_mode_u(), AddressMode::Repeat);
@@ -320,41 +321,65 @@ mod tests {
             assert_eq!(sampler.address_mode_w(), AddressMode::MirrorRepeat);
         });
     }
-    
+
     #[test]
     fn test_format_conversions() {
         let test_cases = vec![
-            (TextureFormat::Rgba8UnormSrgb, wgpu::TextureFormat::Rgba8UnormSrgb),
+            (
+                TextureFormat::Rgba8UnormSrgb,
+                wgpu::TextureFormat::Rgba8UnormSrgb,
+            ),
             (TextureFormat::Rgba8Unorm, wgpu::TextureFormat::Rgba8Unorm),
             (TextureFormat::Rgba32Float, wgpu::TextureFormat::Rgba32Float),
-            (TextureFormat::Depth32Float, wgpu::TextureFormat::Depth32Float),
-            (TextureFormat::Depth24PlusStencil8, wgpu::TextureFormat::Depth24PlusStencil8),
+            (
+                TextureFormat::Depth32Float,
+                wgpu::TextureFormat::Depth32Float,
+            ),
+            (
+                TextureFormat::Depth24PlusStencil8,
+                wgpu::TextureFormat::Depth24PlusStencil8,
+            ),
         ];
-        
+
         for (engine_format, expected_wgpu) in test_cases {
             let converted = convert_texture_format(engine_format);
             assert_eq!(converted, expected_wgpu);
         }
     }
-    
+
     #[test]
     fn test_filter_mode_conversions() {
-        assert_eq!(convert_filter_mode(FilterMode::Nearest), wgpu::FilterMode::Nearest);
-        assert_eq!(convert_filter_mode(FilterMode::Linear), wgpu::FilterMode::Linear);
+        assert_eq!(
+            convert_filter_mode(FilterMode::Nearest),
+            wgpu::FilterMode::Nearest
+        );
+        assert_eq!(
+            convert_filter_mode(FilterMode::Linear),
+            wgpu::FilterMode::Linear
+        );
     }
-    
+
     #[test]
     fn test_address_mode_conversions() {
-        assert_eq!(convert_address_mode(AddressMode::ClampToEdge), wgpu::AddressMode::ClampToEdge);
-        assert_eq!(convert_address_mode(AddressMode::Repeat), wgpu::AddressMode::Repeat);
-        assert_eq!(convert_address_mode(AddressMode::MirrorRepeat), wgpu::AddressMode::MirrorRepeat);
+        assert_eq!(
+            convert_address_mode(AddressMode::ClampToEdge),
+            wgpu::AddressMode::ClampToEdge
+        );
+        assert_eq!(
+            convert_address_mode(AddressMode::Repeat),
+            wgpu::AddressMode::Repeat
+        );
+        assert_eq!(
+            convert_address_mode(AddressMode::MirrorRepeat),
+            wgpu::AddressMode::MirrorRepeat
+        );
     }
-    
+
     #[test]
     fn test_texture_with_mipmaps() {
         pollster::block_on(async {
             let (device, _queue) = create_test_device().await;
-            
+
             let mip_level_count = 5;
             let wgpu_texture = device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("Test Texture with Mipmaps"),
@@ -370,7 +395,7 @@ mod tests {
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[],
             });
-            
+
             let texture = WgpuTexture::new(wgpu_texture, TextureFormat::Rgba8Unorm);
             assert_eq!(texture.mip_level_count(), mip_level_count);
         });

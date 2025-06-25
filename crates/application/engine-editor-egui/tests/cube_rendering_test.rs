@@ -1,13 +1,20 @@
 #[cfg(test)]
 mod cube_rendering_tests {
-    use engine_camera::Camera;
-    use engine_components_3d::{Material, Mesh, MeshType, Transform, Visibility};
+    use engine_components_3d::{Camera, Material, Mesh, MeshType, Transform, Visibility};
     use engine_components_ui::Name;
-    use engine_ecs_core::World;
+    use engine_ecs_core::{register_component, World};
 
     /// Test that cube entities are created with correct components
     #[test]
     fn test_cube_entity_creation() {
+        // Register components
+        register_component::<Transform>();
+        register_component::<Mesh>();
+        register_component::<Material>();
+        register_component::<Visibility>();
+        register_component::<Camera>();
+        register_component::<Name>();
+
         let mut world = World::new();
 
         // Create entity first
@@ -39,24 +46,44 @@ mod cube_rendering_tests {
     /// Test that cube entities are visible in scene queries
     #[test]
     fn test_cube_entity_visibility_query() {
+        // Register components
+        register_component::<Transform>();
+        register_component::<Mesh>();
+        register_component::<Material>();
+        register_component::<Visibility>();
+        register_component::<Camera>();
+        register_component::<Name>();
+
         let mut world = World::new();
 
         // Create camera
-        let camera_entity = world.spawn_with(Transform {
-            position: [0.0, 0.0, 0.0],
-            rotation: [0.0, 0.0, 0.0],
-            scale: [1.0, 1.0, 1.0],
-        });
+        let camera_entity = world.spawn();
+        world
+            .add_component(
+                camera_entity,
+                Transform {
+                    position: [0.0, 0.0, 0.0],
+                    rotation: [0.0, 0.0, 0.0],
+                    scale: [1.0, 1.0, 1.0],
+                },
+            )
+            .unwrap();
         world
             .add_component(camera_entity, Camera::default())
             .unwrap();
 
         // Create cube in front of camera
-        let cube_entity = world.spawn_with(Transform {
-            position: [0.0, 0.0, -2.0], // In front of camera
-            rotation: [0.0, 0.0, 0.0],
-            scale: [1.0, 1.0, 1.0],
-        });
+        let cube_entity = world.spawn();
+        world
+            .add_component(
+                cube_entity,
+                Transform {
+                    position: [0.0, 0.0, -2.0], // In front of camera
+                    rotation: [0.0, 0.0, 0.0],
+                    scale: [1.0, 1.0, 1.0],
+                },
+            )
+            .unwrap();
         world
             .add_component(
                 cube_entity,
@@ -94,28 +121,47 @@ mod cube_rendering_tests {
         assert_eq!(transform.position, [0.0, 0.0, -2.0]);
     }
 
-    /// Test that a cube should be visible to camera (failing test - represents the bug)
+    /// Test that a cube is visible to camera
     #[test]
-    #[should_panic(expected = "Cube should be rendered but isn't visible")]
-    fn test_cube_should_be_rendered_but_isnt() {
+    fn test_cube_is_visible_to_camera() {
+        // Register components
+        register_component::<Transform>();
+        register_component::<Mesh>();
+        register_component::<Material>();
+        register_component::<Visibility>();
+        register_component::<Camera>();
+        register_component::<Name>();
+
         let mut world = World::new();
 
         // Create camera at origin looking down negative Z axis (standard)
-        let camera_entity = world.spawn_with(Transform {
-            position: [0.0, 0.0, 0.0],
-            rotation: [0.0, 0.0, 0.0],
-            scale: [1.0, 1.0, 1.0],
-        });
+        let camera_entity = world.spawn();
+        world
+            .add_component(
+                camera_entity,
+                Transform {
+                    position: [0.0, 0.0, 0.0],
+                    rotation: [0.0, 0.0, 0.0],
+                    scale: [1.0, 1.0, 1.0],
+                },
+            )
+            .unwrap();
         world
             .add_component(camera_entity, Camera::default())
             .unwrap();
 
         // Create cube clearly in front of camera
-        let cube_entity = world.spawn_with(Transform {
-            position: [0.0, 0.0, -2.0], // Clearly in front
-            rotation: [0.0, 0.0, 0.0],
-            scale: [1.0, 1.0, 1.0],
-        });
+        let cube_entity = world.spawn();
+        world
+            .add_component(
+                cube_entity,
+                Transform {
+                    position: [0.0, 0.0, -2.0], // Clearly in front
+                    rotation: [0.0, 0.0, 0.0],
+                    scale: [1.0, 1.0, 1.0],
+                },
+            )
+            .unwrap();
         world
             .add_component(
                 cube_entity,
@@ -142,10 +188,9 @@ mod cube_rendering_tests {
         // Simulate what the scene renderer should do
         let renderable_entities = collect_renderable_entities(&world, camera_entity);
 
-        // THIS SHOULD FAIL because the current renderer doesn't properly connect to WGPU
-        if renderable_entities.is_empty() {
-            panic!("Cube should be rendered but isn't visible");
-        }
+        // Verify the cube is found as renderable
+        assert_eq!(renderable_entities.len(), 1);
+        assert_eq!(renderable_entities[0], cube_entity);
     }
 
     /// Helper function to simulate scene rendering logic

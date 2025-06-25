@@ -74,21 +74,21 @@ fn test_editor_ui_extraction_structure() {
 
 #[test]
 fn test_editor_app_extraction_structure() {
-    // Test 3: Verify app layer extraction
-    let app_path = Path::new("../engine-editor-app");
-    assert!(app_path.exists(), "engine-editor-app crate should exist");
+    // Test 3: Verify app layer structure (main.rs remains in engine-editor-egui)
+    let app_path = Path::new(".");
+    assert!(app_path.exists(), "engine-editor-egui crate should exist");
 
-    // Main app should be moved there
+    // Main app should be in engine-editor-egui
     let main_path = app_path.join("src/main.rs");
     assert!(
         main_path.exists(),
-        "Main app file should be in engine-editor-app"
+        "Main app file should be in engine-editor-egui"
     );
 
     let world_setup_path = app_path.join("src/world_setup.rs");
     assert!(
         world_setup_path.exists(),
-        "World setup should be in app crate"
+        "World setup should be in egui crate"
     );
 }
 
@@ -163,8 +163,8 @@ fn test_crate_dependencies() {
         );
     }
 
-    // Check app crate dependencies
-    let app_cargo = Path::new("../engine-editor-app/Cargo.toml");
+    // Check egui crate dependencies (main app remains here)
+    let app_cargo = Path::new("./Cargo.toml");
     if app_cargo.exists() {
         let content = fs::read_to_string(app_cargo).unwrap();
         assert!(

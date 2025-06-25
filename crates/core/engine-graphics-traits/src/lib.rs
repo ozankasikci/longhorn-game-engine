@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
 
 //! # Graphics Traits
-//! 
+//!
 //! This crate provides abstract graphics API traits that allow the engine
 //! to work with different graphics backends (WGPU, OpenGL, Vulkan, etc.)
 //! without tight coupling to any specific implementation.

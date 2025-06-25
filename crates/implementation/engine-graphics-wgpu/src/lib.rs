@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
 
 //! # WGPU Graphics Implementation
-//! 
+//!
 //! This crate provides a WGPU-based implementation of the graphics traits
 //! defined in engine-graphics-traits.
 

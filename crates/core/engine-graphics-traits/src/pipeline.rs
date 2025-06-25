@@ -28,7 +28,7 @@ pub enum ShaderSource {
 pub trait GraphicsShader: Send + Sync {
     /// Get the shader stage
     fn stage(&self) -> ShaderStage;
-    
+
     /// Get the entry point name
     fn entry_point(&self) -> &str;
 }
@@ -155,54 +155,54 @@ pub struct RenderPipelineDescriptor<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // Mock implementations
     struct MockShader {
         stage: ShaderStage,
         entry_point: String,
     }
-    
+
     impl GraphicsShader for MockShader {
         fn stage(&self) -> ShaderStage {
             self.stage
         }
-        
+
         fn entry_point(&self) -> &str {
             &self.entry_point
         }
     }
-    
+
     struct MockPipelineLayout {
         bind_group_count: usize,
     }
-    
+
     impl GraphicsPipelineLayout for MockPipelineLayout {
         fn bind_group_layout_count(&self) -> usize {
             self.bind_group_count
         }
     }
-    
+
     struct MockPipeline {
         layout: MockPipelineLayout,
     }
-    
+
     impl GraphicsPipeline for MockPipeline {
         fn layout(&self) -> &dyn GraphicsPipelineLayout {
             &self.layout
         }
     }
-    
+
     #[test]
     fn test_shader_properties() {
         let shader = MockShader {
             stage: ShaderStage::Vertex,
             entry_point: "main".to_string(),
         };
-        
+
         assert_eq!(shader.stage(), ShaderStage::Vertex);
         assert_eq!(shader.entry_point(), "main");
     }
-    
+
     #[test]
     fn test_vertex_buffer_layout() {
         let layout = VertexBufferLayout {
@@ -221,48 +221,48 @@ mod tests {
                 },
             ],
         };
-        
+
         assert_eq!(layout.stride, 32);
         assert_eq!(layout.step_mode, VertexStepMode::Vertex);
         assert_eq!(layout.attributes.len(), 2);
         assert_eq!(layout.attributes[0].location, 0);
         assert_eq!(layout.attributes[1].offset, 12);
     }
-    
+
     #[test]
     fn test_pipeline_layout() {
         let layout = MockPipelineLayout {
             bind_group_count: 3,
         };
-        
+
         assert_eq!(layout.bind_group_layout_count(), 3);
     }
-    
+
     #[test]
     fn test_primitive_state_default() {
         let state = PrimitiveState::default();
-        
+
         assert_eq!(state.topology, PrimitiveTopology::TriangleList);
         assert_eq!(state.cull_mode, CullMode::Back);
         assert_eq!(state.front_face, FrontFace::Ccw);
     }
-    
+
     #[test]
     fn test_render_pipeline_descriptor() {
         let layout = MockPipelineLayout {
             bind_group_count: 2,
         };
-        
+
         let vertex_shader = MockShader {
             stage: ShaderStage::Vertex,
             entry_point: "vs_main".to_string(),
         };
-        
+
         let fragment_shader = MockShader {
             stage: ShaderStage::Fragment,
             entry_point: "fs_main".to_string(),
         };
-        
+
         let descriptor = RenderPipelineDescriptor {
             layout: &layout,
             vertex: &vertex_shader,
@@ -270,7 +270,7 @@ mod tests {
             vertex_buffers: vec![],
             primitive: PrimitiveState::default(),
         };
-        
+
         assert_eq!(descriptor.layout.bind_group_layout_count(), 2);
         assert_eq!(descriptor.vertex.stage(), ShaderStage::Vertex);
         assert_eq!(descriptor.fragment.unwrap().stage(), ShaderStage::Fragment);
