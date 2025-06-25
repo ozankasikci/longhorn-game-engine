@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::time::SystemTime;
+use std::sync::{Arc, Mutex};
+use engine_ecs_core::World;
 use log::{debug, error, info};
 
 /// Lua script instance
@@ -41,7 +43,7 @@ impl LuaScriptEngine {
     pub fn new() -> ScriptResult<Self> {
         // Create Lua instance with safe subset of standard libraries
         let lua = Lua::new_with(
-            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::COROUTINE,
+            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::COROUTINE | StdLib::OS,
             LuaOptions::default(),
         ).map_err(|e| ScriptError::RuntimeError(format!("Failed to create Lua instance: {}", e)))?;
 
@@ -92,8 +94,14 @@ impl LuaScriptEngine {
         self.scripts.insert(metadata.id, script);
 
         // Execute the script to define its functions/globals
-        chunk.call::<()>(())
+        let result = chunk.call::<mlua::Value>(())
             .map_err(|e| ScriptError::RuntimeError(format!("Failed to execute script: {}", e)))?;
+
+        // If the script returns a table (module), store it for lifecycle calls
+        if let mlua::Value::Table(module_table) = result {
+            self.lua.globals().set("_LAST_SCRIPT_MODULE", module_table)
+                .map_err(|e| ScriptError::RuntimeError(format!("Failed to store script module: {}", e)))?;
+        }
 
         Ok(())
     }
@@ -216,8 +224,14 @@ impl LuaScriptEngine {
         self.scripts.insert(script_id, script);
         
         // Execute the script to define its functions/globals
-        chunk.call::<()>(())
+        let result = chunk.call::<mlua::Value>(())
             .map_err(|e| ScriptError::RuntimeError(format!("Failed to execute script: {}", e)))?;
+
+        // If the script returns a table (module), store it for lifecycle calls
+        if let mlua::Value::Table(module_table) = result {
+            self.lua.globals().set("_LAST_SCRIPT_MODULE", module_table)
+                .map_err(|e| ScriptError::RuntimeError(format!("Failed to store script module: {}", e)))?;
+        }
         
         info!("Loaded script from file: {:?}", path);
         Ok(script_id)
@@ -315,6 +329,164 @@ impl LuaScriptEngine {
             self.lua.globals().set(key, value)
                 .map_err(|e| ScriptError::RuntimeError(format!("Failed to restore state: {}", e)))?;
         }
+        Ok(())
+    }
+
+    /// Execute a specific lifecycle method on a script
+    pub fn execute_script_lifecycle_method(&mut self, script_id: ScriptId, method_name: &str, args: Vec<String>) -> ScriptResult<()> {
+        // Check if script exists
+        if !self.scripts.contains_key(&script_id) {
+            return Err(ScriptError::NotFound(format!("Script {:?} not found", script_id)));
+        }
+
+        // Convert string args to Lua values
+        let lua_args: Vec<mlua::Value> = args.into_iter()
+            .map(|arg| {
+                // Try to parse as number first, fallback to string
+                if let Ok(num) = arg.parse::<f64>() {
+                    mlua::Value::Number(num)
+                } else {
+                    mlua::Value::String(self.lua.create_string(&arg).unwrap())
+                }
+            })
+            .collect();
+
+        // Look for a module/table that was returned by the script
+        // In typical Lua patterns, scripts return a table with methods
+        let script_module: mlua::Table = self.lua.globals().get("_LAST_SCRIPT_MODULE")
+            .or_else(|_| {
+                // Fallback: try to find the method as a global function
+                if let Ok(func) = self.lua.globals().get::<mlua::Function>(method_name) {
+                    // Create a temporary module table
+                    let temp_module = self.lua.create_table()?;
+                    temp_module.set(method_name, func)?;
+                    Ok(temp_module)
+                } else {
+                    Err(mlua::Error::RuntimeError(format!("No script module or global function '{}' found", method_name)))
+                }
+            })
+            .map_err(|e| ScriptError::RuntimeError(format!("Failed to get script module: {}", e)))?;
+
+        // Get the method from the module
+        if let Ok(method) = script_module.get::<mlua::Function>(method_name) {
+            // Create script instance context (self parameter)
+            let instance = self.lua.create_table()
+                .map_err(|e| ScriptError::RuntimeError(format!("Failed to create script instance: {}", e)))?;
+            
+            // Call the method with instance as first parameter
+            let mut call_args = vec![mlua::Value::Table(instance)];
+            call_args.extend(lua_args);
+            
+            method.call::<mlua::MultiValue>(mlua::MultiValue::from_vec(call_args))
+                .map_err(|e| ScriptError::RuntimeError(format!("Failed to call {}: {}", method_name, e)))?;
+        } else {
+            // Method doesn't exist - this is OK for optional lifecycle methods
+            debug!("Lifecycle method '{}' not found in script {:?}", method_name, script_id);
+        }
+
+        Ok(())
+    }
+
+    /// Execute update lifecycle for all entities with LuaScript components
+    pub fn update_script_systems(&mut self, world: Arc<Mutex<World>>, delta_time: f32) -> ScriptResult<()> {
+        // Get all entities with LuaScript components
+        let entities_with_scripts = {
+            let world_lock = world.lock().unwrap();
+            world_lock.query_legacy::<crate::components::LuaScript>()
+                .filter(|(_, script)| script.enabled)
+                .map(|(entity, script)| (entity, script.clone()))
+                .collect::<Vec<_>>()
+        };
+
+        // Execute update for each script
+        for (entity, lua_script) in entities_with_scripts {
+            // Load script if not already loaded
+            if !self.scripts.values().any(|s| s.metadata.path == lua_script.script_path) {
+                if let Ok(script_id) = self.load_script_from_file(std::path::Path::new(&lua_script.script_path)) {
+                    // Set up entity context for the script
+                    self.setup_script_entity_context(script_id, entity, world.clone())?;
+                    
+                    // Call init if it's the first time loading
+                    self.execute_script_lifecycle_method(script_id, "init", vec![]).ok();
+                }
+            }
+
+            // Find the script ID for this path
+            let script_id = self.scripts.iter()
+                .find(|(_, s)| s.metadata.path == lua_script.script_path)
+                .map(|(id, _)| *id);
+            
+            if let Some(script_id) = script_id {
+                // Set up entity context
+                self.setup_script_entity_context(script_id, entity, world.clone())?;
+                
+                // Call update method
+                self.execute_script_lifecycle_method(script_id, "update", vec![delta_time.to_string()]).ok();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Execute update lifecycle for all entities with LuaScript components in execution order
+    pub fn update_script_systems_ordered(&mut self, world: Arc<Mutex<World>>, delta_time: f32) -> ScriptResult<()> {
+        // Get all entities with LuaScript components and sort by execution order
+        let mut entities_with_scripts = {
+            let world_lock = world.lock().unwrap();
+            world_lock.query_legacy::<crate::components::LuaScript>()
+                .filter(|(_, script)| script.enabled)
+                .map(|(entity, script)| (entity, script.clone()))
+                .collect::<Vec<_>>()
+        };
+
+        // Sort by execution order (lower numbers execute first), then by entity ID for deterministic ordering
+        entities_with_scripts.sort_by(|(entity_a, script_a), (entity_b, script_b)| {
+            script_a.execution_order.cmp(&script_b.execution_order)
+                .then_with(|| entity_a.id().cmp(&entity_b.id()))
+        });
+
+        // Execute update for each script in order
+        for (entity, lua_script) in entities_with_scripts {
+            // Load script if not already loaded
+            if !self.scripts.values().any(|s| s.metadata.path == lua_script.script_path) {
+                if let Ok(script_id) = self.load_script_from_file(std::path::Path::new(&lua_script.script_path)) {
+                    // Set up entity context for the script
+                    self.setup_script_entity_context(script_id, entity, world.clone())?;
+                    
+                    // Call init if it's the first time loading
+                    self.execute_script_lifecycle_method(script_id, "init", vec![]).ok();
+                }
+            }
+
+            // Find the script ID for this path
+            let script_id = self.scripts.iter()
+                .find(|(_, s)| s.metadata.path == lua_script.script_path)
+                .map(|(id, _)| *id);
+            
+            if let Some(script_id) = script_id {
+                // Set up entity context
+                self.setup_script_entity_context(script_id, entity, world.clone())?;
+                
+                // Call update method
+                self.execute_script_lifecycle_method(script_id, "update", vec![delta_time.to_string()]).ok();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Set up entity context for a script instance
+    fn setup_script_entity_context(&mut self, _script_id: ScriptId, entity: engine_ecs_core::Entity, world: Arc<Mutex<World>>) -> ScriptResult<()> {
+        // Create entity wrapper for the script
+        let lua_entity = crate::lua::ecs::LuaEntity {
+            entity,
+            world: world.clone(),
+        };
+
+        // Store in a global that the script can access as `self.entity`
+        self.lua.globals().set("_CURRENT_SCRIPT_ENTITY", lua_entity)
+            .map_err(|e| ScriptError::RuntimeError(format!("Failed to set script entity context: {}", e)))?;
+
         Ok(())
     }
 }

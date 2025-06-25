@@ -57,6 +57,24 @@ impl UserData for LuaWorld {
                     } else {
                         println!("Successfully added Health component to entity {:?}", entity.id());
                     }
+                } else if component_name == "LuaScript" {
+                    // Parse LuaScript component from Lua table
+                    let script_path: String = component_table.get("script_path").unwrap_or_else(|_| "".to_string());
+                    let enabled: bool = component_table.get("enabled").unwrap_or(true);
+                    let execution_order: i32 = component_table.get("execution_order").unwrap_or(0);
+                    
+                    let lua_script = crate::components::LuaScript {
+                        script_path,
+                        enabled,
+                        instance_id: None,
+                        execution_order,
+                    };
+                    println!("Adding LuaScript component: {:?}", lua_script);
+                    if let Err(e) = world.add_component(entity, lua_script) {
+                        println!("Failed to add LuaScript component: {:?}", e);
+                    } else {
+                        println!("Successfully added LuaScript component to entity {:?}", entity.id());
+                    }
                 }
                 // Add other component types as needed
             }
@@ -159,8 +177,8 @@ impl UserData for LuaWorld {
 
 /// Wrapper for Entity access from Lua
 pub struct LuaEntity {
-    entity: Entity,
-    world: Arc<Mutex<World>>,
+    pub entity: Entity,
+    pub world: Arc<Mutex<World>>,
 }
 
 impl UserData for LuaEntity {
@@ -197,6 +215,23 @@ impl UserData for LuaEntity {
                         Ok(Value::Nil)
                     }
                 }
+                "LuaScript" => {
+                    if let Some(lua_script) = world.get_component::<crate::components::LuaScript>(this.entity) {
+                        // Convert LuaScript component to Lua table
+                        let table = lua.create_table().map_err(|e| {
+                            mlua::Error::RuntimeError(format!("Failed to create lua_script table: {}", e))
+                        })?;
+                        table.set("script_path", lua_script.script_path.clone())?;
+                        table.set("enabled", lua_script.enabled)?;
+                        table.set("execution_order", lua_script.execution_order)?;
+                        if let Some(instance_id) = lua_script.instance_id {
+                            table.set("instance_id", instance_id)?;
+                        }
+                        Ok(Value::Table(table))
+                    } else {
+                        Ok(Value::Nil)
+                    }
+                }
                 _ => {
                     Ok(Value::Nil)
                 }
@@ -228,6 +263,23 @@ impl UserData for LuaEntity {
                         mlua::Error::RuntimeError(format!("Failed to add Health: {:?}", e))
                     })?;
                 }
+                "LuaScript" => {
+                    // Parse LuaScript component from Lua table
+                    let script_path: String = data.get("script_path").unwrap_or_else(|_| "".to_string());
+                    let enabled: bool = data.get("enabled").unwrap_or(true);
+                    let execution_order: i32 = data.get("execution_order").unwrap_or(0);
+                    let instance_id: Option<u64> = data.get("instance_id").ok();
+                    
+                    let lua_script = crate::components::LuaScript {
+                        script_path,
+                        enabled,
+                        instance_id,
+                        execution_order,
+                    };
+                    world.add_component(this.entity, lua_script).map_err(|e| {
+                        mlua::Error::RuntimeError(format!("Failed to add LuaScript: {:?}", e))
+                    })?;
+                }
                 _ => {
                     return Err(mlua::Error::RuntimeError(format!("Unsupported component type: {}", component_type)));
                 }
@@ -249,6 +301,11 @@ impl UserData for LuaEntity {
                 "Health" => {
                     world.remove_component::<crate::components::Health>(this.entity).map_err(|e| {
                         mlua::Error::RuntimeError(format!("Failed to remove Health: {:?}", e))
+                    })?;
+                }
+                "LuaScript" => {
+                    world.remove_component::<crate::components::LuaScript>(this.entity).map_err(|e| {
+                        mlua::Error::RuntimeError(format!("Failed to remove LuaScript: {:?}", e))
                     })?;
                 }
                 _ => {
