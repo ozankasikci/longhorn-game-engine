@@ -21,7 +21,6 @@ engine-components-2d = { workspace = true }
 engine-components-ui = { workspace = true }
 engine-renderer-3d = { workspace = true }
 engine-geometry-core = { workspace = true }
-engine-geometry-impl = { workspace = true }
 engine-resource-core = { workspace = true }
 engine-camera-impl = { workspace = true }
 engine-editor-scene-view = { path = "../engine-editor-scene-view" }
@@ -54,11 +53,8 @@ engine-audio-import = { workspace = true }
 
 # WGPU integration - needed to pass device/queue to renderer initialization
 # TODO: Consider abstracting this behind a renderer factory interface
-wgpu = { workspace = true }
 glam = { workspace = true }
-anyhow = { workspace = true }
 log = { workspace = true }
-pollster = { workspace = true }
 
 [dev-dependencies]
 criterion = "0.5"

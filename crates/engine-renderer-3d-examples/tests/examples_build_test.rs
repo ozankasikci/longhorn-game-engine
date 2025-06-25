@@ -23,8 +23,7 @@ fn test_all_examples_listed() {
     // Verify that cargo recognizes all examples
     let output = Command::new("cargo")
         .arg("build")
-        .arg("--examples")
-        .arg("--no-run") // Don't actually run them, just build
+        .arg("--examples") // Build all examples
         .output()
         .expect("Failed to execute cargo build");
 

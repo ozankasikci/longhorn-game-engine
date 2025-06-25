@@ -257,11 +257,16 @@ impl EcsRenderBridge {
 mod tests {
     use super::*;
     use engine_components_3d::{Camera, Mesh, MeshType, Transform};
-    use engine_ecs_core::ecs_v2::World;
+    use engine_ecs_core::ecs_v2::{component::register_component, World};
     use glam::Vec3;
 
     fn create_test_world() -> World {
         let mut world = World::new();
+
+        // Register components before using them
+        register_component::<Transform>();
+        register_component::<Mesh>();
+        register_component::<Camera>();
 
         // Add some test entities
         let entity1 = world.spawn();
@@ -379,6 +384,9 @@ mod tests {
     fn test_ecs_camera_provider_no_camera() {
         let mut world = World::new();
 
+        // Register components
+        register_component::<Transform>();
+
         // Add entity without camera
         let entity = world.spawn();
         world.add_component(entity, Transform::new()).unwrap();
@@ -440,6 +448,12 @@ mod tests {
     #[test]
     fn test_empty_world() {
         let world = World::new();
+
+        // Register components even for empty world test
+        register_component::<Transform>();
+        register_component::<Mesh>();
+        register_component::<Camera>();
+
         let (renderables, camera) = EcsRenderBridge::extract_render_data(&world);
 
         assert_eq!(renderables.len(), 0);
@@ -449,6 +463,11 @@ mod tests {
     #[test]
     fn test_world_with_transforms_only() {
         let mut world = World::new();
+
+        // Register components
+        register_component::<Transform>();
+        register_component::<Mesh>();
+        register_component::<Camera>();
 
         // Add entities with only transforms (no meshes or cameras)
         for i in 0..3 {

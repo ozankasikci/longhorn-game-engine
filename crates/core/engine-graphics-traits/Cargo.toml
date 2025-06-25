@@ -7,8 +7,4 @@ description = "graphics traits for Longhorn Game Engine"
 
 [dependencies]
 bytemuck = { version = "1.14", features = ["derive"] }
-glam = "0.27"
 thiserror = "1.0"
-
-[dev-dependencies]
-mockall = "0.11"

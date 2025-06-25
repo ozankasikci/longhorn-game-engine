@@ -17,10 +17,6 @@ serde = { workspace = true }
 
 # Error handling
 thiserror = { workspace = true }
-anyhow = { workspace = true }
-
-# Logging
-log = { workspace = true }
 
 [features]
 default = []

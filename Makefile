@@ -12,10 +12,16 @@ check: clippy fmt-check test
 .PHONY: check-core
 check-core: fmt-check clippy-core test
 
-# Run clippy on all targets
+# Run clippy on main source code (excludes tests and benchmarks)
 .PHONY: clippy
 clippy:
 	@echo "🔍 Running clippy..."
+	cargo clippy --lib --bins --all-features -- -D warnings
+
+# Run clippy on all targets including tests and benchmarks
+.PHONY: clippy-all
+clippy-all:
+	@echo "🔍 Running clippy on all targets..."
 	cargo clippy --all-targets --all-features -- -D warnings
 
 # Run clippy on core crates only (excludes problematic graphics crates)
@@ -124,7 +130,8 @@ help:
 	@echo "Longhorn Game Engine - Available commands:"
 	@echo ""
 	@echo "  make check          - Run clippy, format check, and tests"
-	@echo "  make clippy         - Run clippy linter"
+	@echo "  make clippy         - Run clippy linter (main source only)"
+	@echo "  make clippy-all     - Run clippy on all targets (including tests)"
 	@echo "  make fmt            - Format code with rustfmt"
 	@echo "  make fmt-check      - Check code formatting"
 	@echo "  make test           - Run all tests"

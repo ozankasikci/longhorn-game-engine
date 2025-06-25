@@ -8,4 +8,3 @@ description = "Core math functionality for Longhorn Game Engine"
 
 [dependencies]
 glam = { workspace = true }
-serde = { workspace = true }

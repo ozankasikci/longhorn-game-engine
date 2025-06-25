@@ -12,6 +12,3 @@ engine-geometry-core = { workspace = true }
 
 # Math types
 glam = { workspace = true }
-
-# Serialization
-serde = { workspace = true }

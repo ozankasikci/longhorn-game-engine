@@ -17,11 +17,11 @@ mod tests;
 
 #[allow(unused_imports)]
 pub use batch::{BatchImportOptions, BatchImporter};
+#[allow(unused_imports)]
+pub use dialog::ImportResult;
 pub use dialog::ImportSettings;
 #[allow(unused_imports)]
 pub use dialog::{CollisionType, ImportDialog};
-#[allow(unused_imports)]
-pub use dialog::ImportResult;
 #[allow(unused_imports)]
 pub use drag_drop::{DragDropHandler, FileType};
 #[allow(unused_imports)]
@@ -46,12 +46,12 @@ pub use service::{
     ImportHandle, ImportNotification, ImportQueue, ImportSettingsConverter, ImportUIState,
 };
 #[allow(unused_imports)]
-pub use wrappers::{MeshImporterWrapper, ObjImporterWrapper};
-#[allow(unused_imports)]
 pub use wrappers::{
     AudioImporterWrapper, SerializedAssetData, StandardAudioImporterWrapper,
     StandardTextureImporterWrapper, TextureImporterWrapper,
 };
+#[allow(unused_imports)]
+pub use wrappers::{MeshImporterWrapper, ObjImporterWrapper};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AssetType {

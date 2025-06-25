@@ -9,9 +9,7 @@ description = "Core renderer functionality for Longhorn Game Engine"
 engine-geometry-core = { workspace = true }
 engine-materials-core = { workspace = true }
 glam = { workspace = true }
-bytemuck = { workspace = true }
 bitflags = { workspace = true }
-serde = { workspace = true }
 thiserror = "1.0"
 
 [dev-dependencies]

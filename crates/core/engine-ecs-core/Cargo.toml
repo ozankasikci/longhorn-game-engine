@@ -7,16 +7,11 @@ description = "Core ecs functionality for Longhorn Game Engine"
 
 [dependencies]
 glam = { workspace = true }
-serde = { workspace = true }
-log = { workspace = true }
-bytemuck = { workspace = true }
 rayon = { workspace = true }
 once_cell = { workspace = true }
 engine-component-traits = { path = "../engine-component-traits" }
 
 [dev-dependencies]
-tokio-test = { workspace = true }
-criterion = { workspace = true }
 engine-components-3d = { path = "../engine-components-3d" }
 engine-resource-core = { path = "../engine-resource-core" }
 engine-geometry-core = { path = "../engine-geometry-core" }

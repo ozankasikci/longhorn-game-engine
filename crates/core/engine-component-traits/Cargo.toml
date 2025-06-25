@@ -6,5 +6,3 @@ license.workspace = true
 description = "component traits for Longhorn Game Engine"
 
 [dependencies]
-serde = { workspace = true }
-bytemuck = { workspace = true }
