@@ -8,6 +8,8 @@ pub mod bindings;
 pub mod manager;
 pub mod runtime;
 pub mod types;
+pub mod lua;
+pub mod components;
 
 pub use api::ScriptApi;
 pub use manager::ScriptManager;

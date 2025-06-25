@@ -4,23 +4,23 @@
 This document tracks the progress of implementing Lua scripting support in the Longhorn game engine using the mlua crate.
 
 ## Progress Summary
-- **Status**: Not Started
-- **Start Date**: TBD
+- **Status**: In Progress (Week 1)
+- **Start Date**: 2025-06-25
 - **Target Completion**: 4 weeks from start
 - **Actual Completion**: TBD
 
 ## Completed Tasks
 
 ### Week 1: Foundation & Runtime Setup
-- [ ] Extended `engine-scripting` crate with Lua support
-- [ ] Integrated mlua dependency (Lua 5.4 + optional LuaJIT)
-- [ ] Implemented `LuaScriptEngine` for `ScriptRuntime` trait
-- [ ] Created Lua context management and sandboxing
-- [ ] Set up script loading and execution pipeline
-- [ ] Created core engine API table structure
-- [ ] Implemented safe error handling and panic catching
-- [ ] Set up Lua module system for script organization
-- [ ] Created debug print and logging utilities
+- [x] Extended `engine-scripting` crate with Lua support
+- [x] Integrated mlua dependency (Lua 5.4 + optional LuaJIT)
+- [x] Implemented `LuaScriptEngine` for `ScriptRuntime` trait
+- [x] Created Lua context management and sandboxing
+- [x] Set up script loading and execution pipeline
+- [x] Created core engine API table structure
+- [x] Implemented safe error handling and panic catching
+- [x] Set up Lua module system for script organization
+- [x] Created debug print and logging utilities
 - [ ] Implemented basic performance profiling hooks
 
 ### Week 1-2: ECS Integration
@@ -101,7 +101,9 @@ This document tracks the progress of implementing Lua scripting support in the L
 - [ ] Performance benchmarks
 
 ## Current Issues
-None identified yet.
+- ECS integration needs actual component registration implementation
+- World API methods are stubbed and need real implementation
+- Event system needs connection to actual engine event dispatcher
 
 ## Performance Metrics
 - **Runtime Overhead**: Target <1%, Current: N/A
@@ -132,9 +134,9 @@ None identified yet.
 - [ ] Editor Integration
 
 ## Test Coverage
-- **Unit Tests**: 0/50 planned
-- **Integration Tests**: 0/20 planned
-- **Example Scripts**: 0/15 planned
+- **Unit Tests**: 2/50 planned
+- **Integration Tests**: 6/20 planned
+- **Example Scripts**: 3/15 planned
 - **Performance Tests**: 0/5 planned
 
 ## API Design Status
@@ -163,28 +165,30 @@ end
 ```
 
 ## Documentation Status
-- [ ] API Reference (0%)
+- [x] API Reference (20% - basic APIs documented)
 - [ ] Getting Started Guide (0%)
 - [ ] Tutorial Series (0/5)
-- [ ] Example Projects (0/3)
+- [x] Example Scripts (3/3 - player controller, enemy AI, game manager)
 - [ ] Performance Guide (0%)
 
 ## Blockers & Risks
 - None identified yet
 
 ## Next Steps
-1. Set up mlua dependency in engine-scripting crate
-2. Create basic LuaScriptEngine implementation
-3. Design component marshaling approach
+1. Implement actual ECS component registration and marshaling
+2. Connect World API to real ECS operations
+3. Integrate event system with engine event dispatcher
+4. Add hot-reload functionality with file watching
+5. Create LuaScript component for entity attachment
 
 ## Stakeholder Notes
 Lua scripting will provide a lightweight, high-performance scripting solution with minimal overhead compared to alternatives like C#. The 4-week timeline is aggressive but achievable given the simpler integration requirements.
 
 ## Success Criteria Checklist
-- [ ] Basic Lua runtime integrated
-- [ ] ECS components accessible from Lua
+- [x] Basic Lua runtime integrated
+- [ ] ECS components accessible from Lua (partial - needs real implementation)
 - [ ] Hot-reload working reliably
-- [ ] Full engine API exposed
+- [ ] Full engine API exposed (partial - basic bindings done)
 - [ ] Editor integration complete
 - [ ] Documentation comprehensive
 - [ ] Performance targets met
