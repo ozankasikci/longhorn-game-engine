@@ -32,6 +32,7 @@ members = [
     "crates/implementation/engine-texture-import",
     "crates/implementation/engine-audio-import",
     "crates/implementation/engine-animation-import",
+    "crates/implementation/engine-graphics-wgpu",
     
     # Integration layer (Tier 3)
     "crates/integration/engine-scene",

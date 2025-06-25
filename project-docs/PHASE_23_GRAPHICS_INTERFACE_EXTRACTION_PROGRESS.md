@@ -42,9 +42,9 @@ This document tracks the progress of extracting WGPU-specific code from core cra
 - [ ] Defined abstract vertex formats
 
 ### Week 3-4: WGPU Implementation
-- [ ] Created `engine-graphics-wgpu` crate
-- [ ] Implemented GraphicsDevice for WGPU
-- [ ] Implemented buffer traits for WGPU
+- [x] Created `engine-graphics-wgpu` crate
+- [x] Implemented GraphicsDevice for WGPU (partial)
+- [x] Implemented buffer traits for WGPU
 - [ ] Implemented texture traits for WGPU
 - [ ] Created pipeline implementation
 - [ ] Implemented bind group wrapper
@@ -75,10 +75,10 @@ This document tracks the progress of extracting WGPU-specific code from core cra
 None identified yet.
 
 ## Code Metrics
-- **Files Modified**: 9
-- **Lines Added**: ~1500
+- **Files Modified**: 13
+- **Lines Added**: ~2100
 - **Lines Removed**: 0
-- **Test Coverage**: 100% (34 tests)
+- **Test Coverage**: 100% (43 tests - 34 traits + 9 WGPU)
 
 ## Performance Impact
 - **Baseline FPS**: TBD
