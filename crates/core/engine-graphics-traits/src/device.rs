@@ -1,6 +1,7 @@
 use crate::{
     BufferDescriptor, GraphicsBuffer, GraphicsSampler, GraphicsTexture, GraphicsTextureView,
-    Result, TextureDescriptor, AddressMode, FilterMode,
+    Result, TextureDescriptor, AddressMode, FilterMode, GraphicsBindGroup, GraphicsBindGroupLayout,
+    BindGroupDescriptor, BindGroupLayoutDescriptor, GraphicsCommandEncoder,
 };
 
 /// Main trait for graphics devices that create resources
@@ -13,6 +14,12 @@ pub trait GraphicsDevice: Send + Sync {
     type TextureView: GraphicsTextureView;
     /// Associated sampler type
     type Sampler: GraphicsSampler;
+    /// Associated bind group type
+    type BindGroup: GraphicsBindGroup;
+    /// Associated bind group layout type
+    type BindGroupLayout: GraphicsBindGroupLayout;
+    /// Associated command encoder type
+    type CommandEncoder: GraphicsCommandEncoder;
     
     /// Create a new buffer
     fn create_buffer(&self, desc: &BufferDescriptor) -> Result<Self::Buffer>;
@@ -25,6 +32,15 @@ pub trait GraphicsDevice: Send + Sync {
     
     /// Create a sampler
     fn create_sampler(&self, desc: &SamplerDescriptor) -> Result<Self::Sampler>;
+    
+    /// Create a bind group layout
+    fn create_bind_group_layout(&self, desc: &BindGroupLayoutDescriptor) -> Result<Self::BindGroupLayout>;
+    
+    /// Create a bind group
+    fn create_bind_group(&self, desc: &BindGroupDescriptor) -> Result<Self::BindGroup>;
+    
+    /// Create a command encoder
+    fn create_command_encoder(&self) -> Result<Self::CommandEncoder>;
     
     /// Get device limits
     fn limits(&self) -> DeviceLimits;
@@ -105,7 +121,11 @@ pub struct DeviceFeatures {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BufferUsage, Extent3d, TextureFormat, TextureUsage, GraphicsError};
+    use crate::{
+        BufferUsage, Extent3d, TextureFormat, TextureUsage, GraphicsError,
+        BindGroupEntry, BindGroupLayoutEntry, BindingResource, BindingType, BufferBinding,
+        ShaderStages, TextureSampleType, TextureViewDimension,
+    };
     use std::sync::Arc;
     
     // Mock implementations for testing
@@ -196,6 +216,80 @@ mod tests {
         }
     }
     
+    struct MockBindGroupLayout {
+        binding_count: u32,
+    }
+    
+    impl GraphicsBindGroupLayout for MockBindGroupLayout {
+        fn binding_count(&self) -> u32 {
+            self.binding_count
+        }
+    }
+    
+    struct MockBindGroup {
+        layout: Arc<MockBindGroupLayout>,
+    }
+    
+    impl GraphicsBindGroup for MockBindGroup {
+        fn layout(&self) -> &dyn GraphicsBindGroupLayout {
+            &*self.layout
+        }
+    }
+    
+    // Mock command encoder
+    struct MockCommandEncoder;
+    
+    impl GraphicsCommandEncoder for MockCommandEncoder {
+        type RenderPass<'a> = MockRenderPass<'a> where Self: 'a;
+        type ComputePass<'a> = MockComputePass<'a> where Self: 'a;
+        
+        fn begin_render_pass<'a>(&'a mut self, _desc: &crate::RenderPassDescriptor<'a>) -> Self::RenderPass<'a> {
+            MockRenderPass {
+                _phantom: std::marker::PhantomData,
+            }
+        }
+        
+        fn begin_compute_pass<'a>(&'a mut self) -> Self::ComputePass<'a> {
+            MockComputePass {
+                _phantom: std::marker::PhantomData,
+            }
+        }
+        
+        fn copy_buffer_to_buffer(&mut self, _: &dyn GraphicsBuffer, _: u64, _: &dyn GraphicsBuffer, _: u64, _: u64) {}
+        
+        fn finish(self) -> Result<Box<dyn crate::GraphicsCommandBuffer>> {
+            Ok(Box::new(MockCommandBuffer))
+        }
+    }
+    
+    struct MockRenderPass<'a> {
+        _phantom: std::marker::PhantomData<&'a ()>,
+    }
+    
+    impl<'a> crate::GraphicsRenderPass<'a> for MockRenderPass<'a> {
+        fn set_pipeline(&mut self, _: &'a dyn crate::GraphicsPipeline) {}
+        fn set_bind_group(&mut self, _: u32, _: &'a dyn GraphicsBindGroup) {}
+        fn set_vertex_buffer(&mut self, _: u32, _: &'a dyn GraphicsBuffer) {}
+        fn set_index_buffer(&mut self, _: &'a dyn GraphicsBuffer, _: crate::IndexFormat) {}
+        fn set_viewport(&mut self, _: f32, _: f32, _: f32, _: f32, _: f32, _: f32) {}
+        fn set_scissor_rect(&mut self, _: u32, _: u32, _: u32, _: u32) {}
+        fn draw(&mut self, _: u32, _: u32) {}
+        fn draw_indexed(&mut self, _: u32, _: u32) {}
+    }
+    
+    struct MockComputePass<'a> {
+        _phantom: std::marker::PhantomData<&'a ()>,
+    }
+    
+    impl<'a> crate::GraphicsComputePass<'a> for MockComputePass<'a> {
+        fn set_pipeline(&mut self, _: &'a dyn crate::ComputePipeline) {}
+        fn set_bind_group(&mut self, _: u32, _: &'a dyn GraphicsBindGroup) {}
+        fn dispatch(&mut self, _: u32, _: u32, _: u32) {}
+    }
+    
+    struct MockCommandBuffer;
+    impl crate::GraphicsCommandBuffer for MockCommandBuffer {}
+    
     struct MockDevice {
         limits: DeviceLimits,
         features: DeviceFeatures,
@@ -206,6 +300,9 @@ mod tests {
         type Texture = MockTexture;
         type TextureView = MockTextureView;
         type Sampler = MockSampler;
+        type BindGroup = MockBindGroup;
+        type BindGroupLayout = MockBindGroupLayout;
+        type CommandEncoder = MockCommandEncoder;
         
         fn create_buffer(&self, desc: &BufferDescriptor) -> Result<Self::Buffer> {
             if desc.size > self.limits.max_buffer_size {
@@ -241,6 +338,24 @@ mod tests {
             Ok(MockSampler {
                 desc: desc.clone(),
             })
+        }
+        
+        fn create_bind_group_layout(&self, desc: &BindGroupLayoutDescriptor) -> Result<Self::BindGroupLayout> {
+            Ok(MockBindGroupLayout {
+                binding_count: desc.entries.len() as u32,
+            })
+        }
+        
+        fn create_bind_group(&self, desc: &BindGroupDescriptor) -> Result<Self::BindGroup> {
+            Ok(MockBindGroup {
+                layout: Arc::new(MockBindGroupLayout {
+                    binding_count: desc.layout.binding_count(),
+                }),
+            })
+        }
+        
+        fn create_command_encoder(&self) -> Result<Self::CommandEncoder> {
+            Ok(MockCommandEncoder)
         }
         
         fn limits(&self) -> DeviceLimits {
@@ -346,5 +461,76 @@ mod tests {
         
         assert_eq!(device.limits().max_texture_dimension_2d, 4096);
         assert!(device.features().anisotropic_filtering);
+    }
+    
+    #[test]
+    fn test_device_create_bind_group_layout() {
+        let device = MockDevice {
+            limits: DeviceLimits::default(),
+            features: DeviceFeatures::default(),
+        };
+        
+        let desc = BindGroupLayoutDescriptor {
+            entries: vec![
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Uniform,
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: true },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+            ],
+        };
+        
+        let layout = device.create_bind_group_layout(&desc).expect("Failed to create layout");
+        assert_eq!(layout.binding_count(), 2);
+    }
+    
+    #[test]
+    fn test_device_create_bind_group() {
+        let device = MockDevice {
+            limits: DeviceLimits::default(),
+            features: DeviceFeatures::default(),
+        };
+        
+        let layout = MockBindGroupLayout { binding_count: 1 };
+        let buffer = MockBuffer { size: 256 };
+        
+        let desc = BindGroupDescriptor {
+            layout: &layout,
+            entries: vec![
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::Buffer(BufferBinding {
+                        buffer: &buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+            ],
+        };
+        
+        let bind_group = device.create_bind_group(&desc).expect("Failed to create bind group");
+        assert_eq!(bind_group.layout().binding_count(), 1);
+    }
+    
+    #[test]
+    fn test_device_create_command_encoder() {
+        let device = MockDevice {
+            limits: DeviceLimits::default(),
+            features: DeviceFeatures::default(),
+        };
+        
+        let encoder = device.create_command_encoder().expect("Failed to create command encoder");
+        let _command_buffer = encoder.finish().expect("Failed to finish encoding");
     }
 }
