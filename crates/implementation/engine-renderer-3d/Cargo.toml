@@ -15,6 +15,8 @@ log = "0.4"
 pollster = "0.3"
 
 # Internal dependencies
+engine-renderer-core = { path = "../../core/engine-renderer-core" }
+engine-renderer-ecs-bridge = { path = "../../integration/engine-renderer-ecs-bridge" }
 engine-ecs-core = { path = "../../core/engine-ecs-core" }
 engine-components-3d = { path = "../../core/engine-components-3d" }
 engine-component-traits = { path = "../../core/engine-component-traits" }

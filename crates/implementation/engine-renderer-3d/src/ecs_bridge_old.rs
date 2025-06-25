@@ -1,18 +1,16 @@
-//! ECS to Renderer Bridge - Trait-based implementation
+//! ECS to Renderer Bridge
 //!
 //! This module provides the bridge between the ECS world and the 3D renderer,
-//! using the decoupled trait abstractions from engine-renderer-core.
+//! converting ECS entities with 3D components into render objects.
 
-use engine_renderer_core::{Renderable, RenderableQuery, CameraProvider};
-use engine_renderer_ecs_bridge::EcsCameraProvider;
-use engine_components_3d::{Mesh, MeshType, Transform};
+use engine_components_3d::{Material as EcsMaterial, Mesh, MeshType, Transform};
 use engine_ecs_core::ecs_v2::{Entity, World};
-use glam::Vec3;
+use glam::{Mat4, Vec3};
 use std::collections::HashMap;
 
 use crate::{Camera, RenderObject, RenderScene};
 
-/// Bridge for converting ECS world to render scene using trait abstractions
+/// Bridge for converting ECS world to render scene
 pub struct EcsRenderBridge {
     /// Mapping from mesh names to renderer mesh IDs
     mesh_name_to_id: HashMap<String, u32>,
@@ -50,72 +48,67 @@ impl EcsRenderBridge {
         self.material_name_to_id.insert(name, material_id);
     }
 
-    /// Convert ECS world to render scene using trait abstractions
+    /// Convert ECS world to render scene
     pub fn world_to_render_scene(
         &self,
         world: &World,
         camera: Camera,
         selected_entity: Option<Entity>,
     ) -> RenderScene {
-        // Extract renderables using trait-based query
         let mut scene = RenderScene::new(camera);
-        
-        // Build custom query that includes our mesh mapping
-        let renderables = self.extract_renderables_with_mapping(world, selected_entity);
-        
-        log::info!("Extracted {} renderables from ECS world", renderables.len());
-        
-        // Convert to render objects
-        for renderable in renderables {
-            scene.add_object(renderable);
+
+        // Get all entities with Transform components
+        let transform_entities: HashMap<Entity, &Transform> =
+            world.query_legacy::<Transform>().collect();
+
+        log::info!("Found {} entities with Transform", transform_entities.len());
+
+        // Get all entities with Mesh components
+        let mesh_entities: HashMap<Entity, &Mesh> = world.query_legacy::<Mesh>().collect();
+
+        log::info!("Found {} entities with Mesh", mesh_entities.len());
+
+        // Find entities that have transform and mesh components
+        for (entity, transform) in &transform_entities {
+            if let Some(mesh) = mesh_entities.get(entity) {
+                let is_selected = selected_entity == Some(*entity);
+                if let Some(render_object) =
+                    self.convert_to_render_object(*entity, transform, mesh, is_selected)
+                {
+                    scene.add_object(render_object);
+                }
+            }
         }
-        
+
         log::info!(
             "Converted ECS world to render scene with {} objects",
             scene.objects.len()
         );
-        
+
+        // Log details about objects
+        for (i, obj) in scene.objects.iter().enumerate() {
+            log::info!(
+                "Object {}: mesh_id={}, material_id={}, transform={:?}",
+                i,
+                obj.mesh_id,
+                obj.material_id,
+                obj.transform
+            );
+        }
+
         scene
     }
-    
-    /// Extract renderables with proper mesh/material mapping
-    fn extract_renderables_with_mapping(&self, world: &World, selected_entity: Option<Entity>) -> Vec<RenderObject> {
-        let mut render_objects = Vec::new();
-        
-        // Query all entities with Transform components
-        let transform_entities: HashMap<Entity, &Transform> =
-            world.query_legacy::<Transform>().collect();
-            
-        // Query all entities with Mesh components
-        let mesh_entities: HashMap<Entity, &Mesh> = 
-            world.query_legacy::<Mesh>().collect();
-            
-        // Find entities that have both transform and mesh
-        for (entity, transform) in &transform_entities {
-            if let Some(mesh) = mesh_entities.get(entity) {
-                // Map mesh type to mesh ID using our mappings
-                let mesh_id = self.map_mesh_to_id(&mesh.mesh_type);
-                
-                // For now, use default material
-                let material_id = self.default_material_id;
-                
-                // Create render object
-                let transform_matrix = transform.matrix();
-                let mut render_object = RenderObject::new(transform_matrix, mesh_id, material_id);
-                
-                // Set selection state
-                render_object.is_selected = selected_entity == Some(*entity);
-                
-                render_objects.push(render_object);
-            }
-        }
-        
-        render_objects
-    }
-    
-    /// Map mesh type to renderer mesh ID
-    fn map_mesh_to_id(&self, mesh_type: &MeshType) -> u32 {
-        match mesh_type {
+
+    /// Convert individual ECS entity to render object
+    fn convert_to_render_object(
+        &self,
+        _entity: Entity,
+        transform: &Transform,
+        mesh: &Mesh,
+        is_selected: bool,
+    ) -> Option<RenderObject> {
+        // Map mesh type to mesh ID
+        let mesh_id = match &mesh.mesh_type {
             MeshType::Cube => self
                 .mesh_name_to_id
                 .get("cube")
@@ -137,20 +130,59 @@ impl EcsRenderBridge {
                     self.default_mesh_id
                 })
             }
-        }
+        };
+
+        // For now, use a default material mapping based on color
+        // In a full implementation, this would be more sophisticated
+        let material_id = self.default_material_id;
+
+        // Convert transform to matrix
+        let transform_matrix = self.transform_to_matrix(transform);
+
+        let mut render_object = RenderObject::new(transform_matrix, mesh_id, material_id);
+        render_object.is_selected = is_selected;
+        Some(render_object)
+    }
+
+    /// Convert Transform component to transformation matrix
+    fn transform_to_matrix(&self, transform: &Transform) -> Mat4 {
+        // Log transform values for debugging
+        log::debug!(
+            "Converting transform to matrix: pos={:?}, rot={:?}, scale={:?}",
+            transform.position,
+            transform.rotation,
+            transform.scale
+        );
+
+        // Use the built-in matrix method from the Transform component
+        let matrix = transform.matrix();
+        log::debug!("Resulting matrix: {:?}", matrix);
+        matrix
     }
 
     /// Update existing render scene from ECS world (more efficient than full rebuild)
     pub fn update_render_scene(&self, world: &World, scene: &mut RenderScene) {
         // Clear existing objects
         scene.clear_objects();
-        
-        // Extract and add new objects
-        let renderables = self.extract_renderables_with_mapping(world, None);
-        for renderable in renderables {
-            scene.add_object(renderable);
+
+        // Get all entities with required components
+        let transform_entities: HashMap<Entity, &Transform> =
+            world.query_legacy::<Transform>().collect();
+        let mesh_entities: HashMap<Entity, &Mesh> = world.query_legacy::<Mesh>().collect();
+        let _material_entities: HashMap<Entity, &EcsMaterial> =
+            world.query_legacy::<EcsMaterial>().collect();
+
+        // Find entities that have transform and mesh components and add to scene
+        for (entity, transform) in &transform_entities {
+            if let Some(mesh) = mesh_entities.get(entity) {
+                if let Some(render_object) =
+                    self.convert_to_render_object(*entity, transform, mesh, false)
+                {
+                    scene.add_object(render_object);
+                }
+            }
         }
-        
+
         log::info!("Updated render scene with {} objects", scene.objects.len());
     }
 
@@ -162,57 +194,6 @@ impl EcsRenderBridge {
             default_mesh_id: self.default_mesh_id,
             default_material_id: self.default_material_id,
         }
-    }
-}
-
-/// Alternative implementation using pure trait abstractions
-/// This demonstrates how the renderer could work with any RenderableQuery implementation
-pub struct TraitBasedRenderBridge;
-
-impl TraitBasedRenderBridge {
-    /// Render using trait abstractions - completely decoupled from ECS
-    pub fn render_with_traits<Q, C>(
-        query: &Q,
-        camera_provider: Option<&C>,
-        default_camera: Camera,
-    ) -> RenderScene
-    where
-        Q: RenderableQuery,
-        C: CameraProvider,
-    {
-        // Use provided camera or default
-        let camera = if let Some(provider) = camera_provider {
-            // Convert trait-based camera to our Camera type
-            Camera {
-                position: provider.position(),
-                target: provider.position() + provider.forward(),
-                up: Vec3::Y,
-                fov: 60.0, // Default FOV
-                aspect: default_camera.aspect,
-                near: 0.1,
-                far: 1000.0,
-                is_main: default_camera.is_main,
-            }
-        } else {
-            default_camera
-        };
-        
-        let mut scene = RenderScene::new(camera);
-        
-        // Convert renderables to render objects
-        for renderable in query.iter() {
-            if let (Some(mesh_id), Some(material_id)) = 
-                (renderable.mesh_handle(), renderable.material_handle()) {
-                let render_object = RenderObject::new(
-                    renderable.world_matrix(),
-                    mesh_id,
-                    material_id
-                );
-                scene.add_object(render_object);
-            }
-        }
-        
-        scene
     }
 }
 
@@ -243,27 +224,39 @@ pub struct CameraExtractor;
 impl CameraExtractor {
     /// Extract camera from ECS world (looks for camera entities)
     pub fn extract_camera(world: &World, aspect_ratio: f32) -> Camera {
-        // Use trait-based extraction
-        if let Some(camera_provider) = EcsCameraProvider::from_world(world) {
-            Camera {
-                position: camera_provider.position(),
-                target: camera_provider.position() + camera_provider.forward(),
-                up: Vec3::Y,
-                fov: 60.0,
-                aspect: aspect_ratio,
-                near: 0.1,
-                far: 1000.0,
-                is_main: false,
+        // Find the main camera or highest priority active camera
+        let camera_entity = engine_camera_impl::find_main_camera(world)
+            .or_else(|| engine_camera_impl::find_active_camera(world));
+
+        if let Some(entity) = camera_entity {
+            // Get transform and camera components
+            if let (Some(transform), Some(cam)) = (
+                world.get_component::<engine_components_3d::Transform>(entity),
+                world.get_component::<engine_components_3d::Camera>(entity),
+            ) {
+                log::info!(
+                    "Found ECS camera at position: {:?}, rotation: {:?}",
+                    transform.position,
+                    transform.rotation
+                );
+                // Convert ECS components to renderer Camera
+                let camera = Camera::from_position_rotation(
+                    transform.position,
+                    transform.rotation,
+                    cam.calculate_aspect_ratio(800, 600), // TODO: get actual viewport size
+                );
+                log::info!("Camera target: {:?}", camera.target);
+                return camera;
             }
-        } else {
-            // Default camera fallback
-            let mut camera = Camera::new(aspect_ratio);
-            camera.position = Vec3::new(0.0, 2.0, 5.0);
-            camera.target = Vec3::ZERO;
-            
-            log::debug!("Using default camera (no camera entity found in ECS world)");
-            camera
         }
+
+        // Default camera fallback
+        let mut camera = Camera::new(aspect_ratio);
+        camera.position = Vec3::new(0.0, 2.0, 5.0);
+        camera.target = Vec3::ZERO;
+
+        log::debug!("Using default camera (no camera entity found in ECS world)");
+        camera
     }
 
     /// Extract camera with custom positioning
@@ -273,6 +266,7 @@ impl CameraExtractor {
         position: Vec3,
         target: Vec3,
     ) -> Camera {
+        // TODO: In the future, respect ECS camera entities but override position
         let mut camera = Self::extract_camera(world, aspect_ratio);
         camera.position = position;
         camera.target = target;
@@ -324,12 +318,6 @@ impl EcsRendererIntegration {
         }
         if let Some(cube_id) = renderer.get_default_mesh_id("cube") {
             self.bridge.add_mesh_mapping("cube".to_string(), cube_id);
-        }
-        if let Some(sphere_id) = renderer.get_default_mesh_id("sphere") {
-            self.bridge.add_mesh_mapping("sphere".to_string(), sphere_id);
-        }
-        if let Some(plane_id) = renderer.get_default_mesh_id("plane") {
-            self.bridge.add_mesh_mapping("plane".to_string(), plane_id);
         }
 
         // Add default material mappings
@@ -387,7 +375,23 @@ impl EcsRendererIntegration {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use glam::Vec3;
+    use glam::{Vec3, Vec4Swizzles};
+
+    #[test]
+    fn test_transform_to_matrix() {
+        let bridge = EcsRenderBridge::new(HashMap::new(), HashMap::new(), 0, 0);
+
+        let transform = Transform {
+            position: [1.0, 2.0, 3.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: [1.0, 1.0, 1.0],
+        };
+
+        let matrix = bridge.transform_to_matrix(&transform);
+
+        // The matrix should have the translation component
+        assert_eq!(matrix.col(3).xyz(), Vec3::new(1.0, 2.0, 3.0));
+    }
 
     #[test]
     fn test_mapping_stats_display() {
@@ -401,65 +405,5 @@ mod tests {
         let display = format!("{}", stats);
         assert!(display.contains("mesh_mappings: 5"));
         assert!(display.contains("material_mappings: 3"));
-    }
-    
-    #[test]
-    fn test_trait_based_render_bridge() {
-        use engine_renderer_core::Renderable;
-        use glam::Mat4;
-        
-        // Create a simple mock renderable
-        #[derive(Clone)]
-        struct MockRenderable {
-            transform: Mat4,
-            mesh_id: u32,
-            material_id: u32,
-        }
-        
-        impl Renderable for MockRenderable {
-            fn world_matrix(&self) -> Mat4 { self.transform }
-            fn mesh_handle(&self) -> Option<u32> { Some(self.mesh_id) }
-            fn material_handle(&self) -> Option<u32> { Some(self.material_id) }
-        }
-        
-        // Create mock query
-        struct MockQuery {
-            items: Vec<MockRenderable>,
-        }
-        
-        impl RenderableQuery for MockQuery {
-            type Item = MockRenderable;
-            type Iter = std::vec::IntoIter<MockRenderable>;
-            
-            fn iter(&self) -> Self::Iter {
-                self.items.clone().into_iter()
-            }
-            
-            fn len(&self) -> usize {
-                self.items.len()
-            }
-        }
-        
-        // Test rendering with traits
-        let query = MockQuery {
-            items: vec![
-                MockRenderable {
-                    transform: Mat4::from_translation(Vec3::new(1.0, 0.0, 0.0)),
-                    mesh_id: 1,
-                    material_id: 10,
-                },
-            ],
-        };
-        
-        let default_camera = Camera::new(1.0);
-        let scene = TraitBasedRenderBridge::render_with_traits(
-            &query,
-            None::<&EcsCameraProvider>,
-            default_camera
-        );
-        
-        assert_eq!(scene.objects.len(), 1);
-        assert_eq!(scene.objects[0].mesh_id, 1);
-        assert_eq!(scene.objects[0].material_id, 10);
     }
 }

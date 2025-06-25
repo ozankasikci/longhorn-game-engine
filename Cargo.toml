@@ -37,6 +37,7 @@ members = [
     # Integration layer (Tier 3)
     "crates/integration/engine-scene",
     "crates/integration/engine-runtime",
+    "crates/integration/engine-renderer-ecs-bridge",
     
     # Application layer (Tier 4)
     "crates/application/engine-editor-egui", 

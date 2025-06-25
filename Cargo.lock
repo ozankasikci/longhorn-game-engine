@@ -2011,6 +2011,8 @@ dependencies = [
  "engine-component-traits",
  "engine-components-3d",
  "engine-ecs-core",
+ "engine-renderer-core",
+ "engine-renderer-ecs-bridge",
  "env_logger",
  "glam 0.24.2",
  "log",
@@ -2048,12 +2050,22 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.9.1",
  "bytemuck",
- "engine-ecs-core",
  "engine-geometry-core",
  "engine-materials-core",
  "glam 0.24.2",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "engine-renderer-ecs-bridge"
+version = "0.1.0"
+dependencies = [
+ "engine-camera-core",
+ "engine-components-3d",
+ "engine-ecs-core",
+ "engine-renderer-core",
+ "glam 0.24.2",
 ]
 
 [[package]]

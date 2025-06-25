@@ -1,0 +1,14 @@
+[package]
+name = "engine-renderer-ecs-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engine-renderer-core = { workspace = true }
+engine-ecs-core = { workspace = true }
+engine-components-3d = { workspace = true }
+engine-camera-core = { workspace = true }
+glam = { workspace = true }
+
+[dev-dependencies]

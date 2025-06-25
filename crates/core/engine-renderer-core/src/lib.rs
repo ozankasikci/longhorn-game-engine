@@ -2,11 +2,13 @@ pub mod command;
 pub mod pipeline;
 pub mod resource;
 pub mod surface;
+pub mod traits;
 
 pub use command::*;
 pub use pipeline::*;
 pub use resource::*;
 pub use surface::*;
+pub use traits::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RendererError {
