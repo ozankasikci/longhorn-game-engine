@@ -1,0 +1,12 @@
+[package]
+name = "engine-graphics-traits"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytemuck = { version = "1.14", features = ["derive"] }
+glam = "0.27"
+thiserror = "1.0"
+
+[dev-dependencies]
+mockall = "0.11"

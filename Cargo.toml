@@ -16,6 +16,7 @@ members = [
     "crates/core/engine-audio-core",
     "crates/core/engine-physics-core",
     "crates/core/engine-events-core",
+    "crates/core/engine-graphics-traits",
     
     # Implementation layer (Tier 2)
     "crates/implementation/engine-input",
