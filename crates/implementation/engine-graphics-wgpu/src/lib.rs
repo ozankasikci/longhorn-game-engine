@@ -11,7 +11,10 @@ pub mod buffer;
 pub mod device;
 /// Error types and conversions
 pub mod error;
+/// Texture implementation for WGPU
+pub mod texture;
 
 pub use buffer::*;
 pub use device::*;
 pub use error::*;
+pub use texture::*;

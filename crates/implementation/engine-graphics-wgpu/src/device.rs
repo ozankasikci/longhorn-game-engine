@@ -73,28 +73,30 @@ impl WgpuDevice {
     }
 }
 
-// Placeholder types - we'll implement these next
-pub struct WgpuTexture;
-impl GraphicsTexture for WgpuTexture {
-    fn dimensions(&self) -> Extent3d { todo!() }
-    fn format(&self) -> TextureFormat { todo!() }
-    fn mip_level_count(&self) -> u32 { todo!() }
-    fn sample_count(&self) -> u32 { todo!() }
-}
+// Import texture types from texture module
+pub use crate::texture::{WgpuTexture, WgpuTextureView, WgpuSampler};
 
-pub struct WgpuTextureView;
-impl GraphicsTextureView for WgpuTextureView {
-    fn texture(&self) -> &dyn GraphicsTexture { todo!() }
-    fn format(&self) -> TextureFormat { todo!() }
-}
-
-pub struct WgpuSampler;
-impl GraphicsSampler for WgpuSampler {
-    fn min_filter(&self) -> FilterMode { todo!() }
-    fn mag_filter(&self) -> FilterMode { todo!() }
-    fn address_mode_u(&self) -> AddressMode { todo!() }
-    fn address_mode_v(&self) -> AddressMode { todo!() }
-    fn address_mode_w(&self) -> AddressMode { todo!() }
+/// Convert engine texture usage to WGPU texture usage
+fn convert_texture_usage(usage: TextureUsage) -> wgpu::TextureUsages {
+    let mut wgpu_usage = wgpu::TextureUsages::empty();
+    
+    if usage.contains(TextureUsage::COPY_SRC) {
+        wgpu_usage |= wgpu::TextureUsages::COPY_SRC;
+    }
+    if usage.contains(TextureUsage::COPY_DST) {
+        wgpu_usage |= wgpu::TextureUsages::COPY_DST;
+    }
+    if usage.contains(TextureUsage::TEXTURE_BINDING) {
+        wgpu_usage |= wgpu::TextureUsages::TEXTURE_BINDING;
+    }
+    if usage.contains(TextureUsage::STORAGE_BINDING) {
+        wgpu_usage |= wgpu::TextureUsages::STORAGE_BINDING;
+    }
+    if usage.contains(TextureUsage::RENDER_ATTACHMENT) {
+        wgpu_usage |= wgpu::TextureUsages::RENDER_ATTACHMENT;
+    }
+    
+    wgpu_usage
 }
 
 pub struct WgpuBindGroup;
@@ -178,15 +180,60 @@ impl GraphicsDevice for WgpuDevice {
     }
     
     fn create_texture(&self, desc: &TextureDescriptor) -> Result<Self::Texture> {
-        todo!()
+        let format = crate::texture::convert_texture_format(desc.format);
+        let usage = convert_texture_usage(desc.usage);
+        
+        let wgpu_texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width: desc.size.width,
+                height: desc.size.height,
+                depth_or_array_layers: desc.size.depth_or_array_layers,
+            },
+            mip_level_count: desc.mip_level_count,
+            sample_count: desc.sample_count,
+            dimension: wgpu::TextureDimension::D2, // Default to 2D for now
+            format,
+            usage,
+            view_formats: &[],
+        });
+        
+        Ok(WgpuTexture::new(wgpu_texture, desc.format))
     }
     
-    fn create_texture_view(&self, texture: &Self::Texture) -> Result<Self::TextureView> {
-        todo!()
+    fn create_texture_view(&self, _texture: &Self::Texture) -> Result<Self::TextureView> {
+        // For now, we'll skip this implementation as it requires texture cloning
+        // This will be improved when we implement bind groups
+        Err(GraphicsError::InvalidOperation(
+            "Texture view creation not yet implemented".to_string()
+        ))
     }
     
     fn create_sampler(&self, desc: &SamplerDescriptor) -> Result<Self::Sampler> {
-        todo!()
+        let min_filter = crate::texture::convert_filter_mode(desc.min_filter);
+        let mag_filter = crate::texture::convert_filter_mode(desc.mag_filter);
+        let address_mode_u = crate::texture::convert_address_mode(desc.address_mode_u);
+        let address_mode_v = crate::texture::convert_address_mode(desc.address_mode_v);
+        let address_mode_w = crate::texture::convert_address_mode(desc.address_mode_w);
+        
+        let wgpu_sampler = self.device.create_sampler(&wgpu::SamplerDescriptor {
+            label: None,
+            address_mode_u,
+            address_mode_v,
+            address_mode_w,
+            mag_filter,
+            min_filter,
+            ..Default::default()
+        });
+        
+        Ok(WgpuSampler::new(
+            wgpu_sampler,
+            desc.min_filter,
+            desc.mag_filter,
+            desc.address_mode_u,
+            desc.address_mode_v,
+            desc.address_mode_w,
+        ))
     }
     
     fn create_bind_group_layout(&self, desc: &BindGroupLayoutDescriptor) -> Result<Self::BindGroupLayout> {
@@ -331,6 +378,116 @@ mod tests {
             };
             let uniform_buffer = device.create_buffer(&uniform_desc);
             assert!(uniform_buffer.is_ok());
+        });
+    }
+    
+    #[test]
+    fn test_device_create_texture() {
+        pollster::block_on(async {
+            let device = create_test_device().await;
+            
+            let desc = TextureDescriptor {
+                size: Extent3d {
+                    width: 256,
+                    height: 256,
+                    depth_or_array_layers: 1,
+                },
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsage::TEXTURE_BINDING.union(TextureUsage::COPY_DST),
+                mip_level_count: 1,
+                sample_count: 1,
+            };
+            
+            let texture = device.create_texture(&desc).expect("Failed to create texture");
+            assert_eq!(texture.dimensions().width, 256);
+            assert_eq!(texture.dimensions().height, 256);
+            assert_eq!(texture.format(), TextureFormat::Rgba8Unorm);
+            assert_eq!(texture.mip_level_count(), 1);
+            assert_eq!(texture.sample_count(), 1);
+        });
+    }
+    
+    #[test]
+    fn test_device_create_sampler() {
+        pollster::block_on(async {
+            let device = create_test_device().await;
+            
+            let desc = SamplerDescriptor {
+                min_filter: FilterMode::Linear,
+                mag_filter: FilterMode::Nearest,
+                address_mode_u: AddressMode::Repeat,
+                address_mode_v: AddressMode::ClampToEdge,
+                address_mode_w: AddressMode::MirrorRepeat,
+            };
+            
+            let sampler = device.create_sampler(&desc).expect("Failed to create sampler");
+            assert_eq!(sampler.min_filter(), FilterMode::Linear);
+            assert_eq!(sampler.mag_filter(), FilterMode::Nearest);
+            assert_eq!(sampler.address_mode_u(), AddressMode::Repeat);
+            assert_eq!(sampler.address_mode_v(), AddressMode::ClampToEdge);
+            assert_eq!(sampler.address_mode_w(), AddressMode::MirrorRepeat);
+        });
+    }
+    
+    #[test]
+    fn test_texture_usage_conversion() {
+        let test_cases = vec![
+            (TextureUsage::COPY_SRC, wgpu::TextureUsages::COPY_SRC),
+            (TextureUsage::COPY_DST, wgpu::TextureUsages::COPY_DST),
+            (TextureUsage::TEXTURE_BINDING, wgpu::TextureUsages::TEXTURE_BINDING),
+            (TextureUsage::STORAGE_BINDING, wgpu::TextureUsages::STORAGE_BINDING),
+            (TextureUsage::RENDER_ATTACHMENT, wgpu::TextureUsages::RENDER_ATTACHMENT),
+        ];
+        
+        for (engine_usage, expected_wgpu) in test_cases {
+            let converted = convert_texture_usage(engine_usage);
+            assert_eq!(converted, expected_wgpu);
+        }
+        
+        // Test combined usage
+        let combined = TextureUsage::TEXTURE_BINDING.union(TextureUsage::COPY_DST);
+        let converted = convert_texture_usage(combined);
+        assert!(converted.contains(wgpu::TextureUsages::TEXTURE_BINDING));
+        assert!(converted.contains(wgpu::TextureUsages::COPY_DST));
+    }
+    
+    #[test]
+    fn test_create_various_textures() {
+        pollster::block_on(async {
+            let device = create_test_device().await;
+            
+            // Color texture
+            let color_desc = TextureDescriptor {
+                size: Extent3d { width: 128, height: 128, depth_or_array_layers: 1 },
+                format: TextureFormat::Rgba8UnormSrgb,
+                usage: TextureUsage::TEXTURE_BINDING.union(TextureUsage::RENDER_ATTACHMENT),
+                mip_level_count: 1,
+                sample_count: 1,
+            };
+            let color_texture = device.create_texture(&color_desc);
+            assert!(color_texture.is_ok());
+            
+            // Depth texture
+            let depth_desc = TextureDescriptor {
+                size: Extent3d { width: 256, height: 256, depth_or_array_layers: 1 },
+                format: TextureFormat::Depth32Float,
+                usage: TextureUsage::RENDER_ATTACHMENT,
+                mip_level_count: 1,
+                sample_count: 1,
+            };
+            let depth_texture = device.create_texture(&depth_desc);
+            assert!(depth_texture.is_ok());
+            
+            // HDR texture
+            let hdr_desc = TextureDescriptor {
+                size: Extent3d { width: 512, height: 512, depth_or_array_layers: 1 },
+                format: TextureFormat::Rgba32Float,
+                usage: TextureUsage::STORAGE_BINDING.union(TextureUsage::TEXTURE_BINDING),
+                mip_level_count: 3,
+                sample_count: 1,
+            };
+            let hdr_texture = device.create_texture(&hdr_desc);
+            assert!(hdr_texture.is_ok());
         });
     }
 }

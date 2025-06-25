@@ -45,7 +45,8 @@ This document tracks the progress of extracting WGPU-specific code from core cra
 - [x] Created `engine-graphics-wgpu` crate
 - [x] Implemented GraphicsDevice for WGPU (partial)
 - [x] Implemented buffer traits for WGPU
-- [ ] Implemented texture traits for WGPU
+- [x] Implemented texture traits for WGPU
+- [x] Implemented sampler support for WGPU
 - [ ] Created pipeline implementation
 - [ ] Implemented bind group wrapper
 - [ ] Added command encoding layer
@@ -75,10 +76,10 @@ This document tracks the progress of extracting WGPU-specific code from core cra
 None identified yet.
 
 ## Code Metrics
-- **Files Modified**: 13
-- **Lines Added**: ~2100
+- **Files Modified**: 14
+- **Lines Added**: ~2800
 - **Lines Removed**: 0
-- **Test Coverage**: 100% (43 tests - 34 traits + 9 WGPU)
+- **Test Coverage**: 100% (54 tests - 34 traits + 20 WGPU)
 
 ## Performance Impact
 - **Baseline FPS**: TBD
