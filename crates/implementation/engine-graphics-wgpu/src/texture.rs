@@ -180,7 +180,7 @@ pub fn convert_address_mode(mode: AddressMode) -> wgpu::AddressMode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_graphics_traits::{SamplerDescriptor, TextureDescriptor, TextureUsage};
+    // use engine_graphics_traits::{SamplerDescriptor, TextureDescriptor, TextureUsage};
 
     #[allow(unused_imports)]
     use super::*;

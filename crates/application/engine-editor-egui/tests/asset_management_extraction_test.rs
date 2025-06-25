@@ -83,7 +83,7 @@ fn test_asset_types_exported() {
 
     // Note: This is a compile-time test. If it compiles, the test passes.
     // We're checking that these types exist and are accessible
-    use engine_editor_assets::{AssetHandle, AssetLoadError, TextureAsset};
+    use engine_editor_assets::{AssetHandle, AssetLoadError};
 
     // Verify we can create instances
     let _ = AssetHandle::new(1);
@@ -150,7 +150,7 @@ fn test_asset_cache_functionality() {
     };
 
     // Cache the asset
-    let handle = cache.insert("test_key".to_string(), texture.clone());
+    let _handle = cache.insert("test_key".to_string(), texture.clone());
 
     // Retrieve the asset
     let retrieved = cache.get(&"test_key".to_string());

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EditorSettings {
     pub camera: CameraSettings,
     pub grid: GridSettings,
@@ -40,17 +40,6 @@ pub struct SnapSettings {
 pub struct ThemeSettings {
     pub ui_scale: f32,
     pub font_size: f32,
-}
-
-impl Default for EditorSettings {
-    fn default() -> Self {
-        Self {
-            camera: CameraSettings::default(),
-            grid: GridSettings::default(),
-            snap: SnapSettings::default(),
-            theme: ThemeSettings::default(),
-        }
-    }
 }
 
 impl Default for CameraSettings {
@@ -99,6 +88,7 @@ impl Default for ThemeSettings {
 
 impl EditorSettings {
     /// Load settings from file
+    #[allow(dead_code)]
     pub fn load() -> Self {
         if let Some(config_dir) = dirs::config_dir() {
             let settings_path = config_dir.join("longhorn").join("editor_settings.toml");
@@ -114,6 +104,7 @@ impl EditorSettings {
     }
 
     /// Save settings to file
+    #[allow(dead_code)]
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(config_dir) = dirs::config_dir() {
             let longhorn_dir = config_dir.join("longhorn");

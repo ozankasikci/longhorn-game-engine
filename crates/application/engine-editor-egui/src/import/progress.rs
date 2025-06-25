@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ImportStatus {
     Pending,
@@ -9,20 +10,31 @@ pub enum ImportStatus {
     Failed,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ImportTask {
     pub id: u64,
+    #[allow(dead_code)]
     pub file_path: PathBuf,
     pub total_bytes: usize,
     pub processed_bytes: usize,
     pub status: ImportStatus,
 }
 
+#[allow(dead_code)]
 pub struct ImportProgress {
     tasks: HashMap<u64, ImportTask>,
     next_id: u64,
 }
 
+#[allow(dead_code)]
+impl Default for ImportProgress {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl ImportProgress {
     pub fn new() -> Self {
         Self {
@@ -73,6 +85,7 @@ impl ImportProgress {
         }
     }
 
+    #[allow(dead_code)]
     pub fn show(&self, ctx: &egui::Context) {
         if self.tasks.is_empty() {
             return;
@@ -83,7 +96,7 @@ impl ImportProgress {
             .show(ctx, |ui| {
                 for task in self.tasks.values() {
                     ui.horizontal(|ui| {
-                        ui.label(&task.file_path.display().to_string());
+                        ui.label(task.file_path.display().to_string());
 
                         let progress = if task.total_bytes > 0 {
                             task.processed_bytes as f32 / task.total_bytes as f32

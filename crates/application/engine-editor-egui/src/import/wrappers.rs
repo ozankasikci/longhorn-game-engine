@@ -7,16 +7,19 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Wrapper for mesh importers that converts MeshData to Vec<u8>
+#[allow(dead_code)]
 pub struct MeshImporterWrapper<I: AssetImporter<Asset = MeshData>> {
     inner: I,
 }
 
+#[allow(dead_code)]
 impl<I: AssetImporter<Asset = MeshData>> MeshImporterWrapper<I> {
     pub fn new(inner: I) -> Self {
         Self { inner }
     }
 }
 
+#[allow(dead_code)]
 #[async_trait]
 impl<I: AssetImporter<Asset = MeshData> + Send + Sync> AssetImporter for MeshImporterWrapper<I> {
     type Asset = Vec<u8>;
@@ -45,16 +48,20 @@ impl<I: AssetImporter<Asset = MeshData> + Send + Sync> AssetImporter for MeshImp
 }
 
 /// Wrapper for texture importers that converts TextureData to Vec<u8>
+#[allow(dead_code)]
 pub struct TextureImporterWrapper<I: AssetImporter<Asset = TextureData>> {
     inner: I,
 }
 
+#[allow(dead_code)]
 impl<I: AssetImporter<Asset = TextureData>> TextureImporterWrapper<I> {
+    #[allow(dead_code)]
     pub fn new(inner: I) -> Self {
         Self { inner }
     }
 }
 
+#[allow(dead_code)]
 #[async_trait]
 impl<I: AssetImporter<Asset = TextureData> + Send + Sync> AssetImporter
     for TextureImporterWrapper<I>
@@ -85,16 +92,20 @@ impl<I: AssetImporter<Asset = TextureData> + Send + Sync> AssetImporter
 }
 
 /// Wrapper for audio importers that converts AudioData to Vec<u8>
+#[allow(dead_code)]
 pub struct AudioImporterWrapper<I: AssetImporter<Asset = AudioData>> {
     inner: I,
 }
 
+#[allow(dead_code)]
 impl<I: AssetImporter<Asset = AudioData>> AudioImporterWrapper<I> {
+    #[allow(dead_code)]
     pub fn new(inner: I) -> Self {
         Self { inner }
     }
 }
 
+#[allow(dead_code)]
 #[async_trait]
 impl<I: AssetImporter<Asset = AudioData> + Send + Sync> AssetImporter for AudioImporterWrapper<I> {
     type Asset = Vec<u8>;
@@ -124,29 +135,37 @@ impl<I: AssetImporter<Asset = AudioData> + Send + Sync> AssetImporter for AudioI
 
 // Convenience type aliases for commonly used wrappers
 pub type ObjImporterWrapper = MeshImporterWrapper<ObjImporter>;
+#[allow(dead_code)]
 pub type StandardTextureImporterWrapper = TextureImporterWrapper<TextureImporter>;
+#[allow(dead_code)]
 pub type StandardAudioImporterWrapper = AudioImporterWrapper<AudioImporter>;
 
 // Factory functions for creating wrapped importers
+#[allow(dead_code)]
 impl ObjImporterWrapper {
     pub fn create() -> Self {
         Self::new(ObjImporter::new())
     }
 }
 
+#[allow(dead_code)]
 impl StandardTextureImporterWrapper {
+    #[allow(dead_code)]
     pub fn create() -> Self {
         Self::new(TextureImporter::new())
     }
 }
 
+#[allow(dead_code)]
 impl StandardAudioImporterWrapper {
+    #[allow(dead_code)]
     pub fn create() -> Self {
         Self::new(AudioImporter::new())
     }
 }
 
 /// Enum to represent different asset data types in their serialized form
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SerializedAssetData {
     Mesh(Vec<u8>),
@@ -154,8 +173,10 @@ pub enum SerializedAssetData {
     Audio(Vec<u8>),
 }
 
+#[allow(dead_code)]
 impl SerializedAssetData {
     /// Deserialize mesh data from bytes
+    #[allow(dead_code)]
     pub fn deserialize_mesh(&self) -> Result<MeshData, bincode::Error> {
         match self {
             SerializedAssetData::Mesh(data) => bincode::deserialize(data),
@@ -166,6 +187,7 @@ impl SerializedAssetData {
     }
 
     /// Deserialize texture data from bytes
+    #[allow(dead_code)]
     pub fn deserialize_texture(&self) -> Result<TextureData, bincode::Error> {
         match self {
             SerializedAssetData::Texture(data) => bincode::deserialize(data),
@@ -176,6 +198,7 @@ impl SerializedAssetData {
     }
 
     /// Deserialize audio data from bytes
+    #[allow(dead_code)]
     pub fn deserialize_audio(&self) -> Result<AudioData, bincode::Error> {
         match self {
             SerializedAssetData::Audio(data) => bincode::deserialize(data),
@@ -189,8 +212,6 @@ impl SerializedAssetData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_asset_import::ImportContext;
-    use std::path::PathBuf;
 
     #[tokio::test]
     async fn test_obj_importer_wrapper() {

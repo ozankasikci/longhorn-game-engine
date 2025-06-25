@@ -21,9 +21,12 @@ pub enum AssetType {
 pub struct AssetInfo {
     pub id: ResourceId,
     pub name: String,
+    #[allow(dead_code)]
     pub path: PathBuf,
     pub asset_type: AssetType,
+    #[allow(dead_code)]
     pub size_bytes: u64,
+    #[allow(dead_code)]
     pub import_time: SystemTime,
 }
 
@@ -35,10 +38,12 @@ pub struct AssetBrowserState {
 }
 
 impl AssetBrowserState {
+    #[allow(dead_code)]
     pub fn add_asset(&mut self, asset: AssetInfo) {
         self.assets.insert(asset.id, asset);
     }
 
+    #[allow(dead_code)]
     pub fn remove_asset(&mut self, id: &ResourceId) {
         self.assets.remove(id);
         if self.selected_asset == Some(*id) {
@@ -46,30 +51,43 @@ impl AssetBrowserState {
         }
     }
 
+    #[allow(dead_code)]
     pub fn has_asset(&self, id: &ResourceId) -> bool {
         self.assets.contains_key(id)
     }
 
+    #[allow(dead_code)]
     pub fn get_asset(&self, id: &ResourceId) -> Option<&AssetInfo> {
         self.assets.get(id)
     }
 
+    #[allow(dead_code)]
     pub fn get_assets(&self) -> impl Iterator<Item = &AssetInfo> {
         self.assets.values()
     }
 
+    #[allow(dead_code)]
     pub fn select_asset(&mut self, id: ResourceId) {
         self.selected_asset = Some(id);
     }
 
+    #[allow(dead_code)]
     pub fn get_selected_asset(&self) -> Option<&AssetInfo> {
         self.selected_asset.and_then(|id| self.assets.get(&id))
     }
 }
 
 pub struct AssetBrowser {
+    #[allow(dead_code)]
     show_thumbnails: bool,
+    #[allow(dead_code)]
     thumbnail_size: f32,
+}
+
+impl Default for AssetBrowser {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AssetBrowser {
@@ -80,6 +98,7 @@ impl AssetBrowser {
         }
     }
 
+    #[allow(dead_code)]
     pub fn show(&mut self, ctx: &Context, state: &mut AssetBrowserState) {
         egui::SidePanel::right("asset_browser")
             .default_width(300.0)

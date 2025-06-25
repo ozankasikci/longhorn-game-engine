@@ -70,18 +70,23 @@ pub struct LonghornEditor {
     selected_object: Option<String>,
 
     // Panel data
+    #[allow(dead_code)]
     hierarchy_objects: Vec<HierarchyObject>,
     project_assets: Vec<types::ProjectAsset>,
 
     // Texture asset system
+    #[allow(dead_code)]
     texture_assets: std::collections::HashMap<u64, TextureAsset>,
+    #[allow(dead_code)]
     next_texture_handle: u64,
 
     // Editor coordination
     coordinator: EditorCoordinator,
 
     // UI state
+    #[allow(dead_code)]
     scene_view_active: bool,
+    #[allow(dead_code)]
     show_add_component_dialog: bool,
     inspector_panel: InspectorPanel,
     hierarchy_panel: HierarchyPanel,
@@ -102,6 +107,7 @@ pub struct LonghornEditor {
     scene_view_renderer: SceneViewRenderer,
 
     // Phase 10.2: Track entity counts for change detection
+    #[allow(dead_code)]
     last_rendered_entity_count: usize,
 
     // Editor settings
@@ -156,10 +162,12 @@ impl LonghornEditor {
         let settings_dialog = SettingsDialog::new(settings.clone());
 
         // Create scene navigation with settings applied
-        let mut scene_navigation = SceneNavigation::default();
-        scene_navigation.movement_speed = settings.camera.movement_speed;
-        scene_navigation.fast_movement_multiplier = settings.camera.fast_multiplier;
-        scene_navigation.rotation_sensitivity = settings.camera.rotation_sensitivity;
+        let scene_navigation = SceneNavigation {
+            movement_speed: settings.camera.movement_speed,
+            fast_movement_multiplier: settings.camera.fast_multiplier,
+            rotation_sensitivity: settings.camera.rotation_sensitivity,
+            ..Default::default()
+        };
 
         // Initialize scene view renderer
         let mut scene_view_renderer = SceneViewRenderer::new();
@@ -299,7 +307,7 @@ impl eframe::App for LonghornEditor {
                 self.gizmo_system
                     .set_active_tool(engine_editor_ui::SceneTool::Move);
                 if let Some(entity) = self.selected_entity {
-                    if let Some(transform) = self.world.get_component::<Transform>(entity) {
+                    if let Some(_transform) = self.world.get_component::<Transform>(entity) {
                         self.gizmo_system.enable_move_gizmo();
                     }
                 }
@@ -500,7 +508,7 @@ impl LonghornEditor {
         // Find the main camera entity, or use the scene editor camera
         let main_camera_entity = engine_camera_impl::find_main_camera(&self.world)
             .or_else(|| engine_camera_impl::find_active_camera(&self.world))
-            .or_else(|| {
+            .or({
                 // Fallback to editor camera if no main camera
                 self.scene_view_renderer.editor_camera.camera_entity
             });
@@ -525,6 +533,7 @@ impl LonghornEditor {
                 static mut LAST_POS: [f32; 3] = [0.0, 0.0, 0.0];
                 static mut LAST_ROT: [f32; 3] = [0.0, 0.0, 0.0];
 
+                #[allow(static_mut_refs)]
                 unsafe {
                     if LAST_POS != transform.position || LAST_ROT != transform.rotation {
                         log::warn!(
@@ -612,6 +621,7 @@ impl LonghornEditor {
         self.project_panel.show(ui, &panel_assets);
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn convert_project_asset(
         &self,
         asset: &types::ProjectAsset,

@@ -33,6 +33,7 @@ impl Default for ImportSettings {
     }
 }
 
+#[allow(dead_code)]
 impl ImportSettings {
     pub fn is_default(&self) -> bool {
         self.scale == 1.0
@@ -57,9 +58,18 @@ pub struct ImportDialog {
     selected_files: Vec<PathBuf>,
     selected_files_set: HashSet<PathBuf>,
     settings: ImportSettings,
+    // File dialog state - allow dead code as this may be used in future UI implementation
+    #[allow(dead_code)]
     file_dialog_result: Option<Vec<PathBuf>>,
 }
 
+impl Default for ImportDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl ImportDialog {
     pub fn new() -> Self {
         Self {

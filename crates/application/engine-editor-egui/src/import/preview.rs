@@ -1,7 +1,8 @@
 use glam::Vec3;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PreviewData {
     pub has_mesh: bool,
     pub vertex_count: usize,
@@ -11,13 +12,23 @@ pub struct PreviewData {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Bounds {
+    #[allow(dead_code)]
     pub min: Vec3,
+    #[allow(dead_code)]
     pub max: Vec3,
 }
 
 pub struct ImportPreview;
 
+impl Default for ImportPreview {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl ImportPreview {
     pub fn new() -> Self {
         Self

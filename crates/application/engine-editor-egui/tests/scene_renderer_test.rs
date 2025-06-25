@@ -8,6 +8,7 @@ use engine_resource_core::{ResourceHandle, ResourceId};
 use glam::{Vec2, Vec3};
 
 /// Helper function to create a simple cube mesh data
+#[allow(dead_code)]
 fn create_test_cube_mesh() -> MeshData {
     let half_size = 0.5;
     let vertices = vec![
@@ -309,7 +310,7 @@ fn test_scene_renderer_respects_layer_mask() {
     let mut ui_layer_entities = Vec::new();
 
     for (entity, _) in world.query_legacy::<Transform>() {
-        if let Some(mesh_filter) = world.get_component::<MeshFilter>(entity) {
+        if let Some(_mesh_filter) = world.get_component::<MeshFilter>(entity) {
             if let Some(mesh_renderer) = world.get_component::<MeshRenderer>(entity) {
                 if mesh_renderer.enabled {
                     if mesh_renderer.layer_mask & 1 != 0 {

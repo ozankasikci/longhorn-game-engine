@@ -3,10 +3,13 @@
 use eframe::egui;
 
 // Re-export types from scene view crate
-pub use engine_editor_scene_view::types::{PlayState, SceneNavigation, SceneTool};
+pub use engine_editor_scene_view::types::SceneTool;
+#[allow(unused_imports)]
+pub use engine_editor_scene_view::types::{PlayState, SceneNavigation};
 
 /// Gizmo axis selection for movement constraints
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum GizmoAxis {
     X, // Red axis - Left/Right
     Y, // Green axis - Up/Down
@@ -15,6 +18,7 @@ pub enum GizmoAxis {
 
 /// Gizmo plane selection for planar movement
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum GizmoPlane {
     XY, // Blue square - Z locked
     XZ, // Green square - Y locked
@@ -23,6 +27,7 @@ pub enum GizmoPlane {
 
 /// Gizmo component that can be interacted with
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum GizmoComponent {
     Axis(GizmoAxis),
     Plane(GizmoPlane),
@@ -31,6 +36,7 @@ pub enum GizmoComponent {
 
 /// Current gizmo interaction state
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum GizmoInteractionState {
     Idle,                     // No interaction
     Hovering(GizmoComponent), // Mouse over component
@@ -52,6 +58,7 @@ pub use engine_editor_assets::{ProjectAsset, TextureAsset};
 
 /// Different types of dockable panels
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum PanelType {
     Hierarchy,
     Inspector,
@@ -62,13 +69,21 @@ pub enum PanelType {
 }
 
 // Re-export hierarchy types from framework
-pub use engine_editor_framework::{HierarchyObject, ObjectType};
+pub use engine_editor_framework::HierarchyObject;
+#[allow(unused_imports)]
+pub use engine_editor_framework::ObjectType;
 
 // GizmoSystem moved to a simpler implementation
 
 #[derive(Debug, Clone)]
 pub struct GizmoSystem {
     active_tool: SceneTool,
+}
+
+impl Default for GizmoSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GizmoSystem {
@@ -78,6 +93,7 @@ impl GizmoSystem {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_active_tool(&self) -> SceneTool {
         self.active_tool
     }

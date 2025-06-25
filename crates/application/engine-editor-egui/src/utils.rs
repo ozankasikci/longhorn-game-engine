@@ -4,6 +4,7 @@ use eframe::egui;
 use engine_components_2d::Sprite;
 
 /// Convert sprite color to EGUI color
+#[allow(dead_code)]
 pub fn get_sprite_color(sprite: &Sprite) -> egui::Color32 {
     let final_color = sprite.color;
     egui::Color32::from_rgba_unmultiplied(
@@ -15,6 +16,7 @@ pub fn get_sprite_color(sprite: &Sprite) -> egui::Color32 {
 }
 
 /// Create a default texture ID pattern
+#[allow(dead_code)]
 pub fn create_default_texture_id(base_id: u64, color_index: usize) -> u64 {
     base_id + color_index as u64
 }

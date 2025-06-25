@@ -5,7 +5,6 @@
 fn test_complete_object_creation_workflow() {
     // Test creating an object through the full editor stack
     use engine_components_3d::Transform;
-    use engine_ecs_core::World;
     use engine_editor_framework::{world_setup, EditorState};
 
     // 1. Create world and editor state
@@ -38,7 +37,7 @@ fn test_complete_asset_loading_workflow() {
     let default_textures = create_default_textures();
 
     // 2. Register textures
-    for (id, texture) in default_textures.iter() {
+    for (_id, texture) in default_textures.iter() {
         texture_manager.register_texture(
             texture.name.clone(),
             texture.id,
@@ -48,7 +47,7 @@ fn test_complete_asset_loading_workflow() {
     }
 
     // 3. Create project panel that would display these assets
-    let mut project_panel = ProjectPanel::new();
+    let _project_panel = ProjectPanel::new();
     let project_assets = engine_editor_assets::create_default_project_assets();
 
     // 4. Verify assets are available
@@ -60,10 +59,10 @@ fn test_complete_asset_loading_workflow() {
 fn test_play_mode_transition_workflow() {
     // Test transitioning between edit and play modes
     use engine_editor_framework::{EditorCoordinator, PlayState};
-    use engine_editor_ui::{PlayState as UIPlayState, Toolbar};
+    use engine_editor_ui::Toolbar;
 
     let mut coordinator = EditorCoordinator::new();
-    let mut toolbar = Toolbar::new();
+    let _toolbar = Toolbar::new();
 
     // 1. Start in editing mode
     assert_eq!(coordinator.get_play_state(), PlayState::Editing);
@@ -108,7 +107,6 @@ fn test_scene_navigation_workflow() {
 #[test]
 fn test_console_message_workflow() {
     // Test console message flow from various sources
-    use engine_editor_framework::ConsoleMessage as FrameworkMsg;
     use engine_editor_panels::{ConsoleMessage as PanelMsg, ConsolePanel};
 
     let mut console = ConsolePanel::new();
@@ -157,8 +155,8 @@ fn test_hierarchy_selection_workflow() {
     use engine_editor_panels::{HierarchyPanel, InspectorPanel};
 
     let mut editor_state = EditorState::new();
-    let hierarchy = HierarchyPanel::new();
-    let inspector = InspectorPanel::new();
+    let _hierarchy = HierarchyPanel::new();
+    let _inspector = InspectorPanel::new();
 
     // 1. Create some objects
     let obj1 = editor_state.create_object("Object1", Default::default());
@@ -184,15 +182,15 @@ fn test_multi_panel_coordination() {
     use engine_editor_framework::EditorState;
     use engine_editor_panels::*;
 
-    let mut world = World::new();
+    let _world = World::new();
     let mut editor_state = EditorState::new();
 
     // Create all panels
-    let mut inspector = InspectorPanel::new();
-    let mut hierarchy = HierarchyPanel::new();
+    let _inspector = InspectorPanel::new();
+    let _hierarchy = HierarchyPanel::new();
     let mut console = ConsolePanel::new();
-    let project = ProjectPanel::new();
-    let game_view = GameViewPanel::new();
+    let _project = ProjectPanel::new();
+    let _game_view = GameViewPanel::new();
 
     // Simulate workflow
     // 1. Log message when creating object

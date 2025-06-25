@@ -3,9 +3,9 @@
 use engine_components_3d::{Material, MeshFilter, MeshRenderer, Transform, Visibility};
 use engine_components_ui::Name;
 use engine_ecs_core::World;
-use engine_geometry_core::{MeshData, Vertex};
+use engine_geometry_core::MeshData;
 use engine_resource_core::{ResourceHandle, ResourceId};
-use glam::{Vec2, Vec3};
+// glam types not used in this test
 
 /// Test that entities with new mesh components render correctly
 #[test]
@@ -110,7 +110,7 @@ fn test_entities_render_with_new_mesh_system() {
     // Query all renderable entities
     let mut renderable_count = 0;
     for (entity, transform) in world.query_legacy::<Transform>() {
-        if let Some(mesh_filter) = world.get_component::<MeshFilter>(entity) {
+        if let Some(_mesh_filter) = world.get_component::<MeshFilter>(entity) {
             if let Some(mesh_renderer) = world.get_component::<MeshRenderer>(entity) {
                 if mesh_renderer.enabled {
                     renderable_count += 1;

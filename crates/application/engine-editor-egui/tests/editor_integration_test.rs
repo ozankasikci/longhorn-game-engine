@@ -39,16 +39,12 @@ fn test_dependency_graph() {
 #[test]
 fn test_scene_view_integration() {
     // Test 3: Verify scene view integration works
-    use eframe::egui;
     use engine_ecs_core::World;
-    use engine_editor_scene_view::{
-        types::{PlayState, SceneNavigation},
-        SceneView,
-    };
+    use engine_editor_scene_view::{types::SceneNavigation, SceneView};
 
-    let scene_view = SceneView::new();
-    let mut world = World::new();
-    let mut scene_nav = SceneNavigation::default();
+    let _scene_view = SceneView::new();
+    let mut _world = World::new();
+    let scene_nav = SceneNavigation::default();
 
     // Should be able to create scene view components
     assert_eq!(
@@ -87,7 +83,7 @@ fn test_asset_management() {
     // Test 6: Verify asset management integration
     use engine_editor_assets::{create_default_textures, AssetCache, TextureManager};
 
-    let mut texture_manager = TextureManager::new();
+    let _texture_manager = TextureManager::new();
     let textures = create_default_textures();
 
     assert!(!textures.is_empty());
@@ -157,7 +153,6 @@ fn test_world_setup_integration() {
 #[test]
 fn test_console_message_flow() {
     // Test 11: Test message flow between panels and console
-    use engine_editor_framework::ConsoleMessage as FrameworkMessage;
     use engine_editor_panels::{ConsoleMessage as PanelMessage, ConsolePanel};
 
     let mut console = ConsolePanel::new();
@@ -178,8 +173,7 @@ fn test_console_message_flow() {
 #[test]
 fn test_editor_app_trait() {
     // Test 12: Verify EditorApp trait implementation
-    use eframe::egui;
-    use engine_editor_ui::{EditorApp, PanelType};
+    use engine_editor_ui::EditorApp;
 
     // This test verifies the trait is properly implemented
     // by the main editor (compilation test)
@@ -192,7 +186,6 @@ fn test_editor_app_trait() {
 fn test_texture_asset_consistency() {
     // Test 13: Verify TextureAsset type is consistent
     use engine_editor_assets::create_default_textures;
-    use engine_editor_assets::TextureAsset;
 
     let textures = create_default_textures();
 

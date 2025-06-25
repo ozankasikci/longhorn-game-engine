@@ -1,6 +1,4 @@
-use engine_resource_core::ResourceId;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 mod batch;
 pub mod dialog;
@@ -17,22 +15,42 @@ pub mod wrappers;
 #[cfg(test)]
 mod tests;
 
+#[allow(unused_imports)]
 pub use batch::{BatchImportOptions, BatchImporter};
-pub use dialog::{CollisionType, ImportDialog, ImportResult, ImportSettings};
+pub use dialog::ImportSettings;
+#[allow(unused_imports)]
+pub use dialog::{CollisionType, ImportDialog};
+#[allow(unused_imports)]
+pub use dialog::ImportResult;
+#[allow(unused_imports)]
 pub use drag_drop::{DragDropHandler, FileType};
+#[allow(unused_imports)]
 pub use error::{ImportError as ImportErr, ImportErrorDialog, ImportErrorType};
+#[allow(unused_imports)]
 pub use file_watcher::{FileWatchEvent, ImportFileWatcher};
+#[allow(unused_imports)]
 pub use history::{ImportHistory, ImportRecord};
+#[allow(unused_imports)]
 pub use hot_reload::{HotReloadAction, HotReloadEvent, HotReloadWatcher};
-pub use preview::{ImportPreview, PreviewData};
+#[allow(unused_imports)]
+pub use preview::ImportPreview;
+#[allow(unused_imports)]
+pub use preview::PreviewData;
+#[allow(unused_imports)]
 pub use progress::{ImportProgress, ImportTask};
+pub use service::ImportService;
+#[allow(unused_imports)]
+pub use service::{ImportError, ImportStatus};
+#[allow(unused_imports)]
 pub use service::{
-    ImportError, ImportHandle, ImportNotification, ImportQueue, ImportService,
-    ImportSettingsConverter, ImportStatus, ImportUIState,
+    ImportHandle, ImportNotification, ImportQueue, ImportSettingsConverter, ImportUIState,
 };
+#[allow(unused_imports)]
+pub use wrappers::{MeshImporterWrapper, ObjImporterWrapper};
+#[allow(unused_imports)]
 pub use wrappers::{
-    AudioImporterWrapper, MeshImporterWrapper, ObjImporterWrapper, SerializedAssetData,
-    StandardAudioImporterWrapper, StandardTextureImporterWrapper, TextureImporterWrapper,
+    AudioImporterWrapper, SerializedAssetData, StandardAudioImporterWrapper,
+    StandardTextureImporterWrapper, TextureImporterWrapper,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -47,6 +65,7 @@ pub enum AssetType {
     Other,
 }
 
+#[allow(dead_code)]
 impl AssetType {
     pub fn from_extension(ext: &str) -> Option<Self> {
         match ext.to_lowercase().as_str() {

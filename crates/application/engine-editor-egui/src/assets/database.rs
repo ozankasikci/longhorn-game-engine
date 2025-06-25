@@ -35,6 +35,13 @@ pub struct AssetDatabase {
     path_index: HashMap<PathBuf, Uuid>,
 }
 
+impl Default for AssetDatabase {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl AssetDatabase {
     pub fn new() -> Self {
         Self {

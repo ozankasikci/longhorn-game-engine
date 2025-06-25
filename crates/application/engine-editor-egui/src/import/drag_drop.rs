@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum FileType {
     Mesh,
     Texture,
@@ -9,10 +10,18 @@ pub enum FileType {
     Unknown,
 }
 
+#[allow(dead_code)]
 pub struct DragDropHandler {
     pending_imports: VecDeque<PathBuf>,
 }
 
+impl Default for DragDropHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl DragDropHandler {
     pub fn new() -> Self {
         Self {

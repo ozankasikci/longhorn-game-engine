@@ -1,11 +1,11 @@
 // Tests for migrating from old Mesh component to new MeshFilter/MeshRenderer system
 
-use engine_components_3d::{Material, Mesh, MeshFilter, MeshRenderer, MeshType, Transform};
+use engine_components_3d::{Material, Mesh, MeshFilter, MeshRenderer, Transform};
 use engine_components_ui::Name;
 use engine_ecs_core::World;
-use engine_geometry_core::{MeshData, Vertex};
+use engine_geometry_core::MeshData;
 use engine_resource_core::{ResourceHandle, ResourceId};
-use glam::{Vec2, Vec3};
+// glam types not used in this test
 
 /// Test that entities with MeshFilter and MeshRenderer can be queried correctly
 #[test]
@@ -238,7 +238,7 @@ fn test_renderer_query_pattern() {
     // Simulate renderer query pattern
     let mut renderable_entities = Vec::new();
     for (entity, _transform) in world.query_legacy::<Transform>() {
-        if let Some(mesh_filter) = world.get_component::<MeshFilter>(entity) {
+        if let Some(_mesh_filter) = world.get_component::<MeshFilter>(entity) {
             if let Some(mesh_renderer) = world.get_component::<MeshRenderer>(entity) {
                 if mesh_renderer.enabled {
                     renderable_entities.push(entity);

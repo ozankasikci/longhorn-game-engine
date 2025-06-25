@@ -41,7 +41,7 @@ impl WgpuDevice {
         let limits = DeviceLimits {
             max_texture_dimension_2d: device.limits().max_texture_dimension_2d,
             max_texture_dimension_3d: device.limits().max_texture_dimension_3d,
-            max_buffer_size: device.limits().max_buffer_size as u64,
+            max_buffer_size: device.limits().max_buffer_size,
             max_vertex_attributes: device.limits().max_vertex_attributes,
             max_bind_groups: device.limits().max_bind_groups,
         };
@@ -111,6 +111,7 @@ fn convert_texture_usage(usage: TextureUsage) -> wgpu::TextureUsages {
 
 // Bind group types are now imported from bind_group module
 
+/// WGPU implementation of command encoder for recording GPU commands
 pub struct WgpuCommandEncoder;
 impl GraphicsCommandEncoder for WgpuCommandEncoder {
     type RenderPass<'a>
@@ -149,6 +150,7 @@ impl GraphicsCommandEncoder for WgpuCommandEncoder {
     }
 }
 
+/// WGPU implementation of render pass for recording draw commands
 pub struct WgpuRenderPass<'a> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
@@ -188,6 +190,7 @@ impl<'a> GraphicsRenderPass<'a> for WgpuRenderPass<'a> {
     }
 }
 
+/// WGPU implementation of compute pass for recording compute commands
 pub struct WgpuComputePass<'a> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
@@ -293,7 +296,7 @@ impl GraphicsDevice for WgpuDevice {
             .map(|entry| wgpu::BindGroupLayoutEntry {
                 binding: entry.binding,
                 visibility: crate::bind_group::convert_shader_stages(entry.visibility),
-                ty: crate::bind_group::convert_binding_type(entry.ty.clone()),
+                ty: crate::bind_group::convert_binding_type(entry.ty),
                 count: entry.count.map(|c| std::num::NonZeroU32::new(c).unwrap()),
             })
             .collect();
@@ -313,27 +316,30 @@ impl GraphicsDevice for WgpuDevice {
 
     fn create_bind_group(&self, desc: &BindGroupDescriptor) -> Result<Self::BindGroup> {
         // Convert binding resources
-        let entries: Result<Vec<wgpu::BindGroupEntry>> = desc.entries.iter().map(|entry| {
-            let resource = match &entry.resource {
-                BindingResource::Buffer(buffer_binding) => {
-                    // We need to convert from trait object to concrete type
-                    // This is a limitation of the current design - we'll handle it for now
-                    return Err(GraphicsError::InvalidOperation(
-                        "Buffer binding not yet implemented - requires concrete buffer access".to_string()
-                    ));
-                },
-                BindingResource::TextureView(_view) => {
-                    return Err(GraphicsError::InvalidOperation(
-                        "Texture view binding not yet implemented - requires concrete view access".to_string()
-                    ));
-                },
-                BindingResource::Sampler(_sampler) => {
-                    return Err(GraphicsError::InvalidOperation(
-                        "Sampler binding not yet implemented - requires concrete sampler access".to_string()
-                    ));
-                },
-            };
-        }).collect();
+        let _entries: Result<Vec<wgpu::BindGroupEntry>> = desc
+            .entries
+            .iter()
+            .map(|entry| {
+                match &entry.resource {
+                    BindingResource::Buffer(_buffer_binding) => {
+                        // We need to convert from trait object to concrete type
+                        // This is a limitation of the current design - we'll handle it for now
+                        Err(GraphicsError::InvalidOperation(
+                            "Buffer binding not yet implemented - requires concrete buffer access"
+                                .to_string(),
+                        ))
+                    }
+                    BindingResource::TextureView(_view) => Err(GraphicsError::InvalidOperation(
+                        "Texture view binding not yet implemented - requires concrete view access"
+                            .to_string(),
+                    )),
+                    BindingResource::Sampler(_sampler) => Err(GraphicsError::InvalidOperation(
+                        "Sampler binding not yet implemented - requires concrete sampler access"
+                            .to_string(),
+                    )),
+                }
+            })
+            .collect();
 
         // For now, return an error until we implement proper resource binding
         Err(GraphicsError::InvalidOperation(

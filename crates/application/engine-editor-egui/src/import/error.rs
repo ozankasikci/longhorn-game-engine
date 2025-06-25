@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum ImportErrorType {
     InvalidFormat,
     FileTooLarge,
@@ -12,6 +13,7 @@ pub enum ImportErrorType {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ImportError {
     pub file_path: PathBuf,
     pub error_type: ImportErrorType,
@@ -19,11 +21,19 @@ pub struct ImportError {
     pub recoverable: bool,
 }
 
+#[allow(dead_code)]
 pub struct ImportErrorDialog {
     errors: Vec<ImportError>,
     visible: bool,
 }
 
+impl Default for ImportErrorDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl ImportErrorDialog {
     pub fn new() -> Self {
         Self {

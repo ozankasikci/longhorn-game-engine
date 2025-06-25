@@ -58,7 +58,7 @@ impl GraphicsBuffer for WgpuBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_graphics_traits::{BufferDescriptor, BufferUsage};
+    // use engine_graphics_traits::{BufferDescriptor, BufferUsage};
 
     #[allow(unused_imports)]
     use super::*;

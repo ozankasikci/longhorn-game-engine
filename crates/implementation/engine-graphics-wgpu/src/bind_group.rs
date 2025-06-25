@@ -141,9 +141,6 @@ fn convert_texture_view_dimension(dimension: TextureViewDimension) -> wgpu::Text
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_graphics_traits::{
-        AddressMode, BindGroupLayoutDescriptor, BindGroupLayoutEntry, FilterMode,
-    };
 
     async fn create_test_device() -> (wgpu::Device, wgpu::Queue) {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -229,7 +226,7 @@ mod tests {
                 }],
             });
 
-            let layout = Arc::new(WgpuBindGroupLayout::new(wgpu_layout, 1));
+            let _layout = Arc::new(WgpuBindGroupLayout::new(wgpu_layout, 1));
 
             // Create buffer for binding
             let buffer = device.create_buffer(&wgpu::BufferDescriptor {

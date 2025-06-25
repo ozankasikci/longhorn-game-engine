@@ -4,20 +4,32 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ImportRecord {
+    #[allow(dead_code)]
     pub timestamp: SystemTime,
     pub source_path: PathBuf,
+    #[allow(dead_code)]
     pub imported_path: PathBuf,
     pub resource_id: ResourceId,
+    #[allow(dead_code)]
     pub import_settings: ImportSettings,
     pub success: bool,
 }
 
+#[allow(dead_code)]
 pub struct ImportHistory {
     records: Vec<ImportRecord>,
     max_records: usize,
 }
 
+impl Default for ImportHistory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl ImportHistory {
     pub fn new() -> Self {
         Self {
@@ -54,6 +66,7 @@ impl ImportHistory {
             .find(|r| r.source_path == path)
     }
 
+    #[allow(dead_code)]
     pub fn find_by_resource_id(&self, id: &ResourceId) -> Option<&ImportRecord> {
         self.records.iter().rev().find(|r| r.resource_id == *id)
     }
@@ -63,6 +76,7 @@ impl ImportHistory {
         self.records[start..].iter().rev().collect()
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.records.clear();
     }

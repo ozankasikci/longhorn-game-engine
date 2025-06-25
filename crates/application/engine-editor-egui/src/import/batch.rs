@@ -2,6 +2,7 @@ use crate::import::ImportSettings;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct BatchImportOptions {
     pub use_same_settings: bool,
@@ -9,6 +10,7 @@ pub struct BatchImportOptions {
     pub output_directory: PathBuf,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct BatchImportState {
     files: Vec<PathBuf>,
@@ -17,11 +19,20 @@ struct BatchImportState {
     active: bool,
 }
 
+#[allow(dead_code)]
 pub struct BatchImporter {
     batches: HashMap<u64, BatchImportState>,
     next_batch_id: u64,
 }
 
+#[allow(dead_code)]
+impl Default for BatchImporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl BatchImporter {
     pub fn new() -> Self {
         Self {

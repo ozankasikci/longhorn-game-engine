@@ -1,15 +1,14 @@
-use engine_asset_import::{ImportContext, ImportPipeline, ImportSettings as AssetImportSettings};
-use engine_mesh_import::obj::ObjImporter;
+use super::wrappers::ObjImporterWrapper;
+use super::ImportSettings;
+use engine_asset_import::ImportPipeline;
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Mutex};
-// use engine_texture_import::TextureImporter;
-// use engine_audio_import::AudioImporter;
-use super::wrappers::{
-    ObjImporterWrapper, StandardAudioImporterWrapper, StandardTextureImporterWrapper,
-};
-use super::{CollisionType, ImportSettings};
 use uuid::Uuid;
 
+// Type alias to reduce complexity
+type ImportResult = Arc<Mutex<Option<Result<Vec<Uuid>, ImportError>>>>;
+
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImportStatus {
     Pending,
@@ -18,6 +17,7 @@ pub enum ImportStatus {
     Failed,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImportError {
     FileNotFound,
@@ -26,15 +26,17 @@ pub enum ImportError {
     IoError(String),
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct ImportHandle {
     path: PathBuf,
     status: Arc<Mutex<ImportStatus>>,
     progress: Arc<Mutex<f32>>,
     error: Arc<Mutex<Option<ImportError>>>,
-    result: Arc<Mutex<Option<Result<Vec<Uuid>, ImportError>>>>,
+    result: ImportResult,
 }
 
+#[allow(dead_code)]
 impl ImportHandle {
     pub fn new(path: PathBuf) -> Self {
         Self {
@@ -84,11 +86,20 @@ impl ImportHandle {
     }
 }
 
+#[allow(dead_code)]
 pub struct ImportService {
     pipeline: ImportPipeline,
     notification_sender: Option<mpsc::Sender<ImportNotification>>,
 }
 
+#[allow(dead_code)]
+impl Default for ImportService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl ImportService {
     pub fn new() -> Self {
         Self {
@@ -126,7 +137,7 @@ impl ImportService {
         self.notification_sender = Some(sender);
     }
 
-    pub fn start_import(&mut self, path: PathBuf, settings: ImportSettings) -> ImportHandle {
+    pub fn start_import(&mut self, path: PathBuf, _settings: ImportSettings) -> ImportHandle {
         let handle = ImportHandle::new(path.clone());
 
         // Send notification
@@ -155,6 +166,7 @@ impl ImportService {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum ImportNotification {
     Started { path: PathBuf, handle: ImportHandle },
@@ -163,10 +175,19 @@ pub enum ImportNotification {
     Failed { path: PathBuf, error: ImportError },
 }
 
+#[allow(dead_code)]
 pub struct ImportQueue {
     items: Arc<Mutex<Vec<(PathBuf, ImportSettings)>>>,
 }
 
+#[allow(dead_code)]
+impl Default for ImportQueue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl ImportQueue {
     pub fn new() -> Self {
         Self {
@@ -178,26 +199,44 @@ impl ImportQueue {
         self.items.lock().unwrap().push((path, settings));
     }
 
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.items.lock().unwrap().len()
     }
 
+    #[allow(dead_code)]
     pub fn pending_count(&self) -> usize {
         self.len()
     }
 
+    #[allow(dead_code)]
     pub fn next(&self) -> Option<(PathBuf, ImportSettings)> {
         self.items.lock().unwrap().pop()
     }
+
+    #[allow(dead_code)]
+    pub fn is_empty(&self) -> bool {
+        self.items.lock().unwrap().is_empty()
+    }
 }
 
+#[allow(dead_code)]
 pub struct ImportSettingsConverter;
 
+#[allow(dead_code)]
+impl Default for ImportSettingsConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl ImportSettingsConverter {
     pub fn new() -> Self {
         Self
     }
 
+    #[allow(dead_code)]
     pub fn convert(&self, ui_settings: &ImportSettings) -> ConvertedImportSettings {
         ConvertedImportSettings {
             scale_factor: ui_settings.scale,
@@ -208,31 +247,47 @@ impl ImportSettingsConverter {
 }
 
 // Temporary struct for converted settings
+#[allow(dead_code)]
 pub struct ConvertedImportSettings {
     scale_factor: f32,
     generate_lods: bool,
     optimize_mesh: bool,
 }
 
+#[allow(dead_code)]
 impl ConvertedImportSettings {
+    #[allow(dead_code)]
     pub fn scale_factor(&self) -> f32 {
         self.scale_factor
     }
 
+    #[allow(dead_code)]
     pub fn generate_lods(&self) -> bool {
         self.generate_lods
     }
 
+    #[allow(dead_code)]
     pub fn optimize_mesh(&self) -> bool {
         self.optimize_mesh
     }
 }
 
+#[allow(dead_code)]
 pub struct ImportUIState {
+    #[allow(dead_code)]
     active_imports: Vec<ImportHandle>,
+    #[allow(dead_code)]
     completed_imports: Vec<ImportHandle>,
 }
 
+#[allow(dead_code)]
+impl Default for ImportUIState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl ImportUIState {
     pub fn new() -> Self {
         Self {
@@ -241,22 +296,27 @@ impl ImportUIState {
         }
     }
 
+    #[allow(dead_code)]
     pub fn active_imports(&self) -> &[ImportHandle] {
         &self.active_imports
     }
 
+    #[allow(dead_code)]
     pub fn completed_imports(&self) -> &[ImportHandle] {
         &self.completed_imports
     }
 
+    #[allow(dead_code)]
     pub fn is_importing(&self) -> bool {
         !self.active_imports.is_empty()
     }
 
+    #[allow(dead_code)]
     pub fn add_import(&mut self, handle: ImportHandle) {
         self.active_imports.push(handle);
     }
 
+    #[allow(dead_code)]
     pub fn update(&mut self) {
         // Move completed imports to completed list
         let mut i = 0;

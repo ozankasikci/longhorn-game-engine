@@ -63,8 +63,14 @@ fn test_scene_view_dependencies() {
 
     // Check for key dependencies
     assert!(cargo_content.contains("egui"), "Should depend on egui");
-    assert!(cargo_content.contains("engine-ecs-core"), "Should depend on ECS");
-    assert!(cargo_content.contains("engine-renderer-3d"), "Should depend on renderer");
+    assert!(
+        cargo_content.contains("engine-ecs-core"),
+        "Should depend on ECS"
+    );
+    assert!(
+        cargo_content.contains("engine-renderer-3d"),
+        "Should depend on renderer"
+    );
 
     // Check key files exist in the extracted crate
     assert!(Path::new("../engine-editor-scene-view/src/scene_view/gizmo_3d_input.rs").exists());

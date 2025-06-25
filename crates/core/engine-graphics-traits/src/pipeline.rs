@@ -204,6 +204,16 @@ mod tests {
     }
 
     #[test]
+    fn test_graphics_pipeline() {
+        let layout = MockPipelineLayout {
+            bind_group_count: 2,
+        };
+        let pipeline = MockPipeline { layout };
+
+        assert_eq!(pipeline.layout().bind_group_layout_count(), 2);
+    }
+
+    #[test]
     fn test_vertex_buffer_layout() {
         let layout = VertexBufferLayout {
             stride: 32,

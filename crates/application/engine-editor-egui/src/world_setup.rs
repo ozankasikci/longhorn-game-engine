@@ -63,7 +63,7 @@ fn create_default_world_local() -> (World, Entity) {
         .unwrap();
 
     // Generate cube mesh data directly
-    let mesh_data = create_cube_mesh_data(1.0);
+    let _mesh_data = create_cube_mesh_data(1.0);
 
     // Create mesh handle (in a real system, this would be managed by a resource manager)
     let mesh_handle = ResourceHandle::<MeshData>::new(ResourceId::new(1));
@@ -109,15 +109,15 @@ fn create_default_world_local() -> (World, Entity) {
     // Try to get all entities with Transform components
     let entities_with_transforms: Vec<_> = world.query_legacy::<Transform>().collect();
 
-    for (entity, transform) in entities_with_transforms.iter().take(5) {
-        let name = world
-            .get_component::<engine_components_ui::Name>(*entity)
+    for (_entity, _transform) in entities_with_transforms.iter().take(5) {
+        let _name = world
+            .get_component::<engine_components_ui::Name>(*_entity)
             .map(|n| n.name.clone())
-            .unwrap_or_else(|| format!("Entity {}", entity.id()));
+            .unwrap_or_else(|| format!("Entity {}", _entity.id()));
     }
 
     // FINAL DEBUG: Verify entities exist
-    let final_count = world.entity_count();
+    let _final_count = world.entity_count();
     let _mesh_entities: Vec<_> = world
         .query_legacy::<Transform>()
         .filter(|(e, _)| world.get_component::<MeshFilter>(*e).is_some())
@@ -127,6 +127,7 @@ fn create_default_world_local() -> (World, Entity) {
 }
 
 /// Creates test sprite entities
+#[allow(dead_code)]
 fn create_test_sprites(world: &mut World) {
     // Red sprite
     let red_sprite_entity = world.spawn();

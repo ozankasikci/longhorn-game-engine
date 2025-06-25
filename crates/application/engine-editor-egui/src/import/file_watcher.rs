@@ -3,12 +3,14 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum FileWatchEvent {
     Created(PathBuf),
     Modified(PathBuf),
     Deleted(PathBuf),
 }
 
+#[allow(dead_code)]
 pub struct ImportFileWatcher {
     watcher: Option<notify::RecommendedWatcher>,
     event_sender: mpsc::Sender<FileWatchEvent>,
@@ -16,6 +18,7 @@ pub struct ImportFileWatcher {
     test_sender: Option<mpsc::Sender<FileWatchEvent>>,
 }
 
+#[allow(dead_code)]
 impl ImportFileWatcher {
     pub fn new(event_sender: mpsc::Sender<FileWatchEvent>) -> Self {
         Self {
