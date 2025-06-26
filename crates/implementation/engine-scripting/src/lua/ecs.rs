@@ -68,6 +68,7 @@ impl UserData for LuaWorld {
                         enabled,
                         instance_id: None,
                         execution_order,
+                        additional_scripts: Vec::new(),
                     };
                     println!("Adding LuaScript component: {:?}", lua_script);
                     if let Err(e) = world.add_component(entity, lua_script) {
@@ -317,6 +318,7 @@ impl UserData for LuaEntity {
                         enabled,
                         instance_id,
                         execution_order,
+                        additional_scripts: Vec::new(),
                     };
                     world.add_component(this.entity, lua_script).map_err(|e| {
                         mlua::Error::RuntimeError(format!("Failed to add LuaScript: {:?}", e))

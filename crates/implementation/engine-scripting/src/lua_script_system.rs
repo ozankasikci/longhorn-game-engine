@@ -45,49 +45,42 @@ impl LuaScriptSystem {
     
     /// Execute scripts for all entities with LuaScript components
     fn execute_scripts(&mut self, world: &World, delta_time: f32) -> ScriptResult<()> {
-        // Get all entities with LuaScript components, sorted by execution order
-        let mut script_entities = self.collect_script_entities(world)?;
+        // Get all script instances (entity, script_path pairs)
+        let script_entries = self.collect_script_entities(world)?;
         
-        // Sort by execution order (lower numbers execute first), then by entity ID for determinism
-        script_entities.sort_by(|(entity_a, script_a), (entity_b, script_b)| {
-            script_a.execution_order.cmp(&script_b.execution_order)
-                .then_with(|| entity_a.id().cmp(&entity_b.id()))
-        });
-        
-        // Process each script entity
-        for (entity, script) in script_entities {
-            if !script.enabled {
-                debug!("Skipping disabled script for entity {:?}: {}", entity, script.script_path);
-                continue;
-            }
-            
+        // Process each script instance
+        for (entity, script_path) in script_entries {
             // Load script if not already loaded
-            if !self.loaded_scripts.contains_key(&script.script_path) {
-                match self.load_script(&script.script_path) {
+            if !self.loaded_scripts.contains_key(&script_path) {
+                match self.load_script(&script_path) {
                     Ok(_) => {
-                        self.loaded_scripts.insert(script.script_path.clone(), true);
-                        info!("Loaded script: {}", script.script_path);
+                        self.loaded_scripts.insert(script_path.clone(), true);
+                        info!("Loaded script: {}", script_path);
                     }
                     Err(e) => {
-                        error!("Failed to load script {}: {}", script.script_path, e);
+                        error!("Failed to load script {}: {}", script_path, e);
                         // Mark as failed so we don't keep trying
-                        self.loaded_scripts.insert(script.script_path.clone(), false);
+                        self.loaded_scripts.insert(script_path.clone(), false);
                         continue;
                     }
                 }
             }
             
             // Skip if script failed to load
-            if !self.loaded_scripts.get(&script.script_path).unwrap_or(&false) {
+            if !self.loaded_scripts.get(&script_path).unwrap_or(&false) {
                 continue;
             }
             
+            // Create a unique key for this script instance on this entity
+            let script_key = format!("{}:{}", entity.id(), script_path);
+            
             // Initialize script if not already initialized
-            if !self.initialized_entities.contains_key(&entity) {
-                match self.initialize_script_for_entity(entity, &script.script_path, world) {
+            if !self.initialized_entities.contains_key(&entity) || 
+               !self.initialized_entities.get(&entity).unwrap().contains(&script_path) {
+                match self.initialize_script_for_entity(entity, &script_path, world) {
                     Ok(_) => {
-                        self.initialized_entities.insert(entity, script.script_path.clone());
-                        debug!("Initialized script for entity {:?}: {}", entity, script.script_path);
+                        self.initialized_entities.insert(entity, script_path.clone());
+                        debug!("Initialized script for entity {:?}: {}", entity, script_path);
                     }
                     Err(e) => {
                         warn!("Failed to initialize script for entity {:?}: {}", entity, e);
@@ -97,7 +90,7 @@ impl LuaScriptSystem {
             }
             
             // Execute update method
-            if let Err(e) = self.execute_update_for_entity(entity, &script.script_path, delta_time, world) {
+            if let Err(e) = self.execute_update_for_entity(entity, &script_path, delta_time, world) {
                 warn!("Error executing update for entity {:?}: {}", entity, e);
             }
         }
@@ -106,15 +99,26 @@ impl LuaScriptSystem {
     }
     
     /// Collect all entities with LuaScript components
-    fn collect_script_entities(&self, world: &World) -> ScriptResult<Vec<(Entity, LuaScript)>> {
-        // Query all entities with LuaScript components
-        let entities: Vec<(Entity, LuaScript)> = world
-            .query_legacy::<LuaScript>()
-            .map(|(entity, script_component)| (entity, script_component.clone()))
-            .collect();
+    fn collect_script_entities(&self, world: &World) -> ScriptResult<Vec<(Entity, String)>> {
+        // Query all entities with LuaScript components and flatten to individual scripts
+        let mut script_entries = Vec::new();
         
-        debug!("Collected {} entities with LuaScript components", entities.len());
-        Ok(entities)
+        for (entity, script_component) in world.query_legacy::<LuaScript>() {
+            if !script_component.enabled {
+                continue; // Skip disabled components
+            }
+            
+            // Add primary script
+            script_entries.push((entity, script_component.script_path.clone()));
+            
+            // Add additional scripts
+            for additional_script in &script_component.additional_scripts {
+                script_entries.push((entity, additional_script.clone()));
+            }
+        }
+        
+        debug!("Collected {} script instances from entities", script_entries.len());
+        Ok(script_entries)
     }
     
     /// Load a Lua script from file
@@ -263,7 +267,7 @@ impl LuaScriptSystem {
     }
     
     /// Test-only method to access entity collection (for driving TDD)
-    pub fn collect_script_entities_for_test(&self, world: &World) -> Vec<(Entity, LuaScript)> {
+    pub fn collect_script_entities_for_test(&self, world: &World) -> Vec<(Entity, String)> {
         self.collect_script_entities(world).unwrap_or_default()
     }
     
@@ -272,52 +276,44 @@ impl LuaScriptSystem {
         // Clean up scripts for entities that no longer exist
         self.cleanup_removed_entities(world.clone())?;
         
-        // Get all entities with LuaScript components first
-        let script_entities = {
+        // Get all script instances (entity, script_path pairs)
+        let script_entries = {
             let world_lock = world.lock().unwrap();
             self.collect_script_entities(&*world_lock)?
         };
         
-        // Sort by execution order (lower numbers execute first), then by entity ID for determinism
-        let mut sorted_entities = script_entities;
-        sorted_entities.sort_by(|(entity_a, script_a), (entity_b, script_b)| {
-            script_a.execution_order.cmp(&script_b.execution_order)
-                .then_with(|| entity_a.id().cmp(&entity_b.id()))
-        });
-        
-        // Process each script entity with real world access
-        for (entity, script) in sorted_entities {
-            if !script.enabled {
-                debug!("Skipping disabled script for entity {:?}: {}", entity, script.script_path);
-                continue;
-            }
-            
+        // Process each script instance with real world access
+        for (entity, script_path) in script_entries {
             // Load script if not already loaded
-            if !self.loaded_scripts.contains_key(&script.script_path) {
-                match self.load_script(&script.script_path) {
+            if !self.loaded_scripts.contains_key(&script_path) {
+                match self.load_script(&script_path) {
                     Ok(_) => {
-                        self.loaded_scripts.insert(script.script_path.clone(), true);
-                        info!("Loaded script: {}", script.script_path);
+                        self.loaded_scripts.insert(script_path.clone(), true);
+                        info!("Loaded script: {}", script_path);
                     }
                     Err(e) => {
-                        error!("Failed to load script {}: {}", script.script_path, e);
-                        self.loaded_scripts.insert(script.script_path.clone(), false);
+                        error!("Failed to load script {}: {}", script_path, e);
+                        self.loaded_scripts.insert(script_path.clone(), false);
                         continue;
                     }
                 }
             }
             
             // Skip if script failed to load
-            if !self.loaded_scripts.get(&script.script_path).unwrap_or(&false) {
+            if !self.loaded_scripts.get(&script_path).unwrap_or(&false) {
                 continue;
             }
             
+            // Create a unique key for this script instance on this entity
+            let script_key = format!("{}:{}", entity.id(), script_path);
+            
             // Initialize script if not already initialized
-            if !self.initialized_entities.contains_key(&entity) {
-                match self.initialize_script_for_entity_with_world(entity, &script.script_path, world.clone()) {
+            if !self.initialized_entities.contains_key(&entity) || 
+               !self.initialized_entities.get(&entity).unwrap().contains(&script_path) {
+                match self.initialize_script_for_entity_with_world(entity, &script_path, world.clone()) {
                     Ok(_) => {
-                        self.initialized_entities.insert(entity, script.script_path.clone());
-                        debug!("Initialized script for entity {:?}: {}", entity, script.script_path);
+                        self.initialized_entities.insert(entity, script_path.clone());
+                        debug!("Initialized script for entity {:?}: {}", entity, script_path);
                     }
                     Err(e) => {
                         warn!("Failed to initialize script for entity {:?}: {}", entity, e);
@@ -327,7 +323,7 @@ impl LuaScriptSystem {
             }
             
             // Execute update method with real world access
-            if let Err(e) = self.execute_update_for_entity_with_world(entity, &script.script_path, delta_time, world.clone()) {
+            if let Err(e) = self.execute_update_for_entity_with_world(entity, &script_path, delta_time, world.clone()) {
                 warn!("Error executing update for entity {:?}: {}", entity, e);
             }
         }

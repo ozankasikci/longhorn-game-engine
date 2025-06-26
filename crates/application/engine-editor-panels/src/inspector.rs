@@ -519,53 +519,66 @@ impl InspectorPanel {
 
                 // LuaScript Component
                 if let Some(lua_script) = world.get_component::<LuaScript>(selected_entity).cloned() {
-                    ui.collapsing("📜 Lua Script", |ui| {
-                        let mut enabled = lua_script.enabled;
-                        let mut execution_order = lua_script.execution_order;
-                        let mut script_path = lua_script.script_path.clone();
-                        
+                    ui.collapsing(&format!("📜 Lua Scripts ({})", lua_script.script_count()), |ui| {
+                        let mut lua_script_modified = lua_script.clone();
                         let mut changed = false;
                         
-                        egui::Grid::new("lua_script_grid").show(ui, |ui| {
-                            ui.label("Enabled:");
-                            changed |= ui.checkbox(&mut enabled, "").changed();
-                            ui.end_row();
-                            
-                            ui.label("Script Path:");
-                            ui.label(&script_path);
-                            if ui.button("📁 Browse").clicked() {
-                                self.show_script_selection_dialog = true;
-                            }
-                            ui.end_row();
-                            
-                            ui.label("Execution Order:");
-                            changed |= ui.add(egui::DragValue::new(&mut execution_order).range(-1000..=1000)).changed();
-                            ui.end_row();
-                            
-                            if let Some(instance_id) = lua_script.instance_id {
-                                ui.label("Instance ID:");
-                                ui.label(format!("{}", instance_id));
-                                ui.end_row();
-                            }
+                        ui.horizontal(|ui| {
+                            ui.label("Component enabled:");
+                            changed |= ui.checkbox(&mut lua_script_modified.enabled, "").changed();
+                            ui.label("Execution order:");
+                            changed |= ui.add(egui::DragValue::new(&mut lua_script_modified.execution_order).range(-1000..=1000)).changed();
                         });
                         
-                        if changed {
-                            if let Some(script_mut) = world.get_component_mut::<LuaScript>(selected_entity) {
-                                script_mut.enabled = enabled;
-                                script_mut.execution_order = execution_order;
-                                script_mut.script_path = script_path;
-                            }
+                        ui.separator();
+                        
+                        // Display all scripts
+                        let all_scripts = lua_script.get_all_scripts();
+                        for (index, script_path) in all_scripts.iter().enumerate() {
+                            ui.horizontal(|ui| {
+                                if index == 0 {
+                                    ui.label("📜 Primary:");
+                                } else {
+                                    ui.label(&format!("📜 Script {}:", index + 1));
+                                }
+                                ui.label(*script_path);
+                                
+                                if ui.small_button("🗑️").on_hover_text("Remove this script").clicked() {
+                                    if lua_script_modified.remove_script(script_path) {
+                                        changed = true;
+                                    } else {
+                                        // Primary script removed and no other scripts - remove component
+                                        let _ = world.remove_component::<LuaScript>(selected_entity);
+                                        return; // Exit early since component is gone
+                                    }
+                                }
+                            });
                         }
                         
                         ui.separator();
                         ui.horizontal(|ui| {
-                            if ui.button("🗑️ Remove Script").clicked() {
-                                let _ = world.remove_component::<LuaScript>(selected_entity);
+                            if ui.button("➕ Add Script").clicked() {
+                                self.show_script_selection_dialog = true;
                             }
-                            if ui.button("🔄 Reload Script").clicked() {
+                            if ui.button("🔄 Reload All").clicked() {
                                 // TODO: Implement script reloading
                             }
+                            if ui.button("🗑️ Remove Component").clicked() {
+                                let _ = world.remove_component::<LuaScript>(selected_entity);
+                            }
                         });
+                        
+                        if let Some(instance_id) = lua_script.instance_id {
+                            ui.separator();
+                            ui.label(format!("Instance ID: {}", instance_id));
+                        }
+                        
+                        // Apply changes
+                        if changed {
+                            if let Some(script_mut) = world.get_component_mut::<LuaScript>(selected_entity) {
+                                *script_mut = lua_script_modified;
+                            }
+                        }
                     });
                 }
 
@@ -817,11 +830,19 @@ impl InspectorPanel {
                                     let script_path = format!("assets/scripts/{}", script_name);
                                     
                                     if ui.button(&script_name).clicked() {
-                                        match world.add_component(entity, LuaScript::new(script_path)) {
-                                            Ok(_) => {
-                                                self.show_script_selection_dialog = false;
+                                        // Check if entity already has LuaScript component
+                                        if let Some(mut lua_script) = world.get_component_mut::<LuaScript>(entity) {
+                                            // Add to existing component
+                                            lua_script.add_script(script_path.clone());
+                                            self.show_script_selection_dialog = false;
+                                        } else {
+                                            // Create new component
+                                            match world.add_component(entity, LuaScript::new(script_path)) {
+                                                Ok(_) => {
+                                                    self.show_script_selection_dialog = false;
+                                                }
+                                                Err(_e) => {}
                                             }
-                                            Err(_e) => {}
                                         }
                                     }
                                 }
@@ -844,11 +865,19 @@ impl InspectorPanel {
 
                     for (name, path) in example_scripts {
                         if ui.button(name).clicked() {
-                            match world.add_component(entity, LuaScript::new(path.to_string())) {
-                                Ok(_) => {
-                                    self.show_script_selection_dialog = false;
+                            // Check if entity already has LuaScript component
+                            if let Some(mut lua_script) = world.get_component_mut::<LuaScript>(entity) {
+                                // Add to existing component
+                                lua_script.add_script(path.to_string());
+                                self.show_script_selection_dialog = false;
+                            } else {
+                                // Create new component
+                                match world.add_component(entity, LuaScript::new(path.to_string())) {
+                                    Ok(_) => {
+                                        self.show_script_selection_dialog = false;
+                                    }
+                                    Err(_e) => {}
                                 }
-                                Err(_e) => {}
                             }
                         }
                     }
@@ -999,12 +1028,21 @@ return system
 
                             if let Ok(_) = std::fs::write(&script_path, template_content) {
                                 // Script created successfully, attach it
-                                match world.add_component(entity, LuaScript::new(script_path)) {
-                                    Ok(_) => {
-                                        self.show_script_creation_dialog = false;
-                                        self.script_creation_name.clear();
+                                // Check if entity already has LuaScript component
+                                if let Some(mut lua_script) = world.get_component_mut::<LuaScript>(entity) {
+                                    // Add to existing component
+                                    lua_script.add_script(script_path.clone());
+                                    self.show_script_creation_dialog = false;
+                                    self.script_creation_name.clear();
+                                } else {
+                                    // Create new component
+                                    match world.add_component(entity, LuaScript::new(script_path)) {
+                                        Ok(_) => {
+                                            self.show_script_creation_dialog = false;
+                                            self.script_creation_name.clear();
+                                        }
+                                        Err(_e) => {}
                                     }
-                                    Err(_e) => {}
                                 }
                             }
                         }
