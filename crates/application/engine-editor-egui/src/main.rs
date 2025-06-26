@@ -3,7 +3,7 @@
 
 mod assets;
 mod bridge;
-mod editor_coordinator;
+// mod editor_coordinator;  // Replaced by UnifiedEditorCoordinator
 mod editor_state;
 mod import;
 mod panels;
@@ -13,7 +13,7 @@ mod types;
 mod utils;
 mod world_setup;
 
-use editor_coordinator::EditorCoordinator;
+use engine_editor_framework::UnifiedEditorCoordinator;
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex};
 use engine_components_3d::Transform;
@@ -33,9 +33,36 @@ use engine_editor_ui::{
 };
 use import::dialog::{ImportDialog, ImportResult};
 use types::{GizmoSystem, HierarchyObject, TextureAsset};
+use clap::Parser;
+use engine_runtime::{StandaloneRuntime, StandaloneConfig};
+
+/// Longhorn Game Engine - Unified Editor and Runtime
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Run in standalone mode without editor UI
+    #[arg(short, long)]
+    standalone: bool,
+    
+    /// Path to game project to load
+    #[arg(short, long)]
+    project: Option<std::path::PathBuf>,
+    
+    /// Start in play mode immediately (editor only)
+    #[arg(long)]
+    play: bool,
+}
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+    
+    let args = Args::parse();
+    
+    if args.standalone {
+        // Run in standalone mode without editor UI
+        log::info!("Running in standalone mode");
+        return run_standalone(args.project);
+    }
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -47,14 +74,101 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Longhorn Game Engine Editor",
         options,
-        Box::new(|cc| {
+        Box::new(move |cc| {
             // Load custom design constraints if available
             setup_custom_fonts(&cc.egui_ctx);
             setup_custom_style(&cc.egui_ctx);
 
-            Ok(Box::new(LonghornEditor::new(cc)))
+            let mut editor = LonghornEditor::new(cc);
+            
+            // Start in play mode if requested
+            if args.play {
+                editor.coordinator.play_state_manager_mut().start();
+            }
+            
+            Ok(Box::new(editor))
         }),
     )
+}
+
+/// Run the engine in standalone mode without editor UI
+fn run_standalone(project_path: Option<std::path::PathBuf>) -> Result<(), eframe::Error> {
+    use engine_runtime_core::Application;
+    
+    // Create standalone runtime configuration
+    let config = StandaloneConfig::builder()
+        .title("Longhorn Game Engine")
+        .resolution(1280, 720)
+        .target_fps(60.0)
+        .build();
+    
+    // Create runtime
+    let mut runtime = match project_path {
+        Some(path) => {
+            log::info!("Loading project from: {}", path.display());
+            match StandaloneRuntime::from_project(path) {
+                Ok(rt) => rt,
+                Err(e) => {
+                    eprintln!("Failed to load project: {}", e);
+                    return Ok(());
+                }
+            }
+        }
+        None => {
+            log::info!("Starting standalone runtime with default configuration");
+            match StandaloneRuntime::new(config) {
+                Ok(rt) => rt,
+                Err(e) => {
+                    eprintln!("Failed to create standalone runtime: {}", e);
+                    return Ok(());
+                }
+            }
+        }
+    };
+    
+    // Create a demo application
+    struct DemoApp {
+        frame_count: u32,
+    }
+    
+    impl Application for DemoApp {
+        fn update(&mut self, delta_time: std::time::Duration, _input: &engine_input::InputManager) -> engine_runtime_core::Result<()> {
+            self.frame_count += 1;
+            if self.frame_count % 60 == 0 {
+                log::info!("Frame {}: delta = {:?}", self.frame_count, delta_time);
+            }
+            Ok(())
+        }
+        
+        fn render(&mut self, interpolation: f32) -> engine_runtime_core::Result<()> {
+            // In a real implementation, this would render the game
+            let _ = interpolation;
+            Ok(())
+        }
+        
+        fn should_exit(&self) -> bool {
+            // Exit after 300 frames (5 seconds at 60 FPS) for demo
+            self.frame_count >= 300
+        }
+    }
+    
+    // Set the application
+    runtime.set_application(Box::new(DemoApp { frame_count: 0 }));
+    
+    // Add example systems
+    // TODO: Add real game systems here
+    
+    // Run the game
+    match runtime.run() {
+        Ok(_) => {
+            log::info!("Standalone runtime exited successfully");
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("Standalone runtime error: {}", e);
+            Ok(())
+        }
+    }
 }
 
 /// Longhorn Game Engine editor application with dockable panels
@@ -81,7 +195,7 @@ pub struct LonghornEditor {
     next_texture_handle: u64,
 
     // Editor coordination
-    coordinator: EditorCoordinator,
+    coordinator: UnifiedEditorCoordinator,
 
     // UI state
     #[allow(dead_code)]
@@ -121,6 +235,9 @@ pub struct LonghornEditor {
     // Import service
     import_service: import::ImportService,
     asset_database: assets::AssetDatabase,
+    
+    // Timing
+    last_update: std::time::Instant,
 }
 
 impl LonghornEditor {
@@ -202,7 +319,7 @@ impl LonghornEditor {
             project_assets: world_setup::create_default_project_assets(),
             texture_assets: assets::create_default_textures(),
             next_texture_handle: 1000, // Start texture handles at 1000
-            coordinator: EditorCoordinator::new(),
+            coordinator: UnifiedEditorCoordinator::new(),
             scene_view_active: true,
             show_add_component_dialog: false,
             inspector_panel: InspectorPanel::new(),
@@ -230,17 +347,23 @@ impl LonghornEditor {
             show_import_dialog: false,
             import_service,
             asset_database: assets::AssetDatabase::new(),
+            last_update: std::time::Instant::now(),
         }
     }
 }
 
 impl eframe::App for LonghornEditor {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Update play state timing
-        self.coordinator.update_delta_time();
+        // Calculate delta time
+        let now = std::time::Instant::now();
+        let delta_time = now.duration_since(self.last_update).as_secs_f32();
+        self.last_update = now;
+        
+        // Update the coordinator
+        self.coordinator.update(delta_time);
 
         // Apply custom styling based on play state
-        if self.coordinator.get_play_state() != PlayState::Editing {
+        if self.coordinator.play_state_manager().get_state() != PlayState::Editing {
             // Apply Longhorn-style play mode tint (subtle blue)
             let mut style = (*ctx.style()).clone();
             style.visuals.panel_fill = egui::Color32::from_rgba_unmultiplied(45, 45, 55, 240);
@@ -383,7 +506,7 @@ impl LonghornEditor {
         // Delegate to the toolbar module
         let actions = self.toolbar.show(
             ui,
-            self.coordinator.get_play_state_mut(),
+            &mut self.coordinator.play_state_manager_mut().play_state,
             &mut self.gizmo_system,
             &mut self.scene_navigation,
             &self.world,
@@ -393,16 +516,16 @@ impl LonghornEditor {
 
         // Handle toolbar actions
         if actions.start_play {
-            self.coordinator.start_play();
+            self.coordinator.play_state_manager_mut().start();
         }
         if actions.pause_play {
-            self.coordinator.pause_play();
+            self.coordinator.play_state_manager_mut().pause();
         }
         if actions.resume_play {
-            self.coordinator.resume_play();
+            self.coordinator.play_state_manager_mut().resume();
         }
         if actions.stop_play {
-            self.coordinator.stop_play();
+            self.coordinator.play_state_manager_mut().stop();
         }
 
         // Handle test move action
@@ -446,7 +569,7 @@ impl LonghornEditor {
             &mut self.scene_navigation,
             &mut self.gizmo_system,
             &mut self.scene_view_renderer,
-            self.coordinator.get_play_state(),
+            self.coordinator.play_state_manager().get_state(),
         );
 
         // Convert and add scene view messages to console
@@ -580,7 +703,7 @@ impl LonghornEditor {
     }
 
     pub fn show_game_view(&mut self, ui: &mut egui::Ui) {
-        let play_state = self.coordinator.get_play_state();
+        let play_state = self.coordinator.play_state_manager().get_state();
         let (_, render_rect) = self.game_view_panel.show(ui, play_state);
 
         // Only render game camera when playing or paused

@@ -10,11 +10,15 @@ pub mod runtime;
 pub mod types;
 pub mod lua;
 pub mod components;
+pub mod file_manager;
+pub mod component_manager;
 
 pub use api::ScriptApi;
 pub use manager::ScriptManager;
 pub use runtime::ScriptRuntime;
 pub use types::{ScriptId, ScriptMetadata, ScriptType};
+pub use file_manager::{ScriptFileManager, ScriptFileInfo, ScriptValidation};
+pub use component_manager::{LuaScriptComponentManager, EntityScriptInfo, ScriptComponentStatus};
 
 /// Scripting system errors
 #[derive(Debug, thiserror::Error)]

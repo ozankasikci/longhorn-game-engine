@@ -22,6 +22,10 @@ engine-components-ui = { workspace = true }
 engine-geometry-core = { workspace = true }
 engine-geometry-impl = { workspace = true }
 engine-resource-core = { workspace = true }
+engine-runtime-core = { workspace = true }
+
+# Internal - integration
+engine-runtime = { path = "../../integration/engine-runtime", features = ["editor"] }
 
 # Internal - editor
 engine-editor-assets = { path = "../engine-editor-assets" }
@@ -32,3 +36,10 @@ glam = { workspace = true }
 
 # Time
 instant = "0.1"
+
+# GUI (optional for editor integration)
+egui = { workspace = true, optional = true }
+
+[features]
+default = ["editor"]
+editor = ["egui", "engine-runtime/editor"]

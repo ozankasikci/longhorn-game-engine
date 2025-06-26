@@ -23,6 +23,9 @@ engine-renderer-3d = { workspace = true }
 engine-geometry-core = { workspace = true }
 engine-resource-core = { workspace = true }
 engine-camera-impl = { workspace = true }
+engine-runtime = { workspace = true }
+engine-runtime-core = { workspace = true }
+engine-input = { workspace = true }
 engine-editor-scene-view = { path = "../engine-editor-scene-view" }
 engine-editor-panels = { path = "../engine-editor-panels" }
 engine-editor-ui = { path = "../engine-editor-ui" }
@@ -44,6 +47,7 @@ notify = { workspace = true }
 bincode = "1.3"
 async-trait = "0.1"
 rfd = "0.15"
+clap = { version = "4.0", features = ["derive"] }
 
 # Asset import
 engine-asset-import = { workspace = true }

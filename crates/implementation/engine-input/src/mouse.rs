@@ -10,8 +10,12 @@ pub enum MouseButton {
 }
 
 /// Mouse state
+#[derive(Debug, Clone)]
 pub struct MouseState {
-    // TODO: Implement mouse state
+    pub position: (f32, f32),
+    pub left_pressed: bool,
+    pub right_pressed: bool,
+    pub middle_pressed: bool,
 }
 
 impl Default for MouseState {
@@ -24,19 +28,25 @@ impl MouseState {
     /// Create a new mouse state
     pub fn new() -> Self {
         Self {
-            // TODO: Initialize mouse state
+            position: (0.0, 0.0),
+            left_pressed: false,
+            right_pressed: false,
+            middle_pressed: false,
         }
     }
 
     /// Check if a mouse button is pressed
-    pub fn is_pressed(&self, _button: MouseButton) -> bool {
-        // TODO: Implement mouse button check
-        false
+    pub fn is_pressed(&self, button: MouseButton) -> bool {
+        match button {
+            MouseButton::Left => self.left_pressed,
+            MouseButton::Right => self.right_pressed,
+            MouseButton::Middle => self.middle_pressed,
+            MouseButton::Other(_) => false, // Not implemented yet
+        }
     }
 
     /// Get mouse position
     pub fn position(&self) -> (f32, f32) {
-        // TODO: Implement mouse position
-        (0.0, 0.0)
+        self.position
     }
 }

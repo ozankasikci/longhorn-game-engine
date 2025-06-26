@@ -8,11 +8,15 @@ pub mod engine;
 pub mod loop_;
 pub mod scheduler;
 pub mod systems;
+pub mod hybrid_game_loop;
+pub mod standalone_runtime;
 
 pub use application::{Application, ApplicationBuilder, ApplicationEvent};
 pub use engine::Engine;
 pub use loop_::GameLoop;
 pub use scheduler::{Schedule, System, SystemScheduler};
+pub use hybrid_game_loop::{HybridGameLoop, EngineMode, HybridFrameResult, HybridApplication};
+pub use standalone_runtime::{StandaloneRuntime, StandaloneConfig, StandaloneConfigBuilder};
 
 /// Runtime system errors
 #[derive(Debug, thiserror::Error)]
@@ -25,6 +29,8 @@ pub enum RuntimeError {
     LifecycleError(String),
     #[error("Runtime configuration error: {0}")]
     ConfigurationError(String),
+    #[error("Project load error: {0}")]
+    ProjectLoadError(String),
 }
 
 /// Runtime system result type
