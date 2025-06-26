@@ -168,14 +168,14 @@ impl SceneViewRenderer {
                     // Enable gizmo rendering
                     render_widget.set_gizmo_enabled(true);
 
-                    // Create transform matrix from the entity's transform
+                    // Create transform matrix from the entity's transform with bounds checking
                     let transform_matrix = glam::Mat4::from_scale_rotation_translation(
                         glam::Vec3::from_array(transform.scale),
                         glam::Quat::from_euler(
                             glam::EulerRot::YXZ,
-                            transform.rotation[1].to_radians(),
-                            transform.rotation[0].to_radians(),
-                            transform.rotation[2].to_radians(),
+                            transform.rotation.get(1).copied().unwrap_or(0.0).to_radians(),
+                            transform.rotation.get(0).copied().unwrap_or(0.0).to_radians(),
+                            transform.rotation.get(2).copied().unwrap_or(0.0).to_radians(),
                         ),
                         glam::Vec3::from_array(transform.position),
                     );
@@ -300,8 +300,8 @@ impl SceneViewRenderer {
         // Draw basic grid background
         let view_center = rect.center();
         let camera_pos = scene_navigation.scene_camera_transform.position;
-        let camera_offset_x = -camera_pos[0] * 50.0;
-        let camera_offset_y = camera_pos[2] * 50.0;
+        let camera_offset_x = -camera_pos.get(0).copied().unwrap_or(0.0) * 50.0;
+        let camera_offset_y = camera_pos.get(2).copied().unwrap_or(0.0) * 50.0;
 
         // Grid lines
         painter.line_segment(
@@ -332,12 +332,12 @@ impl SceneViewRenderer {
             .collect();
         for (entity, transform) in world.query_legacy::<Transform>() {
             if world.get_component::<MeshFilter>(entity).is_some() {
-                // Draw a simple square for mesh entities
+                // Draw a simple square for mesh entities with bounds checking
                 let pos = [
-                    view_center.x + camera_offset_x + transform.position[0] * 50.0,
-                    view_center.y + camera_offset_y - transform.position[2] * 50.0,
+                    view_center.x + camera_offset_x + transform.position.get(0).copied().unwrap_or(0.0) * 50.0,
+                    view_center.y + camera_offset_y - transform.position.get(2).copied().unwrap_or(0.0) * 50.0,
                 ];
-                let size = 10.0 * transform.scale[0];
+                let size = 10.0 * transform.scale.get(0).copied().unwrap_or(1.0);
 
                 painter.rect_filled(
                     egui::Rect::from_center_size(

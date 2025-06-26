@@ -53,9 +53,9 @@ impl EguiRenderWidget {
     fn update_texture(&mut self, ui: &mut Ui, size: egui::Vec2) -> Result<(), anyhow::Error> {
         let mut renderer = self.renderer.lock().unwrap();
 
-        // Check if we need to resize
-        let width = size.x as u32;
-        let height = size.y as u32;
+        // Check if we need to resize - round to ensure consistent sizing
+        let width = size.x.round() as u32;
+        let height = size.y.round() as u32;
 
         if width == 0 || height == 0 {
             return Ok(());
@@ -82,11 +82,23 @@ impl EguiRenderWidget {
         let width_usize = width as usize;
         let height_usize = height as usize;
 
+        let expected_bytes = width_usize * height_usize * 4;
         log::info!(
             "Got {} bytes of pixel data, expected {}",
             pixels.len(),
-            width_usize * height_usize * 4
+            expected_bytes
         );
+
+        // Check for size mismatch
+        if pixels.len() != expected_bytes {
+            return Err(anyhow::anyhow!(
+                "Texture size mismatch: got {} bytes, expected {} bytes ({}x{} * 4)",
+                pixels.len(),
+                expected_bytes,
+                width_usize,
+                height_usize
+            ));
+        }
 
         // Debug: Check if we're getting valid pixel data
         if !pixels.is_empty() {
@@ -109,11 +121,35 @@ impl EguiRenderWidget {
                 );
             }
         }
+        
+        // Convert pixels to egui format
         let mut egui_pixels = Vec::with_capacity(width_usize * height_usize);
 
-        for chunk in pixels.chunks_exact(4) {
+        // Use chunks_exact and verify we consume all pixels
+        let chunks = pixels.chunks_exact(4);
+        let remainder = chunks.remainder();
+        
+        // There should be no remainder
+        if !remainder.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Pixel data not divisible by 4: {} bytes remaining",
+                remainder.len()
+            ));
+        }
+        
+        for chunk in chunks {
             egui_pixels.push(egui::Color32::from_rgba_premultiplied(
                 chunk[0], chunk[1], chunk[2], chunk[3],
+            ));
+        }
+
+        // Verify we have the exact number of pixels expected
+        let expected_pixels = width_usize * height_usize;
+        if egui_pixels.len() != expected_pixels {
+            return Err(anyhow::anyhow!(
+                "Converted pixel count mismatch: got {} pixels, expected {} pixels",
+                egui_pixels.len(),
+                expected_pixels
             ));
         }
 
@@ -158,8 +194,9 @@ impl Widget for &mut EguiRenderWidget {
 
         log::info!("Allocated response rect: {:?}", rect);
 
-        // Update texture if needed
-        if let Err(e) = self.update_texture(ui, rect.size()) {
+        // Update texture if needed - ensure consistent size
+        let render_size = egui::Vec2::new(rect.width().round(), rect.height().round());
+        if let Err(e) = self.update_texture(ui, render_size) {
             log::error!("Failed to update render texture: {}", e);
             ui.painter().text(
                 rect.center(),

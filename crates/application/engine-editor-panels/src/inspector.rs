@@ -58,23 +58,41 @@ impl InspectorPanel {
                         info.push_str(&format!("Name: {}\n", name.name));
                     }
 
-                    // Get transform
+                    // Get transform with bounds checking
                     if let Some(transform) = world.get_component::<Transform>(selected_entity) {
                         info.push_str("\nTransform:\n");
-                        info.push_str(&format!(
-                            "  Position: [{:.2}, {:.2}, {:.2}]\n",
-                            transform.position[0], transform.position[1], transform.position[2]
-                        ));
-                        info.push_str(&format!(
-                            "  Rotation: [{:.2}°, {:.2}°, {:.2}°]\n",
-                            transform.rotation[0].to_degrees(),
-                            transform.rotation[1].to_degrees(),
-                            transform.rotation[2].to_degrees()
-                        ));
-                        info.push_str(&format!(
-                            "  Scale: [{:.2}, {:.2}, {:.2}]\n",
-                            transform.scale[0], transform.scale[1], transform.scale[2]
-                        ));
+                        
+                        // Safe position access with bounds checking
+                        if transform.position.len() >= 3 {
+                            info.push_str(&format!(
+                                "  Position: [{:.2}, {:.2}, {:.2}]\n",
+                                transform.position[0], transform.position[1], transform.position[2]
+                            ));
+                        } else {
+                            info.push_str("  Position: [Invalid array length]\n");
+                        }
+                        
+                        // Safe rotation access with bounds checking
+                        if transform.rotation.len() >= 3 {
+                            info.push_str(&format!(
+                                "  Rotation: [{:.2}°, {:.2}°, {:.2}°]\n",
+                                transform.rotation[0].to_degrees(),
+                                transform.rotation[1].to_degrees(),
+                                transform.rotation[2].to_degrees()
+                            ));
+                        } else {
+                            info.push_str("  Rotation: [Invalid array length]\n");
+                        }
+                        
+                        // Safe scale access with bounds checking
+                        if transform.scale.len() >= 3 {
+                            info.push_str(&format!(
+                                "  Scale: [{:.2}, {:.2}, {:.2}]\n",
+                                transform.scale[0], transform.scale[1], transform.scale[2]
+                            ));
+                        } else {
+                            info.push_str("  Scale: [Invalid array length]\n");
+                        }
                     }
 
                     // Get mesh info

@@ -34,7 +34,8 @@ impl<T> AssetCache<T> {
 
         // Insert or update the item (moves it to the end)
         self.cache.insert(key.clone(), value);
-        self.cache.get(&key).unwrap()
+        // Safe access since we just inserted the key
+        self.cache.get(&key).expect("Asset cache: Key should exist after insertion")
     }
 
     /// Get an asset from the cache

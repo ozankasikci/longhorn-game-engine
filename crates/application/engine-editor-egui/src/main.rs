@@ -243,9 +243,15 @@ pub struct LonghornEditor {
 impl LonghornEditor {
     /// Sync entities from the editor world to the coordinator's world for play mode
     fn sync_editor_world_to_coordinator(&mut self) {
-        // Get the coordinator's world
+        // Get the coordinator's world with safe locking
         let coordinator_world_arc = self.coordinator.world();
-        let mut coordinator_world = coordinator_world_arc.lock().unwrap();
+        let mut coordinator_world = match coordinator_world_arc.try_lock() {
+            Ok(world) => world,
+            Err(_) => {
+                println!("[LonghornEditor] Could not acquire world lock for sync, skipping");
+                return;
+            }
+        };
         
         // Copy all entities with LuaScript components from editor world to coordinator world
         let script_entities: Vec<_> = self.world.query_legacy::<engine_scripting::components::LuaScript>()
