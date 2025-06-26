@@ -7,7 +7,7 @@ use crate::{ScriptError, ScriptResult, components::LuaScript, lua::engine::LuaSc
 use engine_runtime_core::{System, GameContext, SystemError};
 use engine_ecs_core::{World, Entity};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use log::{debug, error, info, warn};
 
 /// System that executes Lua scripts attached to entities

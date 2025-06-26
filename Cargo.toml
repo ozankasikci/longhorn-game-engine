@@ -42,7 +42,6 @@ members = [
     
     # Application layer (Tier 4)
     "crates/application/engine-editor-egui", 
-    "crates/engine-renderer-3d-examples", 
     "crates/application/engine-editor-scene-view", 
     "crates/application/engine-editor-panels", 
     "crates/application/engine-editor-ui", 

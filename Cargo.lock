@@ -2109,28 +2109,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-renderer-3d-examples"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytemuck",
- "egui",
- "egui-wgpu",
- "engine-camera-impl",
- "engine-component-traits",
- "engine-components-3d",
- "engine-ecs-core",
- "engine-renderer-3d",
- "env_logger",
- "glam",
- "log",
- "pollster 0.3.0",
- "tokio",
- "wgpu 0.20.1",
- "winit",
-]
-
-[[package]]
 name = "engine-renderer-core"
 version = "0.1.0"
 dependencies = [

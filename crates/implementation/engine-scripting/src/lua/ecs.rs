@@ -188,7 +188,8 @@ impl UserData for LuaEntity {
         methods.add_method("get_component", |lua, this, component_type: String| {
             match component_type.as_str() {
                 "Transform" => {
-                    // First try to get from shared state (for script tests)
+                    // First try to get from shared state (for script tests) - DEPRECATED
+                    #[allow(deprecated)]
                     if let Some(transform) = crate::shared_state::get_entity_transform(this.entity) {
                         match component_to_table(lua, &transform) {
                             Ok(table) => return Ok(Value::Table(table)),
@@ -363,7 +364,8 @@ impl UserData for LuaEntity {
                     // Parse Transform from Lua table and update shared state
                     if let Ok(transform_component) = table_to_component(&data, "Transform") {
                         if let Some(transform) = transform_component.as_any().downcast_ref::<crate::components::Transform>() {
-                            // Update in shared state for script tests
+                            // Update in shared state for script tests - DEPRECATED
+                            #[allow(deprecated)]
                             crate::shared_state::update_entity_transform(this.entity, transform.clone());
                             
                             // Also try to update in the actual world if possible

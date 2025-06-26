@@ -1,4 +1,9 @@
-//! Shared state management for Lua script ECS integration
+//! DEPRECATED: Legacy shared state management for Lua script ECS integration
+//! 
+//! ⚠️  WARNING: This module is deprecated and will be removed in a future version.
+//! The new secure scripting system uses `ecs_component_storage` instead.
+//! 
+//! This module is kept temporarily for backward compatibility with existing tests.
 
 use crate::components::Transform;
 use engine_ecs_core::Entity;
@@ -6,9 +11,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 
-/// Global shared component state for testing
-/// This is a temporary solution to enable TDD - in a real implementation,
-/// we would integrate more deeply with the ECS system
+/// DEPRECATED: Global shared component state for testing
+/// 
+/// This is a legacy solution that has been replaced by the new secure scripting system.
+/// Use `ecs_component_storage::ScriptComponentHandler` instead.
+#[deprecated(since = "1.0.0", note = "Use ecs_component_storage::ScriptComponentHandler instead")]
 #[derive(Debug, Default)]
 pub struct SharedComponentState {
     transforms: HashMap<Entity, Transform>,
@@ -29,45 +36,44 @@ impl SharedComponentState {
         self.transforms.insert(entity, transform);
     }
     
-    pub fn has_transform(&self, entity: Entity) -> bool {
-        self.transforms.contains_key(&entity)
-    }
-    
     pub fn remove_transform(&mut self, entity: Entity) -> Option<Transform> {
         self.transforms.remove(&entity)
     }
+    
+    pub fn clear(&mut self) {
+        self.transforms.clear();
+    }
 }
 
-/// Global component state instance
-pub static SHARED_COMPONENT_STATE: Lazy<Arc<Mutex<SharedComponentState>>> = 
+/// DEPRECATED: Global shared state instance
+#[deprecated(since = "1.0.0", note = "Use ecs_component_storage::ScriptComponentHandler instead")]
+static SHARED_COMPONENT_STATE: Lazy<Arc<Mutex<SharedComponentState>>> = 
     Lazy::new(|| Arc::new(Mutex::new(SharedComponentState::new())));
 
-/// Initialize a Transform component for an entity in shared state
+/// DEPRECATED: Initialize entity transform in shared state
+#[deprecated(since = "1.0.0", note = "Use ecs_component_storage::ScriptComponentHandler instead")]
 pub fn init_entity_transform(entity: Entity, transform: Transform) {
     let mut state = SHARED_COMPONENT_STATE.lock().unwrap();
     state.set_transform(entity, transform);
 }
 
-/// Get Transform component from shared state
+/// DEPRECATED: Get entity transform from shared state
+#[deprecated(since = "1.0.0", note = "Use ecs_component_storage::ScriptComponentHandler instead")]
 pub fn get_entity_transform(entity: Entity) -> Option<Transform> {
     let state = SHARED_COMPONENT_STATE.lock().unwrap();
     state.get_transform(entity)
 }
 
-/// Update Transform component in shared state
+/// DEPRECATED: Update entity transform in shared state
+#[deprecated(since = "1.0.0", note = "Use ecs_component_storage::ScriptComponentHandler instead")]
 pub fn update_entity_transform(entity: Entity, transform: Transform) {
     let mut state = SHARED_COMPONENT_STATE.lock().unwrap();
     state.set_transform(entity, transform);
 }
 
-/// Check if entity has Transform in shared state
-pub fn entity_has_transform(entity: Entity) -> bool {
-    let state = SHARED_COMPONENT_STATE.lock().unwrap();
-    state.has_transform(entity)
-}
-
-/// Clear all shared state (for tests)
+/// DEPRECATED: Clear all shared state
+#[deprecated(since = "1.0.0", note = "Use ecs_component_storage::ScriptComponentHandler instead")]
 pub fn clear_shared_state() {
     let mut state = SHARED_COMPONENT_STATE.lock().unwrap();
-    *state = SharedComponentState::new();
+    state.clear();
 }

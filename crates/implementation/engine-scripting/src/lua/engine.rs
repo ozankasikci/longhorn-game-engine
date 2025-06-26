@@ -62,10 +62,11 @@ pub struct LuaScriptEngine {
 impl LuaScriptEngine {
     /// Create a new Lua script engine
     pub fn new() -> ScriptResult<Self> {
-        // Create Lua instance with safe subset of standard libraries
-        // Include StdLib::IO for print functionality
+        // Create Lua instance with SAFE subset of standard libraries only
+        // SECURITY: Remove StdLib::OS and StdLib::IO to prevent access to dangerous functions
+        // like os.execute(), io.open(), etc.
         let lua = Lua::new_with(
-            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::COROUTINE | StdLib::OS | StdLib::IO,
+            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::COROUTINE | StdLib::UTF8,
             LuaOptions::default(),
         ).map_err(|e| ScriptError::RuntimeError(format!("Failed to create Lua instance: {}", e)))?;
 
