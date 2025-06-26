@@ -31,6 +31,7 @@ engine-editor-panels = { path = "../engine-editor-panels" }
 engine-editor-ui = { path = "../engine-editor-ui" }
 engine-editor-assets = { path = "../engine-editor-assets" }
 engine-editor-framework = { path = "../engine-editor-framework" }
+engine-scripting = { workspace = true }
 
 # EGUI and platform integration
 egui = { workspace = true }

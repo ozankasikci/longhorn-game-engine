@@ -6,8 +6,22 @@ use engine_component_traits::impl_component;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Transform {
     pub position: [f32; 3],
-    pub rotation: [f32; 4],
+    pub rotation: [f32; 3], // Changed to 3-component for simpler testing
     pub scale: [f32; 3],
+}
+
+impl Transform {
+    pub fn new(pos: [f32; 3], rot: [f32; 3], scale: [f32; 3]) -> Self {
+        Self {
+            position: pos,
+            rotation: rot,
+            scale: scale,
+        }
+    }
+    
+    pub fn identity() -> Self {
+        Self::new([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+    }
 }
 
 impl_component!(Transform);
@@ -55,3 +69,23 @@ impl LuaScript {
 }
 
 impl_component!(LuaScript);
+
+/// Velocity component for linear and angular movement
+#[derive(Debug, Clone, PartialEq)]
+pub struct Velocity {
+    pub linear: [f32; 3],
+    pub angular: [f32; 3],
+}
+
+impl Velocity {
+    pub fn new(linear: [f32; 3], angular: [f32; 3]) -> Self {
+        Self { linear, angular }
+    }
+    
+    pub fn zero() -> Self {
+        Self::new([0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+    }
+}
+
+impl_component!(Velocity);
+

@@ -241,6 +241,57 @@ pub struct LonghornEditor {
 }
 
 impl LonghornEditor {
+    /// Sync entities from the editor world to the coordinator's world for play mode
+    fn sync_editor_world_to_coordinator(&mut self) {
+        // Get the coordinator's world
+        let coordinator_world_arc = self.coordinator.world();
+        let mut coordinator_world = coordinator_world_arc.lock().unwrap();
+        
+        // Copy all entities with LuaScript components from editor world to coordinator world
+        let script_entities: Vec<_> = self.world.query_legacy::<engine_scripting::components::LuaScript>()
+            .map(|(entity, script)| (entity, script.clone()))
+            .collect();
+            
+        println!("[LonghornEditor] Syncing {} entities with LuaScript components to coordinator", script_entities.len());
+        
+        for (entity, script) in script_entities {
+            // Spawn entity in coordinator world
+            let new_entity = coordinator_world.spawn();
+            
+            // Copy LuaScript component
+            if let Err(e) = coordinator_world.add_component(new_entity, script) {
+                println!("Failed to add LuaScript component: {:?}", e);
+                continue;
+            }
+            
+            // Copy Transform component if it exists
+            if let Some(transform) = self.world.get_component::<Transform>(entity) {
+                if let Err(e) = coordinator_world.add_component(new_entity, transform.clone()) {
+                    println!("Failed to add Transform component: {:?}", e);
+                }
+            }
+            
+            println!("  Copied entity {:?} -> {:?} with script: {}", entity, new_entity, 
+                coordinator_world.get_component::<engine_scripting::components::LuaScript>(new_entity)
+                    .map(|s| s.script_path.as_str()).unwrap_or("Unknown"));
+        }
+        
+        drop(coordinator_world);
+        println!("[LonghornEditor] World sync complete!");
+    }
+    
+    /// Poll for Lua console messages and add them to the console panel
+    fn poll_lua_console_messages(&mut self) {
+        let lua_messages = engine_scripting::get_and_clear_console_messages();
+        if !lua_messages.is_empty() {
+            let panel_messages: Vec<engine_editor_panels::types::ConsoleMessage> = lua_messages
+                .into_iter()
+                .map(|msg| engine_editor_panels::types::ConsoleMessage::info(&msg.message))
+                .collect();
+            self.console_panel.add_messages(panel_messages);
+        }
+    }
+
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // Create Longhorn-style dock layout with Scene and Game views
         let mut dock_state = DockState::new(vec![
@@ -271,8 +322,6 @@ impl LonghornEditor {
 
         // Initialize world with default entities
         let (world, cube_entity) = world_setup::create_default_world();
-
-        // Verify world has entities immediately after creation
 
         // Load editor settings
         let settings = engine_editor_ui::EditorSettings::load();
@@ -361,6 +410,9 @@ impl eframe::App for LonghornEditor {
         
         // Update the coordinator
         self.coordinator.update(delta_time);
+        
+        // Poll for Lua console messages and add them to the console panel
+        self.poll_lua_console_messages();
 
         // Apply custom styling based on play state
         if self.coordinator.play_state_manager().get_state() != PlayState::Editing {
@@ -516,6 +568,8 @@ impl LonghornEditor {
 
         // Handle toolbar actions
         if actions.start_play {
+            // Copy entities from editor world to coordinator world for play mode
+            self.sync_editor_world_to_coordinator();
             self.coordinator.play_state_manager_mut().start();
         }
         if actions.pause_play {

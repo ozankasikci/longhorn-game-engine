@@ -23,6 +23,7 @@ engine-geometry-core = { workspace = true }
 engine-geometry-impl = { workspace = true }
 engine-resource-core = { workspace = true }
 engine-runtime-core = { workspace = true }
+engine-scripting = { workspace = true }
 
 # Internal - integration
 engine-runtime = { path = "../../integration/engine-runtime", features = ["editor"] }

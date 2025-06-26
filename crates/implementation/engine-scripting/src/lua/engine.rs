@@ -10,6 +10,27 @@ use std::sync::{Arc, Mutex};
 use engine_ecs_core::World;
 use log::{debug, error, info};
 
+/// Console message collector for Lua scripts
+#[derive(Debug, Clone)]
+pub struct ConsoleMessage {
+    pub message: String,
+    pub timestamp: SystemTime,
+}
+
+/// Global console message storage for Lua scripts
+pub static CONSOLE_MESSAGES: Mutex<Vec<ConsoleMessage>> = Mutex::new(Vec::new());
+
+/// Get and clear console messages from Lua scripts
+pub fn get_and_clear_console_messages() -> Vec<ConsoleMessage> {
+    if let Ok(mut messages) = CONSOLE_MESSAGES.lock() {
+        let result = messages.clone();
+        messages.clear();
+        result
+    } else {
+        Vec::new()
+    }
+}
+
 /// Lua script instance
 pub struct LuaScript {
     /// Script metadata
@@ -42,8 +63,9 @@ impl LuaScriptEngine {
     /// Create a new Lua script engine
     pub fn new() -> ScriptResult<Self> {
         // Create Lua instance with safe subset of standard libraries
+        // Include StdLib::IO for print functionality
         let lua = Lua::new_with(
-            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::COROUTINE | StdLib::OS,
+            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::COROUTINE | StdLib::OS | StdLib::IO,
             LuaOptions::default(),
         ).map_err(|e| ScriptError::RuntimeError(format!("Failed to create Lua instance: {}", e)))?;
 
@@ -66,7 +88,7 @@ impl LuaScriptEngine {
             next_script_id: 1,
         })
     }
-
+    
     /// Load a script from string
     pub fn load_script_internal(&mut self, metadata: ScriptMetadata, source: &str) -> ScriptResult<()> {
         if metadata.script_type != ScriptType::Lua {
@@ -159,9 +181,34 @@ impl LuaScriptEngine {
                 if i > 0 {
                     output.push('\t');
                 }
-                output.push_str(&format!("{:?}", value));
+                // Format Lua values properly
+                match value {
+                    mlua::Value::String(s) => output.push_str(&s.to_string_lossy()),
+                    mlua::Value::Number(n) => output.push_str(&n.to_string()),
+                    mlua::Value::Integer(i) => output.push_str(&i.to_string()),
+                    mlua::Value::Boolean(b) => output.push_str(&b.to_string()),
+                    mlua::Value::Nil => output.push_str("nil"),
+                    _ => output.push_str(&format!("{:?}", value)),
+                }
             }
+            // Use println! for direct console output
+            println!("{}", output);
+            // Also log it for systems that have logging configured
             info!("[Lua] {}", output);
+            
+            // Add to console message store for editor panel
+            if let Ok(mut messages) = CONSOLE_MESSAGES.lock() {
+                messages.push(ConsoleMessage {
+                    message: output,
+                    timestamp: SystemTime::now(),
+                });
+                
+                // Keep only the last 1000 messages to avoid memory growth
+                if messages.len() > 1000 {
+                    messages.remove(0);
+                }
+            }
+            
             Ok(())
         }).map_err(|e| ScriptError::RuntimeError(format!("Failed to create print function: {}", e)))?;
 

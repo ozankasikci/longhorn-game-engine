@@ -10,6 +10,7 @@ use engine_components_ui::Name;
 use engine_ecs_core::{Entity, World, WorldBundleExt};
 use engine_geometry_core::{MeshData, Vertex};
 use engine_resource_core::{ResourceHandle, ResourceId};
+use engine_scripting::components::LuaScript;
 use glam::{Vec2, Vec3};
 
 /// Creates a default world with sample entities for the editor
@@ -29,6 +30,7 @@ pub fn create_default_world() -> (World, Entity) {
     engine_ecs_core::register_component::<MeshFilter>();
     engine_ecs_core::register_component::<MeshRenderer>();
     engine_ecs_core::register_component::<Mesh>();
+    engine_ecs_core::register_component::<LuaScript>();
 
     // Create camera entity with bundle - SIMPLIFIED for coordinate system testing
     let camera_entity = world.spawn_bundle((
@@ -102,6 +104,23 @@ pub fn create_default_world() -> (World, Entity) {
         .add_component(cube_entity, Visibility::default())
         .unwrap();
     world.add_component(cube_entity, Name::new("Cube")).unwrap();
+    
+    // Add LuaScript component to make the cube rotate
+    world
+        .add_component(
+            cube_entity,
+            LuaScript::new("assets/scripts/simple_test.lua".to_string()),
+        )
+        .unwrap();
+    
+    println!("[World Setup] Added LuaScript component to cube entity");
+    
+    // Verify the component was added
+    if let Some(script) = world.get_component::<LuaScript>(cube_entity) {
+        println!("[World Setup] Verified LuaScript on cube: {}", script.script_path);
+    } else {
+        println!("[World Setup] ERROR: LuaScript component not found on cube!");
+    }
 
     // Try to get all entities with Transform components
     let entities_with_transforms: Vec<_> = world.query_legacy::<Transform>().collect();

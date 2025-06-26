@@ -17,7 +17,3 @@ log = { workspace = true }
 [dev-dependencies]
 approx = "0.5"
 criterion = { workspace = true }
-
-[[bench]]
-name = "performance_benchmarks"
-harness = false

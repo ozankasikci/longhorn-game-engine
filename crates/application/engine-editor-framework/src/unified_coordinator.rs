@@ -6,6 +6,7 @@
 use engine_runtime::{HybridGameLoop, EngineMode, HybridFrameResult};
 use engine_runtime_core::{System, SystemError, GameContext, HotReloadManager, HotReloadEvent, AssetType};
 use engine_ecs_core::World;
+use engine_scripting::{LuaScriptSystem, components::LuaScript};
 use crate::{EditorState, PlayStateManager, PlayState};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -27,9 +28,13 @@ pub struct UnifiedEditorCoordinator {
 }
 
 impl UnifiedEditorCoordinator {
-    /// Create a new unified coordinator
+    /// Create a new unified coordinator with empty world
     pub fn new() -> Self {
-        let ecs_world = Arc::new(Mutex::new(World::new()));
+        Self::with_world(Arc::new(Mutex::new(World::new())))
+    }
+    
+    /// Create a new unified coordinator with provided world
+    pub fn with_world(ecs_world: Arc<Mutex<World>>) -> Self {
         
         // Create game loop in editor mode
         let mut game_loop = HybridGameLoop::new(EngineMode::Editor);
@@ -46,6 +51,13 @@ impl UnifiedEditorCoordinator {
         scheduler.add_system(Box::new(RenderingSystem {
             world: Arc::clone(&ecs_world),
         }));
+        
+        // Add Lua scripting system
+        let lua_system = LuaScriptSystemWrapper {
+            system: LuaScriptSystem::new().expect("Failed to create LuaScriptSystem"),
+            coordinator_world: Arc::clone(&ecs_world),
+        };
+        scheduler.add_system(Box::new(lua_system));
         
         // Resolve dependencies
         scheduler.resolve_dependencies()
@@ -84,6 +96,7 @@ impl UnifiedEditorCoordinator {
             PlayState::Playing => {
                 // Enter play mode if not already
                 if self.game_loop.mode() != EngineMode::EditorPlay {
+                    println!("[UnifiedEditorCoordinator] Entering play mode");
                     self.enter_play_mode();
                 }
             }
@@ -215,6 +228,19 @@ impl UnifiedEditorCoordinator {
         &mut self.hot_reload_manager
     }
     
+    /// Set the ECS world (used by editor to provide the actual world)
+    pub fn set_world(&mut self, world: Arc<Mutex<World>>) {
+        self.ecs_world = world.clone();
+        
+        // We need to recreate the systems with the new world
+        // For now, store the world and we'll update systems when they're accessed
+    }
+    
+    /// Get the ECS world
+    pub fn world(&self) -> Arc<Mutex<World>> {
+        Arc::clone(&self.ecs_world)
+    }
+    
     /// Setup default hot reload handlers
     fn setup_default_hot_reload_handlers(manager: &mut HotReloadManager) {
         // Texture reloading
@@ -341,6 +367,42 @@ impl System for RenderingSystem {
 impl std::fmt::Debug for RenderingSystem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RenderingSystem").finish()
+    }
+}
+
+/// Wrapper for LuaScriptSystem that provides world access  
+struct LuaScriptSystemWrapper {
+    system: LuaScriptSystem,
+    coordinator_world: Arc<Mutex<World>>,
+}
+
+impl System for LuaScriptSystemWrapper {
+    fn execute(&mut self, _context: &mut GameContext, delta_time: f32) -> Result<(), SystemError> {
+        // Execute scripts with world access
+        let world_lock = self.coordinator_world.lock().unwrap();
+        let script_count = world_lock.query_legacy::<LuaScript>().count();
+        drop(world_lock);
+        
+        if script_count > 0 {
+            println!("[LuaScriptSystemWrapper] Executing {} scripts", script_count);
+        }
+        
+        self.system.execute_scripts_from_world(Arc::clone(&self.coordinator_world), delta_time)
+            .map_err(|e| SystemError::ExecutionFailed(format!("LuaScriptSystem error: {}", e)))
+    }
+    
+    fn name(&self) -> &str {
+        "LuaScriptSystem"
+    }
+    
+    fn is_fixed_timestep(&self) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for LuaScriptSystemWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LuaScriptSystemWrapper").finish()
     }
 }
 

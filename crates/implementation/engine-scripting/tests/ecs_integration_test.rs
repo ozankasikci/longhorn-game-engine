@@ -31,7 +31,7 @@ fn test_lua_table_to_transform_component() {
     let script = r#"
         transform_data = {
             position = {x = 10.0, y = 20.0, z = 30.0},
-            rotation = {x = 0.0, y = 0.0, z = 0.0, w = 1.0},
+            rotation = {x = 0.0, y = 0.0, z = 0.0},
             scale = {x = 1.0, y = 1.0, z = 1.0}
         }
     "#;
@@ -50,7 +50,7 @@ fn test_lua_table_to_transform_component() {
         .expect("Failed to downcast to Transform");
     
     assert_eq!(transform.position, [10.0, 20.0, 30.0]);
-    assert_eq!(transform.rotation, [0.0, 0.0, 0.0, 1.0]);
+    assert_eq!(transform.rotation, [0.0, 0.0, 0.0]);
     assert_eq!(transform.scale, [1.0, 1.0, 1.0]);
 }
 
@@ -61,7 +61,7 @@ fn test_transform_component_to_lua_table() {
     
     let transform = Transform {
         position: [5.0, 10.0, 15.0],
-        rotation: [0.0, 0.707, 0.0, 0.707],
+        rotation: [0.0, 0.707, 0.0],
         scale: [2.0, 2.0, 2.0],
     };
     
@@ -149,7 +149,7 @@ fn test_query_entities_from_lua() {
             let entity = world_lock.spawn();
             let transform = Transform {
                 position: [i as f32 * 10.0, 0.0, 0.0],
-                rotation: [0.0, 0.0, 0.0, 1.0],
+                rotation: [0.0, 0.0, 0.0],
                 scale: [1.0, 1.0, 1.0],
             };
             world_lock.add_component(entity, transform).unwrap();
