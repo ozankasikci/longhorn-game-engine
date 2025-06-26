@@ -6,10 +6,28 @@ use engine_components_3d::{Light, Material, MeshFilter, MeshRenderer, Transform,
 use engine_components_ui::{Canvas, Name};
 use engine_ecs_core::{Entity, World};
 use engine_renderer_3d::Camera;
+use engine_scripting::components::LuaScript;
 
 #[derive(Default)]
 pub struct InspectorPanel {
     show_add_component_dialog: bool,
+    show_script_selection_dialog: bool,
+    show_script_creation_dialog: bool,
+    script_creation_name: String,
+    script_creation_template: ScriptTemplate,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum ScriptTemplate {
+    Entity,
+    Behavior,
+    System,
+}
+
+impl Default for ScriptTemplate {
+    fn default() -> Self {
+        Self::Entity
+    }
 }
 
 impl InspectorPanel {
@@ -499,6 +517,58 @@ impl InspectorPanel {
                     });
                 }
 
+                // LuaScript Component
+                if let Some(lua_script) = world.get_component::<LuaScript>(selected_entity).cloned() {
+                    ui.collapsing("📜 Lua Script", |ui| {
+                        let mut enabled = lua_script.enabled;
+                        let mut execution_order = lua_script.execution_order;
+                        let mut script_path = lua_script.script_path.clone();
+                        
+                        let mut changed = false;
+                        
+                        egui::Grid::new("lua_script_grid").show(ui, |ui| {
+                            ui.label("Enabled:");
+                            changed |= ui.checkbox(&mut enabled, "").changed();
+                            ui.end_row();
+                            
+                            ui.label("Script Path:");
+                            ui.label(&script_path);
+                            if ui.button("📁 Browse").clicked() {
+                                self.show_script_selection_dialog = true;
+                            }
+                            ui.end_row();
+                            
+                            ui.label("Execution Order:");
+                            changed |= ui.add(egui::DragValue::new(&mut execution_order).range(-1000..=1000)).changed();
+                            ui.end_row();
+                            
+                            if let Some(instance_id) = lua_script.instance_id {
+                                ui.label("Instance ID:");
+                                ui.label(format!("{}", instance_id));
+                                ui.end_row();
+                            }
+                        });
+                        
+                        if changed {
+                            if let Some(script_mut) = world.get_component_mut::<LuaScript>(selected_entity) {
+                                script_mut.enabled = enabled;
+                                script_mut.execution_order = execution_order;
+                                script_mut.script_path = script_path;
+                            }
+                        }
+                        
+                        ui.separator();
+                        ui.horizontal(|ui| {
+                            if ui.button("🗑️ Remove Script").clicked() {
+                                let _ = world.remove_component::<LuaScript>(selected_entity);
+                            }
+                            if ui.button("🔄 Reload Script").clicked() {
+                                // TODO: Implement script reloading
+                            }
+                        });
+                    });
+                }
+
                 // ECS v2 Entity Info
                 ui.separator();
                 ui.collapsing("🔧 Entity Debug", |ui| {
@@ -555,6 +625,10 @@ impl InspectorPanel {
                         component_count += 1;
                         component_list.push("Material");
                     }
+                    if world.get_component::<LuaScript>(selected_entity).is_some() {
+                        component_count += 1;
+                        component_list.push("LuaScript");
+                    }
 
                     ui.label(format!("Component Count: {}", component_count));
                     ui.label(format!("Components: {}", component_list.join(", ")));
@@ -568,6 +642,16 @@ impl InspectorPanel {
                 // Add Component Dialog
                 if self.show_add_component_dialog {
                     self.show_add_component_dialog(ui, world, selected_entity);
+                }
+                
+                // Script Selection Dialog
+                if self.show_script_selection_dialog {
+                    self.show_script_selection_dialog(ui, world, selected_entity);
+                }
+                
+                // Script Creation Dialog
+                if self.show_script_creation_dialog {
+                    self.show_script_creation_dialog(ui, world, selected_entity);
                 }
             });
         } else {
@@ -685,10 +769,253 @@ impl InspectorPanel {
                 }
 
                 ui.separator();
+                ui.label("Scripting Components:");
+                
+                // Lua Script Component
+                if ui.button("📜 Lua Script Component").clicked() {
+                    self.show_add_component_dialog = false;
+                    self.show_script_selection_dialog = true;
+                }
+
+                ui.separator();
                 if ui.button("Cancel").clicked() {
                     self.show_add_component_dialog = false;
                 }
             });
         self.show_add_component_dialog = dialog_open;
+    }
+
+    fn show_script_selection_dialog(&mut self, ui: &mut egui::Ui, world: &mut World, entity: Entity) {
+        let mut dialog_open = self.show_script_selection_dialog;
+        egui::Window::new("Select Script")
+            .open(&mut dialog_open)
+            .resizable(true)
+            .default_width(500.0)
+            .show(ui.ctx(), |ui| {
+                ui.label("Choose an existing script or create a new one:");
+                ui.separator();
+
+                // Create new script section
+                ui.horizontal(|ui| {
+                    ui.label("Create new script:");
+                    if ui.button("📝 New Script").clicked() {
+                        self.show_script_selection_dialog = false;
+                        self.show_script_creation_dialog = true;
+                    }
+                });
+
+                ui.separator();
+                ui.label("Available scripts:");
+
+                // Scripts from assets/scripts/
+                ui.collapsing("Project Scripts", |ui| {
+                    if let Ok(entries) = std::fs::read_dir("assets/scripts") {
+                        for entry in entries.flatten() {
+                            if let Some(extension) = entry.path().extension() {
+                                if extension == "lua" {
+                                    let script_name = entry.file_name().to_string_lossy().to_string();
+                                    let script_path = format!("assets/scripts/{}", script_name);
+                                    
+                                    if ui.button(&script_name).clicked() {
+                                        match world.add_component(entity, LuaScript::new(script_path)) {
+                                            Ok(_) => {
+                                                self.show_script_selection_dialog = false;
+                                            }
+                                            Err(_e) => {}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        ui.label("No project scripts found");
+                    }
+                });
+
+                // Example scripts
+                ui.collapsing("Example Scripts", |ui| {
+                    let example_scripts = [
+                        ("Entity Template", "crates/implementation/engine-scripting/lua/examples/entity_template.lua"),
+                        ("Player Controller", "crates/implementation/engine-scripting/lua/examples/player_controller.lua"),
+                        ("Enemy AI", "crates/implementation/engine-scripting/lua/examples/enemy_ai.lua"),
+                        ("Game Manager", "crates/implementation/engine-scripting/lua/examples/game_manager.lua"),
+                        ("Basic Template", "crates/implementation/engine-scripting/lua/examples/basic_template.lua"),
+                    ];
+
+                    for (name, path) in example_scripts {
+                        if ui.button(name).clicked() {
+                            match world.add_component(entity, LuaScript::new(path.to_string())) {
+                                Ok(_) => {
+                                    self.show_script_selection_dialog = false;
+                                }
+                                Err(_e) => {}
+                            }
+                        }
+                    }
+                });
+
+                ui.separator();
+                if ui.button("Cancel").clicked() {
+                    self.show_script_selection_dialog = false;
+                }
+            });
+        self.show_script_selection_dialog = dialog_open;
+    }
+
+    fn show_script_creation_dialog(&mut self, ui: &mut egui::Ui, world: &mut World, entity: Entity) {
+        let mut dialog_open = self.show_script_creation_dialog;
+        egui::Window::new("Create New Script")
+            .open(&mut dialog_open)
+            .resizable(false)
+            .default_width(400.0)
+            .show(ui.ctx(), |ui| {
+                ui.label("Create a new Lua script:");
+                ui.separator();
+
+                // Script name input
+                ui.horizontal(|ui| {
+                    ui.label("Script name:");
+                    ui.text_edit_singleline(&mut self.script_creation_name);
+                });
+
+                // Template selection
+                ui.horizontal(|ui| {
+                    ui.label("Template:");
+                    egui::ComboBox::from_label("")
+                        .selected_text(format!("{:?}", self.script_creation_template))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.script_creation_template, ScriptTemplate::Entity, "Entity");
+                            ui.selectable_value(&mut self.script_creation_template, ScriptTemplate::Behavior, "Behavior");
+                            ui.selectable_value(&mut self.script_creation_template, ScriptTemplate::System, "System");
+                        });
+                });
+
+                ui.separator();
+
+                // Template description
+                match self.script_creation_template {
+                    ScriptTemplate::Entity => {
+                        ui.label("Entity Script: Attached to a specific entity with lifecycle methods (start, update, etc.)");
+                    }
+                    ScriptTemplate::Behavior => {
+                        ui.label("Behavior Script: Reusable behavior that can be attached to multiple entities");
+                    }
+                    ScriptTemplate::System => {
+                        ui.label("System Script: Global system that operates on multiple entities");
+                    }
+                }
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    if ui.button("Create & Attach").clicked() {
+                        if !self.script_creation_name.is_empty() {
+                            let script_name = if !self.script_creation_name.ends_with(".lua") {
+                                format!("{}.lua", self.script_creation_name)
+                            } else {
+                                self.script_creation_name.clone()
+                            };
+
+                            let script_path = format!("assets/scripts/{}", script_name);
+                            
+                            // Create the script file
+                            if let Err(_) = std::fs::create_dir_all("assets/scripts") {
+                                // Directory creation failed, but continue anyway
+                            }
+
+                            let template_content = match self.script_creation_template {
+                                ScriptTemplate::Entity => {
+                                    format!(r#"-- Entity script: {}
+-- This script is attached to a specific entity
+
+local {module_name} = {{}}
+
+function {module_name}:init()
+    -- Called when the entity is created
+    print("[{module_name}] Entity started!")
+end
+
+function {module_name}:update(dt)
+    -- Called every frame
+    -- dt is the delta time in seconds
+end
+
+function {module_name}:destroy()
+    -- Called when the entity is destroyed
+    print("[{module_name}] Entity destroyed!")
+end
+
+return {module_name}
+"#, script_name=script_name, module_name=script_name.replace(".lua", "").replace("-", "_"))
+                                }
+                                ScriptTemplate::Behavior => {
+                                    format!(r#"-- Behavior script: {}
+-- Reusable behavior that can be attached to entities
+
+local behavior = {{}}
+
+function behavior.start(entity)
+    -- Called when attached to an entity
+    print("Behavior started on entity: " .. tostring(entity))
+end
+
+function behavior.update(entity, dt)
+    -- Called every frame for each entity with this behavior
+end
+
+function behavior.on_destroy(entity)
+    -- Called when detached from an entity
+    print("Behavior removed from entity: " .. tostring(entity))
+end
+
+return behavior
+"#, script_name)
+                                }
+                                ScriptTemplate::System => {
+                                    format!(r#"-- System script: {}
+-- Global system that operates on multiple entities
+
+local system = {{}}
+
+function system.initialize()
+    -- Called once when the system starts
+    print("System initialized!")
+end
+
+function system.update(dt)
+    -- Called every frame
+    -- Process entities here
+end
+
+function system.shutdown()
+    -- Called when the system shuts down
+    print("System shutdown!")
+end
+
+return system
+"#, script_name)
+                                }
+                            };
+
+                            if let Ok(_) = std::fs::write(&script_path, template_content) {
+                                // Script created successfully, attach it
+                                match world.add_component(entity, LuaScript::new(script_path)) {
+                                    Ok(_) => {
+                                        self.show_script_creation_dialog = false;
+                                        self.script_creation_name.clear();
+                                    }
+                                    Err(_e) => {}
+                                }
+                            }
+                        }
+                    }
+
+                    if ui.button("Cancel").clicked() {
+                        self.show_script_creation_dialog = false;
+                        self.script_creation_name.clear();
+                    }
+                });
+            });
+        self.show_script_creation_dialog = dialog_open;
     }
 }

@@ -1923,6 +1923,7 @@ dependencies = [
  "engine-geometry-core",
  "engine-renderer-3d",
  "engine-resource-core",
+ "engine-scripting",
  "glam",
  "log",
  "tempfile",

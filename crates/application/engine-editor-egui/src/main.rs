@@ -413,6 +413,11 @@ impl eframe::App for LonghornEditor {
         
         // Poll for Lua console messages and add them to the console panel
         self.poll_lua_console_messages();
+        
+        // Request continuous repaint in play mode for script execution
+        if self.coordinator.play_state_manager().get_state() == PlayState::Playing {
+            ctx.request_repaint();
+        }
 
         // Apply custom styling based on play state
         if self.coordinator.play_state_manager().get_state() != PlayState::Editing {
