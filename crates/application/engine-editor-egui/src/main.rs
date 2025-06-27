@@ -254,13 +254,20 @@ impl LonghornEditor {
         };
         
         // Copy all entities with LuaScript components from editor world to coordinator world
-        let script_entities: Vec<_> = self.world.query_legacy::<engine_scripting::components::LuaScript>()
+        let lua_script_entities: Vec<_> = self.world.query_legacy::<engine_scripting::components::LuaScript>()
             .map(|(entity, script)| (entity, script.clone()))
             .collect();
             
-        println!("[LonghornEditor] Syncing {} entities with LuaScript components to coordinator", script_entities.len());
+        // Copy all entities with TypeScriptScript components from editor world to coordinator world
+        let typescript_script_entities: Vec<_> = self.world.query_legacy::<engine_scripting::components::TypeScriptScript>()
+            .map(|(entity, script)| (entity, script.clone()))
+            .collect();
+            
+        println!("[LonghornEditor] Syncing {} entities with LuaScript components to coordinator", lua_script_entities.len());
+        println!("[LonghornEditor] Syncing {} entities with TypeScriptScript components to coordinator", typescript_script_entities.len());
         
-        for (entity, script) in script_entities {
+        // Process Lua script entities
+        for (entity, script) in lua_script_entities {
             // Spawn entity in coordinator world
             let new_entity = coordinator_world.spawn();
             
@@ -277,8 +284,31 @@ impl LonghornEditor {
                 }
             }
             
-            println!("  Copied entity {:?} -> {:?} with script: {}", entity, new_entity, 
+            println!("  Copied Lua entity {:?} -> {:?} with script: {}", entity, new_entity, 
                 coordinator_world.get_component::<engine_scripting::components::LuaScript>(new_entity)
+                    .map(|s| s.script_path.as_str()).unwrap_or("Unknown"));
+        }
+        
+        // Process TypeScript script entities
+        for (entity, script) in typescript_script_entities {
+            // Spawn entity in coordinator world
+            let new_entity = coordinator_world.spawn();
+            
+            // Copy TypeScriptScript component
+            if let Err(e) = coordinator_world.add_component(new_entity, script) {
+                println!("Failed to add TypeScriptScript component: {:?}", e);
+                continue;
+            }
+            
+            // Copy Transform component if it exists
+            if let Some(transform) = self.world.get_component::<Transform>(entity) {
+                if let Err(e) = coordinator_world.add_component(new_entity, transform.clone()) {
+                    println!("Failed to add Transform component: {:?}", e);
+                }
+            }
+            
+            println!("  Copied TypeScript entity {:?} -> {:?} with script: {}", entity, new_entity, 
+                coordinator_world.get_component::<engine_scripting::components::TypeScriptScript>(new_entity)
                     .map(|s| s.script_path.as_str()).unwrap_or("Unknown"));
         }
         
@@ -287,10 +317,12 @@ impl LonghornEditor {
     }
     
     /// Poll for Lua console messages and add them to the console panel
-    fn poll_lua_console_messages(&mut self) {
-        let lua_messages = engine_scripting::get_and_clear_console_messages();
-        if !lua_messages.is_empty() {
-            let panel_messages: Vec<engine_editor_panels::types::ConsoleMessage> = lua_messages
+    fn poll_script_console_messages(&mut self) {
+        // This function collects console messages from both Lua and TypeScript scripts
+        // as they both use the same unified console message system
+        let script_messages = engine_scripting::get_and_clear_console_messages();
+        if !script_messages.is_empty() {
+            let panel_messages: Vec<engine_editor_panels::types::ConsoleMessage> = script_messages
                 .into_iter()
                 .map(|msg| engine_editor_panels::types::ConsoleMessage::info(&msg.message))
                 .collect();
@@ -418,7 +450,7 @@ impl eframe::App for LonghornEditor {
         self.coordinator.update(delta_time);
         
         // Poll for Lua console messages and add them to the console panel
-        self.poll_lua_console_messages();
+        self.poll_script_console_messages();
         
         // Request continuous repaint in play mode for script execution
         if self.coordinator.play_state_manager().get_state() == PlayState::Playing {

@@ -32,10 +32,25 @@ pub mod typescript_script_system;
 #[cfg(test)]
 pub mod typescript_hello_world_test;
 #[cfg(test)]
+pub mod typescript_runtime_error_handling_tests;
+#[cfg(test)]
+pub mod engine_api_injection_tests;
+#[cfg(test)]
+pub mod v8_engine_api_integration_tests;
+#[cfg(test)]
+pub mod documentation_tests;
+#[cfg(test)]
+pub mod typescript_examples_integration_tests;
+#[cfg(test)]
+pub mod typescript_hot_reload_tests;
+#[cfg(test)]
+pub mod typescript_console_integration_test;
+#[cfg(test)]
 pub mod test_utils;
 #[cfg(test)]
 pub mod error_tests;
 pub mod unified_loader;
+pub mod engine_api_demo;
 
 pub use api::ScriptApi;
 pub use unified_loader::UnifiedScriptLoader;
@@ -49,7 +64,7 @@ pub use component_manager::{LuaScriptComponentManager, EntityScriptInfo, ScriptC
 pub use lua_script_system::LuaScriptSystem;
 pub use typescript_script_system::TypeScriptScriptSystem;
 pub use components::Velocity;
-pub use lua::engine::{get_and_clear_console_messages, ConsoleMessage as LuaConsoleMessage};
+pub use lua::engine::{get_and_clear_console_messages, ConsoleMessage};
 
 // Re-export the new comprehensive error types
 pub use error::{ScriptError, SecuritySeverity};
