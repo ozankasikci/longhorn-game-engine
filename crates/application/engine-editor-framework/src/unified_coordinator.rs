@@ -6,7 +6,7 @@
 use engine_runtime::{HybridGameLoop, EngineMode, HybridFrameResult};
 use engine_runtime_core::{System, SystemError, GameContext, HotReloadManager, HotReloadEvent, AssetType};
 use engine_ecs_core::World;
-use engine_scripting::{LuaScriptSystem, components::LuaScript};
+use engine_scripting::{LuaScriptSystem, TypeScriptScriptSystem, components::{LuaScript, TypeScriptScript}};
 use crate::{EditorState, PlayStateManager, PlayState};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -58,6 +58,13 @@ impl UnifiedEditorCoordinator {
             coordinator_world: Arc::clone(&ecs_world),
         };
         scheduler.add_system(Box::new(lua_system));
+        
+        // Add TypeScript scripting system
+        let typescript_system = TypeScriptScriptSystemWrapper {
+            system: TypeScriptScriptSystem::new(),
+            coordinator_world: Arc::clone(&ecs_world),
+        };
+        scheduler.add_system(Box::new(typescript_system));
         
         // Resolve dependencies
         scheduler.resolve_dependencies()
@@ -403,6 +410,43 @@ impl System for LuaScriptSystemWrapper {
 impl std::fmt::Debug for LuaScriptSystemWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LuaScriptSystemWrapper").finish()
+    }
+}
+
+/// Wrapper for TypeScriptScriptSystem that provides world access
+struct TypeScriptScriptSystemWrapper {
+    system: TypeScriptScriptSystem,
+    coordinator_world: Arc<Mutex<World>>,
+}
+
+impl System for TypeScriptScriptSystemWrapper {
+    fn execute(&mut self, _context: &mut GameContext, delta_time: f32) -> Result<(), SystemError> {
+        // Execute scripts with world access
+        let mut world_lock = self.coordinator_world.lock().unwrap();
+        let script_count = world_lock.query_legacy::<TypeScriptScript>().count();
+        
+        if script_count > 0 {
+            println!("[TypeScriptScriptSystemWrapper] Executing {} scripts", script_count);
+        }
+        
+        // Execute TypeScript scripts
+        self.system.update(&mut world_lock, delta_time as f64);
+        
+        Ok(())
+    }
+    
+    fn name(&self) -> &str {
+        "TypeScriptScriptSystem"
+    }
+    
+    fn is_fixed_timestep(&self) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for TypeScriptScriptSystemWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TypeScriptScriptSystemWrapper").finish()
     }
 }
 

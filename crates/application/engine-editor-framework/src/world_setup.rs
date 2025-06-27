@@ -105,6 +105,16 @@ pub fn create_default_world() -> (World, Entity) {
         .add_component(cube_entity, Visibility::default())
         .unwrap();
     world.add_component(cube_entity, Name::new("Cube")).unwrap();
+    
+    // Add TypeScript script component for testing
+    world
+        .add_component(
+            cube_entity,
+            TypeScriptScript::new("assets/scripts/typescript_hello_world.ts".to_string()),
+        )
+        .unwrap();
+    
+    println!("[World Setup] Added TypeScript script component to cube entity");
 
     // Try to get all entities with Transform components
     let entities_with_transforms: Vec<_> = world.query_legacy::<Transform>().collect();
