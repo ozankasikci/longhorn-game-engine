@@ -214,11 +214,11 @@ mod tests {
         
         // Check that functions are available
         let globals = lua.globals();
-        assert!(globals.get::<_, LuaFunction>("is_key_pressed").is_ok());
-        assert!(globals.get::<_, LuaFunction>("get_mouse_position").is_ok());
-        assert!(globals.get::<_, LuaFunction>("bind_key").is_ok());
-        assert!(globals.get::<_, LuaFunction>("unbind_key").is_ok());
-        assert!(globals.get::<_, LuaFunction>("is_mouse_button_pressed").is_ok());
+        assert!(globals.get::<LuaFunction>("is_key_pressed").is_ok());
+        assert!(globals.get::<LuaFunction>("get_mouse_position").is_ok());
+        assert!(globals.get::<LuaFunction>("bind_key").is_ok());
+        assert!(globals.get::<LuaFunction>("unbind_key").is_ok());
+        assert!(globals.get::<LuaFunction>("is_mouse_button_pressed").is_ok());
         
         // Test using the API from Lua
         lua.load(r#"

@@ -217,9 +217,9 @@ mod tests {
         
         // Check that debug functions are available
         let globals = lua.globals();
-        assert!(globals.get::<_, LuaFunction>("debug_print").is_ok());
-        assert!(globals.get::<_, LuaFunction>("debug_inspect").is_ok());
-        assert!(globals.get::<_, LuaFunction>("debug_break").is_ok());
+        assert!(globals.get::<LuaFunction>("debug_print").is_ok());
+        assert!(globals.get::<LuaFunction>("debug_inspect").is_ok());
+        assert!(globals.get::<LuaFunction>("debug_break").is_ok());
         
         // Test debug_print function from Lua
         lua.load(r#"

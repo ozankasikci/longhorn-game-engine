@@ -2315,6 +2315,7 @@ dependencies = [
  "log",
  "mlua",
  "once_cell",
+ "regex",
  "serde",
  "serde_json",
  "swc_core",
@@ -3930,6 +3931,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
+name = "normpath"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a9da8c9922c35a1033d76f7272dfc2e7ee20392083d75aeea6ced23c6266578"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "notify"
 version = "6.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4361,6 +4371,18 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "path-clean"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecba01bf2678719532c5e3059e0b5f0811273d94b397088b82e3bd0a78c78fdd"
+
+[[package]]
+name = "pathdiff"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df94ce210e5bc13cb6651479fa48d14f601d9858cfe0467f43ae157023b938d3"
 
 [[package]]
 name = "percent-encoding"
@@ -5475,6 +5497,7 @@ dependencies = [
  "swc_ecma_codegen",
  "swc_ecma_parser",
  "swc_ecma_transforms_base",
+ "swc_ecma_transforms_module",
  "swc_ecma_transforms_typescript",
  "swc_typescript",
  "vergen",
@@ -5526,6 +5549,25 @@ dependencies = [
  "quote",
  "swc_macros_common",
  "syn 2.0.101",
+]
+
+[[package]]
+name = "swc_ecma_loader"
+version = "0.46.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a9febebf047d1286e7b723fa2758f3229da2c103834f3eaee69833f46692612"
+dependencies = [
+ "anyhow",
+ "dashmap",
+ "normpath",
+ "once_cell",
+ "path-clean",
+ "pathdiff",
+ "serde",
+ "serde_json",
+ "swc_atoms",
+ "swc_common",
+ "tracing",
 ]
 
 [[package]]
@@ -5583,6 +5625,33 @@ dependencies = [
  "quote",
  "swc_macros_common",
  "syn 2.0.101",
+]
+
+[[package]]
+name = "swc_ecma_transforms_module"
+version = "0.183.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7dc1df5996d98d1a27995e8b8a13f805a801d9286cb9ed29103662c767c747e"
+dependencies = [
+ "Inflector",
+ "anyhow",
+ "bitflags 2.9.1",
+ "indexmap",
+ "is-macro",
+ "path-clean",
+ "pathdiff",
+ "regex",
+ "serde",
+ "swc_atoms",
+ "swc_cached",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_loader",
+ "swc_ecma_parser",
+ "swc_ecma_transforms_base",
+ "swc_ecma_utils",
+ "swc_ecma_visit",
+ "tracing",
 ]
 
 [[package]]

@@ -93,23 +93,37 @@ impl UnifiedEditorCoordinator {
         self.process_hot_reload_events();
         
         // Handle play state transitions
-        match self.play_state_manager.get_state() {
+        let current_play_state = self.play_state_manager.get_state();
+        let current_mode = self.game_loop.mode();
+        
+        // Debug: Show current states every few frames
+        static mut STATE_LOG_COUNTER: u32 = 0;
+        unsafe {
+            STATE_LOG_COUNTER += 1;
+            if STATE_LOG_COUNTER % 60 == 0 { // Every 60 frames
+                log::debug!("Play State: {:?}, Game Mode: {:?}", current_play_state, current_mode);
+            }
+        }
+        
+        match current_play_state {
             PlayState::Editing => {
                 // Make sure we're in editor mode
-                if self.game_loop.mode() != EngineMode::Editor {
+                if current_mode != EngineMode::Editor {
+                    log::info!("Exiting play mode to editing");
                     self.exit_play_mode();
                 }
             }
             PlayState::Playing => {
                 // Enter play mode if not already
-                if self.game_loop.mode() != EngineMode::EditorPlay {
-                    println!("[UnifiedEditorCoordinator] Entering play mode");
+                if current_mode != EngineMode::EditorPlay {
+                    log::info!("Entering play mode");
                     self.enter_play_mode();
                 }
             }
             PlayState::Paused => {
                 // Stay in play mode but don't update
-                if self.game_loop.mode() == EngineMode::EditorPlay {
+                if current_mode == EngineMode::EditorPlay {
+                    log::info!("Pausing game execution");
                     self.game_loop.set_mode(EngineMode::Editor);
                 }
             }
@@ -426,11 +440,9 @@ impl System for TypeScriptScriptSystemWrapper {
         let script_count = world_lock.query_legacy::<TypeScriptScript>().count();
         
         if script_count > 0 {
-            println!("[TypeScriptScriptSystemWrapper] Executing {} scripts", script_count);
+            // Execute TypeScript scripts
+            self.system.update(&mut world_lock, delta_time as f64);
         }
-        
-        // Execute TypeScript scripts
-        self.system.update(&mut world_lock, delta_time as f64);
         
         Ok(())
     }

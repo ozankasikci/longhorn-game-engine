@@ -107,18 +107,41 @@ impl TypeScriptScriptSystem {
 
     /// Process all scripts for a single entity
     fn process_entity_scripts(&mut self, entity: Entity, script_component: &TypeScriptScript, delta_time: f64) {
+        println!("🔧 process_entity_scripts() for entity {:?}", entity);
+        
         // Collect all script paths for this entity
         let script_paths = script_component.get_all_scripts();
+        println!("📂 Script paths for entity: {:?}", script_paths);
         
         // Check if this entity needs initialization
-        let needs_init = !self.initialized_entities.contains(&entity);
+        let mut needs_init = !self.initialized_entities.contains(&entity);
+        
+        // Also check if any script instances are not properly compiled
+        if let Some(instances) = self.script_instances.get(&entity) {
+            for instance in instances {
+                if !instance.compilation_successful {
+                    println!("🔍 Force re-initialization: script {} not compiled", instance.script_path);
+                    needs_init = true;
+                    break;
+                }
+            }
+        }
+        
+        println!("🔍 Entity needs initialization: {}", needs_init);
         
         if needs_init {
             // Initialize all scripts for this entity
+            println!("🚀 Initializing scripts for entity {:?}", entity);
+            
+            // Remove entity from initialized set to force re-init
+            self.initialized_entities.remove(&entity);
+            
             self.initialize_entity_scripts(entity, &script_paths);
             self.initialized_entities.insert(entity);
+            println!("✅ Entity {:?} marked as initialized", entity);
         } else {
             // Update all scripts for this entity
+            println!("🔄 Updating scripts for entity {:?}", entity);
             self.update_entity_scripts(entity, &script_paths, delta_time);
         }
     }
@@ -182,17 +205,35 @@ impl TypeScriptScriptSystem {
 
     /// Update all scripts for an entity
     fn update_entity_scripts(&mut self, entity: Entity, script_paths: &[&String], delta_time: f64) {
+        println!("🔄 update_entity_scripts() called for entity {:?}", entity);
+        
         if let Some(instances) = self.script_instances.get(&entity) {
+            println!("📋 Found {} script instances for entity", instances.len());
+            
             if let Some(runtime) = &mut self.runtime {
                 for instance in instances {
+                    println!("🔍 Script instance: {}, initialized: {}, compiled: {}", 
+                             instance.script_path, instance.initialized, instance.compilation_successful);
+                    
                     if instance.initialized && instance.compilation_successful {
                         // Try to call update function if it exists
+                        println!("📞 Calling runtime.call_update() for script: {}", instance.script_path);
                         if let Err(e) = runtime.call_update(instance.script_id, delta_time) {
+                            println!("⚠️ Script {} has no update function or update failed: {}", instance.script_path, e);
                             log::debug!("Script {} has no update function or update failed: {}", instance.script_path, e);
+                        } else {
+                            println!("✅ Successfully called update() for script: {}", instance.script_path);
                         }
+                    } else {
+                        println!("❌ Script {} not ready: initialized={}, compiled={}", 
+                                instance.script_path, instance.initialized, instance.compilation_successful);
                     }
                 }
+            } else {
+                println!("❌ No runtime available for update");
             }
+        } else {
+            println!("❌ No script instances found for entity {:?}", entity);
         }
     }
 
@@ -292,6 +333,9 @@ impl SimpleTypeScriptRuntime {
             // Add Engine API injection (World, Input, Physics)
             Self::setup_engine_api_injection(scope, global)?;
             
+            // Add CommonJS exports mock for SWC CommonJS output compatibility
+            Self::setup_commonjs_exports(scope, global)?;
+            
             v8::Global::new(scope, context)
         };
 
@@ -344,8 +388,16 @@ impl SimpleTypeScriptRuntime {
             }
             let message = message_parts.join(" ");
             
-            // Add to game engine console
-            Self::add_console_message(message.clone());
+            // Add to game engine console directly
+            use crate::lua::engine::{CONSOLE_MESSAGES, ConsoleMessage};
+            use std::time::SystemTime;
+            
+            if let Ok(mut messages) = CONSOLE_MESSAGES.lock() {
+                messages.push(ConsoleMessage {
+                    message: message.clone(),
+                    timestamp: SystemTime::now(),
+                });
+            }
             
             // Also log to standard Rust logging
             log::info!("[TS Console] {}", message);
@@ -368,8 +420,16 @@ impl SimpleTypeScriptRuntime {
             }
             let message = format!("ERROR: {}", message_parts.join(" "));
             
-            // Add to game engine console
-            Self::add_console_message(message.clone());
+            // Add to game engine console directly
+            use crate::lua::engine::{CONSOLE_MESSAGES, ConsoleMessage};
+            use std::time::SystemTime;
+            
+            if let Ok(mut messages) = CONSOLE_MESSAGES.lock() {
+                messages.push(ConsoleMessage {
+                    message: message.clone(),
+                    timestamp: SystemTime::now(),
+                });
+            }
             
             // Also log to standard Rust logging
             log::error!("[TS Console] {}", message);
@@ -657,7 +717,150 @@ impl SimpleTypeScriptRuntime {
         Ok(())
     }
 
-    fn compile_typescript_to_javascript(&self, typescript_source: &str, script_path: &str) -> Result<String, String> {
+    fn setup_commonjs_exports(scope: &mut v8::HandleScope, global: v8::Local<v8::Object>) -> Result<(), String> {
+        log::debug!("Setting up CommonJS exports mock for V8 compatibility");
+        
+        // Create exports object to support CommonJS modules compiled by SWC
+        let exports_obj = v8::Object::new(scope);
+        let exports_name = v8::String::new(scope, "exports").unwrap();
+        global.set(scope, exports_name.into(), exports_obj.into());
+        
+        // Also create module.exports pattern (module = { exports: exports })
+        let module_obj = v8::Object::new(scope);
+        let module_exports_name = v8::String::new(scope, "exports").unwrap();
+        module_obj.set(scope, module_exports_name.into(), exports_obj.into());
+        
+        let module_name = v8::String::new(scope, "module").unwrap();
+        global.set(scope, module_name.into(), module_obj.into());
+        
+        log::debug!("CommonJS exports mock set up successfully");
+        Ok(())
+    }
+
+    fn transform_commonjs_to_v8_compatible(commonjs_code: &str, script_path: &str) -> String {
+        log::debug!("Transforming CommonJS code to V8-compatible format for {}", script_path);
+        
+        let mut code = commonjs_code.to_string();
+        
+        // Simple approach: Replace the entire Object.defineProperty pattern with direct assignments
+        if code.contains("Object.defineProperty(exports,") && code.contains("get: function()") {
+            // Extract all class names that are being exported
+            let mut class_names = Vec::new();
+            
+            // Find all Object.defineProperty calls for class exports (not __esModule)
+            // Use regex to find all exports since they may span multiple lines
+            if let Ok(re) = regex::Regex::new(r#"Object\.defineProperty\(exports,\s*"([^"]+)""#) {
+                for cap in re.captures_iter(&code) {
+                    if let Some(class_name) = cap.get(1) {
+                        let name = class_name.as_str();
+                        if name != "__esModule" && !name.is_empty() {
+                            class_names.push(name.to_string());
+                        }
+                    }
+                }
+            } else {
+                // Fallback to simple line-by-line search
+                for line in code.lines() {
+                    if line.contains("Object.defineProperty(exports, \"") && !line.contains("__esModule") {
+                        if let Some(start) = line.find("Object.defineProperty(exports, \"") {
+                            let after_start = &line[start + 33..]; // Skip 'Object.defineProperty(exports, "'
+                            if let Some(end) = after_start.find("\"") {
+                                let class_name = &after_start[..end];
+                                if !class_name.is_empty() {
+                                    class_names.push(class_name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            log::debug!("Found {} classes to export: {:?}", class_names.len(), class_names);
+            
+            if !class_names.is_empty() {
+                // Remove all Object.defineProperty blocks entirely
+                let mut clean_code = String::new();
+                let lines: Vec<&str> = code.lines().collect();
+                let mut i = 0;
+                
+                while i < lines.len() {
+                    let line = lines[i];
+                    let trimmed = line.trim();
+                    
+                    // If this line starts an Object.defineProperty block, skip the entire block
+                    if trimmed.starts_with("Object.defineProperty(exports,") {
+                        // Skip lines until we find the closing });
+                        while i < lines.len() {
+                            if lines[i].trim().ends_with("});") {
+                                i += 1; // Skip the }); line too
+                                break;
+                            }
+                            i += 1;
+                        }
+                        continue;
+                    }
+                    
+                    // Keep all other lines
+                    clean_code.push_str(line);
+                    clean_code.push('\n');
+                    i += 1;
+                }
+                
+                // Add simple export assignments at the end
+                for class_name in class_names {
+                    clean_code.push_str(&format!("exports.{} = {};\n", class_name, class_name));
+                }
+                
+                code = clean_code;
+            }
+        }
+        
+        log::debug!("CommonJS transformation complete for {}", script_path);
+        code
+    }
+
+    /// Wrap the CommonJS code in an IIFE that provides the exports object and assigns to globalThis
+    fn wrap_in_iife_with_exports(code: &str, script_path: &str) -> String {
+        // Extract class names from the simple exports assignments
+        let re = regex::Regex::new(r"exports\.(\w+)\s*=\s*(\w+);").unwrap();
+        let mut class_assignments = Vec::new();
+        
+        for cap in re.captures_iter(code) {
+            if let (Some(export_name), Some(class_name)) = (cap.get(1), cap.get(2)) {
+                let export_str = export_name.as_str();
+                let class_str = class_name.as_str();
+                // Assign to globalThis for V8 access
+                class_assignments.push(format!("    globalThis.{} = exports.{};", class_str, export_str));
+            }
+        }
+        
+        // If no exports found, try to extract class names from class declarations
+        if class_assignments.is_empty() {
+            let class_re = regex::Regex::new(r"class\s+(\w+)").unwrap();
+            for cap in class_re.captures_iter(code) {
+                if let Some(class_name) = cap.get(1) {
+                    let class_str = class_name.as_str();
+                    class_assignments.push(format!("    globalThis.{} = {};", class_str, class_str));
+                }
+            }
+        }
+        
+        let assignments = class_assignments.join("\n");
+        
+        // First, convert \n to actual newlines in the code
+        let actual_code = code.replace("\\n", "\n");
+        
+        // Wrap the code in an IIFE with exports object
+        format!(
+            "// IIFE wrapper for TypeScript script: {}\n(function() {{\n    var exports = {{}};\n    var module = {{ exports: exports }};\n    \n    // Original compiled code\n{}\n    \n    // Assign exports to globalThis for V8 access\n{}\n    \n    // Log successful loading\n    console.log(\"✅ TypeScript module loaded: {}\", Object.keys(exports));\n}})();",
+            script_path,
+            actual_code,
+            assignments,
+            script_path
+        )
+    }
+
+    pub fn compile_typescript_to_javascript(&self, typescript_source: &str, script_path: &str) -> Result<String, String> {
         let start_time = std::time::Instant::now();
         
         // Use SWC to compile TypeScript to JavaScript
@@ -704,6 +907,18 @@ impl SimpleTypeScriptRuntime {
                 swc_core::ecma::transforms::typescript::strip(swc_core::common::Mark::new())
             ));
             
+            // Add CommonJS module transformation to convert ES6 exports to module.exports
+            let program = swc_ecma_visit::FoldWith::fold_with(program, &mut swc_ecma_visit::as_folder(
+                swc_core::ecma::transforms::module::common_js::<swc_core::common::comments::NoopComments>(
+                    swc_core::common::Mark::new(),
+                    swc_core::ecma::transforms::module::util::Config {
+                        ..Default::default()
+                    },
+                    swc_core::ecma::transforms::base::feature::FeatureFlag::default(),
+                    None,
+                )
+            ));
+            
             // Extract module back from program
             let module = match program {
                 swc_core::ecma::ast::Program::Module(m) => m,
@@ -725,27 +940,25 @@ impl SimpleTypeScriptRuntime {
                 format!("Code generation error in {}: {:?}", script_path, e)
             })?;
             
-            let mut code = String::from_utf8(buf).map_err(|e| {
+            let code = String::from_utf8(buf).map_err(|e| {
                 format!("Invalid UTF-8 in generated code for {}: {}", script_path, e)
             })?;
             
-            // Convert ES6 export statements to global assignments for V8 compatibility
-            // Replace "export class ClassName" with "globalThis.ClassName = class ClassName"
-            if code.contains("export class ") {
-                code = code.replace("export class ", "globalThis.");
-                // Need to add "= class" after the class name
-                code = regex::Regex::new(r"globalThis\.(\w+)\s*\{")
-                    .unwrap()
-                    .replace_all(&code, "globalThis.$1 = class $1 {")
-                    .to_string();
-            }
+            // Debug: Log the compiled JavaScript to see what SWC is outputting
+            log::info!("📋 SWC compiled JavaScript for {}:\n{}", script_path, code);
+            log::info!("❌ Contains export statements: {}", code.contains("export "));
+            log::info!("✅ Contains CommonJS patterns: {}", code.contains("module.exports") || code.contains("exports."));
+            log::info!("🌐 Contains globalThis: {}", code.contains("globalThis"));
             
-            // Replace other export statements if needed
-            if code.contains("export ") {
-                log::warn!("Script {} contains export statements that may not be fully converted", script_path);
-            }
+            // Post-process the CommonJS output to make it V8-compatible
+            let v8_compatible_code = Self::transform_commonjs_to_v8_compatible(&code, script_path);
             
-            Ok(code)
+            // Wrap in IIFE to provide exports object and assign to globalThis
+            let wrapped_code = Self::wrap_in_iife_with_exports(&v8_compatible_code, script_path);
+            
+            log::info!("🔧 V8-compatible JavaScript for {}:\n{}", script_path, wrapped_code);
+            
+            Ok(wrapped_code)
         });
         
         let compilation_time = start_time.elapsed();
@@ -766,7 +979,13 @@ impl SimpleTypeScriptRuntime {
     }
 
     fn execute_javascript(&mut self, code: &str) -> Result<(), String> {
-        log::debug!("Executing JavaScript code: {}", code);
+        println!("🚀 EXECUTING JAVASCRIPT CODE:");
+        println!("📋 Raw code length: {} chars", code.len());
+        println!("📋 Code content:\n{}", code);
+        println!("📋 Code contains export: {}", code.contains("export"));
+        println!("📋 Code contains module.exports: {}", code.contains("module.exports"));
+        println!("📋 Code contains Object.defineProperty: {}", code.contains("Object.defineProperty"));
+        println!("📋 Code starts with: {:?}", code.chars().take(50).collect::<String>());
         
         let scope = &mut v8::HandleScope::new(&mut self.isolate);
         let context = v8::Local::new(scope, &self.global_context);
@@ -778,8 +997,10 @@ impl SimpleTypeScriptRuntime {
         
         let script = v8::Script::compile(scope, source, None)
             .ok_or_else(|| {
-                let error_msg = format!("Failed to compile JavaScript code. Code was: {}", code);
-                log::error!("{}", error_msg);
+                let error_msg = format!("🔥 V8 JavaScript compilation failed - SYNTAX ERROR in generated code!");
+                println!("{}", error_msg);
+                println!("📋 Failed code was:\n{}", code);
+                println!("📋 Code bytes: {:?}", code.as_bytes());
                 error_msg
             })?;
         
@@ -848,28 +1069,71 @@ impl SimpleTypeScriptRuntime {
             var initSuccess = false;
             var lastError = null;
             
-            // Try to find a class to instantiate
-            for (var name in globalThis) {{
-                if (typeof globalThis[name] === 'function' && globalThis[name].prototype) {{
-                    try {{
-                        {} = new globalThis[name]();
-                        if (typeof {}.init === 'function') {{
-                            {}.init();
+            // Debug: Log what's available in exports
+            console.log("=== DEBUG: Checking exports object ===");
+            console.log("typeof exports:", typeof exports);
+            if (typeof exports === 'object' && exports) {{
+                console.log("exports keys:", Object.keys(exports));
+                for (var name in exports) {{
+                    console.log("exports[" + name + "]:", typeof exports[name], exports[name]);
+                }}
+            }}
+            
+            // First try to find a class in exports (CommonJS)
+            if (typeof exports === 'object' && exports) {{
+                for (var name in exports) {{
+                    if (typeof exports[name] === 'function' && exports[name].prototype) {{
+                        try {{
+                            console.log("=== DEBUG: Trying to instantiate class:", name, "===");
+                            {} = new exports[name]();
+                            console.log("=== DEBUG: Successfully created instance of", name, "===");
+                            if (typeof {}.init === 'function') {{
+                                console.log("=== DEBUG: Calling init() method ===");
+                                {}.init();
+                                console.log("=== DEBUG: init() method completed ===");
+                            }} else {{
+                                console.log("=== DEBUG: No init() method found ===");
+                            }}
+                            initSuccess = true;
+                            break;
+                        }} catch (e) {{
+                            console.log("=== DEBUG: Error instantiating", name, ":", e.toString(), "===");
+                            lastError = e.toString();
+                            // Continue to next potential class
                         }}
-                        initSuccess = true;
-                        break;
-                    }} catch (e) {{
-                        lastError = e.toString();
-                        // Continue to next potential class
+                    }}
+                }}
+            }}
+            
+            // If not found in exports, try globalThis (fallback)
+            if (!initSuccess) {{
+                console.log("=== DEBUG: Trying globalThis fallback ===");
+                for (var name in globalThis) {{
+                    if (typeof globalThis[name] === 'function' && globalThis[name].prototype) {{
+                        try {{
+                            console.log("=== DEBUG: Trying globalThis class:", name, "===");
+                            {} = new globalThis[name]();
+                            if (typeof {}.init === 'function') {{
+                                {}.init();
+                            }}
+                            initSuccess = true;
+                            break;
+                        }} catch (e) {{
+                            lastError = e.toString();
+                            // Continue to next potential class
+                        }}
                     }}
                 }}
             }}
             
             if (!initSuccess && lastError) {{
+                console.log("=== DEBUG: Failed to initialize script, lastError:", lastError, "===");
                 throw new Error('Failed to initialize script: ' + lastError);
+            }} else if (initSuccess) {{
+                console.log("=== DEBUG: Script initialization successful! ===");
             }}
             "#,
-            instance_var, instance_var, instance_var, instance_var
+            instance_var, instance_var, instance_var, instance_var, instance_var, instance_var, instance_var
         );
 
         let result = self.execute_javascript(&init_code);

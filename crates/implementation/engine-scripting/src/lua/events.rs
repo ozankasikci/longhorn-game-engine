@@ -294,8 +294,8 @@ mod tests {
         
         // Check that functions are available
         let globals = lua.globals();
-        assert!(globals.get::<_, LuaFunction>("on_event").is_ok());
-        assert!(globals.get::<_, LuaFunction>("emit_event").is_ok());
-        assert!(globals.get::<_, LuaFunction>("remove_listener").is_ok());
+        assert!(globals.get::<LuaFunction>("on_event").is_ok());
+        assert!(globals.get::<LuaFunction>("emit_event").is_ok());
+        assert!(globals.get::<LuaFunction>("remove_listener").is_ok());
     }
 }

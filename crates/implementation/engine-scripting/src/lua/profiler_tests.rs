@@ -308,9 +308,9 @@ mod tests {
         
         // Check that profiler functions are available
         let globals = lua.globals();
-        assert!(globals.get::<_, LuaFunction>("profile_start").is_ok());
-        assert!(globals.get::<_, LuaFunction>("profile_stop").is_ok());
-        assert!(globals.get::<_, LuaFunction>("profile_mark").is_ok());
+        assert!(globals.get::<LuaFunction>("profile_start").is_ok());
+        assert!(globals.get::<LuaFunction>("profile_stop").is_ok());
+        assert!(globals.get::<LuaFunction>("profile_mark").is_ok());
         
         // Test profiler functions from Lua
         lua.load(r#"

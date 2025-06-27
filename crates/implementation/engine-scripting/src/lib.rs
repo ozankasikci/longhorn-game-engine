@@ -49,6 +49,8 @@ pub mod typescript_console_integration_test;
 pub mod test_utils;
 #[cfg(test)]
 pub mod error_tests;
+#[cfg(test)]
+pub mod typescript_swc_compilation_test;
 pub mod unified_loader;
 pub mod engine_api_demo;
 

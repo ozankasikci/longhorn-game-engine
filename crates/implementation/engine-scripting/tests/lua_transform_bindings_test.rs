@@ -56,6 +56,7 @@ fn test_lua_script_can_read_transform_position() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     };
     world.add_component(entity, lua_script).unwrap();
     
@@ -118,6 +119,7 @@ fn test_lua_script_can_modify_transform_position() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     };
     world.add_component(entity, lua_script).unwrap();
     
@@ -187,6 +189,7 @@ fn test_lua_script_can_modify_transform_rotation() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     };
     world.add_component(entity, lua_script).unwrap();
     
@@ -257,6 +260,7 @@ fn test_lua_script_can_modify_transform_scale() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     };
     world.add_component(entity, lua_script).unwrap();
     
@@ -344,6 +348,7 @@ fn test_multiple_entities_with_transform_scripts() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     }).unwrap();
     
     world.add_component(entity2, LuaScript {
@@ -351,6 +356,7 @@ fn test_multiple_entities_with_transform_scripts() {
         enabled: true,
         execution_order: 1,
         instance_id: None,
+        additional_scripts: Vec::new(),
     }).unwrap();
     
     // Create LuaScriptSystem and execute
@@ -420,6 +426,7 @@ fn test_script_without_transform_component_handles_gracefully() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     };
     world.add_component(entity, lua_script).unwrap();
     

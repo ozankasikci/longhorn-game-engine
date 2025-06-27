@@ -56,6 +56,7 @@ fn test_lua_script_can_read_health_component() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     };
     world.add_component(entity, lua_script).unwrap();
     
@@ -110,6 +111,7 @@ fn test_lua_script_can_modify_health_component() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     };
     world.add_component(entity, lua_script).unwrap();
     
@@ -200,6 +202,7 @@ fn test_lua_script_can_access_velocity_component() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     };
     world.add_component(entity, lua_script).unwrap();
     
@@ -277,6 +280,7 @@ fn test_lua_script_multiple_component_interactions() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     }).unwrap();
     
     // Create system and execute
@@ -352,6 +356,7 @@ fn test_lua_script_handles_missing_components_gracefully() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     }).unwrap();
     
     // Create system and execute
@@ -413,6 +418,7 @@ fn test_lua_script_can_add_components_to_entity() {
         enabled: true,
         execution_order: 0,
         instance_id: None,
+        additional_scripts: Vec::new(),
     }).unwrap();
     
     // Create system and execute

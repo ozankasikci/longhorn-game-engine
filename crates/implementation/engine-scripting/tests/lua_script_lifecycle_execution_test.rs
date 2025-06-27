@@ -43,12 +43,7 @@ fn test_script_lifecycle_init_called_once() {
     let script_path = temp_file.path().to_string_lossy().to_string();
     
     // Add LuaScript component
-    let lua_script = LuaScript {
-        script_path: script_path.clone(),
-        enabled: true,
-        execution_order: 0,
-        instance_id: None,
-    };
+    let lua_script = LuaScript::new(script_path.clone());
     world.add_component(entity, lua_script).unwrap();
     
     // Create system and execute multiple times
@@ -103,12 +98,7 @@ fn test_script_lifecycle_update_called_every_frame() {
     let script_path = temp_file.path().to_string_lossy().to_string();
     
     // Add LuaScript component
-    let lua_script = LuaScript {
-        script_path: script_path.clone(),
-        enabled: true,
-        execution_order: 0,
-        instance_id: None,
-    };
+    let lua_script = LuaScript::new(script_path.clone());
     world.add_component(entity, lua_script).unwrap();
     
     // Create system and execute multiple frames
@@ -159,12 +149,7 @@ fn test_script_lifecycle_state_persistence() {
     let script_path = temp_file.path().to_string_lossy().to_string();
     
     // Add LuaScript component
-    let lua_script = LuaScript {
-        script_path: script_path.clone(),
-        enabled: true,
-        execution_order: 0,
-        instance_id: None,
-    };
+    let lua_script = LuaScript::new(script_path.clone());
     world.add_component(entity, lua_script).unwrap();
     
     // Create system and execute multiple frames
@@ -216,12 +201,7 @@ fn test_script_lifecycle_destroy_method_exists() {
     let script_path = temp_file.path().to_string_lossy().to_string();
     
     // Add LuaScript component
-    let lua_script = LuaScript {
-        script_path: script_path.clone(),
-        enabled: true,
-        execution_order: 0,
-        instance_id: None,
-    };
+    let lua_script = LuaScript::new(script_path.clone());
     world.add_component(entity, lua_script).unwrap();
     
     // Create system and execute
@@ -293,6 +273,7 @@ fn test_multiple_scripts_lifecycle_order() {
         enabled: true,
         execution_order: 0,  // Lower number = executes first
         instance_id: None,
+        additional_scripts: Vec::new(),
     }).unwrap();
     
     world.add_component(entity2, LuaScript {
@@ -300,6 +281,7 @@ fn test_multiple_scripts_lifecycle_order() {
         enabled: true,
         execution_order: 10, // Higher number = executes second
         instance_id: None,
+        additional_scripts: Vec::new(),
     }).unwrap();
     
     // Create system and execute
@@ -355,12 +337,7 @@ fn test_script_lifecycle_with_errors() {
     let script_path = temp_file.path().to_string_lossy().to_string();
     
     // Add LuaScript component
-    let lua_script = LuaScript {
-        script_path: script_path.clone(),
-        enabled: true,
-        execution_order: 0,
-        instance_id: None,
-    };
+    let lua_script = LuaScript::new(script_path.clone());
     world.add_component(entity, lua_script).unwrap();
     
     // Create system and execute
