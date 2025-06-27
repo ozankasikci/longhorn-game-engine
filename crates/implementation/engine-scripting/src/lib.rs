@@ -13,6 +13,7 @@ pub mod components;
 pub mod file_manager;
 pub mod component_manager;
 pub mod lua_script_system;
+pub mod examples;
 #[deprecated(since = "1.0.0", note = "Use ecs_component_storage instead")]
 pub mod shared_state;
 pub mod security_tests;
