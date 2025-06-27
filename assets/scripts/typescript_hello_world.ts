@@ -3,10 +3,11 @@ export class HelloWorld {
     init(): void {
         console.log("Hello, World!");
         console.log("Welcome to Longhorn Game Engine TypeScript scripting!");
+        console.log('omfg')
     }
     
     update(deltaTime: number): void {
-        // Update logic here
+        console.log('tf is this man')
     }
     
     destroy(): void {

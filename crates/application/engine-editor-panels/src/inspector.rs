@@ -656,7 +656,7 @@ impl InspectorPanel {
                                 // TODO: Implement TypeScript script reloading
                             }
                             if ui.button("📝 Edit Script").clicked() {
-                                // TODO: Open script in editor
+                                Self::open_script_in_webstorm(&typescript_script.get_path());
                             }
                         });
                         
@@ -1816,6 +1816,61 @@ export class {} implements System {{
         });
         
         items
+    }
+
+    /// Open a TypeScript script file in WebStorm IDE
+    fn open_script_in_webstorm(script_path: &str) {
+        use std::process::Command;
+        
+        // WebStorm command-line tool path (adjustable based on installation)
+        let webstorm_cmd = if cfg!(target_os = "macos") {
+            "/Applications/WebStorm.app/Contents/MacOS/webstorm"
+        } else if cfg!(target_os = "windows") {
+            "webstorm64.exe"
+        } else {
+            "webstorm"
+        };
+        
+        log::info!("Opening TypeScript script in WebStorm: {}", script_path);
+        
+        // Execute WebStorm with the script file
+        match Command::new(webstorm_cmd)
+            .arg(script_path)
+            .spawn()
+        {
+            Ok(_) => {
+                log::info!("Successfully launched WebStorm for script: {}", script_path);
+            }
+            Err(e) => {
+                log::error!("Failed to open script in WebStorm: {}. Error: {}", script_path, e);
+                log::warn!("Make sure WebStorm is installed and accessible from command line");
+                
+                // Fallback: try to open with system default editor
+                Self::open_script_with_system_editor(script_path);
+            }
+        }
+    }
+    
+    /// Fallback method to open script with system default editor
+    fn open_script_with_system_editor(script_path: &str) {
+        use std::process::Command;
+        
+        let result = if cfg!(target_os = "macos") {
+            Command::new("open").arg(script_path).spawn()
+        } else if cfg!(target_os = "windows") {
+            Command::new("cmd").args(&["/C", "start", script_path]).spawn()
+        } else {
+            Command::new("xdg-open").arg(script_path).spawn()
+        };
+        
+        match result {
+            Ok(_) => {
+                log::info!("Opened script with system editor: {}", script_path);
+            }
+            Err(e) => {
+                log::error!("Failed to open script with system editor: {}. Error: {}", script_path, e);
+            }
+        }
     }
 }
 

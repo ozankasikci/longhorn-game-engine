@@ -455,18 +455,6 @@ impl eframe::App for LonghornEditor {
         // Poll for Lua console messages and add them to the console panel
         self.poll_script_console_messages();
         
-        // DEBUG: Add a test message every 5 seconds to verify console works
-        static mut LAST_TEST_MESSAGE: f32 = 0.0;
-        unsafe {
-            LAST_TEST_MESSAGE += delta_time;
-            if LAST_TEST_MESSAGE > 5.0 {
-                LAST_TEST_MESSAGE = 0.0;
-                println!("🧪 Adding test message to console every 5 seconds");
-                self.console_panel.add_messages(vec![
-                    engine_editor_panels::types::ConsoleMessage::info("🧪 TEST: Console is working! This message appears every 5 seconds.")
-                ]);
-            }
-        }
         
         // Request continuous repaint in play mode for script execution
         if self.coordinator.play_state_manager().get_state() == PlayState::Playing {
