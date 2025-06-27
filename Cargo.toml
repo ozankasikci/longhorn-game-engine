@@ -23,6 +23,7 @@ members = [
     "crates/implementation/engine-input",
     "crates/implementation/engine-assets",
     "crates/implementation/engine-scripting",
+    "crates/implementation/engine-scripting-typescript",
     "crates/implementation/engine-ui",
     "crates/implementation/engine-platform",
     "crates/implementation/engine-renderer-3d",

@@ -31,7 +31,12 @@ pub fn create_runtime(script_type: ScriptType) -> ScriptResult<Box<dyn ScriptRun
             engine.initialize()?;
             Ok(Box::new(engine))
         }
-        _ => Err(ScriptError::RuntimeError(format!(
+        ScriptType::TypeScript => {
+            Err(ScriptError::runtime(
+                "TypeScript support is available in the engine-scripting-typescript crate".to_string()
+            ))
+        }
+        _ => Err(ScriptError::runtime(format!(
             "Script type {:?} not yet implemented",
             script_type
         ))),

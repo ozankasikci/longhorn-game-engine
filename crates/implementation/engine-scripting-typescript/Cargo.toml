@@ -1,0 +1,27 @@
+[package]
+name = "engine-scripting-typescript"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "TypeScript scripting support for Longhorn Game Engine"
+
+[dependencies]
+engine-ecs-core = { workspace = true }
+engine-component-traits = { workspace = true }
+engine-runtime-core = { workspace = true }
+engine-scripting = { path = "../engine-scripting" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true }
+thiserror = "1.0"
+regex = "1.10"
+
+# TypeScript/JavaScript scripting
+v8 = "0.90"
+swc_core = { version = "0.95", features = ["ecma_ast", "ecma_parser", "ecma_transforms", "ecma_transforms_typescript", "ecma_codegen", "typescript", "__common"] }
+swc_ecma_visit = "0.101"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.8"
