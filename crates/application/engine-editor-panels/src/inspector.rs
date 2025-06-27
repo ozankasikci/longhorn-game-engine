@@ -1150,7 +1150,10 @@ impl InspectorPanel {
                                             else { c.to_string() }
                                         }).collect::<String>();
                                     
-                                    format!(r#"export class {class_name} {{
+                                    format!(r#"import {{ Entity, Transform, Vector3 }} from '@longhorn/engine-core';
+import {{ Engine }} from '@longhorn/engine-api';
+
+export class {class_name} {{
     private position: Vector3 = new Vector3(0, 0, 0);
     
     init(): void {{

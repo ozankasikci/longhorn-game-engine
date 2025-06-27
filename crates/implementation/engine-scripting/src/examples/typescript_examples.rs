@@ -22,7 +22,8 @@ fn hello_world_example() -> ExampleScript {
     ExampleScript {
         name: "typescript_hello_world".to_string(),
         description: "The classic Hello World example in TypeScript".to_string(),
-        code: r#"export class HelloWorld {
+        code: r#"// Simple Hello World example - no imports needed for basic console operations
+export class HelloWorld {
     init(): void {
         console.log("Hello, World!");
         console.log("Welcome to Longhorn Game Engine TypeScript scripting!");
@@ -48,7 +49,9 @@ fn entity_controller_example() -> ExampleScript {
     ExampleScript {
         name: "typescript_entity_controller".to_string(),
         description: "Entity controller with transform manipulation".to_string(),
-        code: r#"export class EntityController {
+        code: r#"// Types (Entity, Transform, Engine, etc.) are globally available via engine.d.ts
+// No imports needed - types are injected by the V8 runtime
+export class EntityController {
     private entity: Entity;
     private transform: Transform;
     private rotationSpeed: number = 1.0;
@@ -95,7 +98,8 @@ fn input_handling_example() -> ExampleScript {
     ExampleScript {
         name: "typescript_input_handling".to_string(),
         description: "Basic input handling with keyboard and mouse".to_string(),
-        code: r#"export class InputHandler {
+        code: r#"// Engine input API is available globally - no imports required
+export class InputHandler {
     init(): void {
         console.log("Input handler ready");
     }
@@ -146,7 +150,8 @@ fn physics_basic_example() -> ExampleScript {
     ExampleScript {
         name: "typescript_physics_basic".to_string(),
         description: "Basic physics simulation with Vector3 math".to_string(),
-        code: r#"export class PhysicsObject {
+        code: r#"// Vector3, Transform, and Engine types are globally available
+export class PhysicsObject {
     private velocity: Vector3 = new Vector3(0, 0, 0);
     private gravity: Vector3 = new Vector3(0, -9.81, 0);
     private transform: Transform;
@@ -197,7 +202,8 @@ fn event_system_example() -> ExampleScript {
     ExampleScript {
         name: "typescript_event_system".to_string(),
         description: "Advanced event system with custom events".to_string(),
-        code: r#"interface CustomEvent {
+        code: r#"// Custom event interface - Engine.events is globally available
+interface CustomEvent {
     type: string;
     data: any;
 }
@@ -281,7 +287,8 @@ fn vector_math_example() -> ExampleScript {
     ExampleScript {
         name: "typescript_vector_math".to_string(),
         description: "Vector3 math operations and utilities".to_string(),
-        code: r#"export class VectorMath {
+        code: r#"// Vector3, Math, and Engine types available globally via engine.d.ts
+export class VectorMath {
     init(): void {
         console.log("Vector math examples");
         
@@ -348,7 +355,8 @@ fn transform_manipulation_example() -> ExampleScript {
     ExampleScript {
         name: "typescript_transform_manipulation".to_string(),
         description: "Advanced transform manipulation and parent-child relationships".to_string(),
-        code: r#"export class TransformManipulator {
+        code: r#"// Transform, Vector3, Math, and Engine are globally available
+export class TransformManipulator {
     private transform: Transform;
     private originalPosition: Vector3;
     private animationTime: number = 0;
@@ -427,7 +435,8 @@ fn debugging_example() -> ExampleScript {
     ExampleScript {
         name: "typescript_debugging".to_string(),
         description: "Debugging techniques and performance monitoring".to_string(),
-        code: r#"export class DebugExample {
+        code: r#"// Engine, console, and Math APIs are globally available
+export class DebugExample {
     private frameCount: number = 0;
     private lastFPSUpdate: number = 0;
     private fps: number = 0;

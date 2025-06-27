@@ -105,23 +105,6 @@ pub fn create_default_world() -> (World, Entity) {
         .add_component(cube_entity, Visibility::default())
         .unwrap();
     world.add_component(cube_entity, Name::new("Cube")).unwrap();
-    
-    // Add LuaScript component to make the cube rotate
-    world
-        .add_component(
-            cube_entity,
-            LuaScript::new("assets/scripts/simple_test.lua".to_string()),
-        )
-        .unwrap();
-    
-    println!("[World Setup] Added LuaScript component to cube entity");
-    
-    // Verify the component was added
-    if let Some(script) = world.get_component::<LuaScript>(cube_entity) {
-        println!("[World Setup] Verified LuaScript on cube: {}", script.script_path);
-    } else {
-        println!("[World Setup] ERROR: LuaScript component not found on cube!");
-    }
 
     // Try to get all entities with Transform components
     let entities_with_transforms: Vec<_> = world.query_legacy::<Transform>().collect();
