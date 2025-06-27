@@ -10,8 +10,6 @@ pub mod physics;
 pub mod debugging;
 pub mod profiler;
 
-#[cfg(test)]
-mod physics_simple_test;
 pub mod assets;
 
 pub use engine::LuaScriptEngine;

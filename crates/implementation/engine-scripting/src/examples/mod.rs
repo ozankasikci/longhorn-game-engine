@@ -4,6 +4,10 @@ pub mod script_examples;
 pub mod basic_test;
 pub mod api_documentation;
 pub mod tutorial_generator;
+pub mod typescript_examples;
+
+#[cfg(test)]
+pub mod typescript_examples_tests;
 
 use crate::ScriptError;
 use mlua::Lua;
