@@ -3,7 +3,13 @@
 mod security;
 pub use security::{ScriptApiConfig, ApiPermission, ScriptCapabilities, ApiRateLimiter, ApiInputValidator};
 
-use crate::{ScriptError, ScriptResult, ScriptId};
+pub mod script_loader;
+pub use script_loader::{ScriptLoader, ScriptLoadRequest, ScriptSource, ScriptHandle, ExecutionContext, AccessPermissions};
+
+#[cfg(test)]
+mod script_loader_tests;
+
+use crate::{ScriptError, ScriptId, ScriptResult};
 use std::collections::HashMap;
 
 /// Script API for exposing engine functionality to scripts

@@ -115,6 +115,31 @@ pub enum ScriptError {
 
     #[error("Multiple errors occurred")]
     Multiple(Vec<ScriptError>),
+
+    #[error("Invalid script: {script_name} - {reason}")]
+    InvalidScript {
+        script_name: String,
+        reason: String,
+    },
+
+    #[error("Invalid script handle: {handle:?}")]
+    InvalidHandle {
+        handle: crate::api::script_loader::ScriptHandle,
+    },
+
+    #[error("Invalid entity handle: entity may have been destroyed")]
+    InvalidEntityHandle,
+
+    #[error("Component '{component}' not found on entity {entity:?}")]
+    ComponentNotFound {
+        entity: engine_ecs_core::Entity,
+        component: String,
+    },
+
+    #[error("Access denied: script lacks permission for '{operation}'")]
+    AccessDenied {
+        operation: String,
+    },
 }
 
 /// Security violation severity levels

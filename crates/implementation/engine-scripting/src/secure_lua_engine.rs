@@ -9,7 +9,7 @@ use crate::resource_limits::{ScriptResourceLimits, ScriptExecutionContext};
 use mlua::{Lua, LuaOptions, StdLib, Table, Value, Function, HookTriggers};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::SystemTime;
+use std::time::{SystemTime, Duration, Instant};
 use std::sync::{Arc, Mutex};
 use engine_ecs_core::{Entity};
 use log::{debug, info};

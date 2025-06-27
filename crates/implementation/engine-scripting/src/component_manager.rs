@@ -332,6 +332,7 @@ mod tests {
             enabled: true,
             instance_id: None,
             execution_order: 0,
+            additional_scripts: Vec::new(),
         };
         
         let result = manager.register_script_component(1, &lua_script);
@@ -355,6 +356,7 @@ mod tests {
             enabled: false,
             instance_id: None,
             execution_order: 0,
+            additional_scripts: Vec::new(),
         };
         
         let result = manager.register_script_component(1, &lua_script);
@@ -378,6 +380,7 @@ mod tests {
             enabled: true,
             instance_id: None,
             execution_order: 0,
+            additional_scripts: Vec::new(),
         };
         
         manager.register_script_component(1, &lua_script).expect("Failed to register");
@@ -436,6 +439,7 @@ mod tests {
             enabled: false,
             instance_id: None,
             execution_order: 0,
+            additional_scripts: Vec::new(),
         };
         
         manager.register_script_component(1, &lua_script).expect("Failed to register");
@@ -446,6 +450,7 @@ mod tests {
             enabled: true,
             instance_id: None,
             execution_order: 5,
+            additional_scripts: Vec::new(),
         };
         
         let result = manager.update_script_component(1, &updated_script);

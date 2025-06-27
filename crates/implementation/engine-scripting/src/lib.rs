@@ -27,7 +27,14 @@ pub mod error_handling_tests;
 pub mod error;
 pub mod api_security_tests;
 
+#[cfg(test)]
+pub mod test_utils;
+#[cfg(test)]
+pub mod error_tests;
+pub mod unified_loader;
+
 pub use api::ScriptApi;
+pub use unified_loader::UnifiedScriptLoader;
 pub use manager::{ScriptManager, ScriptRef};
 pub use script_engine::ScriptEngine;
 pub use secure_lua_engine::SecureLuaScriptEngine;

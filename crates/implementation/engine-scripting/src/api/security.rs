@@ -77,6 +77,21 @@ impl ScriptCapabilities {
             _ => false,
         }
     }
+
+    pub fn add_capability(&mut self, capability: &str) {
+        let permission = match capability {
+            "file_read" => Some(ApiPermission::FileRead),
+            "file_write" => Some(ApiPermission::FileWrite),
+            "console_write" => Some(ApiPermission::ConsoleWrite),
+            "entity_read" => Some(ApiPermission::EntityRead),
+            "entity_write" => Some(ApiPermission::EntityWrite),
+            _ => None,
+        };
+        
+        if let Some(perm) = permission {
+            self.permissions.insert(perm);
+        }
+    }
 }
 
 /// API configuration for function allowlisting
