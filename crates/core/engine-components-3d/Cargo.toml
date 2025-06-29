@@ -7,6 +7,7 @@ description = "components 3d for Longhorn Game Engine"
 
 [dependencies]
 engine-component-traits = { path = "../engine-component-traits" }
+engine-ecs-core = { path = "../engine-ecs-core" }
 engine-resource-core = { path = "../engine-resource-core" }
 engine-geometry-core = { path = "../engine-geometry-core" }
 engine-materials-core = { path = "../engine-materials-core" }

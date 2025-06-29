@@ -6,6 +6,7 @@ use engine_scripting::components::TypeScriptScript;
 use engine_scripting::lua::engine::{CONSOLE_MESSAGES, ConsoleMessage};
 use engine_components_3d::Transform;
 use engine_components_ui::Name;
+use engine_editor_framework::PlayStateManager;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc;
 
@@ -18,6 +19,8 @@ pub struct EditorCommandHandler {
     script_errors: Arc<Mutex<Vec<ScriptError>>>,
     compilation_events: Arc<Mutex<Vec<CompilationEvent>>>,
     action_sender: Option<mpsc::Sender<EditorAction>>,
+    action_processor: Option<Arc<Mutex<dyn Fn(EditorAction) -> bool + Send + Sync>>>,
+    play_state_manager: Option<Arc<Mutex<PlayStateManager>>>,
 }
 
 impl EditorCommandHandler {
@@ -36,7 +39,22 @@ impl EditorCommandHandler {
             script_errors,
             compilation_events,
             action_sender,
+            action_processor: None,
+            play_state_manager: None,
         }
+    }
+    
+    /// Set a callback for immediate action processing
+    pub fn set_action_processor<F>(&mut self, processor: F)
+    where
+        F: Fn(EditorAction) -> bool + Send + Sync + 'static,
+    {
+        self.action_processor = Some(Arc::new(Mutex::new(processor)));
+    }
+    
+    /// Set the play state manager for direct action processing
+    pub fn set_play_state_manager(&mut self, play_state_manager: Arc<Mutex<PlayStateManager>>) {
+        self.play_state_manager = Some(play_state_manager);
     }
 
     /// Find an entity by ID, returning the entity with the correct generation
@@ -481,6 +499,66 @@ impl EditorCommandHandler {
     }
     
     fn send_editor_action(&self, action: EditorAction) -> EditorResponse {
+        // Try direct play state processing first if available
+        if let Some(play_state_manager) = &self.play_state_manager {
+            if let Ok(mut manager) = play_state_manager.lock() {
+                match &action {
+                    EditorAction::StartPlay => {
+                        manager.start();
+                        // Update game state for control system
+                        if let Ok(mut state) = self.game_state.lock() {
+                            state.is_playing = true;
+                            state.is_paused = false;
+                        }
+                        self.log(format!("Processed StartPlay action directly: {:?}", action));
+                        return EditorResponse::Success;
+                    }
+                    EditorAction::StopPlay => {
+                        manager.stop();
+                        // Update game state for control system
+                        if let Ok(mut state) = self.game_state.lock() {
+                            state.is_playing = false;
+                            state.is_paused = false;
+                        }
+                        self.log(format!("Processed StopPlay action directly: {:?}", action));
+                        return EditorResponse::Success;
+                    }
+                    EditorAction::PausePlay => {
+                        manager.pause();
+                        // Update game state for control system
+                        if let Ok(mut state) = self.game_state.lock() {
+                            state.is_paused = true;
+                        }
+                        self.log(format!("Processed PausePlay action directly: {:?}", action));
+                        return EditorResponse::Success;
+                    }
+                    EditorAction::ResumePlay => {
+                        manager.resume();
+                        // Update game state for control system
+                        if let Ok(mut state) = self.game_state.lock() {
+                            state.is_paused = false;
+                        }
+                        self.log(format!("Processed ResumePlay action directly: {:?}", action));
+                        return EditorResponse::Success;
+                    }
+                    _ => {
+                        // Other actions fall through to channel processing
+                    }
+                }
+            }
+        }
+        
+        // Try callback processor for other actions
+        if let Some(processor) = &self.action_processor {
+            if let Ok(processor_fn) = processor.lock() {
+                if processor_fn(action.clone()) {
+                    self.log(format!("Processed editor action via callback: {:?}", action));
+                    return EditorResponse::Success;
+                }
+            }
+        }
+        
+        // Fall back to sending via channel for GUI processing
         if let Some(sender) = &self.action_sender {
             match sender.send(action.clone()) {
                 Ok(_) => {

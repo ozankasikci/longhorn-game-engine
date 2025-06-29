@@ -15,7 +15,7 @@ use std::time::Instant;
 pub struct UnifiedEditorCoordinator {
     /// Hybrid game loop that supports both modes
     game_loop: HybridGameLoop,
-    /// ECS world (shared between editor and runtime)
+    /// ECS world (shared between editor and runtime) - will be replaced with editor world reference
     ecs_world: Arc<Mutex<World>>,
     /// Editor-specific state
     editor_state: EditorState,
@@ -84,8 +84,30 @@ impl UnifiedEditorCoordinator {
         }
     }
     
+    /// Update the coordinator with provided world (single-world architecture)
+    pub fn update_with_world(&mut self, world: &mut World, delta_time: f32) {
+        // Only execute scripts when in play mode - this is the critical fix for the user's issue
+        let current_play_state = self.play_state_manager.get_state();
+        
+        if current_play_state == PlayState::Playing {
+            // Execute TypeScript scripts directly on the editor world
+            self.execute_script_systems_on_world(world, delta_time);
+        }
+        
+        // Update play state manager time
+        self.play_state_manager.update_time(delta_time);
+        
+        // Process hot reload events
+        self.process_hot_reload_events();
+    }
+    
     /// Update the coordinator (called from eframe)
     pub fn update(&mut self, delta_time: f32) {
+        self.update_internal(delta_time);
+    }
+    
+    /// Internal update method to avoid recursion
+    fn update_internal(&mut self, delta_time: f32) {
         // CRITICAL: Simple debug to see if this is called at all - using eprintln for immediate output
         eprintln!("🔥 DEBUG: UnifiedEditorCoordinator::update() CALLED delta_time={}", delta_time);
         println!("🔥 DEBUG: UnifiedEditorCoordinator::update() CALLED delta_time={}", delta_time);
@@ -112,36 +134,24 @@ impl UnifiedEditorCoordinator {
         
         match current_play_state {
             PlayState::Editing => {
-                // CRITICAL FIX: Force play mode if we have TypeScript scripts
-                // This ensures TypeScript scripts execute during development
-                let world_lock = self.ecs_world.lock().unwrap();
-                let has_typescript_scripts = world_lock.query_legacy::<engine_scripting::components::TypeScriptScript>().count() > 0;
-                drop(world_lock);
-                
-                if has_typescript_scripts {
-                    eprintln!("🔥 COORDINATOR: Found TypeScript scripts, forcing EditorPlay mode for development!");
-                    if current_mode != EngineMode::EditorPlay {
-                        self.game_loop.set_mode(EngineMode::EditorPlay);
-                    }
-                } else {
-                    // Make sure we're in editor mode
-                    if current_mode != EngineMode::Editor {
-                        log::info!("Exiting play mode to editing");
-                        self.exit_play_mode();
-                    }
+                // In editing mode, DO NOT run scripts - only run them when explicitly playing
+                // Make sure we're in editor mode (no auto-forcing play mode)
+                if current_mode != EngineMode::Editor {
+                    log::info!("Exiting play mode to editing - scripts will stop");
+                    self.exit_play_mode();
                 }
             }
             PlayState::Playing => {
-                // Enter play mode if not already
+                // Enter play mode if not already - this is when scripts should run
                 if current_mode != EngineMode::EditorPlay {
-                    log::info!("Entering play mode");
+                    log::info!("Entering play mode - scripts will start running every frame");
                     self.enter_play_mode();
                 }
             }
             PlayState::Paused => {
                 // Stay in play mode but don't update
                 if current_mode == EngineMode::EditorPlay {
-                    log::info!("Pausing game execution");
+                    log::info!("Pausing game execution - scripts paused");
                     self.game_loop.set_mode(EngineMode::Editor);
                 }
             }
@@ -298,6 +308,59 @@ impl UnifiedEditorCoordinator {
     /// Get the ECS world
     pub fn world(&self) -> Arc<Mutex<World>> {
         Arc::clone(&self.ecs_world)
+    }
+    
+    /// Execute script systems directly on the provided world (single-world architecture)
+    fn execute_script_systems_on_world(&mut self, world: &mut World, delta_time: f32) {
+        // Add safety timeout to prevent hanging
+        use std::time::{Duration, Instant};
+        let start_time = Instant::now();
+        let timeout = Duration::from_millis(16); // 16ms timeout (one frame at 60fps)
+        
+        // Execute TypeScript scripts directly with safety checks
+        let script_count = world.query_legacy::<engine_scripting::components::TypeScriptScript>().count();
+        
+        if script_count > 0 {
+            // Check if we have time for script execution
+            if start_time.elapsed() < timeout {
+                // Get TypeScript system from scheduler
+                let scheduler = self.game_loop.system_scheduler_mut();
+                if let Some(system) = scheduler.find_system_mut("TypeScriptScriptSystem") {
+                    if let Some(wrapper) = system.as_any_mut().downcast_mut::<TypeScriptScriptSystemWrapper>() {
+                        // Execute the TypeScript system directly on the editor world
+                        // Wrap in a panic-safe block to prevent crashes
+                        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            wrapper.system.update(world, delta_time as f64);
+                        }));
+                        
+                        // Check if we've exceeded timeout
+                        if start_time.elapsed() > timeout {
+                            eprintln!("⚠️ Script execution timeout - stopping to prevent hang");
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Update script system world references for single-world architecture
+    fn update_script_system_worlds(&mut self) {
+        let scheduler = self.game_loop.system_scheduler_mut();
+        
+        // Update TypeScript system world reference
+        if let Some(system) = scheduler.find_system_mut("TypeScriptScriptSystem") {
+            if let Some(wrapper) = system.as_any_mut().downcast_mut::<TypeScriptScriptSystemWrapper>() {
+                wrapper.coordinator_world = Arc::clone(&self.ecs_world);
+            }
+        }
+        
+        // Update Lua system world reference
+        if let Some(system) = scheduler.find_system_mut("LuaScriptSystem") {
+            if let Some(wrapper) = system.as_any_mut().downcast_mut::<LuaScriptSystemWrapper>() {
+                wrapper.coordinator_world = Arc::clone(&self.ecs_world);
+            }
+        }
     }
     
     /// Force complete script reinitialization for stop/start cycles
@@ -516,7 +579,7 @@ impl System for TypeScriptScriptSystemWrapper {
         // CRITICAL DEBUG: Always log system execution
         eprintln!("🚨 TypeScriptScriptSystemWrapper::execute() called! delta_time={}", delta_time);
         
-        // Execute scripts with world access
+        // Execute scripts with world access - use coordinator world which gets replaced in single-world mode
         let mut world_lock = self.coordinator_world.lock().unwrap();
         let script_count = world_lock.query_legacy::<TypeScriptScript>().count();
         

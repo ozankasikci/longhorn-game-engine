@@ -98,8 +98,7 @@ fn main() -> Result<(), eframe::Error> {
             
             // Start in play mode if requested
             if args.play {
-                // Sync the editor world to coordinator before starting play mode
-                editor.sync_editor_world_to_coordinator();
+                // Start play mode (no sync needed with single-world architecture)
                 editor.coordinator.play_state_manager_mut().start();
             }
             
@@ -373,6 +372,8 @@ pub struct LonghornEditor {
     control_compilation_events: Arc<Mutex<Vec<CompilationEvent>>>,
     action_receiver: mpsc::Receiver<EditorAction>,
     action_sender: mpsc::Sender<EditorAction>,
+    game_state: Arc<Mutex<GameStateInfo>>,
+    shared_play_state: Option<Arc<Mutex<engine_editor_framework::PlayStateManager>>>,
 }
 
 impl LonghornEditor {
@@ -725,20 +726,46 @@ impl LonghornEditor {
                     self.compile_all_typescript_scripts();
                     
                     // Copy entities from editor world to coordinator world for play mode
-                    self.sync_editor_world_to_coordinator();
+                    // No sync needed with single-world architecture
                     self.coordinator.play_state_manager_mut().start();
+                    
+                    // Update game state for control system
+                    if let Ok(mut state) = self.game_state.lock() {
+                        state.is_playing = true;
+                        state.is_paused = false;
+                    }
+                    
                     log::info!("Started play mode via remote control");
                 }
                 EditorAction::StopPlay => {
                     self.coordinator.play_state_manager_mut().stop();
+                    
+                    // Update game state for control system
+                    if let Ok(mut state) = self.game_state.lock() {
+                        state.is_playing = false;
+                        state.is_paused = false;
+                    }
+                    
                     log::info!("Stopped play mode via remote control");
                 }
                 EditorAction::PausePlay => {
                     self.coordinator.play_state_manager_mut().pause();
+                    
+                    // Update game state for control system
+                    if let Ok(mut state) = self.game_state.lock() {
+                        state.is_paused = true;
+                    }
+                    
                     log::info!("Paused play mode via remote control");
                 }
                 EditorAction::ResumePlay => {
                     self.coordinator.play_state_manager_mut().resume();
+                    
+                    // Update game state for control system
+                    if let Ok(mut state) = self.game_state.lock() {
+                        state.is_paused = false;
+                    }
+                    
                     log::info!("Resumed play mode via remote control");
                 }
                 EditorAction::SyncScriptRemoval { entity_id, script_path } => {
@@ -900,6 +927,13 @@ impl LonghornEditor {
             control_compilation_events: Arc::new(Mutex::new(Vec::new())),
             action_receiver,
             action_sender,
+            game_state: Arc::new(Mutex::new(GameStateInfo {
+                is_playing: false,
+                is_paused: false,
+                frame_count: 0,
+                delta_time: 0.0,
+            })),
+            shared_play_state: None,
         }
     }
 
@@ -912,21 +946,22 @@ impl LonghornEditor {
         // Use the coordinator's world instead of creating a separate world
         // This ensures the control system works with the actual game world
         let world_arc = self.coordinator.world();
-        let game_state = Arc::new(Mutex::new(GameStateInfo {
-            is_playing: false,
-            is_paused: false,
-            frame_count: 0,
-            delta_time: 0.0,
-        }));
 
-        let handler = EditorCommandHandler::new(
+        let mut handler = EditorCommandHandler::new(
             world_arc,
-            game_state,
+            self.game_state.clone(),
             self.control_logs.clone(),
             self.control_script_errors.clone(),
             self.control_compilation_events.clone(),
             Some(self.action_sender.clone()),
         );
+        
+        // Create a shared play state manager for direct action processing
+        let shared_play_state = Arc::new(Mutex::new(engine_editor_framework::PlayStateManager::new()));
+        handler.set_play_state_manager(shared_play_state.clone());
+        
+        // Store the shared reference for synchronization
+        self.shared_play_state = Some(shared_play_state.clone());
 
         let server = EditorControlServer::new(handler, 9999); // Use port 9999
         
@@ -943,6 +978,36 @@ impl LonghornEditor {
         self.control_server_handle = Some(handle);
         log::info!("Editor control server started on port 9999");
     }
+    
+    /// Synchronize the shared play state with the coordinator's play state
+    fn sync_play_states(&mut self) {
+        if let Some(shared_play_state) = &self.shared_play_state {
+            if let Ok(mut shared) = shared_play_state.lock() {
+                let coordinator_state = self.coordinator.play_state_manager().get_state();
+                let shared_state = shared.get_state();
+                
+                // Sync coordinator state to shared state if different
+                if coordinator_state != shared_state {
+                    match coordinator_state {
+                        engine_editor_scene_view::types::PlayState::Playing => shared.start(),
+                        engine_editor_scene_view::types::PlayState::Paused => shared.pause(),
+                        engine_editor_scene_view::types::PlayState::Editing => shared.stop(),
+                    }
+                }
+                
+                // Also sync shared state back to coordinator if it was changed by control system
+                // This handles the case where the control system changed the shared state
+                let updated_shared_state = shared.get_state();
+                if updated_shared_state != coordinator_state {
+                    match updated_shared_state {
+                        engine_editor_scene_view::types::PlayState::Playing => self.coordinator.play_state_manager_mut().start(),
+                        engine_editor_scene_view::types::PlayState::Paused => self.coordinator.play_state_manager_mut().pause(),
+                        engine_editor_scene_view::types::PlayState::Editing => self.coordinator.play_state_manager_mut().stop(),
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl eframe::App for LonghornEditor {
@@ -952,11 +1017,14 @@ impl eframe::App for LonghornEditor {
         let delta_time = now.duration_since(self.last_update).as_secs_f32();
         self.last_update = now;
         
-        // Update the coordinator
-        self.coordinator.update(delta_time);
-        
-        // Process editor actions from remote control
+        // Process editor actions from remote control FIRST (critical for play state changes)
         self.process_editor_actions();
+        
+        // Synchronize shared play state with coordinator play state
+        self.sync_play_states();
+        
+        // Update the coordinator with editor world (single-world architecture)
+        self.coordinator.update_with_world(&mut self.world, delta_time);
         
         // Poll for Lua console messages and add them to the console panel
         self.poll_script_console_messages();
@@ -1150,7 +1218,7 @@ impl LonghornEditor {
             self.compile_all_typescript_scripts();
             
             // Copy entities from editor world to coordinator world for play mode
-            self.sync_editor_world_to_coordinator();
+            // No sync needed with single-world architecture
             self.coordinator.play_state_manager_mut().start();
         }
         if actions.pause_play {
@@ -1197,31 +1265,16 @@ impl LonghornEditor {
     }
 
     pub fn show_scene_view(&mut self, ui: &mut egui::Ui) {
-        // CRITICAL FIX: Use coordinator world for Scene View so script changes are visible!
-        let coordinator_world = self.coordinator.world();
-        let console_messages = if let Ok(mut world_lock) = coordinator_world.lock() {
-            self.scene_view_panel.show(
-                ui,
-                &mut *world_lock,
-                self.selected_entity,
-                &mut self.scene_navigation,
-                &mut self.gizmo_system,
-                &mut self.scene_view_renderer,
-                self.coordinator.play_state_manager().get_state(),
-            )
-        } else {
-            log::warn!("Could not lock coordinator world for scene view");
-            // Fallback to editor world if coordinator world is unavailable
-            self.scene_view_panel.show(
-                ui,
-                &mut self.world,
-                self.selected_entity,
-                &mut self.scene_navigation,
-                &mut self.gizmo_system,
-                &mut self.scene_view_renderer,
-                self.coordinator.play_state_manager().get_state(),
-            )
-        };
+        // SINGLE WORLD: Use editor world directly
+        let console_messages = self.scene_view_panel.show(
+            ui,
+            &mut self.world,
+            self.selected_entity,
+            &mut self.scene_navigation,
+            &mut self.gizmo_system,
+            &mut self.scene_view_renderer,
+            self.coordinator.play_state_manager().get_state(),
+        );
 
         // Convert and add scene view messages to console
         if !console_messages.is_empty() {
@@ -1339,14 +1392,9 @@ impl LonghornEditor {
                 );
 
                 // Use the scene view renderer to render from this camera
-                // CRITICAL FIX: Use coordinator world so script changes are visible!
-                let coordinator_world = self.coordinator.world();
-                if let Ok(mut world_lock) = coordinator_world.lock() {
-                    self.scene_view_renderer
-                        .render_game_camera_view(&mut *world_lock, ui, rect, camera);
-                } else {
-                    log::warn!("Could not lock coordinator world for rendering");
-                };
+                // SINGLE WORLD: Use editor world directly
+                self.scene_view_renderer
+                    .render_game_camera_view(&mut self.world, ui, rect, camera);
             } else {
                 log::warn!("Camera components missing");
                 // Show no camera message

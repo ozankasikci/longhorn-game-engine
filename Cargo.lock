@@ -1910,6 +1910,7 @@ name = "engine-components-3d"
 version = "0.1.0"
 dependencies = [
  "engine-component-traits",
+ "engine-ecs-core",
  "engine-geometry-core",
  "engine-materials-core",
  "engine-resource-core",
@@ -1960,6 +1961,7 @@ dependencies = [
  "engine-components-3d",
  "engine-components-ui",
  "engine-ecs-core",
+ "engine-editor-framework",
  "engine-scripting",
  "log",
  "serde",
