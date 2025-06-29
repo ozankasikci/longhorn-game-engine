@@ -157,6 +157,7 @@ impl SceneViewRenderer {
         if let (Some(render_widget), Some(_ecs_bridge)) =
             (&mut self.render_widget, &self.ecs_bridge)
         {
+            
             log::info!(
                 "SCENE VIEW: Using 3D renderer with camera at pos={:?}",
                 self.camera_controller.camera.position
@@ -202,6 +203,7 @@ impl SceneViewRenderer {
                 self.camera_controller.camera.clone(),
                 selected_entity,
             );
+            
             log::info!(
                 "Created render scene with {} objects",
                 render_scene.objects.len()

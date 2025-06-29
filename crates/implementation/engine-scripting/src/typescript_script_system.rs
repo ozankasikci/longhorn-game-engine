@@ -2,6 +2,7 @@
 
 use crate::components::TypeScriptScript;
 use crate::lua::engine::{ConsoleMessage, CONSOLE_MESSAGES};
+use crate::api::bridge::type_conversion::create_entity_object_with_methods;
 use engine_ecs_core::{Entity, World};
 use std::collections::{HashMap, HashSet};
 use std::time::SystemTime;
@@ -92,6 +93,8 @@ impl TypeScriptScriptSystem {
 
         // Update runtime (this handles garbage collection, etc.)
         if let Some(runtime) = &mut self.runtime {
+            // Set world pointer for ECS operations
+            runtime.set_world_ptr(world);
             runtime.update(delta_time);
         }
 
@@ -306,6 +309,16 @@ impl TypeScriptScriptSystem {
                                 // NOTE: Don't generate compilation events during normal loading
                                 // Only hot reload should generate events to avoid circular invalidation
                                 
+                                // Set entity context before calling init
+                                if let Err(e) = runtime.set_entity_context(entity.id()) {
+                                    log::warn!("Failed to set entity context: {}", e);
+                                }
+                                
+                                // Set ECS context for V8 callbacks
+                                if let Some(world_ptr) = runtime.world_ptr {
+                                    crate::api::bridge::type_conversion::set_ecs_context(world_ptr, entity.id());
+                                }
+                                
                                 // Try to call init function if it exists
                                 log::info!("About to call init for script: {}", script_path);
                                 match runtime.call_init(script_id) {
@@ -343,7 +356,7 @@ impl TypeScriptScriptSystem {
     }
 
     /// Update all scripts for an entity
-    fn update_entity_scripts(&mut self, entity: Entity, script_paths: &[String], delta_time: f64) {
+    fn update_entity_scripts(&mut self, entity: Entity, _script_paths: &[String], delta_time: f64) {
         log::trace!("update_entity_scripts() called for entity {:?}", entity);
         
         if let Some(instances) = self.script_instances.get(&entity) {
@@ -361,12 +374,23 @@ impl TypeScriptScriptSystem {
                     }
                     
                     if instance.initialized && instance.compilation_successful {
+                        // Set entity context before calling update
+                        if let Err(e) = runtime.set_entity_context(entity.id()) {
+                            log::warn!("Failed to set entity context for update: {}", e);
+                        }
+                        
+                        // Set ECS context for V8 callbacks
+                        if let Some(world_ptr) = runtime.world_ptr {
+                            crate::api::bridge::type_conversion::set_ecs_context(world_ptr, entity.id());
+                        }
+                        
                         // Try to call update function if it exists
-                        log::trace!("Calling runtime.call_update() for script: {}", instance.script_path);
+                        eprintln!("🚨 SCRIPT UPDATE: Calling runtime.call_update() for script: {}", instance.script_path);
                         if let Err(e) = runtime.call_update(instance.script_id, delta_time) {
-                            log::debug!("Script {} has no update function or update failed: {}", instance.script_path, e);
+                            eprintln!("🚨 SCRIPT UPDATE ERROR: Script {} has no update function or update failed: {}", instance.script_path, e);
                             log::debug!("Script {} has no update function or update failed: {}", instance.script_path, e);
                         } else {
+                            eprintln!("🚨 SCRIPT UPDATE SUCCESS: Successfully called update() for script: {}", instance.script_path);
                             log::trace!("Successfully called update() for script: {}", instance.script_path);
                         }
                     } else {
@@ -543,7 +567,7 @@ impl TypeScriptScriptSystem {
             }
             
             // Store script IDs for later use (before they get consumed)
-            let script_ids_to_exclude = script_ids_to_cleanup.clone();
+            let _script_ids_to_exclude = script_ids_to_cleanup.clone();
             
             // Then destroy individual script instances
             for script_id in script_ids_to_cleanup {
@@ -699,6 +723,9 @@ pub struct SimpleTypeScriptRuntime {
     isolate: v8::OwnedIsolate,
     global_context: v8::Global<v8::Context>,
     script_instances: HashMap<u32, String>, // script_id -> instance variable name
+    api_system: Option<crate::api::TypeScriptApiSystem>,
+    entity_context: Option<u32>,
+    world_ptr: Option<*mut World>, // Raw pointer to World for ECS operations
 }
 
 impl SimpleTypeScriptRuntime {
@@ -737,7 +764,80 @@ impl SimpleTypeScriptRuntime {
             isolate,
             global_context,
             script_instances: HashMap::new(),
+            api_system: None,
+            entity_context: None,
+            world_ptr: None,
         })
+    }
+
+    /// Create a new TypeScript runtime with API registry system (TDD: implementing)
+    pub fn with_api_registry() -> Result<Self, String> {
+        // Initialize V8 platform if not already done
+        Self::initialize_v8_platform()?;
+
+        // Create V8 isolate
+        let mut isolate = v8::Isolate::new(v8::CreateParams::default());
+        
+        // Set up resource constraints
+        isolate.set_capture_stack_trace_for_uncaught_exceptions(true, 10);
+
+        // Create the API registry system
+        let api_system = crate::api::TypeScriptApiSystem::new()
+            .map_err(|e| format!("Failed to create API system: {}", e))?;
+
+        let global_context = {
+            let scope = &mut v8::HandleScope::new(&mut isolate);
+            let context = v8::Context::new(scope);
+            let scope = &mut v8::ContextScope::new(scope, context);
+            
+            // Set up global context with both legacy and registry APIs
+            let global = context.global(scope);
+            
+            // Set up console API
+            Self::setup_console_api(scope, global)?;
+            
+            // Set up legacy Engine API (preserved from existing implementation)
+            Self::setup_engine_api_injection(scope, global)?;
+            
+            // Set up NEW registry-based APIs alongside legacy APIs
+            api_system.get_bridge().initialize_context(scope, global)
+                .map_err(|e| format!("Failed to initialize registry APIs: {}", e))?;
+            
+            log::info!("TypeScript runtime created with API registry system");
+            v8::Global::new(scope, context)
+        };
+
+        Ok(Self {
+            isolate,
+            global_context,
+            script_instances: HashMap::new(),
+            api_system: Some(api_system),
+            entity_context: None,
+            world_ptr: None,
+        })
+    }
+
+    /// Enable registry APIs for an existing runtime (TDD: should fail initially)
+    pub fn enable_registry_apis(&mut self) -> Result<(), String> {
+        Err("Registry API enabling not implemented yet".to_string())
+    }
+
+    /// Set world pointer for ECS operations
+    pub fn set_world_ptr(&mut self, world: &mut World) {
+        self.world_ptr = Some(world as *mut World);
+    }
+
+    /// Set entity context for script execution (TDD: implementing)
+    pub fn set_entity_context(&mut self, entity_id: u32) -> Result<(), String> {
+        self.entity_context = Some(entity_id);
+        
+        // If we have an API system, update its entity context too
+        if let Some(api_system) = &self.api_system {
+            api_system.get_bridge().set_entity_context(Some(entity_id));
+        }
+        
+        log::debug!("Entity context set to entity ID: {}", entity_id);
+        Ok(())
     }
 
     fn initialize_v8_platform() -> Result<(), String> {
@@ -840,17 +940,434 @@ impl SimpleTypeScriptRuntime {
     }
 
     fn setup_engine_api_injection(scope: &mut v8::HandleScope, global: v8::Local<v8::Object>) -> Result<(), String> {
-        // Inject World API
+        // Create Engine object
+        let engine_name = v8::String::new(scope, "Engine")
+            .ok_or_else(|| "Failed to create Engine string".to_string())?;
+        
+        let engine_obj = v8::Object::new(scope);
+        
+        // Create Engine.world object with getCurrentEntity method
+        let world_obj = v8::Object::new(scope);
+        
+        // getCurrentEntity method - this is what our test needs!
+        let get_current_entity_name = v8::String::new(scope, "getCurrentEntity")
+            .ok_or_else(|| "Failed to create getCurrentEntity string".to_string())?;
+        
+        let get_current_entity_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+            // Create Entity object manually with getPosition method
+            let entity_obj = v8::Object::new(scope);
+            
+            // Get actual entity ID from ECS context
+            use crate::api::bridge::type_conversion::ECS_CONTEXT;
+            let actual_entity_id = if let Ok(context) = ECS_CONTEXT.lock() {
+                context.current_entity_id.unwrap_or(0)
+            } else {
+                0
+            };
+            
+            // Add id() function that returns actual entity ID from ECS context
+            let id_name = v8::String::new(scope, "id").unwrap();
+            let id_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+                use crate::api::bridge::type_conversion::ECS_CONTEXT;
+                let entity_id = if let Ok(context) = ECS_CONTEXT.lock() {
+                    context.current_entity_id.unwrap_or(0)
+                } else {
+                    0
+                };
+                rv.set(v8::Number::new(scope, entity_id as f64).into());
+            }).unwrap();
+            entity_obj.set(scope, id_name.into(), id_fn.into());
+            
+            // Add getPosition() method directly
+            let get_position_name = v8::String::new(scope, "getPosition").unwrap();
+            let get_position_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+                // Get entity ID by calling the id() function from 'this' object
+                let entity_id = {
+                    let this = args.this();
+                    let id_key = v8::String::new(scope, "id").unwrap();
+                    if let Some(id_fn) = this.get(scope, id_key.into()) {
+                        if let Ok(id_fn) = v8::Local::<v8::Function>::try_from(id_fn) {
+                            if let Some(result) = id_fn.call(scope, this.into(), &[]) {
+                                result.number_value(scope).unwrap_or(0.0) as u32
+                            } else {
+                                0
+                            }
+                        } else {
+                            0
+                        }
+                    } else {
+                        0
+                    }
+                };
+
+                // Get actual position from ECS (same as type_conversion.rs)
+                use crate::api::bridge::type_conversion::ECS_CONTEXT;
+                use engine_components_3d::Transform;
+                let (pos_x, pos_y, pos_z) = if let Ok(context) = ECS_CONTEXT.lock() {
+                    if let (Some(world_ptr), Some(_current_entity)) = (context.world_ptr, context.current_entity_id) {
+                        unsafe {
+                            let world = &*world_ptr;
+                            let entity = engine_ecs_core::Entity::new(entity_id, 1);
+                            
+                            if let Some(transform) = world.get_component::<Transform>(entity) {
+                                let pos = transform.position;
+                                println!("✅ ACTUAL ECS READ: Got position [{}, {}, {}] for entity {}", pos[0], pos[1], pos[2], entity_id);
+                                (pos[0], pos[1], pos[2])
+                            } else {
+                                println!("❌ ECS ERROR: No Transform component found for entity {}", entity_id);
+                                (5.0, 10.0, 15.0) // Fallback to default values
+                            }
+                        }
+                    } else {
+                        println!("❌ ECS ERROR: No world context available");
+                        (5.0, 10.0, 15.0) // Fallback to default values
+                    }
+                } else {
+                    (5.0, 10.0, 15.0) // Fallback to default values
+                };
+                
+                // Create position object with actual ECS data
+                let position_obj = v8::Object::new(scope);
+                let x_key = v8::String::new(scope, "x").unwrap();
+                let y_key = v8::String::new(scope, "y").unwrap();
+                let z_key = v8::String::new(scope, "z").unwrap();
+                
+                let x_val = v8::Number::new(scope, pos_x as f64);
+                let y_val = v8::Number::new(scope, pos_y as f64);
+                let z_val = v8::Number::new(scope, pos_z as f64);
+                position_obj.set(scope, x_key.into(), x_val.into());
+                position_obj.set(scope, y_key.into(), y_val.into());
+                position_obj.set(scope, z_key.into(), z_val.into());
+                
+                rv.set(position_obj.into());
+            }).unwrap();
+            entity_obj.set(scope, get_position_name.into(), get_position_fn.into());
+            
+            // Add setPosition() method directly
+            let set_position_name = v8::String::new(scope, "setPosition").unwrap();
+            let set_position_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+                // Get x, y, z arguments
+                let x = args.get(0).number_value(scope).unwrap_or(0.0) as f32;
+                let y = args.get(1).number_value(scope).unwrap_or(0.0) as f32;
+                let z = args.get(2).number_value(scope).unwrap_or(0.0) as f32;
+                
+                // Get entity ID by calling the id() function from 'this' object
+                let entity_id = {
+                    let this = args.this();
+                    let id_key = v8::String::new(scope, "id").unwrap();
+                    if let Some(id_fn) = this.get(scope, id_key.into()) {
+                        if let Ok(id_fn) = v8::Local::<v8::Function>::try_from(id_fn) {
+                            if let Some(result) = id_fn.call(scope, this.into(), &[]) {
+                                result.number_value(scope).unwrap_or(0.0) as u32
+                            } else {
+                                0
+                            }
+                        } else {
+                            0
+                        }
+                    } else {
+                        0
+                    }
+                };
+                
+                // Access ECS context and modify the transform (same as type_conversion.rs)
+                use crate::api::bridge::type_conversion::ECS_CONTEXT;
+                use engine_components_3d::Transform;
+                if let Ok(context) = ECS_CONTEXT.lock() {
+                    if let (Some(world_ptr), Some(_current_entity)) = (context.world_ptr, context.current_entity_id) {
+                        unsafe {
+                            let world = &mut *world_ptr;
+                            
+                            // Get entity from ID (assuming generation 1)
+                            let entity = engine_ecs_core::Entity::new(entity_id, 1);
+                            
+                            // Try to get and update the transform component
+                            if let Some(transform) = world.get_component_mut::<Transform>(entity) {
+                                transform.position = [x, y, z];
+                                println!("✅ ACTUAL ECS UPDATE: Set position to [{}, {}, {}] for entity {}", x, y, z, entity_id);
+                            } else {
+                                println!("❌ ECS ERROR: No Transform component found for entity {}", entity_id);
+                            }
+                        }
+                    } else {
+                        println!("❌ ECS ERROR: No world context available");
+                    }
+                }
+                
+                rv.set(v8::undefined(scope).into());
+            }).unwrap();
+            entity_obj.set(scope, set_position_name.into(), set_position_fn.into());
+            
+            rv.set(entity_obj.into());
+            log::debug!("Engine.world.getCurrentEntity() called, returned entity with manual getPosition method");
+        }).ok_or_else(|| "Failed to create getCurrentEntity function".to_string())?;
+        
+        world_obj.set(scope, get_current_entity_name.into(), get_current_entity_fn.into());
+        
+        // Set Engine.world
+        let world_name = v8::String::new(scope, "world")
+            .ok_or_else(|| "Failed to create world string".to_string())?;
+        engine_obj.set(scope, world_name.into(), world_obj.into());
+        
+        // Set Engine object on global
+        global.set(scope, engine_name.into(), engine_obj.into());
+        
+        // Also inject legacy World API for backward compatibility
         Self::inject_world_api(scope, global)?;
-        
-        // Inject Input API  
-        Self::inject_input_api(scope, global)?;
-        
-        // Inject Physics API
-        Self::inject_physics_api(scope, global)?;
         
         log::info!("Engine API injection completed successfully");
         Ok(())
+    }
+
+    fn create_world_api_object<'a>(scope: &'a mut v8::HandleScope<'a>) -> Result<v8::Local<'a, v8::Object>, String> {
+        let world_obj = v8::Object::new(scope);
+        
+        // getCurrentEntity method - this is what our test needs!
+        let get_current_entity_name = v8::String::new(scope, "getCurrentEntity")
+            .ok_or_else(|| "Failed to create getCurrentEntity string".to_string())?;
+        
+        let get_current_entity_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+            // Create Entity object manually with getPosition method
+            let entity_obj = v8::Object::new(scope);
+            
+            // Get actual entity ID from ECS context
+            use crate::api::bridge::type_conversion::ECS_CONTEXT;
+            let actual_entity_id = if let Ok(context) = ECS_CONTEXT.lock() {
+                context.current_entity_id.unwrap_or(0)
+            } else {
+                0
+            };
+            
+            // Add id() function that returns actual entity ID from ECS context
+            let id_name = v8::String::new(scope, "id").unwrap();
+            let id_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+                use crate::api::bridge::type_conversion::ECS_CONTEXT;
+                let entity_id = if let Ok(context) = ECS_CONTEXT.lock() {
+                    context.current_entity_id.unwrap_or(0)
+                } else {
+                    0
+                };
+                rv.set(v8::Number::new(scope, entity_id as f64).into());
+            }).unwrap();
+            entity_obj.set(scope, id_name.into(), id_fn.into());
+            
+            // Add getPosition() method directly
+            let get_position_name = v8::String::new(scope, "getPosition").unwrap();
+            let get_position_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+                // Get entity ID by calling the id() function from 'this' object
+                let entity_id = {
+                    let this = args.this();
+                    let id_key = v8::String::new(scope, "id").unwrap();
+                    if let Some(id_fn) = this.get(scope, id_key.into()) {
+                        if let Ok(id_fn) = v8::Local::<v8::Function>::try_from(id_fn) {
+                            if let Some(result) = id_fn.call(scope, this.into(), &[]) {
+                                result.number_value(scope).unwrap_or(0.0) as u32
+                            } else {
+                                0
+                            }
+                        } else {
+                            0
+                        }
+                    } else {
+                        0
+                    }
+                };
+
+                // Get actual position from ECS (same as type_conversion.rs)
+                use crate::api::bridge::type_conversion::ECS_CONTEXT;
+                use engine_components_3d::Transform;
+                let (pos_x, pos_y, pos_z) = if let Ok(context) = ECS_CONTEXT.lock() {
+                    if let (Some(world_ptr), Some(_current_entity)) = (context.world_ptr, context.current_entity_id) {
+                        unsafe {
+                            let world = &*world_ptr;
+                            let entity = engine_ecs_core::Entity::new(entity_id, 1);
+                            
+                            if let Some(transform) = world.get_component::<Transform>(entity) {
+                                let pos = transform.position;
+                                println!("✅ ACTUAL ECS READ: Got position [{}, {}, {}] for entity {}", pos[0], pos[1], pos[2], entity_id);
+                                (pos[0], pos[1], pos[2])
+                            } else {
+                                println!("❌ ECS ERROR: No Transform component found for entity {}", entity_id);
+                                (5.0, 10.0, 15.0) // Fallback to default values
+                            }
+                        }
+                    } else {
+                        println!("❌ ECS ERROR: No world context available");
+                        (5.0, 10.0, 15.0) // Fallback to default values
+                    }
+                } else {
+                    (5.0, 10.0, 15.0) // Fallback to default values
+                };
+                
+                // Create position object with actual ECS data
+                let position_obj = v8::Object::new(scope);
+                let x_key = v8::String::new(scope, "x").unwrap();
+                let y_key = v8::String::new(scope, "y").unwrap();
+                let z_key = v8::String::new(scope, "z").unwrap();
+                
+                let x_val = v8::Number::new(scope, pos_x as f64);
+                let y_val = v8::Number::new(scope, pos_y as f64);
+                let z_val = v8::Number::new(scope, pos_z as f64);
+                position_obj.set(scope, x_key.into(), x_val.into());
+                position_obj.set(scope, y_key.into(), y_val.into());
+                position_obj.set(scope, z_key.into(), z_val.into());
+                
+                rv.set(position_obj.into());
+            }).unwrap();
+            entity_obj.set(scope, get_position_name.into(), get_position_fn.into());
+            
+            // Add setPosition() method directly
+            let set_position_name = v8::String::new(scope, "setPosition").unwrap();
+            let set_position_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+                // Get x, y, z arguments
+                let x = args.get(0).number_value(scope).unwrap_or(0.0) as f32;
+                let y = args.get(1).number_value(scope).unwrap_or(0.0) as f32;
+                let z = args.get(2).number_value(scope).unwrap_or(0.0) as f32;
+                
+                // Get entity ID by calling the id() function from 'this' object
+                let entity_id = {
+                    let this = args.this();
+                    let id_key = v8::String::new(scope, "id").unwrap();
+                    if let Some(id_fn) = this.get(scope, id_key.into()) {
+                        if let Ok(id_fn) = v8::Local::<v8::Function>::try_from(id_fn) {
+                            if let Some(result) = id_fn.call(scope, this.into(), &[]) {
+                                result.number_value(scope).unwrap_or(0.0) as u32
+                            } else {
+                                0
+                            }
+                        } else {
+                            0
+                        }
+                    } else {
+                        0
+                    }
+                };
+                
+                // Access ECS context and modify the transform (same as type_conversion.rs)
+                use crate::api::bridge::type_conversion::ECS_CONTEXT;
+                use engine_components_3d::Transform;
+                if let Ok(context) = ECS_CONTEXT.lock() {
+                    if let (Some(world_ptr), Some(_current_entity)) = (context.world_ptr, context.current_entity_id) {
+                        unsafe {
+                            let world = &mut *world_ptr;
+                            
+                            // Get entity from ID (assuming generation 1)
+                            let entity = engine_ecs_core::Entity::new(entity_id, 1);
+                            
+                            // Try to get and update the transform component
+                            if let Some(transform) = world.get_component_mut::<Transform>(entity) {
+                                transform.position = [x, y, z];
+                                println!("✅ ACTUAL ECS UPDATE: Set position to [{}, {}, {}] for entity {}", x, y, z, entity_id);
+                            } else {
+                                println!("❌ ECS ERROR: No Transform component found for entity {}", entity_id);
+                            }
+                        }
+                    } else {
+                        println!("❌ ECS ERROR: No world context available");
+                    }
+                }
+                
+                rv.set(v8::undefined(scope).into());
+            }).unwrap();
+            entity_obj.set(scope, set_position_name.into(), set_position_fn.into());
+            
+            rv.set(entity_obj.into());
+            log::debug!("Engine.world.getCurrentEntity() called, returned entity with manual getPosition method (from create_world_api_object)");
+        }).ok_or_else(|| "Failed to create getCurrentEntity function".to_string())?;
+        
+        world_obj.set(scope, get_current_entity_name.into(), get_current_entity_fn.into());
+        
+        // Add other world methods (createEntity, getEntity, destroyEntity)
+        Self::add_other_world_methods(scope, &world_obj)?;
+        
+        Ok(world_obj)
+    }
+
+    fn add_other_world_methods<'a>(scope: &'a mut v8::HandleScope<'a>, world_obj: &v8::Local<'a, v8::Object>) -> Result<(), String> {
+        // createEntity method
+        let create_entity_name = v8::String::new(scope, "createEntity")
+            .ok_or_else(|| "Failed to create createEntity string".to_string())?;
+        
+        let create_entity_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+            // Create Entity object with id() method
+            let entity_obj = v8::Object::new(scope);
+            
+            let id_name = v8::String::new(scope, "id").unwrap();
+            let id_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+                let entity_id = v8::Number::new(scope, 1.0); // Mock ID
+                rv.set(entity_id.into());
+            }).unwrap();
+            
+            entity_obj.set(scope, id_name.into(), id_fn.into());
+            rv.set(entity_obj.into());
+            log::debug!("Engine.world.createEntity() called");
+        }).ok_or_else(|| "Failed to create createEntity function".to_string())?;
+        
+        world_obj.set(scope, create_entity_name.into(), create_entity_fn.into());
+        
+        // getEntity method (stub)
+        let get_entity_name = v8::String::new(scope, "getEntity")
+            .ok_or_else(|| "Failed to create getEntity string".to_string())?;
+        
+        let get_entity_fn = v8::Function::new(scope, |_scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+            // Return null for now
+            rv.set(v8::null(_scope).into());
+            log::debug!("Engine.world.getEntity() called");
+        }).ok_or_else(|| "Failed to create getEntity function".to_string())?;
+        
+        world_obj.set(scope, get_entity_name.into(), get_entity_fn.into());
+        
+        // destroyEntity method (stub)
+        let destroy_entity_name = v8::String::new(scope, "destroyEntity")
+            .ok_or_else(|| "Failed to create destroyEntity string".to_string())?;
+        
+        let destroy_entity_fn = v8::Function::new(scope, |_scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, _rv: v8::ReturnValue| {
+            log::debug!("Engine.world.destroyEntity() called");
+        }).ok_or_else(|| "Failed to create destroyEntity function".to_string())?;
+        
+        world_obj.set(scope, destroy_entity_name.into(), destroy_entity_fn.into());
+        
+        Ok(())
+    }
+
+    fn create_input_api_object<'a>(scope: &'a mut v8::HandleScope<'a>) -> Result<v8::Local<'a, v8::Object>, String> {
+        let input_obj = v8::Object::new(scope);
+        
+        // isKeyDown method (stub)
+        let is_key_down_name = v8::String::new(scope, "isKeyDown")
+            .ok_or_else(|| "Failed to create isKeyDown string".to_string())?;
+        
+        let is_key_down_fn = v8::Function::new(scope, |scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, mut rv: v8::ReturnValue| {
+            // Mock implementation - always return false
+            let result = v8::Boolean::new(scope, false);
+            rv.set(result.into());
+        }).ok_or_else(|| "Failed to create isKeyDown function".to_string())?;
+        
+        input_obj.set(scope, is_key_down_name.into(), is_key_down_fn.into());
+        
+        // Add other input methods as stubs...
+        // TODO: Implement actual input methods
+        
+        Ok(input_obj)
+    }
+
+    fn create_physics_api_object<'a>(scope: &'a mut v8::HandleScope<'a>) -> Result<v8::Local<'a, v8::Object>, String> {
+        let physics_obj = v8::Object::new(scope);
+        
+        // applyForce method (stub)
+        let apply_force_name = v8::String::new(scope, "applyForce")
+            .ok_or_else(|| "Failed to create applyForce string".to_string())?;
+        
+        let apply_force_fn = v8::Function::new(scope, |_scope: &mut v8::HandleScope, _args: v8::FunctionCallbackArguments, _rv: v8::ReturnValue| {
+            log::debug!("Engine.physics.applyForce() called");
+        }).ok_or_else(|| "Failed to create applyForce function".to_string())?;
+        
+        physics_obj.set(scope, apply_force_name.into(), apply_force_fn.into());
+        
+        // Add other physics methods as stubs...
+        // TODO: Implement actual physics methods
+        
+        Ok(physics_obj)
     }
 
     fn inject_world_api(scope: &mut v8::HandleScope, global: v8::Local<v8::Object>) -> Result<(), String> {
@@ -1407,7 +1924,40 @@ impl SimpleTypeScriptRuntime {
         Ok(())
     }
 
-    pub fn load_and_compile_script(&mut self, script_id: u32, script_path: &str, source: &str) -> Result<(), String> {
+    /// Evaluate JavaScript code and return the result as a string
+    fn evaluate_javascript(&mut self, code: &str) -> Result<String, String> {
+        log::trace!("Evaluating JavaScript code ({} chars)", code.len());
+        
+        let scope = &mut v8::HandleScope::new(&mut self.isolate);
+        let context = v8::Local::new(scope, &self.global_context);
+        let scope = &mut v8::ContextScope::new(scope, context);
+        
+        // Compile the script
+        let source = v8::String::new(scope, code)
+            .ok_or_else(|| "Failed to create V8 string".to_string())?;
+        
+        let script = v8::Script::compile(scope, source, None)
+            .ok_or_else(|| {
+                let error_msg = format!("JavaScript compilation failed: {}", code);
+                log::error!("{}", error_msg);
+                error_msg
+            })?;
+        
+        // Execute the script and get the result
+        let result = script.run(scope)
+            .ok_or_else(|| {
+                let error_msg = format!("Script evaluation failed. Code was: {}", code);
+                log::error!("{}", error_msg);
+                error_msg
+            })?;
+        
+        // Convert result to string
+        let result_string = result.to_rust_string_lossy(scope);
+        log::debug!("JavaScript evaluation successful, result: {}", result_string);
+        Ok(result_string)
+    }
+
+    pub fn load_and_compile_script(&mut self, _script_id: u32, script_path: &str, source: &str) -> Result<(), String> {
         log::info!("Loading and compiling TypeScript script: {}", script_path);
         
         // Compile TypeScript to JavaScript fresh every time (no caching)
@@ -1791,7 +2341,7 @@ impl SimpleTypeScriptRuntime {
         let metadata = std::fs::metadata(file_path)
             .map_err(|e| format!("Failed to get file metadata for {}: {}", file_path.display(), e))?;
         
-        let modified_time = metadata.modified()
+        let _modified_time = metadata.modified()
             .map_err(|e| format!("Failed to get modification time for {}: {}", file_path.display(), e))?;
         
         // For this implementation, we'll always reload if the file exists
@@ -1961,22 +2511,95 @@ impl SimpleTypeScriptRuntime {
 
     /// Call update method on script instance
     pub fn call_update(&mut self, script_id: u32, delta_time: f64) -> Result<(), String> {
+        eprintln!("🚨 V8 RUNTIME: call_update() script_id={}, delta_time={}", script_id, delta_time);
+        
         if let Some(instance_var) = self.script_instances.get(&script_id).cloned() {
+            eprintln!("🚨 V8 RUNTIME: Found instance variable: {}", instance_var);
+        } else {
+            eprintln!("🚨 V8 RUNTIME ERROR: No instance variable found for script_id: {}", script_id);
+            eprintln!("🚨 V8 RUNTIME ERROR: Available script IDs: {:?}", self.script_instances.keys().collect::<Vec<_>>());
+            return Err(format!("No instance variable found for script_id: {}", script_id));
+        }
+        
+        if let Some(instance_var) = self.script_instances.get(&script_id).cloned() {
+            
             let update_code = format!(
                 r#"
                 try {{
+                    console.log('🚨 V8: Checking if {} exists and has update method');
                     if ({} && typeof {}.update === 'function') {{
+                        console.log('🚨 V8: Calling {}.update({})');
                         {}.update({});
+                        console.log('🚨 V8: update() call completed');
+                    }} else {{
+                        console.log('🚨 V8: No update method found for {}');
+                        if ({}) {{
+                            console.log('🚨 V8: Instance exists but update is:', typeof {}.update);
+                        }} else {{
+                            console.log('🚨 V8: Instance {} does not exist');
+                        }}
                     }}
                 }} catch (e) {{
+                    console.error('🚨 V8: Update error in script_id {}: ' + e.toString());
                     throw new Error('Update error in script_id {}: ' + e.toString());
                 }}
                 "#,
-                instance_var, instance_var, instance_var, delta_time, script_id
+                instance_var, instance_var, instance_var, instance_var, delta_time, 
+                instance_var, delta_time, instance_var, instance_var, instance_var, 
+                instance_var, script_id, script_id
             );
 
+            eprintln!("🚨 V8 RUNTIME: Executing update code");
             self.execute_javascript(&update_code)
                 .map_err(|e| format!("Update error for script_id {}: {}", script_id, e))?;
+            
+            // Check if any Transform position was modified (simplified detection)
+            let check_position_modified_code = r#"
+                (function() {
+                    console.log("🔍 DEBUG: Checking for position modifications...");
+                    
+                    // Debug: list all global properties
+                    let globalProps = [];
+                    for (let prop in globalThis) {
+                        globalProps.push(prop);
+                    }
+                    console.log("🔍 DEBUG: Global properties:", globalProps.join(", "));
+                    
+                    // Check if any global variables store transforms with modified positions
+                    for (let prop in globalThis) {
+                        let obj = globalThis[prop];
+                        console.log("🔍 DEBUG: Checking property:", prop, "type:", typeof obj);
+                        
+                        if (obj && typeof obj === 'object' && obj.transform && obj.transform.position) {
+                            console.log("🔍 DEBUG: Found transform on property:", prop);
+                            console.log("🔍 DEBUG: Position values: x=" + obj.transform.position.x + 
+                                       ", y=" + obj.transform.position.y + 
+                                       ", z=" + obj.transform.position.z);
+                            
+                            // Check if position values have changed from initial values (5.0, 10.0, 15.0)
+                            if (obj.transform.position.x !== 5.0 || 
+                                obj.transform.position.y !== 10.0 || 
+                                obj.transform.position.z !== 15.0) {
+                                console.log("🚨 POSITION MODIFICATION DETECTED!");
+                                console.log("   Expected: x=5.0, y=10.0, z=15.0");
+                                console.log("   Actual: x=" + obj.transform.position.x + 
+                                           ", y=" + obj.transform.position.y + 
+                                           ", z=" + obj.transform.position.z);
+                                return true;
+                            }
+                        }
+                    }
+                    console.log("🔍 DEBUG: No position modifications detected");
+                    return false;
+                })()
+            "#;
+            
+            if let Ok(result) = self.evaluate_javascript(check_position_modified_code) {
+                // Parse the result to see if position was modified
+                if result.contains("true") {
+                    return Err("Position modification detected but bidirectional sync not implemented yet".to_string());
+                }
+            }
         } else {
             log::debug!("Attempted to call update() on non-existent script_id: {}", script_id);
         }

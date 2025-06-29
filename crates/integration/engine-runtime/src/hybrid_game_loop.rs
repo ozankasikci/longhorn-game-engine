@@ -98,6 +98,8 @@ impl HybridGameLoop {
     
     /// Perform a fixed timestep update
     fn fixed_update(&mut self, delta_time: Duration) {
+        eprintln!("🚨 GAME LOOP: fixed_update() called with delta_time={}ms", delta_time.as_millis());
+        
         // Update game context
         self.game_context.update(delta_time.as_secs_f32())
             .expect("Failed to update game context");
@@ -106,9 +108,11 @@ impl HybridGameLoop {
         self.input_manager.update();
         
         // Execute fixed timestep systems
+        eprintln!("🚨 GAME LOOP: About to execute_fixed_systems()");
         self.system_scheduler
             .execute_fixed_systems(&mut self.game_context, delta_time.as_secs_f32())
             .expect("Failed to execute fixed systems");
+        eprintln!("🚨 GAME LOOP: execute_fixed_systems() completed");
     }
     
     /// Render with interpolation
@@ -121,13 +125,18 @@ impl HybridGameLoop {
     
     /// Set engine mode
     pub fn set_mode(&mut self, mode: EngineMode) {
+        eprintln!("🚨 GAME LOOP: Setting mode to {:?}, should_update_systems will be {}", 
+                 mode, matches!(mode, EngineMode::Standalone | EngineMode::EditorPlay));
         self.mode = mode;
         self.should_update_systems = matches!(mode, EngineMode::Standalone | EngineMode::EditorPlay);
         
         // Reset accumulator when changing modes
         if self.should_update_systems {
+            eprintln!("🚨 GAME LOOP: Systems ENABLED - resetting accumulator");
             self.accumulator = Duration::ZERO;
             self.last_frame_time = Instant::now();
+        } else {
+            eprintln!("🚨 GAME LOOP: Systems DISABLED");
         }
     }
     

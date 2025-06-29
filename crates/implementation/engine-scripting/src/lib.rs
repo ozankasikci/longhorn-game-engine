@@ -51,10 +51,16 @@ pub mod test_utils;
 pub mod error_tests;
 #[cfg(test)]
 pub mod typescript_swc_compilation_test;
+#[cfg(test)]
+pub mod typescript_ecs_integration_tests;
+#[cfg(test)]
+pub mod typescript_api_integration_tests;
+#[cfg(test)]
+pub mod typescript_registry_transform_tests;
 pub mod unified_loader;
 pub mod engine_api_demo;
 
-pub use api::ScriptApi;
+pub use api::{ScriptApi, TypeScriptApiSystem, ApiRegistry, ApiError, V8ApiBridge};
 pub use unified_loader::UnifiedScriptLoader;
 pub use manager::{ScriptManager, ScriptRef};
 pub use script_engine::ScriptEngine;

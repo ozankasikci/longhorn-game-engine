@@ -9,14 +9,69 @@ pub use script_loader::{ScriptLoader, ScriptLoadRequest, ScriptSource, ScriptHan
 #[cfg(test)]
 mod script_loader_tests;
 
+#[cfg(test)]
+mod registry_tests;
+
+// New TypeScript API Registry System
+pub mod registry;
+pub mod bridge;
+pub mod namespaces;
+pub mod codegen;
+
+pub use registry::*;
+pub use bridge::*;
+
 use crate::{ScriptError, ScriptId, ScriptResult};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Script API for exposing engine functionality to scripts
 pub struct ScriptApi {
     config: ScriptApiConfig,
     rate_limiter: ApiRateLimiter,
     script_capabilities: HashMap<ScriptId, ScriptCapabilities>,
+}
+
+/// Main TypeScript API system that coordinates all components
+pub struct TypeScriptApiSystem {
+    registry: Arc<ApiRegistry>,
+    bridge: V8ApiBridge,
+}
+
+impl TypeScriptApiSystem {
+    pub fn new() -> Result<Self, ApiError> {
+        let mut registry = ApiRegistry::new();
+
+        // Register core namespaces
+        namespaces::register_engine_world(&mut registry)?;
+        namespaces::register_engine_math(&mut registry)?;
+        namespaces::register_engine_debug(&mut registry)?;
+
+        // Finalize registry
+        registry.finalize()?;
+
+        let registry = Arc::new(registry);
+        let bridge = V8ApiBridge::new(registry.clone())?;
+
+        Ok(Self { registry, bridge })
+    }
+
+    pub fn execute_script(&mut self, script_source: &str, entity_context: Option<u32>) -> Result<String, ApiError> {
+        self.bridge.execute_script(script_source, entity_context)
+    }
+
+    pub fn generate_type_definitions(&self) -> String {
+        let generator = codegen::TypeScriptGenerator::new(self.registry.clone());
+        generator.generate_definitions()
+    }
+
+    pub fn get_registry(&self) -> &Arc<ApiRegistry> {
+        &self.registry
+    }
+
+    pub fn get_bridge(&self) -> &V8ApiBridge {
+        &self.bridge
+    }
 }
 
 impl Default for ScriptApi {

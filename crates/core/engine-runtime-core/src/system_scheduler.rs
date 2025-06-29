@@ -316,6 +316,10 @@ mod tests {
         fn is_fixed_timestep(&self) -> bool {
             self.is_fixed
         }
+        
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
     }
     
     // Error system for testing
@@ -345,6 +349,10 @@ mod tests {
         
         fn is_fixed_timestep(&self) -> bool {
             self.is_fixed
+        }
+        
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
         }
     }
     

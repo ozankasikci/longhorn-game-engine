@@ -2326,6 +2326,7 @@ name = "engine-scripting"
 version = "0.1.0"
 dependencies = [
  "engine-component-traits",
+ "engine-components-3d",
  "engine-ecs-core",
  "engine-runtime",
  "engine-runtime-core",

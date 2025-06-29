@@ -271,6 +271,10 @@ mod tests {
             fn is_fixed_timestep(&self) -> bool {
                 true
             }
+            
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
         }
         
         let mut scheduler = SystemScheduler::new();

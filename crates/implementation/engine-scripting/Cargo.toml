@@ -9,6 +9,7 @@ description = "scripting for Longhorn Game Engine"
 engine-ecs-core = { workspace = true }
 engine-component-traits = { workspace = true }
 engine-runtime-core = { workspace = true }
+engine-components-3d = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }

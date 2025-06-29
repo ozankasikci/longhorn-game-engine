@@ -419,6 +419,20 @@ impl LonghornEditor {
                 }
             }
             
+            // Copy Mesh component if it exists (CRITICAL FIX: entities need Mesh to be rendered!)
+            if let Some(mesh) = self.world.get_component::<engine_components_3d::Mesh>(entity) {
+                if let Err(e) = coordinator_world.add_component(new_entity, mesh.clone()) {
+                    println!("Failed to add Mesh component: {:?}", e);
+                }
+            }
+            
+            // Copy Material component if it exists (needed for proper rendering)
+            if let Some(material) = self.world.get_component::<engine_components_3d::Material>(entity) {
+                if let Err(e) = coordinator_world.add_component(new_entity, material.clone()) {
+                    println!("Failed to add Material component: {:?}", e);
+                }
+            }
+            
             println!("  Copied Lua entity {:?} -> {:?} with script: {}", entity, new_entity, 
                 coordinator_world.get_component::<engine_scripting::components::LuaScript>(new_entity)
                     .map(|s| s.script_path.as_str()).unwrap_or("Unknown"));
@@ -439,6 +453,20 @@ impl LonghornEditor {
             if let Some(transform) = self.world.get_component::<Transform>(entity) {
                 if let Err(e) = coordinator_world.add_component(new_entity, transform.clone()) {
                     println!("Failed to add Transform component: {:?}", e);
+                }
+            }
+            
+            // Copy Mesh component if it exists (CRITICAL FIX: entities need Mesh to be rendered!)
+            if let Some(mesh) = self.world.get_component::<engine_components_3d::Mesh>(entity) {
+                if let Err(e) = coordinator_world.add_component(new_entity, mesh.clone()) {
+                    println!("Failed to add Mesh component: {:?}", e);
+                }
+            }
+            
+            // Copy Material component if it exists (needed for proper rendering)
+            if let Some(material) = self.world.get_component::<engine_components_3d::Material>(entity) {
+                if let Err(e) = coordinator_world.add_component(new_entity, material.clone()) {
+                    println!("Failed to add Material component: {:?}", e);
                 }
             }
             
@@ -1169,15 +1197,31 @@ impl LonghornEditor {
     }
 
     pub fn show_scene_view(&mut self, ui: &mut egui::Ui) {
-        let console_messages = self.scene_view_panel.show(
-            ui,
-            &mut self.world,
-            self.selected_entity,
-            &mut self.scene_navigation,
-            &mut self.gizmo_system,
-            &mut self.scene_view_renderer,
-            self.coordinator.play_state_manager().get_state(),
-        );
+        // CRITICAL FIX: Use coordinator world for Scene View so script changes are visible!
+        let coordinator_world = self.coordinator.world();
+        let console_messages = if let Ok(mut world_lock) = coordinator_world.lock() {
+            self.scene_view_panel.show(
+                ui,
+                &mut *world_lock,
+                self.selected_entity,
+                &mut self.scene_navigation,
+                &mut self.gizmo_system,
+                &mut self.scene_view_renderer,
+                self.coordinator.play_state_manager().get_state(),
+            )
+        } else {
+            log::warn!("Could not lock coordinator world for scene view");
+            // Fallback to editor world if coordinator world is unavailable
+            self.scene_view_panel.show(
+                ui,
+                &mut self.world,
+                self.selected_entity,
+                &mut self.scene_navigation,
+                &mut self.gizmo_system,
+                &mut self.scene_view_renderer,
+                self.coordinator.play_state_manager().get_state(),
+            )
+        };
 
         // Convert and add scene view messages to console
         if !console_messages.is_empty() {
@@ -1295,8 +1339,14 @@ impl LonghornEditor {
                 );
 
                 // Use the scene view renderer to render from this camera
-                self.scene_view_renderer
-                    .render_game_camera_view(&mut self.world, ui, rect, camera);
+                // CRITICAL FIX: Use coordinator world so script changes are visible!
+                let coordinator_world = self.coordinator.world();
+                if let Ok(mut world_lock) = coordinator_world.lock() {
+                    self.scene_view_renderer
+                        .render_game_camera_view(&mut *world_lock, ui, rect, camera);
+                } else {
+                    log::warn!("Could not lock coordinator world for rendering");
+                };
             } else {
                 log::warn!("Camera components missing");
                 // Show no camera message
