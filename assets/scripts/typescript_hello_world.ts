@@ -1,16 +1,13 @@
-// Simple Hello World example - no imports needed for basic console operations
 export class HelloWorld {
     init(): void {
-        console.log("Hello, World!");
-        console.log("Welcome to Longhorn Game Engine TypeScript scripting!");
-        console.log('omfg')
+        console.log("🔥 SCRIPT v3 - ADDED BACK! Init called");
     }
     
     update(deltaTime: number): void {
-        console.log('tf is this man')
+        //console.log("🎯 HOT RELOAD TEST - v4 - Modified during runtime execution!");
     }
     
     destroy(): void {
-        console.log("Goodbye from TypeScript!");
+        console.log("🔥 SCRIPT v3 - ADDED BACK! Destroy called");
     }
 }

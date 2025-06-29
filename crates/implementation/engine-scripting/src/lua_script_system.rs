@@ -541,6 +541,10 @@ impl System for LuaScriptSystem {
         // Scripts should run at fixed timestep for consistent behavior
         true
     }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 impl std::fmt::Debug for LuaScriptSystem {

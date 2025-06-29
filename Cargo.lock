@@ -1954,6 +1954,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine-editor-control"
+version = "0.1.0"
+dependencies = [
+ "engine-components-3d",
+ "engine-components-ui",
+ "engine-ecs-core",
+ "engine-scripting",
+ "log",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "engine-editor-egui"
 version = "0.1.0"
 dependencies = [
@@ -1973,6 +1988,7 @@ dependencies = [
  "engine-components-ui",
  "engine-ecs-core",
  "engine-editor-assets",
+ "engine-editor-control",
  "engine-editor-framework",
  "engine-editor-panels",
  "engine-editor-scene-view",
@@ -1992,6 +2008,7 @@ dependencies = [
  "notify",
  "rfd",
  "serde",
+ "tempfile",
  "tokio",
  "toml",
  "uuid",

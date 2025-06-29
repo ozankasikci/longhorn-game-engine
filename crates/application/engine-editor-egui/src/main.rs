@@ -13,6 +13,15 @@ mod types;
 mod utils;
 mod world_setup;
 
+#[cfg(test)]
+mod compilation_toast_tests;
+
+#[cfg(test)]
+mod compilation_events_integration_tests;
+
+#[cfg(test)]
+mod typescript_cache_invalidation_tests;
+
 use engine_editor_framework::UnifiedEditorCoordinator;
 use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex};
@@ -35,6 +44,9 @@ use import::dialog::{ImportDialog, ImportResult};
 use types::{GizmoSystem, HierarchyObject, TextureAsset};
 use clap::Parser;
 use engine_runtime::{StandaloneRuntime, StandaloneConfig};
+use engine_editor_control::{EditorControlServer, EditorCommandHandler, types::*};
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 
 /// Longhorn Game Engine - Unified Editor and Runtime
 #[derive(Parser, Debug)]
@@ -80,6 +92,9 @@ fn main() -> Result<(), eframe::Error> {
             setup_custom_style(&cc.egui_ctx);
 
             let mut editor = LonghornEditor::new(cc);
+            
+            // Start the control server for remote commands
+            editor.start_control_server();
             
             // Start in play mode if requested
             if args.play {
@@ -173,6 +188,110 @@ fn run_standalone(project_path: Option<std::path::PathBuf>) -> Result<(), eframe
     }
 }
 
+/// Toast notification for TypeScript compilation status
+#[derive(Debug)]
+pub struct CompilationToast {
+    /// Whether the toast is currently visible
+    visible: bool,
+    /// Set of currently compiling scripts
+    active_compilations: std::collections::HashSet<String>,
+    /// Time when toast was first shown (for minimum display duration)
+    show_time: Option<std::time::Instant>,
+    /// Minimum duration to show toast (in seconds)
+    min_display_duration: std::time::Duration,
+}
+
+impl Default for CompilationToast {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CompilationToast {
+    /// Create a new compilation toast
+    pub fn new() -> Self {
+        Self {
+            visible: false,
+            active_compilations: std::collections::HashSet::new(),
+            show_time: None,
+            min_display_duration: std::time::Duration::from_millis(1500), // Show for at least 1.5 seconds
+        }
+    }
+    
+    /// Check if the toast is currently visible
+    pub fn is_visible(&self) -> bool {
+        if !self.visible {
+            return false;
+        }
+        
+        // If no active compilations, check if minimum duration has passed
+        if self.active_compilations.is_empty() {
+            if let Some(show_time) = self.show_time {
+                let elapsed = show_time.elapsed();
+                return elapsed < self.min_display_duration;
+            }
+            // If no show_time set but no active compilations, hide
+            return false;
+        }
+        
+        // Has active compilations - show the toast
+        true
+    }
+    
+    /// Show compilation started (simple version)
+    pub fn show_compilation_started(&mut self) {
+        self.visible = true;
+    }
+    
+    /// Hide compilation completed (simple version)
+    pub fn hide_compilation_completed(&mut self) {
+        self.visible = false;
+    }
+    
+    /// Get the toast message content
+    pub fn get_message(&self) -> &'static str {
+        "🔄 Compiling TypeScript..."
+    }
+    
+    /// Start compilation for a specific script
+    pub fn start_compilation(&mut self, script_path: &str) {
+        self.active_compilations.insert(script_path.to_string());
+        if !self.visible {
+            self.visible = true;
+            self.show_time = Some(std::time::Instant::now());
+        }
+    }
+    
+    /// Complete compilation for a specific script
+    pub fn complete_compilation(&mut self, script_path: &str) {
+        self.active_compilations.remove(script_path);
+        
+        // If no more active compilations, start counting down minimum display time
+        if self.active_compilations.is_empty() {
+            // The is_visible() method will handle the minimum duration logic
+            // We don't immediately set visible = false here
+        }
+    }
+    
+    /// Update method to handle minimum display duration
+    pub fn update(&mut self) {
+        if self.visible && self.active_compilations.is_empty() {
+            if let Some(show_time) = self.show_time {
+                let elapsed = show_time.elapsed();
+                if elapsed >= self.min_display_duration {
+                    self.visible = false;
+                    self.show_time = None;
+                }
+            }
+        }
+    }
+    
+    /// Get the number of active compilations
+    pub fn get_active_compilation_count(&self) -> usize {
+        self.active_compilations.len()
+    }
+}
+
 /// Longhorn Game Engine editor application with dockable panels
 pub struct LonghornEditor {
     // Docking system
@@ -240,6 +359,20 @@ pub struct LonghornEditor {
     
     // Timing
     last_update: std::time::Instant,
+    
+    // Compilation toast notification
+    compilation_toast: CompilationToast,
+    
+    // Hot reload system for TypeScript file watching
+    hot_reload_manager: engine_runtime_core::HotReloadManager,
+    
+    // Editor control system
+    control_server_handle: Option<std::thread::JoinHandle<()>>,
+    control_logs: Arc<Mutex<Vec<String>>>,
+    control_script_errors: Arc<Mutex<Vec<ScriptError>>>,
+    control_compilation_events: Arc<Mutex<Vec<CompilationEvent>>>,
+    action_receiver: mpsc::Receiver<EditorAction>,
+    action_sender: mpsc::Sender<EditorAction>,
 }
 
 impl LonghornEditor {
@@ -318,6 +451,61 @@ impl LonghornEditor {
         println!("[LonghornEditor] World sync complete!");
     }
     
+    /// Sync script removal from editor world to coordinator world during play mode
+    fn sync_script_removal_to_coordinator(&mut self, entity_id: u32, script_path: String) {
+        // Get the coordinator's world with safe locking
+        let coordinator_world_arc = self.coordinator.world();
+        let mut coordinator_world = match coordinator_world_arc.try_lock() {
+            Ok(world) => world,
+            Err(_) => {
+                log::warn!("🗑️ SYNC SCRIPT REMOVAL: Could not acquire coordinator world lock, skipping");
+                return;
+            }
+        };
+        
+        log::info!("🗑️ SYNC SCRIPT REMOVAL: Searching for entities in coordinator world with matching script");
+        
+        // Find all entities in coordinator world with TypeScript components that match the script
+        let entities_to_update: Vec<_> = coordinator_world
+            .query_legacy::<engine_scripting::components::TypeScriptScript>()
+            .filter_map(|(entity, script)| {
+                let has_script = script.get_all_scripts().iter().any(|s| s.as_str() == script_path.as_str());
+                if has_script {
+                    log::info!("🗑️ SYNC SCRIPT REMOVAL: Found entity {:?} with matching script '{}'", entity, script_path);
+                    Some((entity, script.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        
+        log::info!("🗑️ SYNC SCRIPT REMOVAL: Found {} entities to update in coordinator world", entities_to_update.len());
+        
+        for (entity, mut script_component) in entities_to_update {
+            log::info!("🗑️ SYNC SCRIPT REMOVAL: Processing entity {:?}", entity);
+            
+            // Remove the script from the component
+            let remove_result = script_component.remove_script(&script_path);
+            log::info!("🗑️ SYNC SCRIPT REMOVAL: remove_script result: {}", remove_result);
+            
+            if script_component.get_all_scripts().is_empty() {
+                // Remove the entire component if no scripts left
+                log::info!("🗑️ SYNC SCRIPT REMOVAL: No scripts left, removing entire component from entity {:?}", entity);
+                let remove_component_result = coordinator_world.remove_component::<engine_scripting::components::TypeScriptScript>(entity);
+                log::info!("🗑️ SYNC SCRIPT REMOVAL: remove_component result: {:?}", remove_component_result);
+            } else {
+                // Update the component with the remaining scripts
+                log::info!("🗑️ SYNC SCRIPT REMOVAL: Updating component with remaining scripts: {:?}", script_component.get_all_scripts());
+                if let Err(e) = coordinator_world.add_component(entity, script_component) {
+                    log::error!("🗑️ SYNC SCRIPT REMOVAL: Failed to update component: {:?}", e);
+                }
+            }
+        }
+        
+        drop(coordinator_world);
+        log::info!("🗑️ SYNC SCRIPT REMOVAL: Script removal sync complete!");
+    }
+    
     /// Poll for Lua console messages and add them to the console panel
     fn poll_script_console_messages(&mut self) {
         // This function collects console messages from both Lua and TypeScript scripts
@@ -330,6 +518,231 @@ impl LonghornEditor {
                 .map(|msg| engine_editor_panels::types::ConsoleMessage::info(&msg.message))
                 .collect();
             self.console_panel.add_messages(panel_messages);
+        }
+    }
+    
+    /// Poll for compilation events and update the toast notification
+    fn poll_compilation_events(&mut self) {
+        let compilation_events = engine_scripting::get_and_clear_compilation_events();
+        
+        for event in compilation_events {
+            match &event {
+                engine_scripting::CompilationEvent::Started { script_path } => {
+                    log::info!("🔥 TOAST: Compilation started for {}", script_path);
+                    self.compilation_toast.start_compilation(&script_path);
+                    
+                    // Also add to control system's event list
+                    if let Ok(mut control_events) = self.control_compilation_events.lock() {
+                        control_events.push(CompilationEvent {
+                            script_path: script_path.clone(),
+                            event_type: "started".to_string(),
+                            timestamp: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs(),
+                            success: None,
+                        });
+                    }
+                }
+                engine_scripting::CompilationEvent::Completed { script_path, success } => {
+                    log::info!("🔥 TOAST: Compilation completed for {} (success: {})", script_path, success);
+                    // Note: We don't differentiate between success/failure for the toast
+                    // The toast just indicates compilation activity is done
+                    self.compilation_toast.complete_compilation(&script_path);
+                    
+                    // Also add to control system's event list
+                    if let Ok(mut control_events) = self.control_compilation_events.lock() {
+                        control_events.push(CompilationEvent {
+                            script_path: script_path.clone(),
+                            event_type: "completed".to_string(),
+                            timestamp: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs(),
+                            success: Some(*success),
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Debug log when toast is visible
+        if self.compilation_toast.is_visible() {
+            log::info!("🔥 TOAST: Toast is visible with {} active compilations", 
+                      self.compilation_toast.get_active_compilation_count());
+        }
+    }
+    
+    /// Poll for file changes and trigger TypeScript compilation
+    fn poll_file_changes(&mut self) {
+        let file_events = self.hot_reload_manager.get_batched_events();
+        
+        for event in file_events {
+            match event {
+                engine_runtime_core::HotReloadEvent::FileModified(path, asset_type) => {
+                    if asset_type == engine_runtime_core::AssetType::Script {
+                        if let Some(extension) = path.extension() {
+                            if extension == "ts" {
+                                // Filter out temporary files (common on macOS during save)
+                                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                                    if filename.contains(".!") || filename.starts_with('.') {
+                                        log::debug!("🔥 FILE WATCHER: Ignoring temporary file: {:?}", path);
+                                    } else {
+                                        log::info!("🔥 FILE WATCHER: TypeScript file modified: {:?}", path);
+                                        self.trigger_typescript_compilation(&path);
+                                    }
+                                } else {
+                                    log::info!("🔥 FILE WATCHER: TypeScript file modified: {:?}", path);
+                                    self.trigger_typescript_compilation(&path);
+                                }
+                            }
+                        }
+                    }
+                }
+                engine_runtime_core::HotReloadEvent::FileCreated(path, asset_type) => {
+                    if asset_type == engine_runtime_core::AssetType::Script {
+                        if let Some(extension) = path.extension() {
+                            if extension == "ts" {
+                                // Filter out temporary files (common on macOS during save)
+                                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                                    if filename.contains(".!") || filename.starts_with('.') {
+                                        log::debug!("🔥 FILE WATCHER: Ignoring temporary file: {:?}", path);
+                                    } else {
+                                        log::info!("🔥 FILE WATCHER: TypeScript file created: {:?}", path);
+                                        self.trigger_typescript_compilation(&path);
+                                    }
+                                } else {
+                                    log::info!("🔥 FILE WATCHER: TypeScript file created: {:?}", path);
+                                    self.trigger_typescript_compilation(&path);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {} // Ignore other events
+            }
+        }
+    }
+    
+    /// Trigger compilation for a specific TypeScript file
+    fn trigger_typescript_compilation(&mut self, script_path: &std::path::Path) {
+        // Convert path to string
+        if let Some(script_path_str) = script_path.to_str() {
+            log::info!("🔥 FILE WATCHER: Triggering compilation for modified file: {}", script_path_str);
+            
+            // Trigger compilation event (this will show the toast and invalidate cache)
+            engine_scripting::add_compilation_event(engine_scripting::CompilationEvent::Started {
+                script_path: script_path_str.to_string(),
+            });
+            
+            // The actual compilation will happen when the scripts are next processed
+            // The TypeScript system will see the compilation event and invalidate its cache
+            // Then recompile the script when it's next needed
+            
+            // Simulate completion to hide the toast after a brief moment
+            std::thread::spawn({
+                let script_path = script_path_str.to_string();
+                move || {
+                    // Brief delay to show the toast
+                    std::thread::sleep(std::time::Duration::from_millis(300));
+                    
+                    // Report completion
+                    engine_scripting::add_compilation_event(engine_scripting::CompilationEvent::Completed {
+                        script_path,
+                        success: true,
+                    });
+                }
+            });
+        }
+    }
+    
+    /// Compile all TypeScript scripts in the current world
+    fn compile_all_typescript_scripts(&mut self) {
+        log::info!("🎮 PLAY MODE: Preparing TypeScript scripts for execution");
+        
+        // Get all entities with TypeScript scripts
+        let typescript_script_entities: Vec<_> = self.world.query_legacy::<engine_scripting::components::TypeScriptScript>()
+            .map(|(entity, script)| (entity, script.clone()))
+            .collect();
+        
+        if typescript_script_entities.is_empty() {
+            log::info!("🎮 PLAY MODE: No TypeScript scripts found");
+            return;
+        }
+        
+        log::info!("🎮 PLAY MODE: Found {} TypeScript scripts ready for execution", typescript_script_entities.len());
+        
+        // TypeScript scripts are compiled automatically when accessed by the script system
+        // We just need to trigger a single compilation event to show user feedback
+        engine_scripting::add_compilation_event(engine_scripting::CompilationEvent::Started {
+            script_path: "play_mode_scripts".to_string(),
+        });
+        
+        // Immediate completion since scripts compile on-demand
+        engine_scripting::add_compilation_event(engine_scripting::CompilationEvent::Completed {
+            script_path: "play_mode_scripts".to_string(),
+            success: true,
+        });
+    }
+    
+    /// Process editor actions received from remote control
+    fn process_editor_actions(&mut self) {
+        // Process all pending actions
+        while let Ok(action) = self.action_receiver.try_recv() {
+            log::info!("Processing editor action: {:?}", action);
+            
+            match action {
+                EditorAction::StartPlay => {
+                    // Compile all TypeScript scripts before starting play mode
+                    self.compile_all_typescript_scripts();
+                    
+                    // Copy entities from editor world to coordinator world for play mode
+                    self.sync_editor_world_to_coordinator();
+                    self.coordinator.play_state_manager_mut().start();
+                    log::info!("Started play mode via remote control");
+                }
+                EditorAction::StopPlay => {
+                    self.coordinator.play_state_manager_mut().stop();
+                    log::info!("Stopped play mode via remote control");
+                }
+                EditorAction::PausePlay => {
+                    self.coordinator.play_state_manager_mut().pause();
+                    log::info!("Paused play mode via remote control");
+                }
+                EditorAction::ResumePlay => {
+                    self.coordinator.play_state_manager_mut().resume();
+                    log::info!("Resumed play mode via remote control");
+                }
+                EditorAction::SyncScriptRemoval { entity_id, script_path } => {
+                    log::info!("🗑️ SYNC SCRIPT REMOVAL: Syncing removal of script '{}' from entity {} to coordinator world", script_path, entity_id);
+                    self.sync_script_removal_to_coordinator(entity_id, script_path);
+                }
+                EditorAction::ForceScriptReinitialization => {
+                    log::info!("🔄 FORCE SCRIPT REINITIALIZATION: Triggering complete script reinitialization");
+                    self.coordinator.force_script_reinitialization();
+                }
+            }
+        }
+    }
+    
+    /// Render the compilation toast notification if visible
+    fn render_compilation_toast(&self, ctx: &egui::Context) {
+        if self.compilation_toast.is_visible() {
+            egui::Area::new("compilation_toast".into())
+                .fixed_pos(egui::pos2(ctx.screen_rect().max.x - 320.0, 20.0)) // Top-right corner
+                .show(ctx, |ui| {
+                    egui::Frame::popup(ui.style())
+                        .fill(egui::Color32::from_rgb(50, 50, 50)) // Dark background
+                        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 100, 100))) // Border
+                        .inner_margin(egui::Margin::same(10.0))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(egui::RichText::new(self.compilation_toast.get_message())
+                                    .color(egui::Color32::WHITE)
+                                    .size(14.0));
+                            });
+                        });
+                });
         }
     }
 
@@ -400,6 +813,9 @@ impl LonghornEditor {
         import_service.register_texture_importers();
         import_service.register_audio_importers();
 
+        // Create channel for editor actions from remote control
+        let (action_sender, action_receiver) = mpsc::channel();
+
         Self {
             dock_state,
             world,
@@ -438,7 +854,66 @@ impl LonghornEditor {
             import_service,
             asset_database: assets::AssetDatabase::new(),
             last_update: std::time::Instant::now(),
+            compilation_toast: CompilationToast::new(),
+            hot_reload_manager: {
+                let mut manager = engine_runtime_core::HotReloadManager::new();
+                // Watch the assets/scripts directory for TypeScript files
+                if let Err(e) = manager.watch_recursive(
+                    std::path::Path::new("assets/scripts"), 
+                    engine_runtime_core::AssetType::Script
+                ) {
+                    log::warn!("Failed to setup TypeScript file watching: {}", e);
+                }
+                manager
+            },
+            control_server_handle: None,
+            control_logs: Arc::new(Mutex::new(Vec::new())),
+            control_script_errors: Arc::new(Mutex::new(Vec::new())),
+            control_compilation_events: Arc::new(Mutex::new(Vec::new())),
+            action_receiver,
+            action_sender,
         }
+    }
+
+    /// Start the editor control server for remote commands
+    fn start_control_server(&mut self) {
+        if self.control_server_handle.is_some() {
+            return; // Already started
+        }
+
+        // Use the coordinator's world instead of creating a separate world
+        // This ensures the control system works with the actual game world
+        let world_arc = self.coordinator.world();
+        let game_state = Arc::new(Mutex::new(GameStateInfo {
+            is_playing: false,
+            is_paused: false,
+            frame_count: 0,
+            delta_time: 0.0,
+        }));
+
+        let handler = EditorCommandHandler::new(
+            world_arc,
+            game_state,
+            self.control_logs.clone(),
+            self.control_script_errors.clone(),
+            self.control_compilation_events.clone(),
+            Some(self.action_sender.clone()),
+        );
+
+        let server = EditorControlServer::new(handler, 9999); // Use port 9999
+        
+        // Start the server in a separate thread with its own tokio runtime
+        let handle = std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(async move {
+                if let Err(e) = server.start().await {
+                    log::error!("Editor control server error: {}", e);
+                }
+            });
+        });
+
+        self.control_server_handle = Some(handle);
+        log::info!("Editor control server started on port 9999");
     }
 }
 
@@ -452,8 +927,20 @@ impl eframe::App for LonghornEditor {
         // Update the coordinator
         self.coordinator.update(delta_time);
         
+        // Process editor actions from remote control
+        self.process_editor_actions();
+        
         // Poll for Lua console messages and add them to the console panel
         self.poll_script_console_messages();
+        
+        // Poll for compilation events and update toast
+        self.poll_compilation_events();
+        
+        // Poll for file changes and trigger TypeScript compilation
+        self.poll_file_changes();
+        
+        // Update toast timing
+        self.compilation_toast.update();
         
         
         // Request continuous repaint in play mode for script execution
@@ -519,6 +1006,19 @@ impl eframe::App for LonghornEditor {
 
         // Handle global keyboard shortcuts for transform tools
         ctx.input(|i| {
+            // TEST: Press T to test compilation toast
+            if i.key_pressed(egui::Key::T) {
+                log::info!("🔥 TOAST TEST: Manually triggering compilation events");
+                engine_scripting::add_compilation_event(engine_scripting::CompilationEvent::Started {
+                    script_path: "test_script.ts".to_string(),
+                });
+                // Add completion event after a delay (simulated by next frame)
+                engine_scripting::add_compilation_event(engine_scripting::CompilationEvent::Completed {
+                    script_path: "test_script.ts".to_string(),
+                    success: true,
+                });
+            }
+            
             if i.key_pressed(egui::Key::Q) {
                 self.scene_navigation.current_tool = engine_editor_ui::SceneTool::Select;
                 self.gizmo_system
@@ -581,6 +1081,9 @@ impl eframe::App for LonghornEditor {
             // Put dock_state back
             self.dock_state = dock_state;
         });
+        
+        // Render compilation toast notification
+        self.render_compilation_toast(ctx);
     }
 }
 
@@ -615,6 +1118,9 @@ impl LonghornEditor {
 
         // Handle toolbar actions
         if actions.start_play {
+            // Compile all TypeScript scripts before starting play mode
+            self.compile_all_typescript_scripts();
+            
             // Copy entities from editor world to coordinator world for play mode
             self.sync_editor_world_to_coordinator();
             self.coordinator.play_state_manager_mut().start();

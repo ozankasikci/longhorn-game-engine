@@ -193,7 +193,8 @@ impl UnifiedEditorCoordinator {
     
     /// Clean up game systems after play mode
     fn cleanup_game_systems(&mut self) {
-        // TODO: Clean up game-specific systems
+        // Force complete script reinitialization to ensure updated scripts are loaded
+        self.force_script_reinitialization();
     }
     
     /// Sync editor state with game state
@@ -260,6 +261,26 @@ impl UnifiedEditorCoordinator {
     /// Get the ECS world
     pub fn world(&self) -> Arc<Mutex<World>> {
         Arc::clone(&self.ecs_world)
+    }
+    
+    /// Force complete script reinitialization for stop/start cycles
+    pub fn force_script_reinitialization(&mut self) {
+        log::info!("🔄 UNIFIED COORDINATOR: Forcing script reinitialization for stop/start cycle");
+        
+        // Access the TypeScript system through the scheduler to force reinitialization
+        let scheduler = self.game_loop.system_scheduler_mut();
+        
+        if let Some(system) = scheduler.find_system_mut("TypeScriptScriptSystem") {
+            // Try to downcast to our wrapper type
+            if let Some(wrapper) = system.as_any_mut().downcast_mut::<TypeScriptScriptSystemWrapper>() {
+                wrapper.system.force_complete_script_reinitialization();
+                log::info!("✅ UNIFIED COORDINATOR: Script reinitialization complete");
+            } else {
+                log::warn!("❌ UNIFIED COORDINATOR: Failed to downcast TypeScript system for reinitialization");
+            }
+        } else {
+            log::warn!("❌ UNIFIED COORDINATOR: TypeScript system not found for reinitialization");
+        }
     }
     
     /// Setup default hot reload handlers
@@ -356,6 +377,10 @@ impl System for ECSUpdateSystem {
     fn is_fixed_timestep(&self) -> bool {
         true
     }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 impl std::fmt::Debug for ECSUpdateSystem {
@@ -382,6 +407,10 @@ impl System for RenderingSystem {
     
     fn is_fixed_timestep(&self) -> bool {
         false // Rendering is variable timestep
+    }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 
@@ -419,6 +448,10 @@ impl System for LuaScriptSystemWrapper {
     fn is_fixed_timestep(&self) -> bool {
         true
     }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 impl std::fmt::Debug for LuaScriptSystemWrapper {
@@ -435,13 +468,22 @@ struct TypeScriptScriptSystemWrapper {
 
 impl System for TypeScriptScriptSystemWrapper {
     fn execute(&mut self, _context: &mut GameContext, delta_time: f32) -> Result<(), SystemError> {
+        // CRITICAL DEBUG: Always log system execution
+        eprintln!("🚨 TypeScriptScriptSystemWrapper::execute() called! delta_time={}", delta_time);
+        
         // Execute scripts with world access
         let mut world_lock = self.coordinator_world.lock().unwrap();
         let script_count = world_lock.query_legacy::<TypeScriptScript>().count();
         
+        eprintln!("🚨 TypeScript script count: {}", script_count);
+        
         if script_count > 0 {
+            eprintln!("🚨 EXECUTING TypeScript scripts!");
             // Execute TypeScript scripts
             self.system.update(&mut world_lock, delta_time as f64);
+            eprintln!("🚨 TypeScript scripts execution COMPLETE!");
+        } else {
+            eprintln!("🚨 No TypeScript scripts to execute");
         }
         
         Ok(())
@@ -453,6 +495,10 @@ impl System for TypeScriptScriptSystemWrapper {
     
     fn is_fixed_timestep(&self) -> bool {
         true
+    }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 

@@ -222,7 +222,7 @@ fn convert_notify_event(event: NotifyEvent) -> Option<HotReloadEvent> {
                     Some("png") | Some("jpg") | Some("jpeg") => AssetType::Texture,
                     Some("obj") | Some("fbx") | Some("gltf") => AssetType::Model,
                     Some("wgsl") | Some("glsl") => AssetType::Shader,
-                    Some("lua") | Some("js") => AssetType::Script,
+                    Some("lua") | Some("js") | Some("ts") => AssetType::Script,
                     Some("wav") | Some("mp3") | Some("ogg") => AssetType::Audio,
                     Some("toml") | Some("json") | Some("yaml") => AssetType::Config,
                     Some("txt") => AssetType::Script, // For testing

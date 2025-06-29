@@ -25,6 +25,9 @@ pub trait System: Send + Sync + Debug {
     fn is_fixed_timestep(&self) -> bool {
         false
     }
+    
+    /// Allow downcasting to concrete types
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
 /// Error that can occur during system execution
@@ -233,6 +236,16 @@ impl SystemScheduler {
     
     /// Find a mutable reference to a variable system by name
     fn find_variable_system_mut(&mut self, name: &str) -> Option<&mut Box<dyn System>> {
+        self.variable_systems.iter_mut().find(|s| s.name() == name)
+    }
+    
+    /// Find a mutable reference to any system by name (public access)
+    pub fn find_system_mut(&mut self, name: &str) -> Option<&mut Box<dyn System>> {
+        // First try fixed systems
+        if let Some(system) = self.fixed_systems.iter_mut().find(|s| s.name() == name) {
+            return Some(system);
+        }
+        // Then try variable systems
         self.variable_systems.iter_mut().find(|s| s.name() == name)
     }
 }

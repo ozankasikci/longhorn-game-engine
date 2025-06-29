@@ -74,3 +74,39 @@ pub use error::{ScriptError, SecuritySeverity};
 /// Scripting system result type
 pub type ScriptResult<T> = Result<T, ScriptError>;
 
+// Compilation events system for TypeScript hot reload
+use std::sync::Mutex;
+use std::collections::VecDeque;
+
+/// Compilation events for TypeScript scripts
+#[derive(Debug, Clone)]
+pub enum CompilationEvent {
+    Started { script_path: String },
+    Completed { script_path: String, success: bool },
+}
+
+/// Global compilation events queue
+static COMPILATION_EVENTS: Mutex<VecDeque<CompilationEvent>> = Mutex::new(VecDeque::new());
+
+/// Add a compilation event to the global queue
+pub fn add_compilation_event(event: CompilationEvent) {
+    if let Ok(mut events) = COMPILATION_EVENTS.lock() {
+        events.push_back(event);
+        
+        // Keep only last 100 events to prevent memory growth
+        while events.len() > 100 {
+            events.pop_front();
+        }
+    }
+}
+
+/// Get and clear all compilation events
+pub fn get_and_clear_compilation_events() -> Vec<CompilationEvent> {
+    if let Ok(mut events) = COMPILATION_EVENTS.lock() {
+        let result: Vec<_> = events.drain(..).collect();
+        result
+    } else {
+        Vec::new()
+    }
+}
+

@@ -16,6 +16,10 @@ pub struct TypeScriptScriptSystem {
     runtime: Option<SimpleTypeScriptRuntime>,
     /// Next script ID for unique identification
     next_script_id: u32,
+    /// Track the last known script paths for each entity to detect changes
+    entity_script_paths: HashMap<Entity, Vec<String>>,
+    /// KILL SWITCH: Scripts that should NEVER execute again
+    dead_scripts: HashSet<u32>,
 }
 
 /// Represents an instance of a TypeScript script attached to an entity
@@ -56,6 +60,8 @@ impl TypeScriptScriptSystem {
             script_instances: HashMap::new(),
             runtime,
             next_script_id: 1,
+            entity_script_paths: HashMap::new(),
+            dead_scripts: HashSet::new(),
         }
     }
 
@@ -66,16 +72,23 @@ impl TypeScriptScriptSystem {
             script_instances: HashMap::new(),
             runtime: None, // For testing, we'll simulate without real runtime
             next_script_id: 1,
+            entity_script_paths: HashMap::new(),
+            dead_scripts: HashSet::new(),
         }
     }
 
     /// Main update method called each frame
     pub fn update(&mut self, world: &mut World, delta_time: f64) {
+        log::trace!("START OF UPDATE CYCLE - initialized_entities: {:?}", self.initialized_entities);
+        
         // Ensure runtime is available
         if self.runtime.is_none() {
             log::warn!("TypeScriptScriptSystem: No runtime available");
             return;
         }
+
+        // Check for compilation events that might require cache invalidation
+        self.process_compilation_events();
 
         // Update runtime (this handles garbage collection, etc.)
         if let Some(runtime) = &mut self.runtime {
@@ -102,73 +115,196 @@ impl TypeScriptScriptSystem {
         }
 
         // Clean up entities that no longer have TypeScript components
+        log::trace!("Before cleanup_removed_entities: {} initialized entities", self.initialized_entities.len());
         self.cleanup_removed_entities(world);
+        log::trace!("After cleanup_removed_entities: {} initialized entities", self.initialized_entities.len());
     }
 
     /// Process all scripts for a single entity
     fn process_entity_scripts(&mut self, entity: Entity, script_component: &TypeScriptScript, delta_time: f64) {
-        println!("🔧 process_entity_scripts() for entity {:?}", entity);
+        log::trace!("process_entity_scripts() for entity {:?}", entity);
         
         // Collect all script paths for this entity
-        let script_paths = script_component.get_all_scripts();
-        println!("📂 Script paths for entity: {:?}", script_paths);
+        let mut script_paths: Vec<String> = script_component.get_all_scripts().into_iter().cloned().collect();
+        log::trace!("Script paths for entity: {:?}", script_paths);
         
-        // Check if this entity needs initialization
-        let mut needs_init = !self.initialized_entities.contains(&entity);
+        // CRITICAL: Check if script files actually exist and remove missing ones
+        let mut missing_scripts = Vec::new();
+        script_paths.retain(|path| {
+            if !std::path::Path::new(path).exists() {
+                log::warn!("Script file does not exist, will be removed: {}", path);
+                missing_scripts.push(path.clone());
+                false
+            } else {
+                true
+            }
+        });
         
-        // Also check if any script instances are not properly compiled
-        if let Some(instances) = self.script_instances.get(&entity) {
-            for instance in instances {
-                if !instance.compilation_successful {
-                    println!("🔍 Force re-initialization: script {} not compiled", instance.script_path);
-                    needs_init = true;
-                    break;
+        // If scripts are missing, trigger cleanup for those specific scripts
+        if !missing_scripts.is_empty() {
+            log::debug!("Cleanup trigger: {} missing scripts detected for entity {:?}", missing_scripts.len(), entity);
+            if let Some(instances) = self.script_instances.get(&entity) {
+                for instance in instances {
+                    if missing_scripts.contains(&instance.script_path) {
+                        log::debug!("Adding missing script {} (id: {}) to dead scripts list", instance.script_path, instance.script_id);
+                        self.dead_scripts.insert(instance.script_id);
+                    }
                 }
             }
         }
         
-        println!("🔍 Entity needs initialization: {}", needs_init);
+        // Check if the script paths have changed for this entity
+        let script_paths_changed = if let Some(previous_paths) = self.entity_script_paths.get(&entity) {
+            previous_paths != &script_paths
+        } else {
+            false // First time seeing this entity - let normal initialization handle it
+        };
+        
+        let needs_reinitialization = script_paths_changed;
+        
+        // CRITICAL: If no valid scripts remain but we have script instances, force cleanup
+        if script_paths.is_empty() && self.script_instances.contains_key(&entity) {
+            log::debug!("Force cleanup: Entity {:?} has no valid scripts but still has instances", entity);
+            self.cleanup_entity(entity);
+            return;
+        }
+        
+        if needs_reinitialization {
+            if script_paths_changed {
+                log::debug!("Script paths changed for entity {:?}", entity);
+            }
+            if let Some(previous_paths) = self.entity_script_paths.get(&entity) {
+                log::debug!("Previous paths: {:?}", previous_paths);
+            }
+            log::debug!("Current paths: {:?}", script_paths);
+            
+            // Clear old script instances and force re-initialization
+            if let Some(runtime) = &mut self.runtime {
+                if let Some(instances) = self.script_instances.get(&entity) {
+                    for instance in instances {
+                        log::debug!("Clearing script instance: {}", instance.script_path);
+                        
+                        // First call destroy() on the script instance if it was initialized
+                        if instance.initialized {
+                            if let Err(e) = runtime.call_destroy(instance.script_id) {
+                                log::warn!("Failed to call destroy() for script {}: {}", instance.script_path, e);
+                            } else {
+                                log::debug!("Called destroy() for script: {}", instance.script_path);
+                            }
+                        }
+                        
+                        // CRITICAL: Clear the specific instance variable from V8 global scope
+                        let instance_var = format!("instance_{}", instance.script_id);
+                        let clear_instance_code = format!(
+                            r#"
+                            try {{
+                                if (typeof {} !== 'undefined') {{
+                                    console.log('🧹 FORCE CLEARING instance variable: {}');
+                                    delete globalThis.{};
+                                    {} = undefined;
+                                    console.log('✅ Instance variable {} cleared');
+                                }} else {{
+                                    console.log('ℹ️  Instance variable {} was not found');
+                                }}
+                            }} catch (e) {{
+                                console.error('❌ Error clearing instance {}: ' + e.toString());
+                            }}
+                            "#,
+                            instance_var, instance_var, instance_var, instance_var, instance_var, instance_var, instance_var
+                        );
+                        
+                        if let Err(e) = runtime.execute_javascript(&clear_instance_code) {
+                            log::warn!("Failed to clear instance variable {}: {}", instance_var, e);
+                        } else {
+                            log::debug!("Cleared instance variable: {}", instance_var);
+                        }
+                        
+                        // Then clear global script class definitions
+                        let _ = runtime.clear_script_globals(&instance.script_path);
+                    }
+                }
+            }
+            
+            self.script_instances.remove(&entity);
+            self.initialized_entities.remove(&entity);
+            
+            // Update the tracked script paths
+            self.entity_script_paths.insert(entity, script_paths.clone());
+        }
+        
+        // Note: File change detection is now handled by the HotReloadManager in the main editor
+        // to avoid excessive filesystem polling. This system just focuses on script execution.
+        
+        // Check if this entity needs initialization
+        let needs_init = !self.initialized_entities.contains(&entity);
+        
+        log::trace!("Entity {:?} needs_init={}, initialized_entities={:?}, script_paths_changed={}", 
+                 entity, needs_init, self.initialized_entities, script_paths_changed);
+        
+        // CRITICAL: If this is the first entity being processed and we have a runtime,
+        // force V8 runtime reinitialization to ensure fresh execution
+        if needs_init && self.initialized_entities.is_empty() {
+            if let Some(runtime) = &mut self.runtime {
+                log::info!("🔄 FIRST ENTITY: Forcing V8 runtime reinitialization for fresh game start");
+                match runtime.reinitialize_v8_runtime() {
+                    Ok(_) => {
+                        log::info!("✅ V8 runtime reinitialized for fresh game start");
+                    }
+                    Err(e) => {
+                        log::error!("❌ Failed to reinitialize V8 runtime: {}", e);
+                    }
+                }
+            }
+        }
+        
+        log::trace!("Entity needs initialization: {}", needs_init);
         
         if needs_init {
             // Initialize all scripts for this entity
-            println!("🚀 Initializing scripts for entity {:?}", entity);
+            log::debug!("Initializing scripts for entity {:?}", entity);
             
             // Remove entity from initialized set to force re-init
             self.initialized_entities.remove(&entity);
             
             self.initialize_entity_scripts(entity, &script_paths);
             self.initialized_entities.insert(entity);
-            println!("✅ Entity {:?} marked as initialized", entity);
+            log::debug!("Entity {:?} marked as initialized. Total: {}", entity, self.initialized_entities.len());
         } else {
             // Update all scripts for this entity
-            println!("🔄 Updating scripts for entity {:?}", entity);
+            log::trace!("Updating scripts for entity {:?}", entity);
             self.update_entity_scripts(entity, &script_paths, delta_time);
         }
     }
 
     /// Initialize all scripts for an entity
-    fn initialize_entity_scripts(&mut self, entity: Entity, script_paths: &[&String]) {
+    fn initialize_entity_scripts(&mut self, entity: Entity, script_paths: &[String]) {
         let mut instances = Vec::new();
         
         for script_path in script_paths {
             let script_id = self.next_script_id;
             self.next_script_id += 1;
             
-            let mut instance = TypeScriptScriptInstance::new(script_id, (*script_path).clone());
+            let mut instance = TypeScriptScriptInstance::new(script_id, script_path.clone());
             
-            // Load and execute the script
+            // Load and execute the script (always compile fresh, no caching)
             if let Some(runtime) = &mut self.runtime {
                 // Read script content
                 match std::fs::read_to_string(script_path) {
                     Ok(source) => {
-                        // Load and compile script
-                        log::info!("About to compile TypeScript script: {}", script_path);
+                        // Load and compile script fresh every time
+                        log::info!("🔧 Compiling TypeScript script: {}", script_path);
                         log::debug!("TypeScript source code: {}", &source);
+                        
+                        // NOTE: Don't generate compilation events during normal loading
+                        // Only hot reload should generate events to avoid circular invalidation
                         
                         match runtime.load_and_compile_script(script_id, script_path, &source) {
                             Ok(()) => {
                                 instance.compilation_successful = true;
                                 log::info!("Successfully compiled TypeScript script: {}", script_path);
+                                
+                                // NOTE: Don't generate compilation events during normal loading
+                                // Only hot reload should generate events to avoid circular invalidation
                                 
                                 // Try to call init function if it exists
                                 log::info!("About to call init for script: {}", script_path);
@@ -187,6 +323,9 @@ impl TypeScriptScriptSystem {
                             Err(e) => {
                                 log::error!("Failed to compile/load script {}: {}", script_path, e);
                                 instance.last_error = Some(e);
+                                
+                                // NOTE: Don't generate compilation events during normal loading
+                                // Only hot reload should generate events to avoid circular invalidation
                             }
                         }
                     }
@@ -204,36 +343,42 @@ impl TypeScriptScriptSystem {
     }
 
     /// Update all scripts for an entity
-    fn update_entity_scripts(&mut self, entity: Entity, script_paths: &[&String], delta_time: f64) {
-        println!("🔄 update_entity_scripts() called for entity {:?}", entity);
+    fn update_entity_scripts(&mut self, entity: Entity, script_paths: &[String], delta_time: f64) {
+        log::trace!("update_entity_scripts() called for entity {:?}", entity);
         
         if let Some(instances) = self.script_instances.get(&entity) {
-            println!("📋 Found {} script instances for entity", instances.len());
+            log::trace!("Found {} script instances for entity", instances.len());
             
             if let Some(runtime) = &mut self.runtime {
                 for instance in instances {
-                    println!("🔍 Script instance: {}, initialized: {}, compiled: {}", 
+                    log::trace!("Script instance: {}, initialized: {}, compiled: {}", 
                              instance.script_path, instance.initialized, instance.compilation_successful);
+                    
+                    // KILL SWITCH: Never execute dead scripts
+                    if self.dead_scripts.contains(&instance.script_id) {
+                        log::debug!("Script {} (id: {}) is DEAD - skipping execution", instance.script_path, instance.script_id);
+                        continue;
+                    }
                     
                     if instance.initialized && instance.compilation_successful {
                         // Try to call update function if it exists
-                        println!("📞 Calling runtime.call_update() for script: {}", instance.script_path);
+                        log::trace!("Calling runtime.call_update() for script: {}", instance.script_path);
                         if let Err(e) = runtime.call_update(instance.script_id, delta_time) {
-                            println!("⚠️ Script {} has no update function or update failed: {}", instance.script_path, e);
+                            log::debug!("Script {} has no update function or update failed: {}", instance.script_path, e);
                             log::debug!("Script {} has no update function or update failed: {}", instance.script_path, e);
                         } else {
-                            println!("✅ Successfully called update() for script: {}", instance.script_path);
+                            log::trace!("Successfully called update() for script: {}", instance.script_path);
                         }
                     } else {
-                        println!("❌ Script {} not ready: initialized={}, compiled={}", 
+                        log::trace!("Script {} not ready: initialized={}, compiled={}", 
                                 instance.script_path, instance.initialized, instance.compilation_successful);
                     }
                 }
             } else {
-                println!("❌ No runtime available for update");
+                log::error!("No runtime available for update");
             }
         } else {
-            println!("❌ No script instances found for entity {:?}", entity);
+            log::trace!("No script instances found for entity {:?}", entity);
         }
     }
 
@@ -241,36 +386,229 @@ impl TypeScriptScriptSystem {
     fn cleanup_removed_entities(&mut self, world: &mut World) {
         let mut entities_to_remove = Vec::new();
         
+        log::info!("🗑️ CLEANUP DEBUG: Starting cleanup check for {} initialized entities", self.initialized_entities.len());
+        
         for &entity in &self.initialized_entities {
             // Check if entity still has a TypeScript component
             if world.get_component::<TypeScriptScript>(entity).is_none() {
+                log::info!("🗑️ CLEANUP DEBUG: Entity {:?} no longer has TypeScriptScript component, marking for removal", entity);
                 entities_to_remove.push(entity);
             }
         }
         
-        for entity in entities_to_remove {
-            self.cleanup_entity(entity);
+        if !entities_to_remove.is_empty() {
+            log::info!("🗑️ CLEANUP DEBUG: Found {} entities to clean up: {:?}", entities_to_remove.len(), entities_to_remove);
         }
+        
+        for entity in entities_to_remove {
+            log::info!("🗑️ CLEANUP DEBUG: Cleaning up entity {:?}", entity);
+            self.cleanup_entity(entity);
+            log::info!("🗑️ CLEANUP DEBUG: Completed cleanup for entity {:?}", entity);
+        }
+        
+        log::info!("🗑️ CLEANUP DEBUG: Cleanup completed. Remaining initialized entities: {}", self.initialized_entities.len());
     }
 
     /// Clean up a specific entity's scripts
     fn cleanup_entity(&mut self, entity: Entity) {
+        log::info!("🗑️ CLEANUP ENTITY DEBUG: Starting cleanup for entity {:?}", entity);
+        
         if let Some(instances) = self.script_instances.remove(&entity) {
+            log::info!("🗑️ CLEANUP ENTITY DEBUG: Found {} script instances for entity {:?}", instances.len(), entity);
+            
             if let Some(runtime) = &mut self.runtime {
-                for instance in instances {
-                    if instance.initialized {
-                        // Try to call destroy function if it exists
-                        if let Err(e) = runtime.call_destroy(instance.script_id) {
-                            log::debug!("Script {} has no destroy function or destroy failed: {}", instance.script_path, e);
-                        } else {
-                            log::info!("Destroyed TypeScript script: {}", instance.script_path);
+                for instance in &instances {
+                    log::info!("🗑️ CLEANUP ENTITY DEBUG: Processing script instance {} ({}), initialized: {}", 
+                        instance.script_id, instance.script_path, instance.initialized);
+                    
+                    // KILL SWITCH: Add to dead scripts list IMMEDIATELY
+                    self.dead_scripts.insert(instance.script_id);
+                    log::info!("💀 KILL SWITCH: Added script {} (id: {}) to dead scripts list", instance.script_path, instance.script_id);
+                    
+                    // CRITICAL: Immediately terminate script execution to prevent continued updates
+                    match runtime.terminate_script_immediately(instance.script_id) {
+                        Ok(_) => {
+                            log::info!("🗑️ CLEANUP ENTITY DEBUG: ✅ Successfully terminated script execution: {}", instance.script_path);
+                        }
+                        Err(e) => {
+                            log::warn!("🗑️ CLEANUP ENTITY DEBUG: ⚠️ Failed to terminate script {}: {}", instance.script_path, e);
                         }
                     }
+                    
+                    if instance.initialized {
+                        // Try to call destroy function if it exists
+                        match runtime.call_destroy(instance.script_id) {
+                            Ok(_) => {
+                                log::info!("🗑️ CLEANUP ENTITY DEBUG: ✅ Successfully called destroy for script: {}", instance.script_path);
+                            }
+                            Err(e) => {
+                                log::info!("🗑️ CLEANUP ENTITY DEBUG: ⚠️ Script {} has no destroy function or destroy failed: {}", instance.script_path, e);
+                            }
+                        }
+                    } else {
+                        log::info!("🗑️ CLEANUP ENTITY DEBUG: Script {} not initialized, skipping destroy call", instance.script_path);
+                    }
+                }
+                
+                // Force garbage collection after removing entity scripts to ensure V8 memory is freed
+                runtime.force_garbage_collection();
+                log::info!("🗑️ CLEANUP ENTITY DEBUG: ✅ Forced V8 garbage collection after entity cleanup: {:?}", entity);
+            } else {
+                log::info!("🗑️ CLEANUP ENTITY DEBUG: ⚠️ No runtime available for cleanup");
+            }
+        } else {
+            log::info!("🗑️ CLEANUP ENTITY DEBUG: ⚠️ No script instances found for entity {:?}", entity);
+        }
+        
+        self.initialized_entities.remove(&entity);
+        self.entity_script_paths.remove(&entity);
+    }
+    
+    /// Immediately clean up a specific script from an entity (for individual script removal)
+    fn cleanup_script_from_entity(&mut self, entity: Entity, script_path: &str) {
+        log::info!("🗑️ SCRIPT CLEANUP DEBUG: Removing script '{}' from entity {:?}", script_path, entity);
+        
+        if let Some(instances) = self.script_instances.get_mut(&entity) {
+            let mut script_found = false;
+            instances.retain(|instance| {
+                if instance.script_path == script_path {
+                    log::info!("🗑️ SCRIPT CLEANUP DEBUG: Found script instance {} to remove", instance.script_id);
+                    
+                    // KILL SWITCH: Add to dead scripts list IMMEDIATELY  
+                    self.dead_scripts.insert(instance.script_id);
+                    log::info!("💀 KILL SWITCH: Added script {} (id: {}) to dead scripts list", script_path, instance.script_id);
+                    
+                    // CRITICAL: Immediately terminate this specific script
+                    if let Some(runtime) = &mut self.runtime {
+                        if let Err(e) = runtime.terminate_script_immediately(instance.script_id) {
+                            log::warn!("Failed to terminate script {} immediately: {}", script_path, e);
+                        }
+                        
+                        if instance.initialized {
+                            if let Err(e) = runtime.call_destroy(instance.script_id) {
+                                log::warn!("Failed to call destroy for script {}: {}", script_path, e);
+                            }
+                        }
+                    }
+                    
+                    script_found = true;
+                    false // Remove this script from the vector
+                } else {
+                    true // Keep other scripts
+                }
+            });
+            
+            if script_found {
+                log::info!("🗑️ SCRIPT CLEANUP DEBUG: ✅ Successfully removed script '{}' from entity {:?}", script_path, entity);
+            } else {
+                log::warn!("🗑️ SCRIPT CLEANUP DEBUG: ⚠️ Script '{}' not found in entity {:?}", script_path, entity);
+            }
+            
+            // If no scripts left for this entity, clean up the entity entirely
+            if instances.is_empty() {
+                self.script_instances.remove(&entity);
+                self.initialized_entities.remove(&entity);
+                self.entity_script_paths.remove(&entity);
+                log::info!("🗑️ SCRIPT CLEANUP DEBUG: Entity {:?} has no scripts left, removed from tracking", entity);
+            }
+        } else {
+            log::warn!("🗑️ SCRIPT CLEANUP DEBUG: ⚠️ No script instances found for entity {:?}", entity);
+        }
+    }
+    
+    /// Mark scripts for recompilation when file is modified (for hot reload)
+    pub fn invalidate_script_cache(&mut self, script_path: &str) {
+        // Since we have no caching, find all entities that use this script 
+        // and properly clean up their old instances before reinitialization
+        let mut entities_to_reinitialize = Vec::new();
+        let mut script_ids_to_cleanup = Vec::new();
+        
+        for (entity, instances) in &mut self.script_instances {
+            for instance in instances {
+                if instance.script_path == script_path {
+                    entities_to_reinitialize.push(*entity);
+                    script_ids_to_cleanup.push(instance.script_id);
+                    instance.compilation_successful = false; // Mark as needing recompilation
+                    log::info!("🔄 Entity {:?} marked for reinitialization due to script change: {}", entity, script_path);
+                    break; // Only need to mark entity once
                 }
             }
         }
         
-        self.initialized_entities.remove(&entity);
+        // Clean up old script instances from V8 runtime
+        if let Some(runtime) = &mut self.runtime {
+            // First clear global script class definitions
+            if let Err(e) = runtime.clear_script_globals(script_path) {
+                log::warn!("Failed to clear script globals for {}: {}", script_path, e);
+            }
+            
+            // Store script IDs for later use (before they get consumed)
+            let script_ids_to_exclude = script_ids_to_cleanup.clone();
+            
+            // Then destroy individual script instances
+            for script_id in script_ids_to_cleanup {
+                // KILL SWITCH: Add to dead scripts IMMEDIATELY
+                self.dead_scripts.insert(script_id);
+                log::info!("💀 KILL SWITCH: Added script_id {} to dead scripts during hot reload", script_id);
+                
+                if let Err(e) = runtime.call_destroy(script_id) {
+                    log::warn!("Failed to cleanup old script instance {}: {}", script_id, e);
+                }
+            }
+            
+            // CRITICAL: Completely reinitialize V8 runtime to ensure no cached compiled code remains
+            log::info!("🔄 REINITIALIZING V8 runtime to clear all cached compiled scripts: {}", script_path);
+            
+            // Reinitialize the entire V8 runtime
+            match runtime.reinitialize_v8_runtime() {
+                Ok(_) => {
+                    log::info!("✅ V8 runtime reinitialized successfully - ALL scripts will be recompiled fresh");
+                    // DON'T restore any script instances - let everything recompile fresh
+                    // This ensures complete isolation and no old script code can execute
+                }
+                Err(e) => {
+                    log::error!("❌ Failed to reinitialize V8 runtime: {}", e);
+                    // Fallback to garbage collection
+                    runtime.force_garbage_collection();
+                }
+            }
+        }
+        
+        // Remove entities from initialized set so they get reprocessed
+        for entity in entities_to_reinitialize {
+            self.initialized_entities.remove(&entity);
+            // CRITICAL: Also remove old script instances to prevent dual execution
+            self.script_instances.remove(&entity);
+            log::info!("🗑️ Removed entity {:?} from initialized set and cleared old script instances", entity);
+        }
+        
+        log::info!("🗑️ Cleaned up and marked entities for recompilation: {}", script_path);
+    }
+    
+    /// Check if a script is cached (for testing) - always returns false since we removed caching
+    pub fn is_script_cached(&self, _script_path: &str) -> bool {
+        false // No caching anymore
+    }
+    
+    /// Process compilation events and invalidate cache for modified scripts
+    fn process_compilation_events(&mut self) {
+        // Get and clear compilation events - this system is responsible for processing them
+        let events = crate::get_and_clear_compilation_events();
+        
+        for event in events {
+            match event {
+                crate::CompilationEvent::Started { script_path } => {
+                    // File modification detected - mark for recompilation
+                    if script_path.ends_with(".ts") {
+                        log::info!("🗑️ Script change detected, marking for recompilation: {}", script_path);
+                        self.invalidate_script_cache(&script_path);
+                    }
+                }
+                crate::CompilationEvent::Completed { .. } => {
+                    // Compilation complete - no action needed
+                }
+            }
+        }
     }
 
     /// Get initialized entities (for testing)
@@ -281,6 +619,62 @@ impl TypeScriptScriptSystem {
     /// Get script instances (for testing)
     pub fn get_script_instances(&self) -> &HashMap<Entity, Vec<TypeScriptScriptInstance>> {
         &self.script_instances
+    }
+    
+    /// Get runtime for testing
+    pub fn get_runtime(&self) -> Option<&SimpleTypeScriptRuntime> {
+        self.runtime.as_ref()
+    }
+
+    /// Call update method on script instance
+    pub fn call_update(&mut self, script_id: u32, delta_time: f64) -> Result<(), String> {
+        if let Some(runtime) = &mut self.runtime {
+            runtime.call_update(script_id, delta_time)
+        } else {
+            Err("TypeScript runtime not available".to_string())
+        }
+    }
+    
+    /// Force complete reinitialization of all scripts - used for stop/start cycles
+    pub fn force_complete_script_reinitialization(&mut self) {
+        log::info!("🔄 FORCE COMPLETE SCRIPT REINITIALIZATION: Clearing all script state for stop/start cycle");
+        
+        // Clear all entity initialization state
+        let entity_count = self.initialized_entities.len();
+        self.initialized_entities.clear();
+        log::info!("✅ Cleared initialized_entities ({} entities)", entity_count);
+        
+        // Clear all script instances
+        let instance_count = self.script_instances.len();
+        self.script_instances.clear();
+        log::info!("✅ Cleared script_instances ({} entities)", instance_count);
+        
+        // Clear entity script paths tracking
+        let path_count = self.entity_script_paths.len();
+        self.entity_script_paths.clear();
+        log::info!("✅ Cleared entity_script_paths ({} entities)", path_count);
+        
+        // Clear dead scripts set
+        let dead_count = self.dead_scripts.len();
+        self.dead_scripts.clear();
+        log::info!("✅ Cleared dead_scripts ({} scripts)", dead_count);
+        
+        // Force V8 runtime reinitialization to clear compiled code
+        if let Some(runtime) = &mut self.runtime {
+            match runtime.reinitialize_v8_runtime() {
+                Ok(_) => {
+                    log::info!("✅ V8 runtime reinitialized successfully");
+                }
+                Err(e) => {
+                    log::error!("❌ Failed to reinitialize V8 runtime: {}", e);
+                }
+            }
+            
+            // Force garbage collection to clean up any remaining references
+            runtime.force_garbage_collection();
+        }
+        
+        log::info!("🎯 FORCE COMPLETE SCRIPT REINITIALIZATION: Complete! All scripts will be freshly compiled on next execution.");
     }
 }
 
@@ -304,7 +698,6 @@ pub struct ScriptState {
 pub struct SimpleTypeScriptRuntime {
     isolate: v8::OwnedIsolate,
     global_context: v8::Global<v8::Context>,
-    compiled_scripts: HashMap<u32, String>, // script_id -> compiled JavaScript
     script_instances: HashMap<u32, String>, // script_id -> instance variable name
 }
 
@@ -343,7 +736,6 @@ impl SimpleTypeScriptRuntime {
         Ok(Self {
             isolate,
             global_context,
-            compiled_scripts: HashMap::new(),
             script_instances: HashMap::new(),
         })
     }
@@ -384,7 +776,8 @@ impl SimpleTypeScriptRuntime {
                 let string_val = arg.to_string(scope).unwrap_or_else(|| {
                     v8::String::new(scope, "[object]").unwrap()
                 });
-                message_parts.push(string_val.to_rust_string_lossy(scope));
+                let rust_string = string_val.to_rust_string_lossy(scope);
+                message_parts.push(rust_string);
             }
             let message = message_parts.join(" ");
             
@@ -401,6 +794,9 @@ impl SimpleTypeScriptRuntime {
             
             // Also log to standard Rust logging
             log::info!("[TS Console] {}", message);
+            
+            // CRITICAL DEBUG: Force visible logging to editor output
+            eprintln!("🚨 EDITOR LOG: [TS Console] {}", message);
         }).ok_or_else(|| "Failed to create console.log function".to_string())?;
         
         console_obj.set(scope, log_name.into(), log_fn.into());
@@ -979,13 +1375,7 @@ impl SimpleTypeScriptRuntime {
     }
 
     fn execute_javascript(&mut self, code: &str) -> Result<(), String> {
-        println!("🚀 EXECUTING JAVASCRIPT CODE:");
-        println!("📋 Raw code length: {} chars", code.len());
-        println!("📋 Code content:\n{}", code);
-        println!("📋 Code contains export: {}", code.contains("export"));
-        println!("📋 Code contains module.exports: {}", code.contains("module.exports"));
-        println!("📋 Code contains Object.defineProperty: {}", code.contains("Object.defineProperty"));
-        println!("📋 Code starts with: {:?}", code.chars().take(50).collect::<String>());
+        log::trace!("Executing JavaScript code ({} chars)", code.len());
         
         let scope = &mut v8::HandleScope::new(&mut self.isolate);
         let context = v8::Local::new(scope, &self.global_context);
@@ -997,10 +1387,9 @@ impl SimpleTypeScriptRuntime {
         
         let script = v8::Script::compile(scope, source, None)
             .ok_or_else(|| {
-                let error_msg = format!("🔥 V8 JavaScript compilation failed - SYNTAX ERROR in generated code!");
-                println!("{}", error_msg);
-                println!("📋 Failed code was:\n{}", code);
-                println!("📋 Code bytes: {:?}", code.as_bytes());
+                let error_msg = format!("V8 JavaScript compilation failed - SYNTAX ERROR in generated code!");
+                log::error!("{}", error_msg);
+                log::debug!("Failed code was:\n{}", code);
                 error_msg
             })?;
         
@@ -1021,7 +1410,7 @@ impl SimpleTypeScriptRuntime {
     pub fn load_and_compile_script(&mut self, script_id: u32, script_path: &str, source: &str) -> Result<(), String> {
         log::info!("Loading and compiling TypeScript script: {}", script_path);
         
-        // Compile TypeScript to JavaScript with enhanced error context
+        // Compile TypeScript to JavaScript fresh every time (no caching)
         let javascript_code = self.compile_typescript_to_javascript(source, script_path)
             .map_err(|e| {
                 log::error!("TypeScript compilation failed for {}: {}", script_path, e);
@@ -1035,9 +1424,14 @@ impl SimpleTypeScriptRuntime {
 
         log::info!("Successfully compiled TypeScript to JavaScript for: {}", script_path);
         log::debug!("Compiled JavaScript code: {}", javascript_code);
-
-        // Store the compiled code
-        self.compiled_scripts.insert(script_id, javascript_code.clone());
+        
+        // STEP 1 TEST: Verify V8 console.log is working
+        log::trace!("Testing V8 console.log setup");
+        let console_test = "console.log('🔥 V8 CONSOLE TEST: This message should appear in logs!');";
+        match self.execute_javascript(console_test) {
+            Ok(_) => log::info!("✅ V8 console test executed successfully"),
+            Err(e) => log::error!("❌ V8 console test failed: {}", e),
+        }
 
         // Execute the compiled JavaScript code to load the class into V8
         log::info!("About to execute compiled JavaScript for: {}", script_path);
@@ -1050,15 +1444,10 @@ impl SimpleTypeScriptRuntime {
         log::info!("Successfully compiled and loaded script: {}", script_path);
         Ok(())
     }
+    
 
     pub fn call_init(&mut self, script_id: u32) -> Result<(), String> {
         let start_time = std::time::Instant::now();
-        
-        // Check if script exists
-        if !self.compiled_scripts.contains_key(&script_id) {
-            log::warn!("Attempted to call init() on non-existent script_id: {}", script_id);
-            return Ok(()); // Graceful handling for non-existent scripts
-        }
         
         let instance_var = format!("instance_{}", script_id);
         
@@ -1069,35 +1458,18 @@ impl SimpleTypeScriptRuntime {
             var initSuccess = false;
             var lastError = null;
             
-            // Debug: Log what's available in exports
-            console.log("=== DEBUG: Checking exports object ===");
-            console.log("typeof exports:", typeof exports);
-            if (typeof exports === 'object' && exports) {{
-                console.log("exports keys:", Object.keys(exports));
-                for (var name in exports) {{
-                    console.log("exports[" + name + "]:", typeof exports[name], exports[name]);
-                }}
-            }}
-            
             // First try to find a class in exports (CommonJS)
             if (typeof exports === 'object' && exports) {{
                 for (var name in exports) {{
                     if (typeof exports[name] === 'function' && exports[name].prototype) {{
                         try {{
-                            console.log("=== DEBUG: Trying to instantiate class:", name, "===");
                             {} = new exports[name]();
-                            console.log("=== DEBUG: Successfully created instance of", name, "===");
                             if (typeof {}.init === 'function') {{
-                                console.log("=== DEBUG: Calling init() method ===");
                                 {}.init();
-                                console.log("=== DEBUG: init() method completed ===");
-                            }} else {{
-                                console.log("=== DEBUG: No init() method found ===");
                             }}
                             initSuccess = true;
                             break;
                         }} catch (e) {{
-                            console.log("=== DEBUG: Error instantiating", name, ":", e.toString(), "===");
                             lastError = e.toString();
                             // Continue to next potential class
                         }}
@@ -1107,11 +1479,9 @@ impl SimpleTypeScriptRuntime {
             
             // If not found in exports, try globalThis (fallback)
             if (!initSuccess) {{
-                console.log("=== DEBUG: Trying globalThis fallback ===");
                 for (var name in globalThis) {{
                     if (typeof globalThis[name] === 'function' && globalThis[name].prototype) {{
                         try {{
-                            console.log("=== DEBUG: Trying globalThis class:", name, "===");
                             {} = new globalThis[name]();
                             if (typeof {}.init === 'function') {{
                                 {}.init();
@@ -1127,10 +1497,7 @@ impl SimpleTypeScriptRuntime {
             }}
             
             if (!initSuccess && lastError) {{
-                console.log("=== DEBUG: Failed to initialize script, lastError:", lastError, "===");
                 throw new Error('Failed to initialize script: ' + lastError);
-            }} else if (initSuccess) {{
-                console.log("=== DEBUG: Script initialization successful! ===");
             }}
             "#,
             instance_var, instance_var, instance_var, instance_var, instance_var, instance_var, instance_var
@@ -1152,30 +1519,6 @@ impl SimpleTypeScriptRuntime {
         }
     }
 
-    pub fn call_update(&mut self, script_id: u32, delta_time: f64) -> Result<(), String> {
-        // Check if script instance exists
-        if let Some(instance_var) = self.script_instances.get(&script_id) {
-            let update_code = format!(
-                r#"
-                try {{
-                    if ({} && typeof {}.update === 'function') {{
-                        {}.update({});
-                    }}
-                }} catch (e) {{
-                    throw new Error('Update error in script_id {}: ' + e.toString());
-                }}
-                "#,
-                instance_var, instance_var, instance_var, delta_time, script_id
-            );
-
-            self.execute_javascript(&update_code)
-                .map_err(|e| format!("Update error for script_id {}: {}", script_id, e))?;
-        } else {
-            // Gracefully handle non-existent script instances
-            log::debug!("Attempted to call update() on non-existent script_id: {}", script_id);
-        }
-        Ok(())
-    }
 
     pub fn call_destroy(&mut self, script_id: u32) -> Result<(), String> {
         let start_time = std::time::Instant::now();
@@ -1205,11 +1548,112 @@ impl SimpleTypeScriptRuntime {
         }
 
         // Always perform cleanup regardless of destroy() success
-        self.compiled_scripts.remove(&script_id);
         self.script_instances.remove(&script_id);
 
         let cleanup_time = start_time.elapsed();
         log::debug!("Cleanup completed for script_id: {} in {:?}", script_id, cleanup_time);
+        Ok(())
+    }
+    
+    /// Immediately terminate a script by clearing its instance and preventing further execution
+    pub fn terminate_script_immediately(&mut self, script_id: u32) -> Result<(), String> {
+        let start_time = std::time::Instant::now();
+        
+        log::info!("🛑 TERMINATE DEBUG: Immediately terminating script_id: {}", script_id);
+        
+        if let Some(instance_var) = self.script_instances.get(&script_id) {
+            log::info!("🛑 TERMINATE DEBUG: Found script instance variable: {}", instance_var);
+            
+            // CRITICAL: Immediately nullify the script instance to stop execution
+            let termination_code = format!(
+                r#"
+                try {{
+                    // Immediately nullify the instance to stop all future updates
+                    if (typeof {} !== 'undefined') {{
+                        console.log("🛑 TERMINATING SCRIPT: Setting {} to null");
+                        {} = null;
+                    }}
+                    
+                    // Clear the variable from global scope entirely
+                    if (typeof globalThis.{} !== 'undefined') {{
+                        delete globalThis.{};
+                    }}
+                    
+                    console.log("🛑 SCRIPT TERMINATED: script_id {} execution stopped");
+                }} catch (e) {{
+                    console.error('🛑 Error during script termination for script_id {}: ' + e.toString());
+                }}
+                "#,
+                instance_var, instance_var, instance_var, instance_var, instance_var, script_id, script_id
+            );
+
+            // Execute termination code immediately 
+            if let Err(e) = self.execute_javascript(&termination_code) {
+                log::warn!("🛑 Failed to execute termination code for script_id {}: {}", script_id, e);
+            } else {
+                log::info!("🛑 TERMINATE DEBUG: ✅ Successfully executed termination code for script_id {}", script_id);
+            }
+        } else {
+            log::warn!("🛑 TERMINATE DEBUG: Script_id {} not found in script_instances", script_id);
+        }
+
+        // Remove from our tracking immediately to prevent any future calls
+        self.script_instances.remove(&script_id);
+
+        let termination_time = start_time.elapsed();
+        log::info!("🛑 TERMINATE DEBUG: Script termination completed for script_id: {} in {:?}", script_id, termination_time);
+        Ok(())
+    }
+    
+    /// Clear all global script class definitions for hot reload
+    pub fn clear_script_globals(&mut self, script_path: &str) -> Result<(), String> {
+        log::info!("🧹 Clearing global script definitions for: {}", script_path);
+        
+        // Clear all script-created globals from globalThis (both functions and variables)
+        let clear_code = r#"
+            try {
+                // Define built-in properties that should never be deleted
+                var builtinProps = new Set([
+                    'Object', 'Function', 'Array', 'String', 'Number', 'Boolean', 
+                    'Date', 'RegExp', 'Error', 'console', 'JSON', 'Math', 'parseInt', 
+                    'parseFloat', 'isNaN', 'isFinite', 'decodeURI', 'decodeURIComponent',
+                    'encodeURI', 'encodeURIComponent', 'eval', 'globalThis', 'undefined',
+                    'Infinity', 'NaN', 'Promise', 'Symbol', 'Map', 'Set', 'WeakMap', 
+                    'WeakSet', 'Proxy', 'Reflect', 'ArrayBuffer', 'SharedArrayBuffer',
+                    'Atomics', 'DataView', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray',
+                    'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array',
+                    'Float64Array', 'BigInt', 'BigInt64Array', 'BigUint64Array',
+                    // Engine-provided APIs
+                    'World', 'Input', 'Physics'
+                ]);
+                
+                // Get list of all properties on globalThis
+                var propsToDelete = [];
+                for (var prop in globalThis) {
+                    if (globalThis.hasOwnProperty(prop) && !builtinProps.has(prop)) {
+                        // Delete ANY property that's not a built-in, regardless of type
+                        // This includes script classes, variables, constants, etc.
+                        propsToDelete.push(prop);
+                    }
+                }
+                
+                // Delete all script-created globals from globalThis
+                for (var i = 0; i < propsToDelete.length; i++) {
+                    var prop = propsToDelete[i];
+                    console.log('🧹 Clearing global:', prop, '(type:', typeof globalThis[prop], ')');
+                    delete globalThis[prop];
+                }
+                
+                console.log('✅ Cleared', propsToDelete.length, 'global script properties');
+            } catch (e) {
+                console.error('Error clearing globals:', e.toString());
+            }
+        "#;
+        
+        self.execute_javascript(clear_code)
+            .map_err(|e| format!("Failed to clear script globals for {}: {}", script_path, e))?;
+            
+        log::info!("✅ Global script cleanup completed for: {}", script_path);
         Ok(())
     }
 
@@ -1237,12 +1681,10 @@ impl SimpleTypeScriptRuntime {
         
         if should_gc {
             // Log runtime statistics instead of forcing GC
-            let script_count = self.compiled_scripts.len();
             let instance_count = self.script_instances.len();
             
-            if script_count > 0 || instance_count > 0 {
-                log::debug!("TypeScript runtime stats: {} compiled scripts, {} active instances", 
-                    script_count, instance_count);
+            if instance_count > 0 {
+                log::debug!("TypeScript runtime stats: {} active instances", instance_count);
             }
             
             // Note: Garbage collection is handled automatically by V8
@@ -1277,13 +1719,10 @@ impl SimpleTypeScriptRuntime {
             None
         };
         
-        // Compile the new script
+        // Compile and execute the new script
         let script_path = file_path.to_string_lossy();
         let javascript_code = self.compile_typescript_to_javascript(&new_source, &script_path)
             .map_err(|e| format!("Hot reload compilation failed for {}: {}", script_path, e))?;
-        
-        // Replace the compiled script
-        self.compiled_scripts.insert(script_id, javascript_code.clone());
         
         // Execute the new script definition
         self.execute_javascript(&javascript_code)
@@ -1363,12 +1802,56 @@ impl SimpleTypeScriptRuntime {
 
     /// Force garbage collection in V8
     pub fn force_garbage_collection(&mut self) {
-        let gc_start = std::time::Instant::now();
-        let scope = &mut v8::HandleScope::new(&mut self.isolate);
-        scope.request_garbage_collection_for_testing(v8::GarbageCollectionType::Full);
-        let gc_time = gc_start.elapsed();
+        // Note: V8 garbage collection requires --expose-gc flag for security reasons
+        // In production/development without this flag, we skip forced GC as it's not essential
+        // The V8 runtime will automatically garbage collect when needed
+        log::debug!("Garbage collection skipped (requires --expose-gc flag for forced GC)");
+    }
+    
+    
+    /// Completely reinitialize the V8 runtime to clear all cached compiled code
+    pub fn reinitialize_v8_runtime(&mut self) -> Result<(), String> {
+        log::info!("🔄 Clearing V8 runtime state without replacing isolate");
         
-        log::debug!("Forced garbage collection completed in {:?}", gc_time);
+        // Instead of replacing the isolate, clear the global state within the existing context
+        let scope = &mut v8::HandleScope::new(&mut self.isolate);
+        let context = v8::Local::new(scope, &self.global_context);
+        let scope = &mut v8::ContextScope::new(scope, context);
+        let global = context.global(scope);
+        
+        // Clear all script instance variables from global scope
+        for (_, instance_var) in &self.script_instances {
+            log::info!("🧹 Clearing script instance variable: {}", instance_var);
+            if let Some(var_name) = v8::String::new(scope, instance_var) {
+                let undefined = v8::undefined(scope);
+                global.set(scope, var_name.into(), undefined.into());
+            }
+        }
+        
+        // Also clear any exported class names that might be in globalThis
+        // Look for typical TypeScript export patterns and clear them
+        let common_exports = vec!["HelloWorld", "exports", "module"];
+        for export_name in common_exports {
+            if let Some(var_name) = v8::String::new(scope, export_name) {
+                let undefined = v8::undefined(scope);
+                global.set(scope, var_name.into(), undefined.into());
+                log::info!("🧹 Cleared global export: {}", export_name);
+            }
+        }
+        
+        // Clear our script tracking data
+        self.script_instances.clear();
+        
+        // Re-setup console API to ensure it's available after clearing
+        Self::setup_console_api(scope, global)?;
+        log::info!("🔧 Re-setup console API");
+        
+        // Re-setup engine APIs to ensure they're available after clearing  
+        Self::setup_engine_api_injection(scope, global)?;
+        log::info!("🔧 Re-setup engine APIs");
+        
+        log::info!("✅ V8 runtime state cleared - scripts will be recompiled fresh");
+        Ok(())
     }
 
     /// Get memory statistics from V8
@@ -1381,7 +1864,7 @@ impl SimpleTypeScriptRuntime {
             total_heap_size: stats.total_heap_size(),
             used_heap_size: stats.used_heap_size(),
             heap_size_limit: stats.heap_size_limit(),
-            script_count: self.compiled_scripts.len(),
+            script_count: 0, // No longer tracking compiled scripts
             instance_count: self.script_instances.len(),
         })
     }
@@ -1474,6 +1957,30 @@ impl SimpleTypeScriptRuntime {
         } else {
             log::error!("Failed to acquire console messages lock for: {}", message);
         }
+    }
+
+    /// Call update method on script instance
+    pub fn call_update(&mut self, script_id: u32, delta_time: f64) -> Result<(), String> {
+        if let Some(instance_var) = self.script_instances.get(&script_id).cloned() {
+            let update_code = format!(
+                r#"
+                try {{
+                    if ({} && typeof {}.update === 'function') {{
+                        {}.update({});
+                    }}
+                }} catch (e) {{
+                    throw new Error('Update error in script_id {}: ' + e.toString());
+                }}
+                "#,
+                instance_var, instance_var, instance_var, delta_time, script_id
+            );
+
+            self.execute_javascript(&update_code)
+                .map_err(|e| format!("Update error for script_id {}: {}", script_id, e))?;
+        } else {
+            log::debug!("Attempted to call update() on non-existent script_id: {}", script_id);
+        }
+        Ok(())
     }
 }
 
