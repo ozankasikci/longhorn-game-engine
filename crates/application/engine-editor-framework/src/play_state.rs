@@ -1,6 +1,8 @@
 // Play state management functionality
 
 use instant::Instant;
+use crate::world_snapshot::{WorldSnapshot, SnapshotError};
+use engine_ecs_core::World;
 
 // Re-export PlayState from scene view
 pub use engine_editor_scene_view::types::PlayState;
@@ -11,6 +13,8 @@ pub struct PlayStateManager {
     pub game_start_time: Option<Instant>,
     pub last_frame_time: Instant,
     pub delta_time: f32,
+    /// Snapshot captured when entering play mode for state restoration
+    world_snapshot: Option<WorldSnapshot>,
 }
 
 impl PlayStateManager {
@@ -20,6 +24,7 @@ impl PlayStateManager {
             game_start_time: None,
             last_frame_time: Instant::now(),
             delta_time: 0.0,
+            world_snapshot: None,
         }
     }
 
@@ -47,6 +52,7 @@ impl PlayStateManager {
     pub fn stop(&mut self) {
         self.play_state = PlayState::Editing;
         self.game_start_time = None;
+        self.world_snapshot = None; // Clear snapshot when stopping
     }
 
     /// Update delta time calculation
@@ -81,6 +87,34 @@ impl PlayStateManager {
     /// Get current state
     pub fn get_state(&self) -> PlayState {
         self.play_state
+    }
+
+    /// Start playing with snapshot capture for state restoration
+    pub fn start_with_snapshot(&mut self, world: &World) {
+        // Capture snapshot before starting play mode
+        self.world_snapshot = Some(WorldSnapshot::capture(world));
+        self.play_state = PlayState::Playing;
+        self.game_start_time = Some(Instant::now());
+    }
+
+    /// Stop playing and restore world state from snapshot
+    pub fn stop_with_restore(&mut self, world: &mut World) -> Result<(), SnapshotError> {
+        if let Some(snapshot) = &self.world_snapshot {
+            // Restore world state from snapshot
+            snapshot.restore(world)?;
+        }
+        
+        // Stop play mode and clear snapshot
+        self.play_state = PlayState::Editing;
+        self.game_start_time = None;
+        self.world_snapshot = None;
+        
+        Ok(())
+    }
+
+    /// Get the current world snapshot if available
+    pub fn get_snapshot(&self) -> Option<&WorldSnapshot> {
+        self.world_snapshot.as_ref()
     }
 }
 

@@ -503,25 +503,11 @@ impl EditorCommandHandler {
         if let Some(play_state_manager) = &self.play_state_manager {
             if let Ok(mut manager) = play_state_manager.lock() {
                 match &action {
-                    EditorAction::StartPlay => {
-                        manager.start();
-                        // Update game state for control system
-                        if let Ok(mut state) = self.game_state.lock() {
-                            state.is_playing = true;
-                            state.is_paused = false;
-                        }
-                        self.log(format!("Processed StartPlay action directly: {:?}", action));
-                        return EditorResponse::Success;
-                    }
-                    EditorAction::StopPlay => {
-                        manager.stop();
-                        // Update game state for control system
-                        if let Ok(mut state) = self.game_state.lock() {
-                            state.is_playing = false;
-                            state.is_paused = false;
-                        }
-                        self.log(format!("Processed StopPlay action directly: {:?}", action));
-                        return EditorResponse::Success;
+                    EditorAction::StartPlay | EditorAction::StopPlay => {
+                        // StartPlay/StopPlay actions require world access for snapshots
+                        // These must be handled by the main editor, not the control system
+                        // Fall through to channel processing to ensure proper snapshot handling
+                        self.log(format!("StartPlay/StopPlay action requires main editor processing for snapshots: {:?}", action));
                     }
                     EditorAction::PausePlay => {
                         manager.pause();

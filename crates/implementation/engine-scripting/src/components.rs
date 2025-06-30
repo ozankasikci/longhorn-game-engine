@@ -118,7 +118,7 @@ impl_component!(LuaScript);
 
 /// TypeScriptScript component for attaching TypeScript scripts to entities
 /// Similar to LuaScript but for TypeScript/JavaScript execution
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TypeScriptScript {
     /// Path to the TypeScript script file (primary script for backward compatibility)
     pub script_path: String,

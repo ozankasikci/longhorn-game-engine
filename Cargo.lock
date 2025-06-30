@@ -2020,6 +2020,7 @@ dependencies = [
 name = "engine-editor-framework"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "egui",
  "engine-components-2d",
  "engine-components-3d",
@@ -2037,6 +2038,8 @@ dependencies = [
  "instant",
  "log",
  "serde",
+ "thiserror",
+ "uuid",
 ]
 
 [[package]]

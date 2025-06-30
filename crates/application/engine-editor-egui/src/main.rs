@@ -725,9 +725,8 @@ impl LonghornEditor {
                     // Compile all TypeScript scripts before starting play mode
                     self.compile_all_typescript_scripts();
                     
-                    // Copy entities from editor world to coordinator world for play mode
-                    // No sync needed with single-world architecture
-                    self.coordinator.play_state_manager_mut().start();
+                    // Capture world snapshot before starting play mode for state restoration
+                    self.coordinator.play_state_manager_mut().start_with_snapshot(&self.world);
                     
                     // Update game state for control system
                     if let Ok(mut state) = self.game_state.lock() {
@@ -735,10 +734,13 @@ impl LonghornEditor {
                         state.is_paused = false;
                     }
                     
-                    log::info!("Started play mode via remote control");
+                    log::info!("Started play mode with world snapshot via remote control");
                 }
                 EditorAction::StopPlay => {
-                    self.coordinator.play_state_manager_mut().stop();
+                    // Restore world state from snapshot when stopping play mode
+                    if let Err(e) = self.coordinator.play_state_manager_mut().stop_with_restore(&mut self.world) {
+                        log::error!("Failed to restore world state from snapshot: {}", e);
+                    }
                     
                     // Update game state for control system
                     if let Ok(mut state) = self.game_state.lock() {
@@ -746,7 +748,7 @@ impl LonghornEditor {
                         state.is_paused = false;
                     }
                     
-                    log::info!("Stopped play mode via remote control");
+                    log::info!("Stopped play mode with world restoration via remote control");
                 }
                 EditorAction::PausePlay => {
                     self.coordinator.play_state_manager_mut().pause();
@@ -1217,9 +1219,8 @@ impl LonghornEditor {
             // Compile all TypeScript scripts before starting play mode
             self.compile_all_typescript_scripts();
             
-            // Copy entities from editor world to coordinator world for play mode
-            // No sync needed with single-world architecture
-            self.coordinator.play_state_manager_mut().start();
+            // Capture world snapshot before starting play mode for state restoration
+            self.coordinator.play_state_manager_mut().start_with_snapshot(&self.world);
         }
         if actions.pause_play {
             self.coordinator.play_state_manager_mut().pause();
@@ -1228,7 +1229,10 @@ impl LonghornEditor {
             self.coordinator.play_state_manager_mut().resume();
         }
         if actions.stop_play {
-            self.coordinator.play_state_manager_mut().stop();
+            // Restore world state from snapshot when stopping play mode
+            if let Err(e) = self.coordinator.play_state_manager_mut().stop_with_restore(&mut self.world) {
+                log::error!("Failed to restore world state from snapshot: {}", e);
+            }
         }
 
         // Handle test move action
