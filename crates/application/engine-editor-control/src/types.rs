@@ -29,6 +29,18 @@ pub enum EditorCommand {
     GetScriptErrors,
     GetCompilationEvents,
     
+    /// TypeScript Debugging
+    GetTypeScriptSystemStatus,
+    GetScriptInstances,
+    GetInitializedEntities,
+    GetDeadScripts,
+    GetScriptExecutionLogs,
+    TestScriptExecution { entity_id: u32 },
+    ValidateScriptFiles,
+    GetV8RuntimeStats,
+    TriggerScriptRecompilation { script_path: String },
+    SimulateFileChange { script_path: String },
+    
     /// General
     Ping,
     Shutdown,
@@ -49,6 +61,15 @@ pub enum EditorResponse {
     GameState(GameStateInfo),
     ScriptErrors(Vec<ScriptError>),
     CompilationEvents(Vec<CompilationEvent>),
+    
+    /// TypeScript Debugging responses
+    TypeScriptSystemStatus(TypeScriptSystemStatus),
+    ScriptInstances(Vec<ScriptInstanceInfo>),
+    InitializedEntities(Vec<u32>),
+    DeadScripts(Vec<u32>),
+    ScriptExecutionLogs(Vec<String>),
+    V8RuntimeStats(V8RuntimeStats),
+    FileValidationResults(Vec<FileValidationResult>),
     
     /// Error responses
     Error { message: String },
@@ -146,4 +167,50 @@ pub enum EditorAction {
     ResumePlay,
     SyncScriptRemoval { entity_id: u32, script_path: String },
     ForceScriptReinitialization,
+}
+
+/// TypeScript system status information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TypeScriptSystemStatus {
+    pub runtime_available: bool,
+    pub total_entities: usize,
+    pub initialized_entities: usize,
+    pub script_instances: usize,
+    pub dead_scripts: usize,
+    pub last_update_time: Option<String>,
+    pub compilation_events_pending: usize,
+}
+
+/// Information about a script instance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScriptInstanceInfo {
+    pub script_id: u32,
+    pub entity_id: u32,
+    pub script_path: String,
+    pub initialized: bool,
+    pub compilation_successful: bool,
+    pub last_error: Option<String>,
+}
+
+/// V8 runtime statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct V8RuntimeStats {
+    pub heap_used_bytes: usize,
+    pub heap_total_bytes: usize,
+    pub external_memory_bytes: usize,
+    pub script_instances_count: usize,
+    pub global_context_available: bool,
+}
+
+/// File validation result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileValidationResult {
+    pub file_path: String,
+    pub exists: bool,
+    pub readable: bool,
+    pub size_bytes: Option<u64>,
+    pub last_modified: Option<String>,
+    pub content_hash: Option<String>,
+    pub syntax_valid: Option<bool>,
+    pub error: Option<String>,
 }

@@ -389,55 +389,12 @@ impl LonghornEditor {
             }
         };
         
-        // Copy all entities with LuaScript components from editor world to coordinator world
-        let lua_script_entities: Vec<_> = self.world.query_legacy::<engine_scripting::components::LuaScript>()
-            .map(|(entity, script)| (entity, script.clone()))
-            .collect();
-            
         // Copy all entities with TypeScriptScript components from editor world to coordinator world
         let typescript_script_entities: Vec<_> = self.world.query_legacy::<engine_scripting::components::TypeScriptScript>()
             .map(|(entity, script)| (entity, script.clone()))
             .collect();
             
-        println!("[LonghornEditor] Syncing {} entities with LuaScript components to coordinator", lua_script_entities.len());
         println!("[LonghornEditor] Syncing {} entities with TypeScriptScript components to coordinator", typescript_script_entities.len());
-        
-        // Process Lua script entities
-        for (entity, script) in lua_script_entities {
-            // Spawn entity in coordinator world
-            let new_entity = coordinator_world.spawn();
-            
-            // Copy LuaScript component
-            if let Err(e) = coordinator_world.add_component(new_entity, script) {
-                println!("Failed to add LuaScript component: {:?}", e);
-                continue;
-            }
-            
-            // Copy Transform component if it exists
-            if let Some(transform) = self.world.get_component::<Transform>(entity) {
-                if let Err(e) = coordinator_world.add_component(new_entity, transform.clone()) {
-                    println!("Failed to add Transform component: {:?}", e);
-                }
-            }
-            
-            // Copy Mesh component if it exists (CRITICAL FIX: entities need Mesh to be rendered!)
-            if let Some(mesh) = self.world.get_component::<engine_components_3d::Mesh>(entity) {
-                if let Err(e) = coordinator_world.add_component(new_entity, mesh.clone()) {
-                    println!("Failed to add Mesh component: {:?}", e);
-                }
-            }
-            
-            // Copy Material component if it exists (needed for proper rendering)
-            if let Some(material) = self.world.get_component::<engine_components_3d::Material>(entity) {
-                if let Err(e) = coordinator_world.add_component(new_entity, material.clone()) {
-                    println!("Failed to add Material component: {:?}", e);
-                }
-            }
-            
-            println!("  Copied Lua entity {:?} -> {:?} with script: {}", entity, new_entity, 
-                coordinator_world.get_component::<engine_scripting::components::LuaScript>(new_entity)
-                    .map(|s| s.script_path.as_str()).unwrap_or("Unknown"));
-        }
         
         // Process TypeScript script entities
         for (entity, script) in typescript_script_entities {
@@ -452,9 +409,14 @@ impl LonghornEditor {
             
             // Copy Transform component if it exists
             if let Some(transform) = self.world.get_component::<Transform>(entity) {
+                println!("  Copying Transform component: pos={:?}", transform.position);
                 if let Err(e) = coordinator_world.add_component(new_entity, transform.clone()) {
-                    println!("Failed to add Transform component: {:?}", e);
+                    println!("  ❌ Failed to add Transform component: {:?}", e);
+                } else {
+                    println!("  ✅ Successfully copied Transform component");
                 }
+            } else {
+                println!("  ⚠️ No Transform component found on entity");
             }
             
             // Copy Mesh component if it exists (CRITICAL FIX: entities need Mesh to be rendered!)
@@ -718,12 +680,18 @@ impl LonghornEditor {
     fn process_editor_actions(&mut self) {
         // Process all pending actions
         while let Ok(action) = self.action_receiver.try_recv() {
+            println!("🚀 PROCESSING EDITOR ACTION: {:?}", action);
             log::info!("Processing editor action: {:?}", action);
             
             match action {
                 EditorAction::StartPlay => {
+                    println!("🚀 START PLAY ACTION TRIGGERED!");
                     // Compile all TypeScript scripts before starting play mode
                     self.compile_all_typescript_scripts();
+                    
+                    // CRITICAL FIX: Sync editor world entities to coordinator world for script execution
+                    println!("🚀 CALLING SYNC_EDITOR_WORLD_TO_COORDINATOR");
+                    self.sync_editor_world_to_coordinator();
                     
                     // Capture world snapshot before starting play mode for state restoration
                     self.coordinator.play_state_manager_mut().start_with_snapshot(&self.world);
@@ -734,7 +702,7 @@ impl LonghornEditor {
                         state.is_paused = false;
                     }
                     
-                    log::info!("Started play mode with world snapshot via remote control");
+                    log::info!("Started play mode with world snapshot and entity sync via remote control");
                 }
                 EditorAction::StopPlay => {
                     // Restore world state from snapshot when stopping play mode
@@ -1218,6 +1186,12 @@ impl LonghornEditor {
         if actions.start_play {
             // Compile all TypeScript scripts before starting play mode
             self.compile_all_typescript_scripts();
+
+            // Ensure the runtime sees the latest editor world state before play mode begins
+            self.sync_editor_world_to_coordinator();
+
+            // Clear any stale TypeScript runtime state so scripts re-run cleanly
+            self.coordinator.force_script_reinitialization();
             
             // Capture world snapshot before starting play mode for state restoration
             self.coordinator.play_state_manager_mut().start_with_snapshot(&self.world);

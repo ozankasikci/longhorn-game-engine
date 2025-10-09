@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::typescript_script_system::SimpleTypeScriptRuntime;
-    use crate::lua::engine::get_and_clear_console_messages;
+    use crate::get_and_clear_console_messages;
 
     #[test]
     fn test_typescript_console_log_appears_in_game_engine_console() {
@@ -105,10 +105,11 @@ mod tests {
         runtime.call_init(1).unwrap();
         
         // Simulate Lua console output by adding message directly
-        crate::lua::engine::CONSOLE_MESSAGES.lock().unwrap().push(
-            crate::lua::engine::ConsoleMessage {
-                message: "Lua message".to_string(),
+        crate::typescript_script_system::CONSOLE_MESSAGES.lock().unwrap().push_back(
+            crate::ConsoleMessage {
+                message: "TypeScript message".to_string(),
                 timestamp: std::time::SystemTime::now(),
+                script_path: "test.ts".to_string(),
             }
         );
         

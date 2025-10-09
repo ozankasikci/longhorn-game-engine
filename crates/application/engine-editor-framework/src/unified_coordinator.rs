@@ -6,7 +6,7 @@
 use engine_runtime::{HybridGameLoop, EngineMode, HybridFrameResult};
 use engine_runtime_core::{System, SystemError, GameContext, HotReloadManager, HotReloadEvent, AssetType};
 use engine_ecs_core::World;
-use engine_scripting::{LuaScriptSystem, TypeScriptScriptSystem, components::{LuaScript, TypeScriptScript}};
+use engine_scripting::{TypeScriptScriptSystem, components::{TypeScriptScript}};
 use crate::{EditorState, PlayStateManager, PlayState};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -52,12 +52,6 @@ impl UnifiedEditorCoordinator {
             world: Arc::clone(&ecs_world),
         }));
         
-        // Add Lua scripting system
-        let lua_system = LuaScriptSystemWrapper {
-            system: LuaScriptSystem::new().expect("Failed to create LuaScriptSystem"),
-            coordinator_world: Arc::clone(&ecs_world),
-        };
-        scheduler.add_system(Box::new(lua_system));
         
         // Add TypeScript scripting system
         let typescript_system = TypeScriptScriptSystemWrapper {
@@ -355,12 +349,6 @@ impl UnifiedEditorCoordinator {
             }
         }
         
-        // Update Lua system world reference
-        if let Some(system) = scheduler.find_system_mut("LuaScriptSystem") {
-            if let Some(wrapper) = system.as_any_mut().downcast_mut::<LuaScriptSystemWrapper>() {
-                wrapper.coordinator_world = Arc::clone(&self.ecs_world);
-            }
-        }
     }
     
     /// Force complete script reinitialization for stop/start cycles
@@ -520,53 +508,6 @@ impl std::fmt::Debug for RenderingSystem {
     }
 }
 
-/// Wrapper for LuaScriptSystem that provides world access  
-struct LuaScriptSystemWrapper {
-    system: LuaScriptSystem,
-    coordinator_world: Arc<Mutex<World>>,
-}
-
-impl System for LuaScriptSystemWrapper {
-    fn execute(&mut self, _context: &mut GameContext, delta_time: f32) -> Result<(), SystemError> {
-        // CRITICAL DEBUG: Always log system execution
-        eprintln!("🚨 LuaScriptSystemWrapper::execute() called! delta_time={}", delta_time);
-        
-        // Execute scripts with world access
-        let world_lock = self.coordinator_world.lock().unwrap();
-        let script_count = world_lock.query_legacy::<LuaScript>().count();
-        drop(world_lock);
-        
-        eprintln!("🚨 Lua script count: {}", script_count);
-        
-        if script_count > 0 {
-            eprintln!("🚨 EXECUTING Lua scripts!");
-            println!("[LuaScriptSystemWrapper] Executing {} scripts", script_count);
-        } else {
-            eprintln!("🚨 No Lua scripts to execute");
-        }
-        
-        self.system.execute_scripts_from_world(Arc::clone(&self.coordinator_world), delta_time)
-            .map_err(|e| SystemError::ExecutionFailed(format!("LuaScriptSystem error: {}", e)))
-    }
-    
-    fn name(&self) -> &str {
-        "LuaScriptSystem"
-    }
-    
-    fn is_fixed_timestep(&self) -> bool {
-        true
-    }
-    
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
-
-impl std::fmt::Debug for LuaScriptSystemWrapper {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LuaScriptSystemWrapper").finish()
-    }
-}
 
 /// Wrapper for TypeScriptScriptSystem that provides world access
 struct TypeScriptScriptSystemWrapper {

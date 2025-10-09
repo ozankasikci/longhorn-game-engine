@@ -53,7 +53,7 @@ impl ScriptManager {
 
         let metadata = ScriptMetadata {
             id: script_id,
-            script_type: ScriptType::Lua, // For now, assume Lua
+            script_type: ScriptType::TypeScript, // Default to TypeScript
             path: path.to_string(),
             entry_point: None,
         };

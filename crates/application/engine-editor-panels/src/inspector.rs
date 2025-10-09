@@ -6,7 +6,7 @@ use engine_components_3d::{Light, Material, MeshFilter, MeshRenderer, Transform,
 use engine_components_ui::{Canvas, Name};
 use engine_ecs_core::{Entity, World};
 use engine_renderer_3d::Camera;
-use engine_scripting::components::{LuaScript, TypeScriptScript};
+use engine_scripting::components::TypeScriptScript;
 use engine_scripting::examples::typescript_examples::{
     get_all_typescript_examples, get_typescript_examples_by_category, 
     get_typescript_examples_by_difficulty, get_beginner_typescript_examples,
@@ -48,7 +48,6 @@ impl Default for ScriptTemplate {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScriptLanguage {
     TypeScript,
-    Lua, // Still supported but not prominent in UI
 }
 
 /// Item for script selection dialog
@@ -572,70 +571,6 @@ impl InspectorPanel {
                     });
                 }
 
-                // LuaScript Component
-                if let Some(lua_script) = world.get_component::<LuaScript>(selected_entity).cloned() {
-                    ui.collapsing(&format!("📜 Lua Scripts ({})", lua_script.script_count()), |ui| {
-                        let mut lua_script_modified = lua_script.clone();
-                        let mut changed = false;
-                        
-                        ui.horizontal(|ui| {
-                            ui.label("Component enabled:");
-                            changed |= ui.checkbox(&mut lua_script_modified.enabled, "").changed();
-                            ui.label("Execution order:");
-                            changed |= ui.add(egui::DragValue::new(&mut lua_script_modified.execution_order).range(-1000..=1000)).changed();
-                        });
-                        
-                        ui.separator();
-                        
-                        // Display all scripts
-                        let all_scripts = lua_script.get_all_scripts();
-                        for (index, script_path) in all_scripts.iter().enumerate() {
-                            ui.horizontal(|ui| {
-                                if index == 0 {
-                                    ui.label("📜 Primary:");
-                                } else {
-                                    ui.label(&format!("📜 Script {}:", index + 1));
-                                }
-                                ui.label(*script_path);
-                                
-                                if ui.small_button("🗑️").on_hover_text("Remove this script").clicked() {
-                                    if lua_script_modified.remove_script(script_path) {
-                                        changed = true;
-                                    } else {
-                                        // Primary script removed and no other scripts - remove component
-                                        let _ = world.remove_component::<LuaScript>(selected_entity);
-                                        return; // Exit early since component is gone
-                                    }
-                                }
-                            });
-                        }
-                        
-                        ui.separator();
-                        ui.horizontal(|ui| {
-                            if ui.button("➕ Add Script").clicked() {
-                                self.show_script_selection_dialog = true;
-                            }
-                            if ui.button("🔄 Reload All").clicked() {
-                                // TODO: Implement script reloading
-                            }
-                            if ui.button("🗑️ Remove Component").clicked() {
-                                let _ = world.remove_component::<LuaScript>(selected_entity);
-                            }
-                        });
-                        
-                        if let Some(instance_id) = lua_script.instance_id {
-                            ui.separator();
-                            ui.label(format!("Instance ID: {}", instance_id));
-                        }
-                        
-                        // Apply changes
-                        if changed {
-                            if let Some(script_mut) = world.get_component_mut::<LuaScript>(selected_entity) {
-                                *script_mut = lua_script_modified;
-                            }
-                        }
-                    });
-                }
 
                 // TypeScript Script Component
                 if let Some(typescript_script) = world.get_component::<TypeScriptScript>(selected_entity).cloned() {
@@ -722,10 +657,6 @@ impl InspectorPanel {
                     if world.get_component::<Material>(selected_entity).is_some() {
                         component_count += 1;
                         component_list.push("Material");
-                    }
-                    if world.get_component::<LuaScript>(selected_entity).is_some() {
-                        component_count += 1;
-                        component_list.push("LuaScript");
                     }
                     if world.get_component::<TypeScriptScript>(selected_entity).is_some() {
                         component_count += 1;
@@ -880,12 +811,6 @@ impl InspectorPanel {
                     self.show_script_selection_dialog = true; // Show script selection with examples
                 }
                 
-                // Lua Script Component (secondary option)
-                if ui.button("🌙 Lua Script Component").clicked() {
-                    self.show_add_component_dialog = false;
-                    self.script_creation_language = ScriptLanguage::Lua; // Set to Lua
-                    self.show_script_selection_dialog = true;
-                }
 
                 ui.separator();
                 if ui.button("Cancel").clicked() {
@@ -946,29 +871,6 @@ impl InspectorPanel {
                                             }
                                         }
                                     }
-                                    ScriptLanguage::Lua => {
-                                        if extension == "lua" {
-                                            let script_name = entry.file_name().to_string_lossy().to_string();
-                                            let script_path = format!("assets/scripts/{}", script_name);
-                                            
-                                            if ui.button(&script_name).clicked() {
-                                                // Check if entity already has LuaScript component
-                                                if let Some(mut lua_script) = world.get_component_mut::<LuaScript>(entity) {
-                                                    // Add to existing component
-                                                    lua_script.add_script(script_path.clone());
-                                                    self.show_script_selection_dialog = false;
-                                                } else {
-                                                    // Create new component
-                                                    match world.add_component(entity, LuaScript::new(script_path)) {
-                                                        Ok(_) => {
-                                                            self.show_script_selection_dialog = false;
-                                                        }
-                                                        Err(_e) => {}
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -1020,35 +922,6 @@ impl InspectorPanel {
                                 }
                             });
                         }
-                        ScriptLanguage::Lua => {
-                            // Show Lua examples (original behavior)
-                            let example_scripts = [
-                                ("Entity Template", "crates/implementation/engine-scripting/lua/examples/entity_template.lua"),
-                                ("Player Controller", "crates/implementation/engine-scripting/lua/examples/player_controller.lua"),
-                                ("Enemy AI", "crates/implementation/engine-scripting/lua/examples/enemy_ai.lua"),
-                                ("Game Manager", "crates/implementation/engine-scripting/lua/examples/game_manager.lua"),
-                                ("Basic Template", "crates/implementation/engine-scripting/lua/examples/basic_template.lua"),
-                            ];
-
-                            for (name, path) in example_scripts {
-                                if ui.button(name).clicked() {
-                                    // Check if entity already has LuaScript component
-                                    if let Some(mut lua_script) = world.get_component_mut::<LuaScript>(entity) {
-                                        // Add to existing component
-                                        lua_script.add_script(path.to_string());
-                                        self.show_script_selection_dialog = false;
-                                    } else {
-                                        // Create new component
-                                        match world.add_component(entity, LuaScript::new(path.to_string())) {
-                                            Ok(_) => {
-                                                self.show_script_selection_dialog = false;
-                                            }
-                                            Err(_e) => {}
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                 });
 
@@ -1064,7 +937,6 @@ impl InspectorPanel {
         let mut dialog_open = self.show_script_creation_dialog;
         let language_name = match self.script_creation_language {
             ScriptLanguage::TypeScript => "TypeScript",
-            ScriptLanguage::Lua => "Lua",
         };
         
         egui::Window::new("Create New Script")
@@ -1116,15 +988,6 @@ impl InspectorPanel {
                             let (_file_extension, script_name) = match self.script_creation_language {
                                 ScriptLanguage::TypeScript => {
                                     let ext = ".ts";
-                                    let name = if !self.script_creation_name.ends_with(ext) {
-                                        format!("{}{}", self.script_creation_name, ext)
-                                    } else {
-                                        self.script_creation_name.clone()
-                                    };
-                                    (ext, name)
-                                }
-                                ScriptLanguage::Lua => {
-                                    let ext = ".lua";
                                     let name = if !self.script_creation_name.ends_with(ext) {
                                         format!("{}{}", self.script_creation_name, ext)
                                     } else {
@@ -1189,30 +1052,6 @@ export class {class_name} {{
 }}
 "#, class_name = class_name)
                                 }
-                                (ScriptLanguage::Lua, ScriptTemplate::Entity) => {
-                                    format!(r#"-- Entity script: {}
--- This script is attached to a specific entity
-
-local {module_name} = {{}}
-
-function {module_name}:init()
-    -- Called when the entity is created
-    print("[{module_name}] Entity started!")
-end
-
-function {module_name}:update(dt)
-    -- Called every frame
-    -- dt is the delta time in seconds
-end
-
-function {module_name}:destroy()
-    -- Called when the entity is destroyed
-    print("[{module_name}] Entity destroyed!")
-end
-
-return {module_name}
-"#, script_name=script_name, module_name=script_name.replace(".lua", "").replace("-", "_"))
-                                }
                                 (ScriptLanguage::TypeScript, ScriptTemplate::Behavior) => {
                                     let class_name = script_name.replace(".ts", "").replace("-", "_")
                                         .chars().enumerate().map(|(i, c)| {
@@ -1249,29 +1088,6 @@ export class {class_name} implements Behavior {{
     }}
 }}
 "#, class_name = class_name)
-                                }
-                                (ScriptLanguage::Lua, ScriptTemplate::Behavior) => {
-                                    format!(r#"-- Behavior script: {}
--- Reusable behavior that can be attached to entities
-
-local behavior = {{}}
-
-function behavior.start(entity)
-    -- Called when attached to an entity
-    print("Behavior started on entity: " .. tostring(entity))
-end
-
-function behavior.update(entity, dt)
-    -- Called every frame for each entity with this behavior
-end
-
-function behavior.on_destroy(entity)
-    -- Called when detached from an entity
-    print("Behavior removed from entity: " .. tostring(entity))
-end
-
-return behavior
-"#, script_name)
                                 }
                                 (ScriptLanguage::TypeScript, ScriptTemplate::System) => {
                                     let class_name = script_name.replace(".ts", "").replace("-", "_")
@@ -1314,30 +1130,6 @@ export class {class_name} implements System {{
 }}
 "#, class_name = class_name)
                                 }
-                                (ScriptLanguage::Lua, ScriptTemplate::System) => {
-                                    format!(r#"-- System script: {}
--- Global system that operates on multiple entities
-
-local system = {{}}
-
-function system.initialize()
-    -- Called once when the system starts
-    print("System initialized!")
-end
-
-function system.update(dt)
-    -- Called every frame
-    -- Process entities here
-end
-
-function system.shutdown()
-    -- Called when the system shuts down
-    print("System shutdown!")
-end
-
-return system
-"#, script_name)
-                                }
                             };
 
                             if let Ok(_) = std::fs::write(&script_path, template_content) {
@@ -1351,24 +1143,6 @@ return system
                                                 self.script_creation_name.clear();
                                             }
                                             Err(_e) => {}
-                                        }
-                                    }
-                                    ScriptLanguage::Lua => {
-                                        // Check if entity already has LuaScript component
-                                        if let Some(mut lua_script) = world.get_component_mut::<LuaScript>(entity) {
-                                            // Add to existing component
-                                            lua_script.add_script(script_path.clone());
-                                            self.show_script_creation_dialog = false;
-                                            self.script_creation_name.clear();
-                                        } else {
-                                            // Create new component
-                                            match world.add_component(entity, LuaScript::new(script_path)) {
-                                                Ok(_) => {
-                                                    self.show_script_creation_dialog = false;
-                                                    self.script_creation_name.clear();
-                                                }
-                                                Err(_e) => {}
-                                            }
                                         }
                                     }
                                 }
@@ -1403,7 +1177,6 @@ return system
 
         let file_extension = match self.script_creation_language {
             ScriptLanguage::TypeScript => "ts",
-            ScriptLanguage::Lua => "lua",
         };
 
         let file_path = scripts_dir.join(format!("{}.{}", script_name, file_extension));
@@ -1494,8 +1267,8 @@ export class {} implements System {{
                     script_name, class_name, script_name, script_name
                 )
             }
-            // Fallback for Lua (existing implementation)
-            _ => format!("-- Script: {}\n\nprint(\"Hello from {}\")", script_name, script_name),
+            // Fallback for other script types
+            _ => format!("// Script: {}\n\nconsole.log(\"Hello from {}\");", script_name, script_name),
         };
 
         fs::write(&file_path, content).map_err(|e| e.to_string())?;
@@ -1513,18 +1286,6 @@ export class {} implements System {{
                 // Create new component
                 let script = TypeScriptScript::new(script_path.to_string());
                 world.add_component(entity, script).map_err(|e| format!("Failed to attach TypeScript script: {:?}", e))?;
-                Ok(())
-            }
-        } else if script_path.ends_with(".lua") {
-            // Check if entity already has LuaScript component
-            if let Some(mut lua_script) = world.get_component_mut::<LuaScript>(entity) {
-                // Add to existing component
-                lua_script.add_script(script_path.to_string());
-                Ok(())
-            } else {
-                // Create new component
-                let script = LuaScript::new(script_path.to_string());
-                world.add_component(entity, script).map_err(|e| format!("Failed to attach Lua script: {:?}", e))?;
                 Ok(())
             }
         } else {
@@ -1763,7 +1524,7 @@ export class {} implements System {{
 
     /// Check if TypeScript should show script selection dialog
     pub fn should_show_script_selection_for_typescript(&self) -> bool {
-        true // TypeScript should support script selection like Lua
+        true // TypeScript supports script selection
     }
 
     /// Get items for TypeScript script selection dialog

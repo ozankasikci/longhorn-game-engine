@@ -10,7 +10,6 @@ pub mod typescript_examples;
 pub mod typescript_examples_tests;
 
 use crate::ScriptError;
-use mlua::Lua;
 use std::collections::HashMap;
 
 /// Example script metadata
@@ -60,17 +59,13 @@ pub struct ValidationResult {
 /// Example script validator
 pub struct ExampleValidator {
     examples: HashMap<String, ExampleScript>,
-    lua_context: Lua,
 }
 
 impl ExampleValidator {
     /// Create a new example validator
     pub fn new() -> Result<Self, ScriptError> {
-        let lua = Lua::new();
-        
         Ok(Self {
             examples: HashMap::new(),
-            lua_context: lua,
         })
     }
     
@@ -92,18 +87,10 @@ impl ExampleValidator {
         let mut errors = Vec::new();
         let mut success = true;
         
-        // Execute the example script
-        match self.lua_context.load(&example.code).exec() {
-            Ok(_) => {
-                // Check if expected outputs were generated
-                for expected in &example.expected_outputs {
-                    outputs.push(format!("Expected: {}", expected));
-                }
-            }
-            Err(e) => {
-                success = false;
-                errors.push(format!("Execution error: {}", e));
-            }
+        // For now, just check if expected outputs were defined
+        // TODO: Implement TypeScript execution validation
+        for expected in &example.expected_outputs {
+            outputs.push(format!("Expected: {}", expected));
         }
         
         let execution_time = start_time.elapsed();

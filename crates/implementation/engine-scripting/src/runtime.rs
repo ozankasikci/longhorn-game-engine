@@ -27,9 +27,9 @@ pub trait ScriptRuntime {
 pub fn create_runtime(script_type: ScriptType) -> ScriptResult<Box<dyn ScriptRuntime>> {
     match script_type {
         ScriptType::Lua => {
-            let mut engine = crate::lua::LuaScriptEngine::new()?;
-            engine.initialize()?;
-            Ok(Box::new(engine))
+            Err(ScriptError::runtime(
+                "Lua support has been removed from the engine".to_string()
+            ))
         }
         ScriptType::TypeScript => {
             Err(ScriptError::runtime(

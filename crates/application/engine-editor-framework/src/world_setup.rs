@@ -10,7 +10,7 @@ use engine_components_ui::Name;
 use engine_ecs_core::{Entity, World, WorldBundleExt};
 use engine_geometry_core::{MeshData, Vertex};
 use engine_resource_core::{ResourceHandle, ResourceId};
-use engine_scripting::components::{LuaScript, TypeScriptScript};
+use engine_scripting::components::TypeScriptScript;
 use glam::{Vec2, Vec3};
 
 /// Creates a default world with sample entities for the editor
@@ -30,7 +30,6 @@ pub fn create_default_world() -> (World, Entity) {
     engine_ecs_core::register_component::<MeshFilter>();
     engine_ecs_core::register_component::<MeshRenderer>();
     engine_ecs_core::register_component::<Mesh>();
-    engine_ecs_core::register_component::<LuaScript>();
     engine_ecs_core::register_component::<TypeScriptScript>();
 
     // Create camera entity with bundle - SIMPLIFIED for coordinate system testing

@@ -222,7 +222,7 @@ fn convert_notify_event(event: NotifyEvent) -> Option<HotReloadEvent> {
                     Some("png") | Some("jpg") | Some("jpeg") => AssetType::Texture,
                     Some("obj") | Some("fbx") | Some("gltf") => AssetType::Model,
                     Some("wgsl") | Some("glsl") => AssetType::Shader,
-                    Some("lua") | Some("js") | Some("ts") => AssetType::Script,
+                    Some("js") | Some("ts") => AssetType::Script,
                     Some("wav") | Some("mp3") | Some("ogg") => AssetType::Audio,
                     Some("toml") | Some("json") | Some("yaml") => AssetType::Config,
                     Some("txt") => AssetType::Script, // For testing
@@ -277,7 +277,6 @@ mod tests {
             ("test.png", AssetType::Texture),
             ("model.obj", AssetType::Model),
             ("shader.wgsl", AssetType::Shader),
-            ("script.lua", AssetType::Script),
             ("sound.wav", AssetType::Audio),
             ("config.toml", AssetType::Config),
         ];
@@ -290,7 +289,7 @@ mod tests {
                     "png" | "jpg" | "jpeg" => AssetType::Texture,
                     "obj" | "fbx" | "gltf" => AssetType::Model,
                     "wgsl" | "glsl" => AssetType::Shader,
-                    "lua" | "js" => AssetType::Script,
+                    "js" => AssetType::Script,
                     "wav" | "mp3" | "ogg" => AssetType::Audio,
                     "toml" | "json" | "yaml" => AssetType::Config,
                     _ => panic!("Unknown extension"),

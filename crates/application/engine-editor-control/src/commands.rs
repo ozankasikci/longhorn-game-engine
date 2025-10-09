@@ -3,7 +3,7 @@
 use crate::types::*;
 use engine_ecs_core::{Entity, World};
 use engine_scripting::components::TypeScriptScript;
-use engine_scripting::lua::engine::{CONSOLE_MESSAGES, ConsoleMessage};
+use engine_scripting::typescript_script_system::{CONSOLE_MESSAGES, ConsoleMessage};
 use engine_components_3d::Transform;
 use engine_components_ui::Name;
 use engine_editor_framework::PlayStateManager;
@@ -153,6 +153,47 @@ impl EditorCommandHandler {
             
             EditorCommand::ResumeGame => {
                 self.send_editor_action(EditorAction::ResumePlay)
+            }
+            
+            // TypeScript Debugging Commands
+            EditorCommand::GetTypeScriptSystemStatus => {
+                self.get_typescript_system_status()
+            }
+            
+            EditorCommand::GetScriptInstances => {
+                self.get_script_instances()
+            }
+            
+            EditorCommand::GetInitializedEntities => {
+                self.get_initialized_entities()
+            }
+            
+            EditorCommand::GetDeadScripts => {
+                self.get_dead_scripts()
+            }
+            
+            EditorCommand::GetScriptExecutionLogs => {
+                self.get_script_execution_logs()
+            }
+            
+            EditorCommand::TestScriptExecution { entity_id } => {
+                self.test_script_execution(entity_id)
+            }
+            
+            EditorCommand::ValidateScriptFiles => {
+                self.validate_script_files()
+            }
+            
+            EditorCommand::GetV8RuntimeStats => {
+                self.get_v8_runtime_stats()
+            }
+            
+            EditorCommand::TriggerScriptRecompilation { script_path } => {
+                self.trigger_script_recompilation(script_path)
+            }
+            
+            EditorCommand::SimulateFileChange { script_path } => {
+                self.simulate_file_change(script_path)
             }
             
             _ => EditorResponse::Error {
@@ -563,5 +604,256 @@ impl EditorCommandHandler {
                 message: "Editor action channel not available".to_string(),
             }
         }
+    }
+
+    /// Get comprehensive TypeScript system status
+    fn get_typescript_system_status(&self) -> EditorResponse {
+        self.log("Getting TypeScript system status".to_string());
+        
+        let world = self.world.lock().unwrap();
+        
+        // Count entities with TypeScript components
+        let mut total_entities = 0;
+        let mut enabled_entities = 0;
+        
+        for (_, script_component) in world.query_legacy::<engine_scripting::components::TypeScriptScript>() {
+            total_entities += 1;
+            if script_component.enabled {
+                enabled_entities += 1;
+            }
+        }
+        
+        // Get compilation events count
+        let compilation_events = engine_scripting::get_and_clear_compilation_events();
+        let events_count = compilation_events.len();
+        
+        // Put events back (we just wanted to count them)
+        for event in compilation_events {
+            engine_scripting::add_compilation_event(event);
+        }
+        
+        let status = crate::types::TypeScriptSystemStatus {
+            runtime_available: true, // TODO: Check actual runtime status
+            total_entities,
+            initialized_entities: enabled_entities, // Approximation
+            script_instances: 0, // TODO: Get from script system
+            dead_scripts: 0, // TODO: Get from script system
+            last_update_time: Some(chrono::Utc::now().to_rfc3339()),
+            compilation_events_pending: events_count,
+        };
+        
+        EditorResponse::TypeScriptSystemStatus(status)
+    }
+    
+    /// Get all script instances information
+    fn get_script_instances(&self) -> EditorResponse {
+        self.log("Getting script instances".to_string());
+        
+        let world = self.world.lock().unwrap();
+        let mut instances = Vec::new();
+        
+        for (entity, script_component) in world.query_legacy::<engine_scripting::components::TypeScriptScript>() {
+            for script_path in script_component.get_all_scripts() {
+                instances.push(crate::types::ScriptInstanceInfo {
+                    script_id: 0, // TODO: Get actual script ID
+                    entity_id: entity.id(),
+                    script_path: script_path.clone(),
+                    initialized: script_component.enabled,
+                    compilation_successful: true, // TODO: Get actual status
+                    last_error: None,
+                });
+            }
+        }
+        
+        EditorResponse::ScriptInstances(instances)
+    }
+    
+    /// Get list of initialized entities
+    fn get_initialized_entities(&self) -> EditorResponse {
+        self.log("Getting initialized entities".to_string());
+        
+        let world = self.world.lock().unwrap();
+        let mut entity_ids = Vec::new();
+        
+        for (entity, script_component) in world.query_legacy::<engine_scripting::components::TypeScriptScript>() {
+            if script_component.enabled {
+                entity_ids.push(entity.id());
+            }
+        }
+        
+        EditorResponse::InitializedEntities(entity_ids)
+    }
+    
+    /// Get list of dead scripts
+    fn get_dead_scripts(&self) -> EditorResponse {
+        self.log("Getting dead scripts".to_string());
+        
+        // TODO: Access the actual dead scripts set from TypeScriptScriptSystem
+        let dead_scripts = Vec::new();
+        
+        EditorResponse::DeadScripts(dead_scripts)
+    }
+    
+    /// Get script execution logs
+    fn get_script_execution_logs(&self) -> EditorResponse {
+        self.log("Getting script execution logs".to_string());
+        
+        // Get recent logs that contain script execution information
+        let logs = self.logs.lock().unwrap();
+        let script_logs: Vec<String> = logs.iter()
+            .filter(|log| log.contains("SCRIPT") || log.contains("TypeScript") || log.contains("🔍"))
+            .cloned()
+            .collect();
+        
+        EditorResponse::ScriptExecutionLogs(script_logs)
+    }
+    
+    /// Test script execution for a specific entity
+    fn test_script_execution(&self, entity_id: u32) -> EditorResponse {
+        self.log(format!("Testing script execution for entity {}", entity_id));
+        
+        let world = self.world.lock().unwrap();
+        
+        // Find the entity
+        if let Some(entity) = self.find_entity_by_id(&world, entity_id) {
+            if let Some(script_component) = world.get_component::<engine_scripting::components::TypeScriptScript>(entity) {
+                let scripts = script_component.get_all_scripts();
+                self.log(format!("Entity {} has {} scripts: {:?}", entity_id, scripts.len(), scripts));
+                
+                // TODO: Trigger actual script execution test
+                EditorResponse::Success
+            } else {
+                EditorResponse::Error {
+                    message: format!("Entity {} has no TypeScript component", entity_id),
+                }
+            }
+        } else {
+            EditorResponse::EntityNotFound { entity_id }
+        }
+    }
+    
+    /// Validate all script files
+    fn validate_script_files(&self) -> EditorResponse {
+        self.log("Validating script files".to_string());
+        
+        let world = self.world.lock().unwrap();
+        let mut validation_results = Vec::new();
+        
+        for (entity, script_component) in world.query_legacy::<engine_scripting::components::TypeScriptScript>() {
+            for script_path in script_component.get_all_scripts() {
+                let result = self.validate_single_file(script_path);
+                validation_results.push(result);
+            }
+        }
+        
+        EditorResponse::FileValidationResults(validation_results)
+    }
+    
+    /// Validate a single script file
+    fn validate_single_file(&self, script_path: &str) -> crate::types::FileValidationResult {
+        let path = std::path::Path::new(script_path);
+        
+        let exists = path.exists();
+        let mut readable = false;
+        let mut size_bytes = None;
+        let mut last_modified = None;
+        let mut content_hash = None;
+        let mut syntax_valid = None;
+        let mut error = None;
+        
+        if exists {
+            match std::fs::read_to_string(script_path) {
+                Ok(content) => {
+                    readable = true;
+                    size_bytes = Some(content.len() as u64);
+                    
+                    // Calculate content hash
+                    use std::collections::hash_map::DefaultHasher;
+                    use std::hash::{Hash, Hasher};
+                    let mut hasher = DefaultHasher::new();
+                    content.hash(&mut hasher);
+                    content_hash = Some(format!("{:x}", hasher.finish()));
+                    
+                    // Get file metadata
+                    if let Ok(metadata) = std::fs::metadata(script_path) {
+                        if let Ok(modified) = metadata.modified() {
+                            if let Ok(duration) = modified.duration_since(std::time::UNIX_EPOCH) {
+                                last_modified = Some(duration.as_secs().to_string());
+                            }
+                        }
+                    }
+                    
+                    // Basic TypeScript syntax validation
+                    syntax_valid = Some(content.contains("class") || content.contains("function"));
+                }
+                Err(e) => {
+                    error = Some(format!("Failed to read file: {}", e));
+                }
+            }
+        } else {
+            error = Some("File does not exist".to_string());
+        }
+        
+        crate::types::FileValidationResult {
+            file_path: script_path.to_string(),
+            exists,
+            readable,
+            size_bytes,
+            last_modified,
+            content_hash,
+            syntax_valid,
+            error,
+        }
+    }
+    
+    /// Get V8 runtime statistics
+    fn get_v8_runtime_stats(&self) -> EditorResponse {
+        self.log("Getting V8 runtime stats".to_string());
+        
+        // TODO: Get actual V8 runtime statistics
+        let stats = crate::types::V8RuntimeStats {
+            heap_used_bytes: 0,
+            heap_total_bytes: 0,
+            external_memory_bytes: 0,
+            script_instances_count: 0,
+            global_context_available: true,
+        };
+        
+        EditorResponse::V8RuntimeStats(stats)
+    }
+    
+    /// Trigger script recompilation
+    fn trigger_script_recompilation(&self, script_path: String) -> EditorResponse {
+        self.log(format!("Triggering recompilation for script: {}", script_path));
+        
+        // Add a compilation event to trigger recompilation
+        engine_scripting::add_compilation_event(engine_scripting::CompilationEvent::Started {
+            script_path: script_path.clone(),
+        });
+        
+        self.log(format!("Added compilation event for: {}", script_path));
+        EditorResponse::Success
+    }
+    
+    /// Simulate file change for testing
+    fn simulate_file_change(&self, script_path: String) -> EditorResponse {
+        self.log(format!("Simulating file change for: {}", script_path));
+        
+        // Touch the file to update its modification time
+        if let Ok(content) = std::fs::read_to_string(&script_path) {
+            if let Err(e) = std::fs::write(&script_path, content) {
+                return EditorResponse::Error {
+                    message: format!("Failed to touch file {}: {}", script_path, e),
+                };
+            }
+        }
+        
+        // Trigger compilation event
+        engine_scripting::add_compilation_event(engine_scripting::CompilationEvent::Started {
+            script_path: script_path.clone(),
+        });
+        
+        self.log(format!("Simulated file change and triggered compilation for: {}", script_path));
+        EditorResponse::Success
     }
 }
