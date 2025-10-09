@@ -5,6 +5,16 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+// ScriptLanguage enum for asset typing
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScriptLanguage {
+    TypeScript,
+    Lua,
+}
+
+#[cfg(test)]
+mod typescript_tests;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AssetType {
     Mesh,
@@ -14,6 +24,8 @@ pub enum AssetType {
     Animation,
     Prefab,
     Script,
+    TypeScriptScript,
+    LuaScript,
     Other,
 }
 
@@ -30,17 +42,97 @@ pub struct AssetInfo {
     pub import_time: SystemTime,
 }
 
+impl AssetInfo {
+    /// Check if this asset is a TypeScript script
+    pub fn is_typescript_script(&self) -> bool {
+        matches!(self.asset_type, AssetType::TypeScriptScript)
+    }
+
+    /// Check if this asset is a Lua script
+    pub fn is_lua_script(&self) -> bool {
+        matches!(self.asset_type, AssetType::LuaScript)
+    }
+
+    /// Check if this asset is any kind of script
+    pub fn is_script(&self) -> bool {
+        matches!(
+            self.asset_type,
+            AssetType::Script | AssetType::TypeScriptScript | AssetType::LuaScript
+        )
+    }
+
+    /// Get the file extension of this asset
+    pub fn get_file_extension(&self) -> Option<&str> {
+        self.path.extension().and_then(|ext| ext.to_str())
+    }
+
+    /// Get the script language if this is a script asset
+    pub fn get_script_language(&self) -> Option<ScriptLanguage> {
+        match self.asset_type {
+            AssetType::TypeScriptScript => Some(ScriptLanguage::TypeScript),
+            AssetType::LuaScript => Some(ScriptLanguage::Lua),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct AssetBrowserState {
     assets: HashMap<ResourceId, AssetInfo>,
     selected_asset: Option<ResourceId>,
-    search_query: String,
+    pub search_query: String,
 }
 
 impl AssetBrowserState {
     #[allow(dead_code)]
     pub fn add_asset(&mut self, asset: AssetInfo) {
         self.assets.insert(asset.id, asset);
+    }
+
+    /// Get script assets sorted by TypeScript first, then Lua
+    pub fn get_script_assets_sorted(&self) -> impl Iterator<Item = &AssetInfo> {
+        let mut scripts: Vec<_> = self.assets
+            .values()
+            .filter(|asset| asset.is_script())
+            .collect();
+        
+        scripts.sort_by_key(|asset| match asset.asset_type {
+            AssetType::TypeScriptScript => 0, // TypeScript first
+            AssetType::LuaScript => 1,        // Lua second
+            AssetType::Script => 2,           // Generic scripts last
+            _ => 3,
+        });
+        
+        scripts.into_iter()
+    }
+
+    /// Get assets filtered by type and sorted appropriately
+    pub fn get_filtered_assets(&self) -> impl Iterator<Item = &AssetInfo> {
+        self.assets.values().filter(move |asset| {
+            if self.search_query.is_empty() {
+                true
+            } else {
+                asset.name.to_lowercase().contains(&self.search_query.to_lowercase())
+            }
+        })
+    }
+
+    /// Get assets organized by folder
+    pub fn get_assets_by_folder(&self) -> std::collections::HashMap<String, Vec<&AssetInfo>> {
+        use std::collections::HashMap;
+        
+        let mut organized = HashMap::new();
+        
+        for asset in self.assets.values() {
+            let folder = asset.path.parent()
+                .and_then(|p| p.to_str())
+                .unwrap_or("root")
+                .to_string();
+            
+            organized.entry(folder).or_insert_with(Vec::new).push(asset);
+        }
+        
+        organized
     }
 
     #[allow(dead_code)]
@@ -190,6 +282,8 @@ impl AssetBrowser {
                                                     AssetType::Animation => "🎬",
                                                     AssetType::Prefab => "📦",
                                                     AssetType::Script => "📜",
+                                                    AssetType::TypeScriptScript => "🔷",
+                                                    AssetType::LuaScript => "🌙",
                                                     AssetType::Other => "📄",
                                                 };
 

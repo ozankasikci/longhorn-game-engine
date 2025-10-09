@@ -45,7 +45,7 @@ pub mod undo_redo;
 pub use console::ConsolePanel;
 pub use game_view::GameViewPanel;
 pub use hierarchy::HierarchyPanel;
-pub use inspector::InspectorPanel;
+pub use inspector::{InspectorPanel, ScriptLanguage, ScriptTemplate};
 pub use project::ProjectPanel;
 
 // Re-export commonly used types

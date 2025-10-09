@@ -23,6 +23,7 @@ engine-components-ui = { workspace = true }
 engine-renderer-3d = { workspace = true }
 engine-resource-core = { workspace = true }
 engine-geometry-core = { workspace = true }
+engine-scripting = { workspace = true }
 
 # Math
 glam = { workspace = true }

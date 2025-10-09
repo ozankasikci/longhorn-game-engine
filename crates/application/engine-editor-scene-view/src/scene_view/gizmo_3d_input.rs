@@ -341,26 +341,31 @@ impl Gizmo3DInput {
         }
         if screen_corners.len() == 4 {
             // Create bounding box from all corners
+            // Safe min/max calculation with NaN handling
             let min_x = screen_corners
                 .iter()
                 .map(|p| p.x)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|x| x.is_finite())
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
             let max_x = screen_corners
                 .iter()
                 .map(|p| p.x)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|x| x.is_finite())
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
             let min_y = screen_corners
                 .iter()
                 .map(|p| p.y)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|y| y.is_finite())
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
             let max_y = screen_corners
                 .iter()
                 .map(|p| p.y)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|y| y.is_finite())
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
 
             // Add some padding for easier clicking
             let padding = 10.0; // pixels
@@ -391,26 +396,31 @@ impl Gizmo3DInput {
             }
         }
         if screen_corners.len() == 4 {
+            // Safe min/max calculation with NaN handling
             let min_x = screen_corners
                 .iter()
                 .map(|p| p.x)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|x| x.is_finite())
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
             let max_x = screen_corners
                 .iter()
                 .map(|p| p.x)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|x| x.is_finite())
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
             let min_y = screen_corners
                 .iter()
                 .map(|p| p.y)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|y| y.is_finite())
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
             let max_y = screen_corners
                 .iter()
                 .map(|p| p.y)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|y| y.is_finite())
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
 
             let padding = 5.0;
             let hit_rect = egui::Rect::from_min_max(
@@ -440,26 +450,31 @@ impl Gizmo3DInput {
             }
         }
         if screen_corners.len() == 4 {
+            // Safe min/max calculation with NaN handling
             let min_x = screen_corners
                 .iter()
                 .map(|p| p.x)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|x| x.is_finite())
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
             let max_x = screen_corners
                 .iter()
                 .map(|p| p.x)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|x| x.is_finite())
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
             let min_y = screen_corners
                 .iter()
                 .map(|p| p.y)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|y| y.is_finite())
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
             let max_y = screen_corners
                 .iter()
                 .map(|p| p.y)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .filter(|y| y.is_finite())
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(0.0);
 
             let padding = 5.0;
             let hit_rect = egui::Rect::from_min_max(

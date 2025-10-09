@@ -10,6 +10,7 @@ use engine_components_ui::Name;
 use engine_ecs_core::{Entity, World, WorldBundleExt};
 use engine_geometry_core::{MeshData, Vertex};
 use engine_resource_core::{ResourceHandle, ResourceId};
+use engine_scripting::components::TypeScriptScript;
 use glam::{Vec2, Vec3};
 
 /// Creates a default world with sample entities for the editor
@@ -29,6 +30,7 @@ pub fn create_default_world() -> (World, Entity) {
     engine_ecs_core::register_component::<MeshFilter>();
     engine_ecs_core::register_component::<MeshRenderer>();
     engine_ecs_core::register_component::<Mesh>();
+    engine_ecs_core::register_component::<TypeScriptScript>();
 
     // Create camera entity with bundle - SIMPLIFIED for coordinate system testing
     let camera_entity = world.spawn_bundle((
@@ -102,6 +104,16 @@ pub fn create_default_world() -> (World, Entity) {
         .add_component(cube_entity, Visibility::default())
         .unwrap();
     world.add_component(cube_entity, Name::new("Cube")).unwrap();
+    
+    // Add TypeScript script component for testing
+    world
+        .add_component(
+            cube_entity,
+            TypeScriptScript::new("assets/scripts/typescript_hello_world.ts".to_string()),
+        )
+        .unwrap();
+    
+    println!("[World Setup] Added TypeScript script component to cube entity");
 
     // Try to get all entities with Transform components
     let entities_with_transforms: Vec<_> = world.query_legacy::<Transform>().collect();

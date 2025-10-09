@@ -12,7 +12,9 @@ A modular, high-performance game engine written in Rust, specifically designed f
 
 ## 🏗️ Architecture
 
-Longhorn is built with a clean, modular architecture using Rust workspaces, organized into core systems, implementations, and applications:
+Longhorn follows a **unified architecture** pattern similar to Unity and Unreal Engine, where the editor IS the runtime with additional tools layered on top. This provides seamless play mode transitions and eliminates code duplication.
+
+The engine is built with a clean, modular architecture using Rust workspaces, organized into core systems, implementations, and applications:
 
 ### Core Systems
 - **`engine-ecs-core`** - High-performance Entity Component System
@@ -29,6 +31,7 @@ Longhorn is built with a clean, modular architecture using Rust workspaces, orga
 - **`engine-components-3d`** - 3D game components (Transform, MeshRenderer, etc.)
 - **`engine-components-2d`** - 2D game components
 - **`engine-components-ui`** - UI components
+- **`engine-runtime-core`** - Game loop, timing, and application framework
 
 ### Implementation Layer
 - **`engine-renderer-3d`** - WGPU-based 3D renderer implementation
@@ -38,6 +41,9 @@ Longhorn is built with a clean, modular architecture using Rust workspaces, orga
 - **`engine-texture-import`** - Texture importing and processing
 - **`engine-audio-import`** - Audio file importers
 - **`engine-asset-import`** - General asset import pipeline
+- **`engine-runtime`** - Unified game loop and standalone runtime
+- **`engine-input`** - Input handling for keyboard, mouse, and gamepad
+- **`engine-scripting`** - Lua scripting system
 
 ### Applications & Tools
 - **`engine-editor-egui`** - Main editor application using egui
@@ -51,7 +57,17 @@ Longhorn is built with a clean, modular architecture using Rust workspaces, orga
 
 ### Running the Editor
 ```bash
+# Run the editor (default mode)
 cargo run --bin longhorn-editor
+
+# Run in standalone mode (no editor UI)
+cargo run --bin longhorn-editor -- --standalone
+
+# Start editor in play mode
+cargo run --bin longhorn-editor -- --play
+
+# Load a specific project
+cargo run --bin longhorn-editor -- --project path/to/project
 ```
 
 ### Building All Crates

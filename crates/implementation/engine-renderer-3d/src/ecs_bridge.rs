@@ -92,6 +92,7 @@ impl EcsRenderBridge {
 
         // Query all entities with Mesh components
         let mesh_entities: HashMap<Entity, &Mesh> = world.query_legacy::<Mesh>().collect();
+        
 
         // Find entities that have both transform and mesh
         for (entity, transform) in &transform_entities {
@@ -104,6 +105,7 @@ impl EcsRenderBridge {
 
                 // Create render object
                 let transform_matrix = transform.matrix();
+                
                 let mut render_object = RenderObject::new(transform_matrix, mesh_id, material_id);
 
                 // Set selection state

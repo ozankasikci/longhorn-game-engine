@@ -11,12 +11,18 @@ engine-input = { workspace = true }
 engine-assets = { workspace = true }
 engine-ui = { workspace = true }
 engine-platform = { workspace = true }
+engine-runtime-core = { workspace = true }
 winit = { workspace = true }
 tokio = { workspace = true }
 pollster = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
 thiserror = "1.0"
+egui = { workspace = true, optional = true }
+
+[features]
+default = []
+editor = ["egui"]
 
 [dev-dependencies]
 tokio-test = "0.4"

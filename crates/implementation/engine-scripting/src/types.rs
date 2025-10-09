@@ -11,6 +11,7 @@ pub struct ScriptId(pub u64);
 pub enum ScriptType {
     Lua,
     JavaScript,
+    TypeScript,
     Python,
     Wasm,
 }

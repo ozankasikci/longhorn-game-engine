@@ -3,6 +3,8 @@
 //! This crate provides 3D-specific components including Transform, Mesh,
 //! Material, Light, and Visibility components.
 
+pub mod markers;
+
 use engine_component_traits::Component;
 use engine_geometry_core::MeshData;
 use engine_resource_core::ResourceHandle;

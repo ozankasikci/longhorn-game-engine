@@ -1,0 +1,24 @@
+[package]
+name = "engine-editor-control"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "test_client"
+path = "src/bin/test_client.rs"
+
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+log = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Internal dependencies
+engine-ecs-core = { path = "../../core/engine-ecs-core" }
+engine-scripting = { path = "../../implementation/engine-scripting" }
+engine-components-3d = { path = "../../core/engine-components-3d" }
+engine-components-ui = { path = "../../core/engine-components-ui" }
+engine-editor-framework = { path = "../engine-editor-framework" }
