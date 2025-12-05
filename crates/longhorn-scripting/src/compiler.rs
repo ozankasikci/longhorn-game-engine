@@ -82,6 +82,10 @@ impl TypeScriptCompiler {
             }
         }
 
+        // Remove export/default keywords (for non-module script execution)
+        result = result.replace("export default ", "");
+        result = result.replace("export ", "");
+
         result
     }
 
