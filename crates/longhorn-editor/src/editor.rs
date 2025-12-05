@@ -67,7 +67,7 @@ impl Editor {
         }
     }
 
-    pub fn show(&mut self, ctx: &Context, engine: &mut Engine) -> bool {
+    pub fn show(&mut self, ctx: &Context, engine: &mut Engine, viewport_texture: Option<egui::TextureId>) -> bool {
         let mut should_exit = false;
         let mut toolbar_action = ToolbarAction::None;
 
@@ -116,7 +116,7 @@ impl Editor {
 
         // Center panel - Viewport
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.viewport.show(ui);
+            self.viewport.show(ui, viewport_texture);
         });
 
         should_exit
