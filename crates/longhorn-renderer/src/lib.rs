@@ -2,7 +2,7 @@ mod color;
 mod camera;
 mod texture;
 mod sprite_batch;
-mod pipeline;
+pub mod pipeline;
 mod renderer;
 
 pub use color::*;
