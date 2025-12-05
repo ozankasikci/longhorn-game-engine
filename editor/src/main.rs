@@ -199,9 +199,13 @@ impl EditorApp {
         // Run egui frame
         let raw_input = egui_state.winit_state.take_egui_input(window);
 
+        let viewport_texture = self.viewport_renderer
+            .as_ref()
+            .and_then(|vr| vr.egui_texture_id());
+
         let mut should_exit = false;
         let full_output = egui_state.ctx.run(raw_input, |ctx| {
-            should_exit = self.editor.show(ctx, &mut self.engine);
+            should_exit = self.editor.show(ctx, &mut self.engine, viewport_texture);
         });
 
         if should_exit {
