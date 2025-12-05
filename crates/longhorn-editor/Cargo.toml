@@ -14,3 +14,5 @@ glam = { workspace = true }
 serde = { workspace = true }
 log = { workspace = true }
 hecs = { workspace = true }
+bytemuck = { version = "1.14", features = ["derive"] }
+image = { workspace = true }

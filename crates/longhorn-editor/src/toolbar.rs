@@ -22,52 +22,63 @@ impl Toolbar {
     pub fn show(&mut self, ui: &mut Ui, state: &EditorState) -> ToolbarAction {
         let mut action = ToolbarAction::None;
 
-        ui.horizontal(|ui| {
-            // Center the buttons
-            ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
-                ui.set_max_width(300.0);
+        ui.horizontal_centered(|ui| {
+            // Add some spacing from left edge
+            ui.add_space(ui.available_width() / 2.0 - 120.0);
 
-                match state.mode {
-                    EditorMode::Scene => {
-                        if ui.button("▶ Play").clicked() {
-                            action = ToolbarAction::Play;
-                        }
-                        ui.add_enabled(false, egui::Button::new("⏸ Pause"));
-                        ui.add_enabled(false, egui::Button::new("⏹ Stop"));
-                    }
-                    EditorMode::Play => {
-                        if state.paused {
-                            if ui.button("▶ Resume").clicked() {
-                                action = ToolbarAction::Resume;
-                            }
-                        } else {
-                            ui.add_enabled(false, egui::Button::new("▶ Play"));
-                        }
-
-                        if !state.paused {
-                            if ui.button("⏸ Pause").clicked() {
-                                action = ToolbarAction::Pause;
-                            }
-                        } else {
-                            ui.add_enabled(false, egui::Button::new("⏸ Pause"));
-                        }
-
-                        if ui.button("⏹ Stop").clicked() {
-                            action = ToolbarAction::Stop;
-                        }
+            // Play/Resume button
+            match state.mode {
+                EditorMode::Scene => {
+                    if ui.button("▶ Play").clicked() {
+                        action = ToolbarAction::Play;
                     }
                 }
+                EditorMode::Play if state.paused => {
+                    if ui.button("▶ Resume").clicked() {
+                        action = ToolbarAction::Resume;
+                    }
+                }
+                EditorMode::Play => {
+                    ui.add_enabled(false, egui::Button::new("▶ Play"));
+                }
+            }
 
-                ui.separator();
+            // Pause button
+            match state.mode {
+                EditorMode::Scene => {
+                    ui.add_enabled(false, egui::Button::new("⏸ Pause"));
+                }
+                EditorMode::Play if !state.paused => {
+                    if ui.button("⏸ Pause").clicked() {
+                        action = ToolbarAction::Pause;
+                    }
+                }
+                EditorMode::Play => {
+                    ui.add_enabled(false, egui::Button::new("⏸ Pause"));
+                }
+            }
 
-                // Mode indicator
-                let mode_text = match (state.mode, state.paused) {
-                    (EditorMode::Scene, _) => "Scene Mode",
-                    (EditorMode::Play, false) => "▶ Playing",
-                    (EditorMode::Play, true) => "⏸ Paused",
-                };
-                ui.label(mode_text);
-            });
+            // Stop button
+            match state.mode {
+                EditorMode::Scene => {
+                    ui.add_enabled(false, egui::Button::new("⏹ Stop"));
+                }
+                EditorMode::Play => {
+                    if ui.button("⏹ Stop").clicked() {
+                        action = ToolbarAction::Stop;
+                    }
+                }
+            }
+
+            ui.separator();
+
+            // Mode indicator
+            let mode_text = match (state.mode, state.paused) {
+                (EditorMode::Scene, _) => "Scene Mode",
+                (EditorMode::Play, false) => "Playing",
+                (EditorMode::Play, true) => "Paused",
+            };
+            ui.label(mode_text);
         });
 
         action
