@@ -1,0 +1,6 @@
+[package]
+name = "longhorn-mobile"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

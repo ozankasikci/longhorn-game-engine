@@ -1,0 +1,10 @@
+[package]
+name = "longhorn-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+hecs = { workspace = true }
+glam = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

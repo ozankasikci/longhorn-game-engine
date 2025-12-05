@@ -1,0 +1,6 @@
+[package]
+name = "longhorn-engine"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

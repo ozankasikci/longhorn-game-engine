@@ -1,0 +1,6 @@
+[package]
+name = "longhorn-input"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

@@ -1,6 +1,8 @@
-target
-debug_console.log
-debug_output.txt
-.claude
+/target
+Cargo.lock
+*.log
 .DS_Store
-.idea
+*.swp
+*.swo
+.idea/
+.vscode/

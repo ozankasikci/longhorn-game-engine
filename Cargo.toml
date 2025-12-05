@@ -1,219 +1,63 @@
 [workspace]
 resolver = "2"
 members = [
-    # Core abstractions (Tier 1)
-    "crates/core/engine-math-core",
-    "crates/core/engine-component-traits",
-    "crates/core/engine-components-3d",
-    "crates/core/engine-components-2d", 
-    "crates/core/engine-components-ui",
-    "crates/core/engine-ecs-core",
-    "crates/core/engine-renderer-core",
-    "crates/core/engine-geometry-core",
-    "crates/core/engine-materials-core",
-    "crates/core/engine-camera-core",
-    "crates/core/engine-resource-core",
-    "crates/core/engine-audio-core",
-    "crates/core/engine-physics-core",
-    "crates/core/engine-events-core",
-    "crates/core/engine-graphics-traits",
-    
-    # Implementation layer (Tier 2)
-    "crates/implementation/engine-input",
-    "crates/implementation/engine-assets",
-    "crates/implementation/engine-scripting",
-    "crates/implementation/engine-ui",
-    "crates/implementation/engine-platform",
-    "crates/implementation/engine-renderer-3d",
-    "crates/implementation/engine-geometry-impl",
-    "crates/implementation/engine-camera-impl",
-    "crates/implementation/engine-asset-import",
-    "crates/implementation/engine-mesh-import",
-    "crates/implementation/engine-texture-import",
-    "crates/implementation/engine-audio-import",
-    "crates/implementation/engine-animation-import",
-    "crates/implementation/engine-graphics-wgpu",
-    
-    # Integration layer (Tier 3)
-    "crates/integration/engine-scene",
-    "crates/integration/engine-runtime",
-    "crates/integration/engine-renderer-ecs-bridge",
-    
-    # Application layer (Tier 4)
-    "crates/application/engine-editor-egui", 
-    "crates/engine-renderer-3d-examples", 
-    "crates/application/engine-editor-scene-view", 
-    "crates/application/engine-editor-panels", 
-    "crates/application/engine-editor-ui", 
-    "crates/application/engine-editor-assets",
-    "crates/application/engine-editor-framework",
-    
-    # Tools
-    "crates/tools/structure-validator",
+    "crates/longhorn-core",
+    "crates/longhorn-renderer",
+    "crates/longhorn-input",
+    "crates/longhorn-assets",
+    "crates/longhorn-scripting",
+    "crates/longhorn-engine",
+    "crates/longhorn-mobile",
+    "crates/longhorn-editor",
+    "editor",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/ozankasikci/longhorn-engine"
-description = "Longhorn Game Engine - A modular mobile-first game engine built in Rust"
-authors = ["Ozan Kasikci <ozan@kasikci.io>"]
-keywords = ["game-engine", "mobile", "rust", "gamedev", "longhorn"]
-categories = ["game-engines", "graphics", "simulation"]
+license = "MIT"
+repository = "https://github.com/user/longhorn-game-engine-v2"
 
 [workspace.dependencies]
-# Math and utilities
-glam = { version = "0.24", features = ["serde"] }
-bytemuck = { version = "1.14", features = ["derive"] }
+# ECS
+hecs = "0.10"
 
-# Graphics
-wgpu = "0.20"
+# Math
+glam = { version = "0.27", features = ["serde"] }
+
+# Rendering
+wgpu = "0.19"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+
+# Windowing
 winit = "0.29"
+raw-window-handle = "0.6"
 
-# UI
-egui = "0.28"
-egui-wgpu = "0.28"
-egui-winit = "0.28"
-eframe = { version = "0.28", default-features = false, features = ["default_fonts", "wgpu", "accesskit"] }
-egui_dock = "0.13"
+# Editor
+egui = "0.27"
+eframe = { version = "0.27", default-features = false, features = ["default_fonts", "glow", "persistence"] }
 
-# Audio
-rodio = "0.17"
-
-# Physics
-rapier2d = "0.17"
-rapier3d = "0.17"
-
-# Async and threading
-tokio = { version = "1.0", features = ["full"] }
-pollster = "0.3"
-rayon = "1.8"
-once_cell = "1.19"
-
-# Logging
-log = "0.4"
-env_logger = "0.10"
+# Scripting (placeholder for now)
+# deno_core = "0.272"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-# Image handling
-image = "0.24"
-
-# CSS and color parsing
-csscolorparser = "0.6"
-
-# File watching for hot reload
-notify = "6.0"
-
-# Bitflags for state management
-bitflags = "2.4"
-
 # Error handling
 thiserror = "1.0"
-async-trait = "0.1"
 anyhow = "1.0"
 
-# Testing
-criterion = { version = "0.5", features = ["html_reports"] }
-tokio-test = "0.4"
+# Logging
+log = "0.4"
+env_logger = "0.11"
 
-# Misc
-uuid = { version = "1.0", features = ["v4", "serde"] }
-
-[workspace.dependencies.engine-ecs-core]
-path = "crates/core/engine-ecs-core"
-
-[workspace.dependencies.engine-renderer-core]
-path = "crates/core/engine-renderer-core"
-
-
-[workspace.dependencies.engine-input]
-path = "crates/implementation/engine-input"
-
-[workspace.dependencies.engine-assets]
-path = "crates/implementation/engine-assets"
-
-[workspace.dependencies.engine-scripting]
-path = "crates/implementation/engine-scripting"
-
-[workspace.dependencies.engine-ui]
-path = "crates/implementation/engine-ui"
-
-[workspace.dependencies.engine-platform]
-path = "crates/implementation/engine-platform"
-
-[workspace.dependencies.engine-runtime]
-path = "crates/integration/engine-runtime"
-
-[workspace.dependencies.engine-component-traits]
-path = "crates/core/engine-component-traits"
-
-[workspace.dependencies.engine-camera-core]
-path = "crates/core/engine-camera-core"
-
-[workspace.dependencies.engine-geometry-core]
-path = "crates/core/engine-geometry-core"
-
-[workspace.dependencies.engine-materials-core]
-path = "crates/core/engine-materials-core"
-
-[workspace.dependencies.engine-scene]
-path = "crates/integration/engine-scene"
-
-
-
-[workspace.dependencies.engine-math-core]
-path = "crates/core/engine-math-core"
-
-[workspace.dependencies.engine-camera]
-path = "crates/core/engine-camera-core"
-package = "engine-camera-core"
-
-[workspace.dependencies.engine-components-3d]
-path = "crates/core/engine-components-3d"
-
-[workspace.dependencies.engine-components-2d]
-path = "crates/core/engine-components-2d"
-
-[workspace.dependencies.engine-components-ui]
-path = "crates/core/engine-components-ui"
-
-
-[workspace.dependencies.engine-resource-core]
-path = "crates/core/engine-resource-core"
-
-[workspace.dependencies.engine-audio-core]
-path = "crates/core/engine-audio-core"
-
-[workspace.dependencies.engine-physics-core]
-path = "crates/core/engine-physics-core"
-
-[workspace.dependencies.engine-events-core]
-path = "crates/core/engine-events-core"
-
-[workspace.dependencies.engine-geometry-impl]
-path = "crates/implementation/engine-geometry-impl"
-
-[workspace.dependencies.engine-camera-impl]
-path = "crates/implementation/engine-camera-impl"
-
-[workspace.dependencies.engine-renderer-3d]
-path = "crates/implementation/engine-renderer-3d"
-
-[workspace.dependencies.engine-asset-import]
-path = "crates/implementation/engine-asset-import"
-
-[workspace.dependencies.engine-mesh-import]
-path = "crates/implementation/engine-mesh-import"
-
-[workspace.dependencies.engine-texture-import]
-path = "crates/implementation/engine-texture-import"
-
-[workspace.dependencies.engine-audio-import]
-path = "crates/implementation/engine-audio-import"
-
-[workspace.dependencies.engine-animation-import]
-path = "crates/implementation/engine-animation-import"
+# Internal crates
+longhorn-core = { path = "crates/longhorn-core" }
+longhorn-renderer = { path = "crates/longhorn-renderer" }
+longhorn-input = { path = "crates/longhorn-input" }
+longhorn-assets = { path = "crates/longhorn-assets" }
+longhorn-scripting = { path = "crates/longhorn-scripting" }
+longhorn-engine = { path = "crates/longhorn-engine" }
+longhorn-mobile = { path = "crates/longhorn-mobile" }
+longhorn-editor = { path = "crates/longhorn-editor" }

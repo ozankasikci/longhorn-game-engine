@@ -1,0 +1,6 @@
+[package]
+name = "longhorn-scripting"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
