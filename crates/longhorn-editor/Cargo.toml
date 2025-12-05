@@ -6,5 +6,10 @@ edition.workspace = true
 [dependencies]
 longhorn-core = { workspace = true }
 longhorn-engine = { workspace = true }
+longhorn-renderer = { workspace = true }
+
 egui = { workspace = true }
+wgpu = { workspace = true }
+glam = { workspace = true }
+serde = { workspace = true }
 log = { workspace = true }
