@@ -1,6 +1,7 @@
 // crates/longhorn-scripting/src/runtime.rs
 use crate::compiler::{CompiledScript, TypeScriptCompiler};
 use crate::js_runtime::LonghornJsRuntime;
+use crate::BOOTSTRAP_JS;
 use longhorn_core::{Script, World, LonghornError, Result};
 use std::collections::HashMap;
 use std::path::Path;
@@ -116,23 +117,44 @@ impl ScriptRuntime {
         Ok(())
     }
 
-    /// Initialize the game (create JS runtime, call onStart for existing scripts)
+    /// Initialize the game (create JS runtime, load scripts, call onStart)
     pub fn initialize(&mut self, world: &mut World) -> Result<()> {
         if self.game_path.is_none() {
             return Err(LonghornError::Scripting("No game loaded".to_string()));
         }
 
         // Create JS runtime
-        self.js_runtime = Some(LonghornJsRuntime::new());
+        let mut js_runtime = LonghornJsRuntime::new();
 
-        // Find all entities with Script components and create instances
+        // Execute bootstrap (defines Entity, __scripts, __instances, console)
+        js_runtime
+            .execute_script("longhorn:bootstrap", BOOTSTRAP_JS)
+            .map_err(|e| LonghornError::Scripting(format!("Bootstrap failed: {}", e)))?;
+
+        // Load all compiled scripts into JS
+        for (path, compiled) in &self.compiled_scripts {
+            let register_code = format!(
+                r#"__scripts["{}"] = (() => {{
+                {};
+                return {};
+            }})();"#,
+                path, compiled.js_code, compiled.class_name
+            );
+            js_runtime
+                .execute_script("longhorn:load_script", &register_code)
+                .map_err(|e| LonghornError::Scripting(format!("Failed to load {}: {}", path, e)))?;
+
+            log::debug!("Loaded script: {} (class: {})", path, compiled.class_name);
+        }
+
+        self.js_runtime = Some(js_runtime);
+
+        // Sync instances and call onStart
         self.sync_instances(world);
-
-        // Call onStart on all instances
         self.run_lifecycle("onStart", world, 0.0)?;
 
         self.initialized = true;
-        log::info!("Script runtime initialized");
+        log::info!("Script runtime initialized with {} scripts", self.compiled_scripts.len());
 
         Ok(())
     }
