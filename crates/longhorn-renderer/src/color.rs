@@ -141,9 +141,9 @@ mod tests {
     fn test_to_wgpu() {
         let color = Color::new(0.5, 0.6, 0.7, 0.8);
         let wgpu_color = color.to_wgpu();
-        assert_eq!(wgpu_color.r, 0.5);
-        assert_eq!(wgpu_color.g, 0.6);
-        assert_eq!(wgpu_color.b, 0.7);
-        assert_eq!(wgpu_color.a, 0.8);
+        assert!((wgpu_color.r - 0.5).abs() < 1e-6);
+        assert!((wgpu_color.g - 0.6).abs() < 1e-6);
+        assert!((wgpu_color.b - 0.7).abs() < 1e-6);
+        assert!((wgpu_color.a - 0.8).abs() < 1e-6);
     }
 }
