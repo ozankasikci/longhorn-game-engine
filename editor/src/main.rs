@@ -135,10 +135,11 @@ impl EditorApp {
             None,
             None,
         );
-        let renderer = egui_wgpu::Renderer::new(&device, surface_format, None, 1, false);
+        let mut renderer = egui_wgpu::Renderer::new(&device, surface_format, None, 1, false);
 
         // Create viewport renderer before moving device/queue into GpuState
-        let viewport_renderer = EditorViewportRenderer::new(&device, &queue, size.width, size.height);
+        let mut viewport_renderer = EditorViewportRenderer::new(&device, &queue, size.width, size.height);
+        viewport_renderer.register_with_egui(&mut renderer, &device);
 
         self.gpu_state = Some(GpuState {
             device,
@@ -280,6 +281,14 @@ impl EditorApp {
                 gpu.surface_config.width = size.width;
                 gpu.surface_config.height = size.height;
                 gpu.surface.configure(&gpu.device, &gpu.surface_config);
+
+                // Update viewport renderer
+                if let (Some(vr), Some(egui_state)) =
+                    (&mut self.viewport_renderer, &mut self.egui_state)
+                {
+                    vr.resize(&gpu.device, size.width, size.height);
+                    vr.update_egui_texture(&mut egui_state.renderer, &gpu.device);
+                }
             }
         }
     }

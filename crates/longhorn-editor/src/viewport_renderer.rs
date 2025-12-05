@@ -32,6 +32,9 @@ pub struct EditorViewportRenderer {
 
     // Clear color
     clear_color: Color,
+
+    // egui integration
+    egui_texture_id: Option<egui::TextureId>,
 }
 
 impl EditorViewportRenderer {
@@ -139,6 +142,7 @@ impl EditorViewportRenderer {
             test_texture_bind_group,
             camera,
             clear_color: Color::from_rgba8(40, 44, 52, 255), // Dark background
+            egui_texture_id: None,
         }
     }
 
@@ -344,5 +348,37 @@ impl EditorViewportRenderer {
         }
 
         queue.submit(std::iter::once(encoder.finish()));
+    }
+
+    pub fn register_with_egui(
+        &mut self,
+        egui_renderer: &mut egui_wgpu::Renderer,
+        device: &wgpu::Device,
+    ) {
+        let id = egui_renderer.register_native_texture(
+            device,
+            &self.render_view,
+            wgpu::FilterMode::Linear,
+        );
+        self.egui_texture_id = Some(id);
+    }
+
+    pub fn update_egui_texture(
+        &mut self,
+        egui_renderer: &mut egui_wgpu::Renderer,
+        device: &wgpu::Device,
+    ) {
+        if let Some(id) = self.egui_texture_id {
+            egui_renderer.update_egui_texture_from_wgpu_texture(
+                device,
+                &self.render_view,
+                wgpu::FilterMode::Linear,
+                id,
+            );
+        }
+    }
+
+    pub fn egui_texture_id(&self) -> Option<egui::TextureId> {
+        self.egui_texture_id
     }
 }

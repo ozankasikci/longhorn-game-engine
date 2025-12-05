@@ -9,6 +9,7 @@ longhorn-engine = { workspace = true }
 longhorn-renderer = { workspace = true }
 
 egui = { workspace = true }
+egui-wgpu = "0.29"
 wgpu = { workspace = true }
 glam = { workspace = true }
 serde = { workspace = true }
