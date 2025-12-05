@@ -1,5 +1,6 @@
 // crates/longhorn-scripting/src/js_runtime.rs
 use deno_core::{FastString, JsRuntime, RuntimeOptions};
+use crate::ops::longhorn_ops;
 
 /// Wrapper around deno_core::JsRuntime
 pub struct LonghornJsRuntime {
@@ -7,9 +8,10 @@ pub struct LonghornJsRuntime {
 }
 
 impl LonghornJsRuntime {
-    /// Create a new JavaScript runtime
+    /// Create a new JavaScript runtime with Longhorn ops
     pub fn new() -> Self {
         let runtime = JsRuntime::new(RuntimeOptions {
+            extensions: vec![longhorn_ops::init_ops()],
             ..Default::default()
         });
 
