@@ -1,30 +1,20 @@
 use egui::{Ui, TextureId, Sense};
 
-pub struct ViewportPanel {
-    texture_id: Option<TextureId>,
-}
+pub struct ViewportPanel {}
 
 impl ViewportPanel {
     pub fn new() -> Self {
-        Self { texture_id: None }
+        Self {}
     }
 
-    pub fn set_texture(&mut self, texture_id: TextureId) {
-        self.texture_id = Some(texture_id);
-    }
-
-    pub fn clear_texture(&mut self) {
-        self.texture_id = None;
-    }
-
-    pub fn show(&mut self, ui: &mut Ui) -> egui::Response {
+    pub fn show(&mut self, ui: &mut Ui, texture_id: Option<TextureId>) -> egui::Response {
         ui.heading("Viewport");
         ui.separator();
 
         let available = ui.available_size();
         let (rect, response) = ui.allocate_exact_size(available, Sense::click_and_drag());
 
-        if let Some(texture_id) = self.texture_id {
+        if let Some(texture_id) = texture_id {
             // Draw the rendered game texture
             ui.painter().image(
                 texture_id,
@@ -50,10 +40,6 @@ impl ViewportPanel {
         }
 
         response
-    }
-
-    pub fn texture_id(&self) -> Option<TextureId> {
-        self.texture_id
     }
 }
 
