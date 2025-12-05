@@ -11,12 +11,12 @@ path = "src/main.rs"
 longhorn-core = { workspace = true }
 longhorn-engine = { workspace = true }
 longhorn-editor = { workspace = true }
-longhorn-renderer = { workspace = true }
-longhorn-assets = { workspace = true }
 
-# Windowing and rendering
+# Windowing
 winit = { workspace = true }
-wgpu = { workspace = true }
+
+# Graphics - use wgpu 22 to match egui-wgpu
+wgpu = { version = "22.1", default-features = true }
 
 # UI
 egui = { workspace = true }
