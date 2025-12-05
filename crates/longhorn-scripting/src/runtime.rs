@@ -239,11 +239,16 @@ impl ScriptRuntime {
     }
 
     /// Run a lifecycle method on all script instances
-    fn run_lifecycle(&mut self, method: &str, _world: &mut World, _dt: f32) -> Result<()> {
+    fn run_lifecycle(&mut self, method: &str, _world: &mut World, dt: f32) -> Result<()> {
         // Check if we have an error (game should be paused)
         if self.error.is_some() {
             return Err(LonghornError::Scripting(self.error.clone().unwrap()));
         }
+
+        let js_runtime = match &mut self.js_runtime {
+            Some(rt) => rt,
+            None => return Ok(()),
+        };
 
         // Get sorted instance IDs by execution order
         let mut sorted_instances: Vec<_> = self.instances.keys().cloned().collect();
@@ -262,28 +267,52 @@ impl ScriptRuntime {
         });
 
         // Call method on each instance
-        for instance_id in sorted_instances {
-            if let Some(instance) = self.instances.get_mut(&instance_id) {
-                if !instance.enabled {
-                    continue;
+        for (entity_id, script_path) in sorted_instances {
+            let instance = match self.instances.get_mut(&(entity_id, script_path.clone())) {
+                Some(inst) => inst,
+                None => continue,
+            };
+
+            if !instance.enabled {
+                continue;
+            }
+
+            // Skip onStart if already called
+            if method == "onStart" && instance.started {
+                continue;
+            }
+
+            let instance_key = format!("{}_{}", entity_id, script_path);
+
+            // Build the call code
+            let call_code = format!(
+                r#"(() => {{
+                const inst = __instances["{}"];
+                if (inst && typeof inst.{} === "function") {{
+                    const self = new Entity({}n);
+                    inst.{}(self, {});
+                    "called"
+                }} else {{
+                    "no method"
+                }}
+            }})()"#,
+                instance_key, method, entity_id, method, dt
+            );
+
+            match js_runtime.execute_script("longhorn:call_lifecycle", &call_code) {
+                Ok(_) => {
+                    if method == "onStart" {
+                        instance.started = true;
+                    }
                 }
-
-                // Skip onStart if already called
-                if method == "onStart" && instance.started {
-                    continue;
-                }
-
-                // TODO: Actually call the JS method
-                // For now, just log
-                log::debug!(
-                    "Would call {}.{}(entity={})",
-                    instance.script_path,
-                    method,
-                    instance_id.0
-                );
-
-                if method == "onStart" {
-                    instance.started = true;
+                Err(e) => {
+                    let error_msg = format!(
+                        "Script error in {}.{}(): {}",
+                        script_path, method, e
+                    );
+                    log::error!("{}", error_msg);
+                    self.error = Some(error_msg.clone());
+                    return Err(LonghornError::Scripting(error_msg));
                 }
             }
         }
