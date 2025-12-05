@@ -56,3 +56,48 @@ fn test_script_lifecycle() {
     let result = runtime.update(&mut world, 0.016);
     assert!(result.is_ok());
 }
+
+#[test]
+fn test_script_execution_logs() {
+    // Create a temporary test game directory
+    let test_dir = std::env::temp_dir().join("test_game_execution");
+    let scripts_dir = test_dir.join("scripts");
+    std::fs::create_dir_all(&scripts_dir).unwrap();
+
+    // Create a test script that logs
+    let script_content = r#"
+export default class LoggingScript {
+    speed = 42.0;
+    static executionOrder = 0;
+
+    onStart(self) {
+        console.log("onStart called with speed:", this.speed);
+    }
+
+    onUpdate(self, dt) {
+        console.log("onUpdate dt:", dt);
+    }
+}
+"#;
+    std::fs::write(scripts_dir.join("LoggingScript.ts"), script_content).unwrap();
+
+    // Load and initialize
+    let mut runtime = ScriptRuntime::new();
+    runtime.load_game(&test_dir).unwrap();
+
+    let mut world = World::new();
+    world.spawn()
+        .with(Script::new("LoggingScript.ts"))
+        .build();
+
+    // Initialize (calls onStart)
+    let result = runtime.initialize(&mut world);
+    assert!(result.is_ok(), "Initialize failed: {:?}", result);
+
+    // Update (calls onUpdate)
+    let result = runtime.update(&mut world, 0.016);
+    assert!(result.is_ok(), "Update failed: {:?}", result);
+
+    // Cleanup
+    std::fs::remove_dir_all(&test_dir).ok();
+}

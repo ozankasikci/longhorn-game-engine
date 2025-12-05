@@ -43,8 +43,40 @@ impl TypeScriptCompiler {
     fn strip_types(&self, source: &str) -> String {
         let mut result = String::new();
         let mut chars = source.chars().peekable();
+        let mut in_string = false;
+        let mut string_char = ' ';
+        let mut escaped = false;
 
         while let Some(c) = chars.next() {
+            // Track string state
+            if !escaped && (c == '"' || c == '\'' || c == '`') {
+                if in_string && c == string_char {
+                    in_string = false;
+                } else if !in_string {
+                    in_string = true;
+                    string_char = c;
+                }
+                result.push(c);
+                continue;
+            }
+
+            // Track escape sequences
+            if c == '\\' && in_string {
+                escaped = !escaped;
+                result.push(c);
+                continue;
+            } else if escaped {
+                escaped = false;
+                result.push(c);
+                continue;
+            }
+
+            // Don't strip types inside strings
+            if in_string {
+                result.push(c);
+                continue;
+            }
+
             // Skip type annotations after :
             if c == ':' {
                 // Check if this looks like a type annotation (not object key)
