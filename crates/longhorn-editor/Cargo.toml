@@ -13,3 +13,4 @@ wgpu = { workspace = true }
 glam = { workspace = true }
 serde = { workspace = true }
 log = { workspace = true }
+hecs = { workspace = true }

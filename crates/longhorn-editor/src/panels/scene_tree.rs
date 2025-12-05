@@ -13,23 +13,24 @@ impl SceneTreePanel {
         ui.heading("Scene Tree");
         ui.separator();
 
-        let mut entities: Vec<_> = world.inner().iter().map(|entity_ref| EntityHandle::new(entity_ref.entity())).collect();
+        let mut entities: Vec<_> = world.inner().iter().map(|entity_ref| entity_ref.entity()).collect();
 
         if entities.is_empty() {
             ui.label("(No entities)");
         } else {
-            entities.sort_by_key(|e| e.id.id());
+            entities.sort_by_key(|e| e.id());
 
             for entity in entities {
-                let name = world.get::<Name>(entity)
+                let handle = EntityHandle::new(entity);
+                let name = world.get::<Name>(handle)
                     .ok()
                     .map(|n| n.0.clone())
-                    .unwrap_or_else(|| format!("Entity {}", entity.id.id()));
+                    .unwrap_or_else(|| format!("Entity {}", entity.id()));
 
                 let is_selected = state.is_selected(entity);
 
                 if ui.selectable_label(is_selected, &name).clicked() {
-                    state.select(entity);
+                    state.select(Some(entity));
                 }
             }
         }

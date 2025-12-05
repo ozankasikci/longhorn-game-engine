@@ -1,5 +1,5 @@
 use egui::Ui;
-use longhorn_core::{World, Name, Transform, Sprite, Enabled};
+use longhorn_core::{World, Name, Transform, Sprite, Enabled, EntityHandle};
 use crate::EditorState;
 
 pub struct InspectorPanel;
@@ -18,24 +18,26 @@ impl InspectorPanel {
             return;
         };
 
+        let handle = EntityHandle::new(selected);
+
         // Check if entity still exists
-        if !world.exists(selected) {
+        if !world.exists(handle) {
             ui.label("Entity no longer exists");
             return;
         }
 
-        ui.label(format!("Entity ID: {}", selected.id.id()));
+        ui.label(format!("Entity ID: {}", selected.id()));
         ui.separator();
 
         // Name (read-only)
-        if let Ok(name) = world.get::<Name>(selected) {
+        if let Ok(name) = world.get::<Name>(handle) {
             ui.label(format!("Name: {}", name.0));
         }
 
         ui.separator();
 
         // Transform (editable)
-        if let Ok(mut transform) = world.get_mut::<Transform>(selected) {
+        if let Ok(mut transform) = world.get_mut::<Transform>(handle) {
             ui.label("Transform:");
             ui.horizontal(|ui| {
                 ui.label("Position:");
@@ -59,7 +61,7 @@ impl InspectorPanel {
         ui.separator();
 
         // Sprite (read-only)
-        if let Ok(sprite) = world.get::<Sprite>(selected) {
+        if let Ok(sprite) = world.get::<Sprite>(handle) {
             ui.label("Sprite:");
             ui.label(format!("  Texture ID: {}", sprite.texture.0));
             ui.label(format!("  Size: ({:.1}, {:.1})", sprite.size.x, sprite.size.y));
@@ -71,7 +73,7 @@ impl InspectorPanel {
         ui.separator();
 
         // Enabled (checkbox)
-        if let Ok(mut enabled) = world.get_mut::<Enabled>(selected) {
+        if let Ok(mut enabled) = world.get_mut::<Enabled>(handle) {
             ui.checkbox(&mut enabled.0, "Enabled");
         }
     }
