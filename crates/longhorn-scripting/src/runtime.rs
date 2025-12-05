@@ -1,8 +1,9 @@
 // crates/longhorn-scripting/src/runtime.rs
 use crate::compiler::{CompiledScript, TypeScriptCompiler};
 use crate::js_runtime::LonghornJsRuntime;
+use crate::ops::{JsSelf, JsSprite, JsTransform};
 use crate::BOOTSTRAP_JS;
-use longhorn_core::{Script, World, LonghornError, Result};
+use longhorn_core::{EntityId, Script, Sprite, Transform, World, LonghornError, Result};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -239,7 +240,7 @@ impl ScriptRuntime {
     }
 
     /// Run a lifecycle method on all script instances
-    fn run_lifecycle(&mut self, method: &str, _world: &mut World, dt: f32) -> Result<()> {
+    fn run_lifecycle(&mut self, method: &str, world: &mut World, dt: f32) -> Result<()> {
         // Check if we have an error (game should be paused)
         if self.error.is_some() {
             return Err(LonghornError::Scripting(self.error.clone().unwrap()));
@@ -284,23 +285,73 @@ impl ScriptRuntime {
 
             let instance_key = format!("{}_{}", entity_id, script_path);
 
+            // Convert entity_id back to EntityHandle
+            let entity_handle = match EntityId::from_bits(entity_id) {
+                Some(id) => longhorn_core::EntityHandle::new(id),
+                None => {
+                    log::error!("Invalid entity ID: {}", entity_id);
+                    continue;
+                }
+            };
+
+            // Build self object with component data
+            let transform: Option<JsTransform> = world
+                .get::<Transform>(entity_handle)
+                .ok()
+                .map(|t| JsTransform::from(&*t));
+
+            let sprite: Option<JsSprite> = world
+                .get::<Sprite>(entity_handle)
+                .ok()
+                .map(|s| JsSprite::from(&*s));
+
+            let self_data = JsSelf {
+                id: entity_id,
+                transform,
+                sprite,
+            };
+
+            let self_json = serde_json::to_string(&self_data)
+                .map_err(|e| LonghornError::Scripting(format!("Failed to serialize self: {}", e)))?;
+
             // Build the call code
             let call_code = format!(
                 r#"(() => {{
                 const inst = __instances["{}"];
                 if (inst && typeof inst.{} === "function") {{
-                    const self = new Entity({}n);
+                    const self = {};
                     inst.{}(self, {});
-                    "called"
+                    return JSON.stringify({{ transform: self.transform, sprite: self.sprite }});
                 }} else {{
-                    "no method"
+                    return "no method";
                 }}
             }})()"#,
-                instance_key, method, entity_id, method, dt
+                instance_key, method, self_json, method, dt
             );
 
             match js_runtime.execute_script("longhorn:call_lifecycle", &call_code) {
-                Ok(_) => {
+                Ok(result) => {
+                    if result != "no method" {
+                        // Write back component changes
+                        match serde_json::from_str::<JsSelf>(&result) {
+                            Ok(changes) => {
+                                if let Some(t) = changes.transform {
+                                    if let Err(e) = world.set(entity_handle, Transform::from(t)) {
+                                        log::warn!("Failed to write back Transform for entity {}: {}", entity_id, e);
+                                    }
+                                }
+                                if let Some(s) = changes.sprite {
+                                    if let Err(e) = world.set(entity_handle, Sprite::from(s)) {
+                                        log::warn!("Failed to write back Sprite for entity {}: {}", entity_id, e);
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                log::warn!("Failed to parse component changes from {}.{}(): {}", script_path, method, e);
+                            }
+                        }
+                    }
+
                     if method == "onStart" {
                         instance.started = true;
                     }
