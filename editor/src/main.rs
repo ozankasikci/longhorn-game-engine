@@ -66,6 +66,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Longhorn Editor",
         options,
-        Box::new(|cc| Box::new(EditorApp::new(cc))),
+        Box::new(|cc| Ok(Box::new(EditorApp::new(cc)))),
     )
 }

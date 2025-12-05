@@ -59,6 +59,7 @@ impl Renderer {
                     required_features: wgpu::Features::empty(),
                     required_limits: wgpu::Limits::default(),
                     label: Some("Device"),
+                    memory_hints: Default::default(),
                 },
                 None,
             )
