@@ -10,6 +10,8 @@ pub struct CompiledScript {
     pub source_path: String,
     /// Compiled JavaScript code
     pub js_code: String,
+    /// Class name extracted from "export default class Foo"
+    pub class_name: String,
     /// Execution order (parsed from static executionOrder)
     pub execution_order: i32,
     /// Property definitions (name -> default value as JSON)
@@ -97,9 +99,13 @@ impl TypeScriptCompiler {
         // Parse property definitions
         let properties = self.parse_properties(&source);
 
+        // Parse class name
+        let class_name = self.parse_class_name(&source);
+
         Ok(CompiledScript {
             source_path: path.display().to_string(),
             js_code,
+            class_name,
             execution_order,
             properties,
         })
@@ -155,6 +161,27 @@ impl TypeScriptCompiler {
         }
 
         props
+    }
+
+    fn parse_class_name(&self, source: &str) -> String {
+        // Look for: export default class ClassName
+        for line in source.lines() {
+            let trimmed = line.trim();
+            if trimmed.contains("export") && trimmed.contains("default") && trimmed.contains("class") {
+                // Extract class name after "class"
+                if let Some(class_pos) = trimmed.find("class") {
+                    let after_class = &trimmed[class_pos + 5..].trim_start();
+                    let class_name: String = after_class
+                        .chars()
+                        .take_while(|c| c.is_alphanumeric() || *c == '_')
+                        .collect();
+                    if !class_name.is_empty() {
+                        return class_name;
+                    }
+                }
+            }
+        }
+        "UnnamedScript".to_string()
     }
 }
 
@@ -213,5 +240,24 @@ export default class Test {
         assert_eq!(props.get("speed"), Some(&"5.0".to_string()));
         assert_eq!(props.get("name"), Some(&"\"player\"".to_string()));
         assert_eq!(props.get("active"), Some(&"true".to_string()));
+    }
+
+    #[test]
+    fn test_parse_class_name() {
+        let compiler = TypeScriptCompiler::new();
+
+        let source = r#"
+export default class PlayerController {
+    speed = 5.0;
+}
+"#;
+        assert_eq!(compiler.parse_class_name(source), "PlayerController");
+    }
+
+    #[test]
+    fn test_parse_class_name_default() {
+        let compiler = TypeScriptCompiler::new();
+        let source = "const x = 1;";
+        assert_eq!(compiler.parse_class_name(source), "UnnamedScript");
     }
 }
