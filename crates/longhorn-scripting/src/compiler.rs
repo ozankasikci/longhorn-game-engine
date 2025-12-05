@@ -1,5 +1,5 @@
 // crates/longhorn-scripting/src/compiler.rs
-use crate::js_runtime::{JsRuntimeError, LonghornJsRuntime};
+use crate::js_runtime::JsRuntimeError;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -18,15 +18,12 @@ pub struct CompiledScript {
 
 /// TypeScript compiler using deno_core
 pub struct TypeScriptCompiler {
-    #[allow(dead_code)]
-    runtime: LonghornJsRuntime,
+    // No fields needed - we do simple string-based type stripping for MVP
 }
 
 impl TypeScriptCompiler {
     pub fn new() -> Self {
-        Self {
-            runtime: LonghornJsRuntime::new(),
-        }
+        Self {}
     }
 
     /// Compile TypeScript source to JavaScript
