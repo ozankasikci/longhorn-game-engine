@@ -4,3 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+longhorn-core = { workspace = true }
+longhorn-engine = { workspace = true }
+egui = { workspace = true }
+log = { workspace = true }
