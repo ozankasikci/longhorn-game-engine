@@ -4,3 +4,10 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+longhorn-core = { workspace = true }
+longhorn-assets = { workspace = true }
+wgpu = { workspace = true }
+glam = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+bytemuck = { version = "1.14", features = ["derive"] }
