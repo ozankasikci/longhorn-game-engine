@@ -161,31 +161,81 @@ impl ScriptRuntime {
 
     /// Sync script instances with world state
     fn sync_instances(&mut self, world: &World) {
+        let js_runtime = match &mut self.js_runtime {
+            Some(rt) => rt,
+            None => return,
+        };
+
         // Query all entities with Script components
         for (entity_id, script) in world.query::<&Script>().iter() {
-            let instance_id = (entity_id.to_bits().get(), script.path.clone());
+            let entity_bits = entity_id.to_bits().get();
+            let instance_key = format!("{}_{}", entity_bits, script.path);
 
-            if !self.instances.contains_key(&instance_id) {
-                // Create new instance
-                let properties: HashMap<String, String> = script
-                    .properties
-                    .iter()
-                    .map(|(k, v)| (k.clone(), serde_json::to_string(v).unwrap_or_default()))
-                    .collect();
-
-                self.instances.insert(
-                    instance_id,
-                    ScriptInstance {
-                        script_path: script.path.clone(),
-                        properties,
-                        started: false,
-                        enabled: script.enabled,
-                    },
-                );
+            if self.instances.contains_key(&(entity_bits, script.path.clone())) {
+                continue; // Already exists
             }
-        }
 
-        // TODO: Remove instances for despawned entities
+            // Create instance in JS
+            let create_code = format!(
+                r#"(() => {{
+                const ScriptClass = __scripts["{}"];
+                if (ScriptClass) {{
+                    __instances["{}"] = new ScriptClass();
+                    "created"
+                }} else {{
+                    "script not found"
+                }}
+            }})()"#,
+                script.path, instance_key
+            );
+
+            match js_runtime.execute_script("longhorn:create_instance", &create_code) {
+                Ok(result) => {
+                    if result == "created" {
+                        // Apply inspector properties
+                        for (prop_name, prop_value) in &script.properties {
+                            let value_js = match prop_value {
+                                longhorn_core::ScriptValue::Number(n) => n.to_string(),
+                                longhorn_core::ScriptValue::String(s) => format!("\"{}\"", s),
+                                longhorn_core::ScriptValue::Boolean(b) => b.to_string(),
+                                longhorn_core::ScriptValue::Vec2 { x, y } => {
+                                    format!("{{x: {}, y: {}}}", x, y)
+                                }
+                            };
+                            let set_prop_code = format!(
+                                r#"__instances["{}"].{} = {};"#,
+                                instance_key, prop_name, value_js
+                            );
+                            let _ = js_runtime.execute_script("longhorn:set_prop", &set_prop_code);
+                        }
+
+                        log::debug!("Created JS instance: {}", instance_key);
+                    } else {
+                        log::warn!("Script not found: {}", script.path);
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to create instance {}: {}", instance_key, e);
+                }
+            }
+
+            // Track in Rust
+            let properties: HashMap<String, String> = script
+                .properties
+                .iter()
+                .map(|(k, v)| (k.clone(), serde_json::to_string(v).unwrap_or_default()))
+                .collect();
+
+            self.instances.insert(
+                (entity_bits, script.path.clone()),
+                ScriptInstance {
+                    script_path: script.path.clone(),
+                    properties,
+                    started: false,
+                    enabled: script.enabled,
+                },
+            );
+        }
     }
 
     /// Run a lifecycle method on all script instances
@@ -386,8 +436,8 @@ export default class TestScript {
         let mut world = World::new();
         let entity = world.spawn().with(Script::new("TestScript.ts")).build();
 
-        // Sync instances (without initializing, which creates V8 runtime)
-        runtime.sync_instances(&world);
+        // Initialize runtime (which creates JS runtime and syncs instances)
+        runtime.initialize(&mut world).unwrap();
 
         // Verify instance was created
         assert_eq!(runtime.instances.len(), 1);
