@@ -1,0 +1,12 @@
+{
+    "name": "Test Game",
+    "version": "1.0.0",
+    "entry": "main.ts",
+    "viewport": {
+        "width": 800,
+        "height": 600
+    },
+    "assets": {
+        "preload": []
+    }
+}
