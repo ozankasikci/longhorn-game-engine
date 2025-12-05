@@ -7,3 +7,6 @@ pub use compiler::*;
 pub use js_runtime::*;
 pub use ops::*;
 pub use runtime::*;
+
+/// Embedded bootstrap JavaScript code
+pub const BOOTSTRAP_JS: &str = include_str!("bootstrap.js");
