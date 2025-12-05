@@ -1,5 +1,6 @@
 // crates/longhorn-scripting/src/ops.rs
 use deno_core::op2;
+use longhorn_core::Vec2;
 use serde::{Deserialize, Serialize};
 
 /// Shared state accessible from ops
@@ -24,6 +25,7 @@ impl Default for OpsState {
 
 /// Transform data for JS interop
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct JsTransform {
     pub position: JsVec2,
     pub rotation: f64,
@@ -38,12 +40,65 @@ pub struct JsVec2 {
 
 /// Sprite data for JS interop
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct JsSprite {
     pub texture: u64,
     pub size: JsVec2,
     pub color: [f64; 4],
     pub flip_x: bool,
     pub flip_y: bool,
+}
+
+impl From<&longhorn_core::Transform> for JsTransform {
+    fn from(t: &longhorn_core::Transform) -> Self {
+        Self {
+            position: JsVec2 { x: t.position.x as f64, y: t.position.y as f64 },
+            rotation: t.rotation as f64,
+            scale: JsVec2 { x: t.scale.x as f64, y: t.scale.y as f64 },
+        }
+    }
+}
+
+impl From<JsTransform> for longhorn_core::Transform {
+    fn from(t: JsTransform) -> Self {
+        Self {
+            position: Vec2::new(t.position.x as f32, t.position.y as f32),
+            rotation: t.rotation as f32,
+            scale: Vec2::new(t.scale.x as f32, t.scale.y as f32),
+        }
+    }
+}
+
+impl From<&longhorn_core::Sprite> for JsSprite {
+    fn from(s: &longhorn_core::Sprite) -> Self {
+        Self {
+            texture: s.texture.0,
+            size: JsVec2 { x: s.size.x as f64, y: s.size.y as f64 },
+            color: [s.color[0] as f64, s.color[1] as f64, s.color[2] as f64, s.color[3] as f64],
+            flip_x: s.flip_x,
+            flip_y: s.flip_y,
+        }
+    }
+}
+
+impl From<JsSprite> for longhorn_core::Sprite {
+    fn from(s: JsSprite) -> Self {
+        Self {
+            texture: longhorn_core::AssetId::new(s.texture),
+            size: Vec2::new(s.size.x as f32, s.size.y as f32),
+            color: [s.color[0] as f32, s.color[1] as f32, s.color[2] as f32, s.color[3] as f32],
+            flip_x: s.flip_x,
+            flip_y: s.flip_y,
+        }
+    }
+}
+
+/// The 'self' object passed to script lifecycle methods
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsSelf {
+    pub id: u64,
+    pub transform: Option<JsTransform>,
+    pub sprite: Option<JsSprite>,
 }
 
 // Note: In a full implementation, these ops would access the actual World.
