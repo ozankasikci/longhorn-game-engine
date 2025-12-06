@@ -66,6 +66,25 @@ impl Editor {
         }
     }
 
+    /// Set up event subscriptions for debugging world events
+    fn setup_event_subscriptions(&mut self, engine: &mut Engine) {
+        use longhorn_events::EventType;
+
+        engine.event_bus_mut().subscribe(
+            EventType::EntitySpawned,
+            |event| {
+                log::debug!("Entity spawned: {:?}", event.data);
+            },
+        );
+
+        engine.event_bus_mut().subscribe(
+            EventType::EntityDespawned,
+            |event| {
+                log::debug!("Entity despawned: {:?}", event.data);
+            },
+        );
+    }
+
     /// Get a reference to the UI state tracker
     pub fn ui_state(&self) -> &UiStateTracker {
         &self.ui_state
@@ -260,6 +279,7 @@ impl Editor {
                     Ok(()) => {
                         log::info!("Loaded project: {}", path);
                         self.refresh_asset_tree(engine);
+                        self.setup_event_subscriptions(engine);
                         RemoteResponse::ok()
                     }
                     Err(e) => RemoteResponse::error(format!("Failed to load project: {}", e)),
@@ -808,6 +828,7 @@ impl Editor {
                         } else {
                             log::info!("Loaded game from: {:?}", test_project);
                             self.refresh_asset_tree(engine);
+                            self.setup_event_subscriptions(engine);
                         }
                         ui.close_menu();
                     }
