@@ -66,10 +66,20 @@ impl Default for AssetBrowserPanel {
     }
 }
 
+/// Context menu actions
+#[derive(Debug, Clone)]
+pub enum ContextAction {
+    CreateFolder,
+    Rename(std::path::PathBuf),
+    Delete(std::path::PathBuf),
+    Refresh,
+}
+
 /// Actions that can be triggered from the asset browser
 #[derive(Debug, Clone)]
 pub enum AssetBrowserAction {
     OpenScript(std::path::PathBuf),
     OpenImage(std::path::PathBuf),
     OpenExternal(std::path::PathBuf),
+    Context(ContextAction),
 }

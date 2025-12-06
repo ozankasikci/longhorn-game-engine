@@ -767,6 +767,10 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                                 log::error!("Failed to open external: {}", e);
                             }
                         }
+                        AssetBrowserAction::Context(_context_action) => {
+                            // TODO: Handle context actions in future tasks
+                            log::info!("TODO: Handle context menu action");
+                        }
                     }
                 }
             }

@@ -1,6 +1,6 @@
 use egui::Ui;
 use crate::asset_browser_state::{AssetBrowserState, DirectoryNode, FileType};
-use super::AssetBrowserAction;
+use super::{AssetBrowserAction, ContextAction};
 
 /// Render the grid view of the selected folder's contents
 pub fn show_grid_view(
@@ -46,13 +46,8 @@ pub fn show_grid_view(
             // Then show files
             for file in &folder.files {
                 let is_selected = state.selected_file.as_ref() == Some(&file.path);
-                if show_file_grid_item(ui, state, file, is_selected) {
-                    // Double-click handling
-                    action = Some(match file.file_type {
-                        FileType::Script => AssetBrowserAction::OpenScript(file.path.clone()),
-                        FileType::Image => AssetBrowserAction::OpenImage(file.path.clone()),
-                        _ => AssetBrowserAction::OpenExternal(file.path.clone()),
-                    });
+                if let Some(file_action) = show_file_grid_item(ui, state, file, is_selected) {
+                    action = Some(file_action);
                 }
                 col += 1;
                 if col >= columns {
@@ -100,7 +95,7 @@ fn show_file_grid_item(
     state: &mut AssetBrowserState,
     file: &crate::asset_browser_state::FileEntry,
     is_selected: bool,
-) -> bool {
+) -> Option<AssetBrowserAction> {
     let icon = match file.file_type {
         FileType::Script => "[S]",
         FileType::Image => "[I]",
@@ -120,7 +115,33 @@ fn show_file_grid_item(
             state.selected_file = Some(file.path.clone());
         }
 
-        response.double_clicked()
+        // Context menu on right-click
+        let mut context_action = None;
+        response.context_menu(|ui| {
+            if ui.button("Rename").clicked() {
+                context_action = Some(AssetBrowserAction::Context(ContextAction::Rename(file.path.clone())));
+                ui.close_menu();
+            }
+            if ui.button("Delete").clicked() {
+                context_action = Some(AssetBrowserAction::Context(ContextAction::Delete(file.path.clone())));
+                ui.close_menu();
+            }
+        });
+
+        if context_action.is_some() {
+            return context_action;
+        }
+
+        // Handle double-click to open
+        if response.double_clicked() {
+            Some(match file.file_type {
+                FileType::Script => AssetBrowserAction::OpenScript(file.path.clone()),
+                FileType::Image => AssetBrowserAction::OpenImage(file.path.clone()),
+                _ => AssetBrowserAction::OpenExternal(file.path.clone()),
+            })
+        } else {
+            None
+        }
     }).inner
 }
 
