@@ -1,6 +1,6 @@
 use egui::Ui;
 use longhorn_core::{World, Name, Transform, Sprite, Enabled, EntityHandle, Script, ScriptValue};
-use crate::{EditorState, UiStateTracker};
+use crate::EditorState;
 
 /// Actions that can be triggered from the Inspector panel
 #[derive(Debug, Clone)]
@@ -25,16 +25,12 @@ impl InspectorPanel {
         ui: &mut Ui,
         world: &mut World,
         state: &EditorState,
-        ui_state: &mut UiStateTracker,
     ) -> EditorAction {
         // Reset pending action at the start
         self.pending_action = EditorAction::None;
 
         ui.heading("Inspector");
         ui.separator();
-
-        // Register the "Add Script" button as clickable
-        ui_state.register_clickable("add_script", "Add Script", "button");
 
         let Some(selected) = state.selected_entity else {
             ui.label("Select an entity");
@@ -83,15 +79,8 @@ impl InspectorPanel {
 
         ui.separator();
 
-        // Sprite (read-only)
-        if let Ok(sprite) = world.get::<Sprite>(handle) {
-            ui.label("Sprite:");
-            ui.label(format!("  Texture ID: {}", sprite.texture.0));
-            ui.label(format!("  Size: ({:.1}, {:.1})", sprite.size.x, sprite.size.y));
-            ui.label(format!("  Color: ({:.2}, {:.2}, {:.2}, {:.2})",
-                sprite.color[0], sprite.color[1], sprite.color[2], sprite.color[3]));
-            ui.label(format!("  Flip: x={}, y={}", sprite.flip_x, sprite.flip_y));
-        }
+        // Sprite (editable)
+        self.show_sprite_component(ui, world, handle);
 
         ui.separator();
 
@@ -107,18 +96,40 @@ impl InspectorPanel {
 
         ui.separator();
 
-        // Add Script button at bottom
-        if ui.button("Add Script").clicked() {
-            log::info!("Add Script button clicked (not yet implemented)");
-            // TODO: Show dropdown of available scripts from ScriptRuntime
-            // For now, add a test script
-            let test_script = Script::new("TestScript.ts");
-            if let Err(e) = world.set(handle, test_script) {
-                log::error!("Failed to add script: {:?}", e);
-            } else {
-                log::info!("Added TestScript.ts to entity");
+        // Add Component dropdown at bottom
+        ui.menu_button("Add Component", |ui| {
+            // Sprite option
+            let has_sprite = world.get::<Sprite>(handle).is_ok();
+            if ui.add_enabled(!has_sprite, egui::Button::new("Sprite")).clicked() {
+                log::info!("Adding Sprite component to entity");
+                // Add sprite with default values (texture ID 0, 32x32 size, white color)
+                // AssetId(0) is used as "no texture" placeholder until user selects one via texture picker (Task 5)
+                let sprite = Sprite::new(
+                    longhorn_core::AssetId::new(0),
+                    glam::Vec2::new(32.0, 32.0)
+                );
+                if let Err(e) = world.set(handle, sprite) {
+                    log::error!("Failed to add sprite: {:?}", e);
+                } else {
+                    log::info!("Added Sprite component to entity");
+                }
+                ui.close_menu();
             }
-        }
+
+            // Script option
+            if ui.button("Script").clicked() {
+                log::info!("Add Script button clicked (not yet implemented)");
+                // TODO: Show dropdown of available scripts from ScriptRuntime
+                // For now, add a test script
+                let test_script = Script::new("TestScript.ts");
+                if let Err(e) = world.set(handle, test_script) {
+                    log::error!("Failed to add script: {:?}", e);
+                } else {
+                    log::info!("Added TestScript.ts to entity");
+                }
+                ui.close_menu();
+            }
+        });
 
         // Return any pending action
         match &self.pending_action {
@@ -126,6 +137,64 @@ impl InspectorPanel {
             action => log::info!("Inspector returning action: {:?}", action),
         }
         self.pending_action.clone()
+    }
+
+    fn show_sprite_component(&mut self, ui: &mut Ui, world: &mut World, handle: EntityHandle) {
+        if let Ok(mut sprite) = world.get_mut::<Sprite>(handle) {
+            ui.group(|ui| {
+                ui.heading("Sprite");
+                ui.separator();
+
+                // Texture info (read-only for now, will be editable in Task 5)
+                ui.horizontal(|ui| {
+                    ui.label("Texture:");
+                    if sprite.texture.0 == 0 {
+                        ui.label("None");
+                    } else {
+                        ui.label(format!("ID: {}", sprite.texture.0));
+                    }
+                });
+
+                // Change Texture button (placeholder for Task 5)
+                if ui.button("Change Texture").clicked() {
+                    log::info!("Change Texture button clicked (texture picker not yet implemented)");
+                    // TODO: Task 5 will implement the texture picker popup
+                }
+
+                ui.separator();
+
+                // Size (editable)
+                ui.label("Size:");
+                ui.horizontal(|ui| {
+                    ui.add(egui::DragValue::new(&mut sprite.size.x).prefix("W: ").speed(1.0).range(0.01..=f32::INFINITY));
+                    ui.add(egui::DragValue::new(&mut sprite.size.y).prefix("H: ").speed(1.0).range(0.01..=f32::INFINITY));
+                });
+
+                ui.separator();
+
+                // Color (RGBA)
+                ui.label("Color:");
+                ui.horizontal(|ui| {
+                    // Use color picker for RGB
+                    let mut color_rgb = [sprite.color[0], sprite.color[1], sprite.color[2]];
+                    if ui.color_edit_button_rgb(&mut color_rgb).changed() {
+                        sprite.color[0] = color_rgb[0];
+                        sprite.color[1] = color_rgb[1];
+                        sprite.color[2] = color_rgb[2];
+                    }
+                    // Separate slider for alpha
+                    ui.add(egui::Slider::new(&mut sprite.color[3], 0.0..=1.0).text("A").fixed_decimals(2));
+                });
+
+                ui.separator();
+
+                // Flip options
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut sprite.flip_x, "Flip X");
+                    ui.checkbox(&mut sprite.flip_y, "Flip Y");
+                });
+            });
+        }
     }
 
     fn show_script_components(&mut self, ui: &mut Ui, world: &mut World, handle: EntityHandle) {

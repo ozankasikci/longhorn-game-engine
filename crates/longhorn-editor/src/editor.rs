@@ -402,7 +402,6 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                     ui,
                     self.engine.world_mut(),
                     &self.editor.state,
-                    &mut self.editor.ui_state,
                 );
 
                 // Store the action for processing later
