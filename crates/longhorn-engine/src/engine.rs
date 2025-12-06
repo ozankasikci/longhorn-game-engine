@@ -165,6 +165,23 @@ impl Engine {
     pub fn handle_touch(&mut self, event: TouchEvent) {
         self.input.handle_event(event);
 
+        // Emit to event bus
+        let (event_type, data) = match event {
+            TouchEvent::Start { x, y } => (
+                longhorn_events::EventType::TouchStarted,
+                serde_json::json!({"x": x, "y": y}),
+            ),
+            TouchEvent::Move { x, y } => (
+                longhorn_events::EventType::TouchMoved,
+                serde_json::json!({"x": x, "y": y}),
+            ),
+            TouchEvent::End { x, y } => (
+                longhorn_events::EventType::TouchEnded,
+                serde_json::json!({"x": x, "y": y}),
+            ),
+        };
+        self.event_bus.emit(event_type, data);
+
         // Forward to script runtime if it's a touch start
         if event.is_start() {
             let pos = event.position();
@@ -176,6 +193,15 @@ impl Engine {
     pub fn update(&mut self) -> Result<(), EngineError> {
         // Update time
         self.time.update();
+
+        // Emit frame begin
+        self.event_bus.emit(
+            longhorn_events::EventType::FrameBegin,
+            serde_json::json!({"delta": self.time.delta()}),
+        );
+
+        // Process pending events
+        let _events = self.event_bus.process();
 
         // Update scripting
         if self.scripting.is_initialized() {
@@ -193,6 +219,9 @@ impl Engine {
 
         // Reset per-frame input state
         self.input.begin_frame();
+
+        // Emit frame end
+        self.event_bus.emit(longhorn_events::EventType::FrameEnd, serde_json::json!({}));
 
         Ok(())
     }
