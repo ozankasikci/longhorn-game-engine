@@ -18,6 +18,13 @@ pub struct CompiledScript {
     pub properties: HashMap<String, String>,
 }
 
+/// Diagnostic information about script syntax
+#[derive(Debug, Clone)]
+pub struct ScriptDiagnostic {
+    pub line: usize,
+    pub message: String,
+}
+
 /// TypeScript compiler using deno_core
 pub struct TypeScriptCompiler {
     // No fields needed - we do simple string-based type stripping for MVP
@@ -37,6 +44,21 @@ impl TypeScriptCompiler {
         // Strip type annotations (very basic - production would use swc)
         let js = self.strip_types(source);
         Ok(js)
+    }
+
+    /// Compile TypeScript source to JavaScript with syntax diagnostics
+    pub fn compile_with_diagnostics(
+        &mut self,
+        source: &str,
+        filename: &str,
+    ) -> (Result<String, JsRuntimeError>, Vec<ScriptDiagnostic>) {
+        // Get compilation result
+        let result = self.compile(source, filename);
+
+        // Run syntax checks
+        let diagnostics = self.check_syntax(source);
+
+        (result, diagnostics)
     }
 
     /// Very basic type stripping (MVP only - use swc in production)
@@ -94,7 +116,9 @@ impl TypeScriptCompiler {
                         } else {
                             break;
                         }
-                    } else if (next == '=' || next == ',' || next == ';' || next == '\n') && depth == 0 {
+                    } else if (next == '=' || next == ',' || next == ';' || next == '\n')
+                        && depth == 0
+                    {
                         break;
                     } else {
                         type_annotation.push(chars.next().unwrap());
@@ -102,9 +126,10 @@ impl TypeScriptCompiler {
                 }
 
                 // Keep the colon only if it's an object literal
-                if type_annotation.trim().starts_with('{') ||
-                   type_annotation.contains('\n') ||
-                   type_annotation.trim().is_empty() {
+                if type_annotation.trim().starts_with('{')
+                    || type_annotation.contains('\n')
+                    || type_annotation.trim().is_empty()
+                {
                     result.push(':');
                     result.push_str(&type_annotation);
                 }
@@ -121,12 +146,137 @@ impl TypeScriptCompiler {
         result
     }
 
+    /// Check for basic syntax errors in source code
+    fn check_syntax(&self, source: &str) -> Vec<ScriptDiagnostic> {
+        let mut diagnostics = Vec::new();
+
+        // Track bracket/paren/brace depth per line
+        let mut brace_depth = 0;
+        let mut paren_depth = 0;
+        let mut bracket_depth = 0;
+
+        for (line_num, line) in source.lines().enumerate() {
+            let line_number = line_num + 1;
+            let mut in_string = false;
+            let mut string_char = ' ';
+            let mut escaped = false;
+
+            let mut _line_brace_delta = 0;
+            let mut _line_paren_delta = 0;
+            let mut _line_bracket_delta = 0;
+
+            for ch in line.chars() {
+                // Track string state
+                if !escaped && (ch == '"' || ch == '\'') {
+                    if in_string && ch == string_char {
+                        in_string = false;
+                    } else if !in_string {
+                        in_string = true;
+                        string_char = ch;
+                    }
+                    escaped = false;
+                    continue;
+                }
+
+                // Track escape sequences
+                if ch == '\\' && in_string {
+                    escaped = !escaped;
+                    continue;
+                } else {
+                    escaped = false;
+                }
+
+                // Skip characters inside strings
+                if in_string {
+                    continue;
+                }
+
+                // Count brackets outside of strings
+                match ch {
+                    '{' => {
+                        brace_depth += 1;
+                        _line_brace_delta += 1;
+                    }
+                    '}' => {
+                        brace_depth -= 1;
+                        _line_brace_delta -= 1;
+                        if brace_depth < 0 {
+                            diagnostics.push(ScriptDiagnostic {
+                                line: line_number,
+                                message: "Unexpected closing brace '}'".to_string(),
+                            });
+                        }
+                    }
+                    '(' => {
+                        paren_depth += 1;
+                        _line_paren_delta += 1;
+                    }
+                    ')' => {
+                        paren_depth -= 1;
+                        _line_paren_delta -= 1;
+                        if paren_depth < 0 {
+                            diagnostics.push(ScriptDiagnostic {
+                                line: line_number,
+                                message: "Unexpected closing parenthesis ')'".to_string(),
+                            });
+                        }
+                    }
+                    '[' => {
+                        bracket_depth += 1;
+                        _line_bracket_delta += 1;
+                    }
+                    ']' => {
+                        bracket_depth -= 1;
+                        _line_bracket_delta -= 1;
+                        if bracket_depth < 0 {
+                            diagnostics.push(ScriptDiagnostic {
+                                line: line_number,
+                                message: "Unexpected closing bracket ']'".to_string(),
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // Check for unclosed strings on this line
+            if in_string {
+                diagnostics.push(ScriptDiagnostic {
+                    line: line_number,
+                    message: format!("Unclosed string (missing closing {})", string_char),
+                });
+            }
+        }
+
+        // Check for unclosed brackets at end of file
+        if brace_depth > 0 {
+            diagnostics.push(ScriptDiagnostic {
+                line: source.lines().count(),
+                message: format!("Unclosed braces (missing {} closing '{{')", brace_depth),
+            });
+        }
+        if paren_depth > 0 {
+            diagnostics.push(ScriptDiagnostic {
+                line: source.lines().count(),
+                message: format!("Unclosed parentheses (missing {} closing ')')", paren_depth),
+            });
+        }
+        if bracket_depth > 0 {
+            diagnostics.push(ScriptDiagnostic {
+                line: source.lines().count(),
+                message: format!("Unclosed brackets (missing {} closing ']')", bracket_depth),
+            });
+        }
+
+        diagnostics
+    }
+
     /// Load and compile a TypeScript file
     pub fn compile_file(&mut self, path: &Path) -> Result<CompiledScript, CompilerError> {
-        let source = std::fs::read_to_string(path)
-            .map_err(|e| CompilerError::Io(e.to_string()))?;
+        let source = std::fs::read_to_string(path).map_err(|e| CompilerError::Io(e.to_string()))?;
 
-        let js_code = self.compile(&source, path.to_str().unwrap_or("unknown"))
+        let js_code = self
+            .compile(&source, path.to_str().unwrap_or("unknown"))
             .map_err(|e| CompilerError::Compilation(e.to_string()))?;
 
         // Parse execution order from source (look for static executionOrder = N)
@@ -175,10 +325,11 @@ impl TypeScriptCompiler {
             let trimmed = line.trim();
 
             // Skip if it's a method or static
-            if trimmed.starts_with("static") ||
-               trimmed.contains("(") ||
-               trimmed.starts_with("//") ||
-               trimmed.starts_with("on") {
+            if trimmed.starts_with("static")
+                || trimmed.contains("(")
+                || trimmed.starts_with("//")
+                || trimmed.starts_with("on")
+            {
                 continue;
             }
 
@@ -203,7 +354,10 @@ impl TypeScriptCompiler {
         // Look for: export default class ClassName
         for line in source.lines() {
             let trimmed = line.trim();
-            if trimmed.contains("export") && trimmed.contains("default") && trimmed.contains("class") {
+            if trimmed.contains("export")
+                && trimmed.contains("default")
+                && trimmed.contains("class")
+            {
                 // Extract class name after "class"
                 if let Some(class_pos) = trimmed.find("class") {
                     let after_class = &trimmed[class_pos + 5..].trim_start();
@@ -295,5 +449,100 @@ export default class PlayerController {
         let compiler = TypeScriptCompiler::new();
         let source = "const x = 1;";
         assert_eq!(compiler.parse_class_name(source), "UnnamedScript");
+    }
+
+    #[test]
+    fn test_compile_with_diagnostics_valid_code() {
+        let mut compiler = TypeScriptCompiler::new();
+        let source = r#"
+export default class Test {
+    speed = 5.0;
+    onUpdate() {
+        console.log("test");
+    }
+}
+"#;
+        let (result, diagnostics) = compiler.compile_with_diagnostics(source, "test.ts");
+        assert!(result.is_ok());
+        assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn test_compile_with_diagnostics_unclosed_brace() {
+        let mut compiler = TypeScriptCompiler::new();
+        let source = r#"
+export default class Test {
+    onUpdate() {
+        console.log("test");
+    // Missing closing brace
+}
+"#;
+        let (result, diagnostics) = compiler.compile_with_diagnostics(source, "test.ts");
+        assert!(result.is_ok()); // Compilation still succeeds
+        assert!(!diagnostics.is_empty());
+        assert!(diagnostics
+            .iter()
+            .any(|d| d.message.contains("Unclosed braces")));
+    }
+
+    #[test]
+    fn test_compile_with_diagnostics_unclosed_paren() {
+        let mut compiler = TypeScriptCompiler::new();
+        let source = r#"
+function test() {
+    console.log("test"
+}
+"#;
+        let (result, diagnostics) = compiler.compile_with_diagnostics(source, "test.ts");
+        assert!(result.is_ok());
+        assert!(!diagnostics.is_empty());
+        assert!(diagnostics
+            .iter()
+            .any(|d| d.message.contains("Unclosed parentheses")));
+    }
+
+    #[test]
+    fn test_compile_with_diagnostics_unclosed_string() {
+        let mut compiler = TypeScriptCompiler::new();
+        let source = r#"
+const x = "unclosed string;
+const y = 5;
+"#;
+        let (result, diagnostics) = compiler.compile_with_diagnostics(source, "test.ts");
+        assert!(result.is_ok());
+        assert!(!diagnostics.is_empty());
+        assert!(diagnostics
+            .iter()
+            .any(|d| d.message.contains("Unclosed string")));
+    }
+
+    #[test]
+    fn test_compile_with_diagnostics_unexpected_closing_bracket() {
+        let mut compiler = TypeScriptCompiler::new();
+        let source = r#"
+const arr = [1, 2, 3];
+console.log(arr]);
+"#;
+        let (result, diagnostics) = compiler.compile_with_diagnostics(source, "test.ts");
+        assert!(result.is_ok());
+        assert!(!diagnostics.is_empty());
+        assert!(diagnostics
+            .iter()
+            .any(|d| d.message.contains("Unexpected closing bracket")));
+    }
+
+    #[test]
+    fn test_compile_with_diagnostics_strings_with_brackets() {
+        let mut compiler = TypeScriptCompiler::new();
+        let source = r#"
+const x = "this { is [ a ( string )]}";
+const y = 'another { string [}]';
+"#;
+        let (result, diagnostics) = compiler.compile_with_diagnostics(source, "test.ts");
+        assert!(result.is_ok());
+        assert!(
+            diagnostics.is_empty(),
+            "Brackets in strings should not be counted"
+        );
     }
 }

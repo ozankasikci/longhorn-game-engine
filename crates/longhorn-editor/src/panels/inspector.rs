@@ -2,20 +2,34 @@ use egui::Ui;
 use longhorn_core::{World, Name, Transform, Sprite, Enabled, EntityHandle, Script, ScriptValue};
 use crate::EditorState;
 
-pub struct InspectorPanel;
+/// Actions that can be triggered from the Inspector panel
+#[derive(Debug, Clone)]
+pub enum EditorAction {
+    None,
+    OpenScriptEditor { path: String },
+}
+
+pub struct InspectorPanel {
+    pending_action: EditorAction,
+}
 
 impl InspectorPanel {
     pub fn new() -> Self {
-        Self
+        Self {
+            pending_action: EditorAction::None,
+        }
     }
 
-    pub fn show(&mut self, ui: &mut Ui, world: &mut World, state: &EditorState) {
+    pub fn show(&mut self, ui: &mut Ui, world: &mut World, state: &EditorState) -> EditorAction {
+        // Reset pending action at the start
+        self.pending_action = EditorAction::None;
+
         ui.heading("Inspector");
         ui.separator();
 
         let Some(selected) = state.selected_entity else {
             ui.label("Select an entity");
-            return;
+            return EditorAction::None;
         };
 
         let handle = EntityHandle::new(selected);
@@ -23,7 +37,7 @@ impl InspectorPanel {
         // Check if entity still exists
         if !world.exists(handle) {
             ui.label("Entity no longer exists");
-            return;
+            return EditorAction::None;
         }
 
         ui.label(format!("Entity ID: {}", selected.id()));
@@ -96,6 +110,9 @@ impl InspectorPanel {
                 log::info!("Added TestScript.ts to entity");
             }
         }
+
+        // Return any pending action
+        self.pending_action.clone()
     }
 
     fn show_script_components(&mut self, ui: &mut Ui, world: &mut World, handle: EntityHandle) {
@@ -129,10 +146,29 @@ impl InspectorPanel {
             ui.horizontal(|ui| {
                 ui.heading("Script");
 
-                // Remove button
-                if ui.button("Remove").clicked() {
-                    should_remove = true;
-                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // Remove button
+                    if ui.button("Remove").clicked() {
+                        should_remove = true;
+                    }
+
+                    // Kebab menu button
+                    let kebab_id = ui.make_persistent_id(format!("script_kebab_{}", path));
+                    let kebab_response = ui.button("⋮");
+                    if kebab_response.clicked() {
+                        ui.memory_mut(|m| m.toggle_popup(kebab_id));
+                    }
+
+                    // Popup menu below the kebab button
+                    egui::popup_below_widget(ui, kebab_id, &kebab_response, egui::PopupCloseBehavior::CloseOnClickOutside, |ui: &mut Ui| {
+                        if ui.button("Edit").clicked() {
+                            self.pending_action = EditorAction::OpenScriptEditor {
+                                path: path.to_string(),
+                            };
+                            ui.memory_mut(|m| m.close_popup());
+                        }
+                    });
+                });
             });
 
             ui.separator();

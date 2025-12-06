@@ -12,6 +12,7 @@ pub enum PanelType {
     GameView,
     Console,
     Project,
+    ScriptEditor,
 }
 
 impl PanelType {
@@ -23,6 +24,7 @@ impl PanelType {
             PanelType::GameView => "Game",
             PanelType::Console => "Console",
             PanelType::Project => "Project",
+            PanelType::ScriptEditor => "Script Editor",
         }
     }
 }

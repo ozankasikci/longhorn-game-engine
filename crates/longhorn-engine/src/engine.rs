@@ -253,6 +253,11 @@ impl Engine {
     pub fn config(&self) -> &EngineConfig {
         &self.config
     }
+
+    /// Get the game path if a game is loaded
+    pub fn game_path(&self) -> Option<&Path> {
+        self.game_path.as_ref().map(|p| Path::new(p))
+    }
 }
 
 /// Engine errors

@@ -3,7 +3,7 @@ use egui_dock::DockState;
 use longhorn_engine::Engine;
 use longhorn_scripting::set_console_callback;
 use std::sync::Arc;
-use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole};
+use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole, EditorAction, ScriptEditorState, ScriptEditorPanel, ScriptError};
 use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_dock_area};
 use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData};
 use longhorn_core::{Name, Transform, World, EntityHandle};
@@ -18,6 +18,9 @@ pub struct Editor {
     console_panel: ConsolePanel,
     console: ScriptConsole,
     dock_state: DockState<PanelType>,
+    pending_action: EditorAction,
+    script_editor_state: ScriptEditorState,
+    script_editor_panel: ScriptEditorPanel,
 }
 
 impl Editor {
@@ -44,6 +47,9 @@ impl Editor {
             console_panel: ConsolePanel::new(),
             console,
             dock_state: create_default_dock_state(),
+            pending_action: EditorAction::None,
+            script_editor_state: ScriptEditorState::new(),
+            script_editor_panel: ScriptEditorPanel::new(),
         }
     }
 
@@ -61,6 +67,13 @@ impl Editor {
 
     pub fn console(&self) -> &ScriptConsole {
         &self.console
+    }
+
+    /// Get and clear any pending editor action
+    pub fn take_pending_action(&mut self) -> EditorAction {
+        let action = self.pending_action.clone();
+        self.pending_action = EditorAction::None;
+        action
     }
 
     /// Process a remote command and return a response
@@ -298,6 +311,26 @@ impl Editor {
         }
     }
 
+    /// Re-check for TypeScript errors in the current script
+    fn recheck_script_errors(&mut self) {
+        // Use TypeScriptCompiler to check for errors
+        use longhorn_scripting::TypeScriptCompiler;
+        let mut compiler = TypeScriptCompiler::new();
+        let (_, diagnostics) = compiler.compile_with_diagnostics(&self.script_editor_state.content, "script.ts");
+        let errors: Vec<ScriptError> = diagnostics.into_iter()
+            .map(|d| ScriptError { line: d.line, message: d.message })
+            .collect();
+        self.script_editor_state.set_errors(errors);
+    }
+
+    /// Ensure the ScriptEditor panel is visible in the dock
+    fn ensure_script_editor_visible(&mut self) {
+        // Check if ScriptEditor is already in dock, if not add it
+        // For simplicity, we can add it as a new tab in the main area
+        // Add to root node as a new tab
+        self.dock_state.main_surface_mut().push_to_focused_leaf(PanelType::ScriptEditor);
+    }
+
     /// Handle toolbar action and update state
     pub fn handle_toolbar_action(&mut self, action: ToolbarAction, engine: &mut Engine) {
         match action {
@@ -389,6 +422,26 @@ impl Editor {
             self.handle_toolbar_action(toolbar_action, engine);
         }
 
+        // Handle inspector actions
+        let action = self.take_pending_action();
+        match action {
+            EditorAction::OpenScriptEditor { path } => {
+                // Get project path from engine
+                if let Some(project_path) = engine.game_path() {
+                    let script_path = std::path::PathBuf::from(&path);
+                    if let Err(e) = self.script_editor_state.open(script_path, project_path) {
+                        log::error!("Failed to open script: {}", e);
+                    } else {
+                        log::info!("Opened script: {}", path);
+                        self.recheck_script_errors();
+                        // Add ScriptEditor panel to dock if not already there
+                        self.ensure_script_editor_visible();
+                    }
+                }
+            }
+            EditorAction::None => {}
+        }
+
         // Main dock area
         egui::CentralPanel::default().show(ctx, |ui| {
             // We need to render panels which require access to engine/viewport_texture
@@ -428,7 +481,10 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                     ui.label("(Read-only during play)");
                     ui.separator();
                 }
-                self.editor.inspector.show(ui, self.engine.world_mut(), &self.editor.state);
+                let action = self.editor.inspector.show(ui, self.engine.world_mut(), &self.editor.state);
+
+                // Store the action for processing later
+                self.editor.pending_action = action;
             }
             PanelType::SceneView | PanelType::GameView => {
                 // Both Scene and Game view show the viewport for now
@@ -440,6 +496,18 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
             PanelType::Project => {
                 // Project browser - placeholder for now
                 ui.label("Project browser coming soon...");
+            }
+            PanelType::ScriptEditor => {
+                let save_triggered = self.editor.script_editor_panel.show(ui, &mut self.editor.script_editor_state);
+                if save_triggered {
+                    if let Err(e) = self.editor.script_editor_state.save() {
+                        log::error!("Failed to save script: {}", e);
+                    } else {
+                        log::info!("Script saved");
+                        // Re-check for errors after save
+                        self.editor.recheck_script_errors();
+                    }
+                }
             }
         }
     }
