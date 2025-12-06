@@ -152,21 +152,14 @@ impl InspectorPanel {
                         should_remove = true;
                     }
 
-                    // Kebab menu button
-                    let kebab_id = ui.make_persistent_id(format!("script_kebab_{}", path));
-                    let kebab_response = ui.button("⋮");
-                    if kebab_response.clicked() {
-                        ui.memory_mut(|m| m.toggle_popup(kebab_id));
-                    }
-
-                    // Popup menu below the kebab button
-                    egui::popup_below_widget(ui, kebab_id, &kebab_response, egui::PopupCloseBehavior::CloseOnClickOutside, |ui: &mut Ui| {
+                    // Kebab menu button with popup
+                    ui.menu_button("⋮", |ui| {
                         if ui.button("Edit").clicked() {
                             log::info!("Edit button clicked for script: {}", path);
                             self.pending_action = EditorAction::OpenScriptEditor {
                                 path: path.to_string(),
                             };
-                            ui.memory_mut(|m| m.close_popup());
+                            ui.close_menu();
                         }
                     });
                 });
