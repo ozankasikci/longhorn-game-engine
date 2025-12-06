@@ -124,6 +124,13 @@ impl ScriptRuntime {
             return Err(LonghornError::Scripting("No game loaded".to_string()));
         }
 
+        // Drop existing runtime first (V8 requires isolates dropped in reverse order)
+        if self.js_runtime.is_some() {
+            self.js_runtime = None;
+            self.instances.clear();
+            self.initialized = false;
+        }
+
         // Create JS runtime
         let mut js_runtime = LonghornJsRuntime::new();
 

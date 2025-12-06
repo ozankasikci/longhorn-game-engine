@@ -39,6 +39,17 @@ impl EditorApp {
     fn new() -> Self {
         let mut engine = Engine::new_headless();
 
+        // Auto-load test_project
+        let test_project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("test_project");
+        if let Err(e) = engine.load_game(&test_project) {
+            log::warn!("Failed to auto-load test_project: {}", e);
+        } else {
+            log::info!("Auto-loaded game from: {:?}", test_project);
+        }
+
         // Spawn test entities
         engine.world_mut()
             .spawn()
