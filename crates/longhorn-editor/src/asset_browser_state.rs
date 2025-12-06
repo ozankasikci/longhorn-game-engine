@@ -96,11 +96,53 @@ impl DirectoryNode {
             files: Vec::new(),
         }
     }
+
+    /// Scan a directory and build the tree structure
+    pub fn scan(path: &std::path::Path) -> std::io::Result<Self> {
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        let mut node = Self::new(path.to_path_buf(), name);
+
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let entry_path = entry.path();
+            let entry_name = entry
+                .file_name()
+                .to_str()
+                .unwrap_or("")
+                .to_string();
+
+            // Skip hidden files
+            if entry_name.starts_with('.') {
+                continue;
+            }
+
+            if entry_path.is_dir() {
+                if let Ok(child) = Self::scan(&entry_path) {
+                    node.children.push(child);
+                }
+            } else {
+                node.files.push(FileEntry::new(entry_path, entry_name));
+            }
+        }
+
+        // Sort children and files alphabetically
+        node.children.sort_by(|a, b| a.name.cmp(&b.name));
+        node.files.sort_by(|a, b| a.name.cmp(&b.name));
+
+        Ok(node)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::tempdir;
 
     #[test]
     fn test_file_type_from_extension() {
@@ -140,5 +182,63 @@ mod tests {
         assert_eq!(node.name, "scripts");
         assert!(node.children.is_empty());
         assert!(node.files.is_empty());
+    }
+
+    #[test]
+    fn test_scan_directory() {
+        // Create a temp directory structure
+        let temp = tempdir().unwrap();
+        let assets = temp.path().join("assets");
+        fs::create_dir_all(assets.join("scripts")).unwrap();
+        fs::write(assets.join("scripts/test.ts"), "// test").unwrap();
+        fs::write(assets.join("image.png"), &[0u8; 10]).unwrap();
+
+        let node = DirectoryNode::scan(&assets).unwrap();
+
+        assert_eq!(node.name, "assets");
+        assert_eq!(node.children.len(), 1);
+        assert_eq!(node.children[0].name, "scripts");
+        assert_eq!(node.files.len(), 1);
+        assert_eq!(node.files[0].name, "image.png");
+    }
+
+    #[test]
+    fn test_scan_skips_hidden_files() {
+        // Create a temp directory with hidden files
+        let temp = tempdir().unwrap();
+        let assets = temp.path().join("assets");
+        fs::create_dir_all(&assets).unwrap();
+        fs::write(assets.join("visible.ts"), "// visible").unwrap();
+        fs::write(assets.join(".hidden"), "hidden").unwrap();
+        fs::create_dir_all(assets.join(".hidden_dir")).unwrap();
+
+        let node = DirectoryNode::scan(&assets).unwrap();
+
+        // Should only have visible file, no hidden files or directories
+        assert_eq!(node.files.len(), 1);
+        assert_eq!(node.files[0].name, "visible.ts");
+        assert_eq!(node.children.len(), 0);
+    }
+
+    #[test]
+    fn test_scan_sorts_alphabetically() {
+        // Create a temp directory with multiple files and folders
+        let temp = tempdir().unwrap();
+        let assets = temp.path().join("assets");
+        fs::create_dir_all(assets.join("zebra")).unwrap();
+        fs::create_dir_all(assets.join("alpha")).unwrap();
+        fs::write(assets.join("z_file.txt"), "z").unwrap();
+        fs::write(assets.join("a_file.txt"), "a").unwrap();
+
+        let node = DirectoryNode::scan(&assets).unwrap();
+
+        // Children and files should be sorted alphabetically
+        assert_eq!(node.children.len(), 2);
+        assert_eq!(node.children[0].name, "alpha");
+        assert_eq!(node.children[1].name, "zebra");
+
+        assert_eq!(node.files.len(), 2);
+        assert_eq!(node.files[0].name, "a_file.txt");
+        assert_eq!(node.files[1].name, "z_file.txt");
     }
 }

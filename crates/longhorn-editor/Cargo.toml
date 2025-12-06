@@ -20,3 +20,6 @@ log = { workspace = true }
 hecs = { workspace = true }
 bytemuck = { version = "1.14", features = ["derive"] }
 image = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
