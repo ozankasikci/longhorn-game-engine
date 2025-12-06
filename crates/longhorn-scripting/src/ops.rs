@@ -2,6 +2,27 @@
 use deno_core::op2;
 use longhorn_core::Vec2;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+
+/// Callback for console output (type-erased to avoid editor dependency)
+pub type ConsoleCallback = Arc<dyn Fn(&str, &str) + Send + Sync>;
+
+/// Thread-local console callback
+thread_local! {
+    static CONSOLE_CALLBACK: std::cell::RefCell<Option<ConsoleCallback>> = std::cell::RefCell::new(None);
+}
+
+/// Set the console callback for the current thread
+pub fn set_console_callback(callback: Option<ConsoleCallback>) {
+    CONSOLE_CALLBACK.with(|cb| {
+        *cb.borrow_mut() = callback;
+    });
+}
+
+/// Get the console callback for the current thread
+fn get_console_callback() -> Option<ConsoleCallback> {
+    CONSOLE_CALLBACK.with(|cb| cb.borrow().clone())
+}
 
 /// Shared state accessible from ops
 pub struct OpsState {
@@ -107,12 +128,18 @@ pub struct JsSelf {
 
 #[op2(fast)]
 pub fn op_log(#[string] level: String, #[string] message: String) {
+    // Send to callback if set (for editor console)
+    if let Some(callback) = get_console_callback() {
+        callback(&level, &message);
+    }
+
+    // Also log via log crate for file output
     match level.as_str() {
-        "error" => log::error!("[Script] {}", message),
-        "warn" => log::warn!("[Script] {}", message),
-        "info" => log::info!("[Script] {}", message),
-        "debug" => log::debug!("[Script] {}", message),
-        _ => log::info!("[Script] {}", message),
+        "error" => log::error!(target: "script", "{}", message),
+        "warn" => log::warn!(target: "script", "{}", message),
+        "info" => log::info!(target: "script", "{}", message),
+        "debug" => log::debug!(target: "script", "{}", message),
+        _ => log::info!(target: "script", "{}", message),
     }
 }
 
