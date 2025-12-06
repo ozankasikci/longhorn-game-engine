@@ -13,6 +13,7 @@ pub enum PanelType {
     Console,
     Project,
     ScriptEditor,
+    AssetBrowser,
 }
 
 impl PanelType {
@@ -25,6 +26,7 @@ impl PanelType {
             PanelType::Console => "Console",
             PanelType::Project => "Project",
             PanelType::ScriptEditor => "Script Editor",
+            PanelType::AssetBrowser => "Assets",
         }
     }
 }
