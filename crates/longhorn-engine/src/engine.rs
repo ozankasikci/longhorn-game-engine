@@ -147,6 +147,12 @@ impl Engine {
         Ok(())
     }
 
+    /// Reset the scripting runtime (for editor Stop)
+    pub fn reset_scripting(&mut self) {
+        self.scripting.reset();
+        log::debug!("Script runtime reset");
+    }
+
     /// Handle a touch event
     pub fn handle_touch(&mut self, event: TouchEvent) {
         self.input.handle_event(event);

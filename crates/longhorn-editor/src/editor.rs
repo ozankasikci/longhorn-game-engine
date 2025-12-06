@@ -41,9 +41,11 @@ impl Editor {
             ToolbarAction::None => {}
             ToolbarAction::Play => {
                 // Capture scene state before playing
+                log::debug!("Capturing scene snapshot ({} entities)", engine.world().len());
                 self.scene_snapshot = Some(SceneSnapshot::capture(engine.world()));
                 self.state.mode = EditorMode::Play;
                 self.state.paused = false;
+                log::debug!("Calling engine.start()");
                 if let Err(e) = engine.start() {
                     log::error!("Failed to start engine: {}", e);
                 }
@@ -60,9 +62,12 @@ impl Editor {
             ToolbarAction::Stop => {
                 // Restore scene state
                 if let Some(snapshot) = self.scene_snapshot.take() {
+                    log::debug!("Restoring scene snapshot ({} entities)", snapshot.entities.len());
                     snapshot.restore(engine.world_mut());
-                    log::info!("Scene restored");
+                    log::info!("Scene restored ({} entities)", engine.world().len());
                 }
+                // Reset script runtime so it re-initializes on next Play
+                engine.reset_scripting();
                 self.state.mode = EditorMode::Scene;
                 self.state.paused = false;
                 log::info!("Entering Scene mode");

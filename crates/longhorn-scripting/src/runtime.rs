@@ -420,6 +420,16 @@ impl ScriptRuntime {
         self.error = None;
     }
 
+    /// Reset the runtime (for editor Stop). Keeps compiled scripts but clears JS state.
+    pub fn reset(&mut self) {
+        // Drop JS runtime first (V8 requires isolates dropped in order)
+        self.js_runtime = None;
+        self.instances.clear();
+        self.initialized = false;
+        self.error = None;
+        log::debug!("ScriptRuntime reset (keeping {} compiled scripts)", self.compiled_scripts.len());
+    }
+
     /// Get list of available script paths
     pub fn available_scripts(&self) -> Vec<&str> {
         self.compiled_scripts.keys().map(|s| s.as_str()).collect()
