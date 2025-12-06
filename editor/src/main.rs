@@ -9,7 +9,8 @@ use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer};
 use longhorn_engine::Engine;
 use longhorn_core::{Name, Transform, Sprite, Enabled, AssetId, Script};
 use glam::Vec2;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
+use tracing_appender::non_blocking::WorkerGuard;
 
 // Use wgpu from egui_wgpu to ensure version compatibility
 use egui_wgpu::wgpu;
@@ -345,22 +346,57 @@ impl ApplicationHandler for EditorApp {
     }
 }
 
-fn main() {
-    // Set up tracing with console output to stderr
-    // Respects RUST_LOG env var, defaults to "info"
+/// Set up logging with both console and file output.
+/// Returns a guard that must be held for the lifetime of the program.
+fn setup_logging() -> WorkerGuard {
+    // Log file location: <project>/logs/editor.log
+    let log_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("logs");
+    std::fs::create_dir_all(&log_dir).ok();
+
+    // Create file appender (non-blocking for performance)
+    let file_appender = tracing_appender::rolling::never(&log_dir, "editor.log");
+    let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
+
+    // Env filter: respects RUST_LOG, defaults to "debug" for file logging
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+        .unwrap_or_else(|_| EnvFilter::new("debug"));
+
+    // Console layer: info level, compact
+    let console_layer = tracing_subscriber::fmt::layer()
+        .with_target(true)
+        .with_thread_ids(false)
+        .with_file(false)
+        .with_filter(EnvFilter::new("info"));
+
+    // File layer: debug level, with timestamps
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_writer(file_writer)
+        .with_ansi(false)
+        .with_target(true)
+        .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true);
 
     tracing_subscriber::registry()
         .with(env_filter)
-        .with(tracing_subscriber::fmt::layer()
-            .with_target(true)
-            .with_thread_ids(false)
-            .with_file(false))
+        .with(console_layer)
+        .with(file_layer)
         .init();
 
     // Bridge log crate to tracing (so existing log::info!() calls work)
     tracing_log::LogTracer::init().ok();
+
+    log::info!("Logging initialized. File: {}", log_dir.join("editor.log").display());
+
+    guard
+}
+
+fn main() {
+    // Set up logging - guard must be held until program exit
+    let _log_guard = setup_logging();
 
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Poll);
