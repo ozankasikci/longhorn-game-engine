@@ -586,6 +586,8 @@ impl Editor {
                             log::error!("Failed to load game: {}", e);
                         } else {
                             log::info!("Loaded game from: {:?}", test_project);
+                            // Sync game_path to editor state
+                            self.state.game_path = Some(test_project.to_string_lossy().to_string());
                             self.refresh_asset_tree();
                         }
                         ui.close_menu();
