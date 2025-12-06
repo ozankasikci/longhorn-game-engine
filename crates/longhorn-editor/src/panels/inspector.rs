@@ -1,6 +1,6 @@
 use egui::Ui;
 use longhorn_core::{World, Name, Transform, Sprite, Enabled, EntityHandle, Script, ScriptValue};
-use crate::EditorState;
+use crate::{EditorState, UiStateTracker};
 
 /// Actions that can be triggered from the Inspector panel
 #[derive(Debug, Clone)]
@@ -20,12 +20,21 @@ impl InspectorPanel {
         }
     }
 
-    pub fn show(&mut self, ui: &mut Ui, world: &mut World, state: &EditorState) -> EditorAction {
+    pub fn show(
+        &mut self,
+        ui: &mut Ui,
+        world: &mut World,
+        state: &EditorState,
+        ui_state: &mut UiStateTracker,
+    ) -> EditorAction {
         // Reset pending action at the start
         self.pending_action = EditorAction::None;
 
         ui.heading("Inspector");
         ui.separator();
+
+        // Register the "Add Script" button as clickable
+        ui_state.register_clickable("add_script", "Add Script", "button");
 
         let Some(selected) = state.selected_entity else {
             ui.label("Select an entity");

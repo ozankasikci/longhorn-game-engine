@@ -5,7 +5,8 @@ use longhorn_scripting::set_console_callback;
 use std::sync::Arc;
 use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole, EditorAction, ScriptEditorState, ScriptEditorPanel, ScriptError};
 use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_dock_area};
-use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData};
+use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData, UiStateData, PanelInfo, ClickableInfo};
+use crate::ui_state::UiStateTracker;
 use longhorn_core::{Name, Transform, World, EntityHandle};
 
 pub struct Editor {
@@ -21,6 +22,7 @@ pub struct Editor {
     pending_action: EditorAction,
     script_editor_state: ScriptEditorState,
     script_editor_panel: ScriptEditorPanel,
+    ui_state: UiStateTracker,
 }
 
 impl Editor {
@@ -50,7 +52,18 @@ impl Editor {
             pending_action: EditorAction::None,
             script_editor_state: ScriptEditorState::new(),
             script_editor_panel: ScriptEditorPanel::new(),
+            ui_state: UiStateTracker::new(),
         }
+    }
+
+    /// Get a reference to the UI state tracker
+    pub fn ui_state(&self) -> &UiStateTracker {
+        &self.ui_state
+    }
+
+    /// Get a mutable reference to the UI state tracker
+    pub fn ui_state_mut(&mut self) -> &mut UiStateTracker {
+        &mut self.ui_state
     }
 
     pub fn state(&self) -> &EditorState {
@@ -300,6 +313,87 @@ impl Editor {
                 };
                 RemoteResponse::with_data(ResponseData::ScriptEditor(data))
             }
+
+            // UI State Commands
+            RemoteCommand::GetUiState => {
+                let snapshot = self.ui_state.snapshot();
+                let data = UiStateData {
+                    focused_panel: snapshot.focused_panel,
+                    panels: snapshot.panels.into_iter().map(|p| PanelInfo {
+                        id: p.id,
+                        title: p.title,
+                        is_focused: p.is_focused,
+                    }).collect(),
+                    clickable_elements: snapshot.clickable_elements.into_iter().map(|c| ClickableInfo {
+                        id: c.id,
+                        label: c.label,
+                        element_type: c.element_type,
+                    }).collect(),
+                };
+                RemoteResponse::with_data(ResponseData::UiState(data))
+            }
+
+            RemoteCommand::ListPanels => {
+                let panels: Vec<PanelInfo> = self.ui_state.panels().iter().map(|p| PanelInfo {
+                    id: p.id.clone(),
+                    title: p.title.clone(),
+                    is_focused: p.is_focused,
+                }).collect();
+                RemoteResponse::with_data(ResponseData::Panels(panels))
+            }
+
+            RemoteCommand::GetClickableElements => {
+                let elements: Vec<ClickableInfo> = self.ui_state.clickable_elements().iter().map(|c| ClickableInfo {
+                    id: c.id.clone(),
+                    label: c.label.clone(),
+                    element_type: c.element_type.clone(),
+                }).collect();
+                RemoteResponse::with_data(ResponseData::Clickables(elements))
+            }
+
+            RemoteCommand::FocusPanel { panel } => {
+                self.ui_state.request_focus(panel);
+                RemoteResponse::ok()
+            }
+
+            RemoteCommand::TriggerElement { id } => {
+                self.ui_state.request_trigger(id);
+                RemoteResponse::ok()
+            }
+
+            // Scene Tree Commands
+            RemoteCommand::ExpandTreeNode { path } => {
+                self.ui_state.request_tree_expand(path);
+                RemoteResponse::ok()
+            }
+
+            RemoteCommand::CollapseTreeNode { path } => {
+                self.ui_state.request_tree_collapse(path);
+                RemoteResponse::ok()
+            }
+
+            RemoteCommand::SelectByPath { path } => {
+                // Find entity by name path (for now, simple name match)
+                // Path format: "EntityName" or "Parent/Child/Entity"
+                let entity_name = path.split('/').last().unwrap_or(&path);
+                let found = engine.world().inner().iter()
+                    .find(|entity_ref| {
+                        let handle = EntityHandle::new(entity_ref.entity());
+                        engine.world().get::<Name>(handle)
+                            .ok()
+                            .map(|n| n.0 == entity_name)
+                            .unwrap_or(false)
+                    })
+                    .map(|e| e.entity());
+
+                match found {
+                    Some(entity) => {
+                        self.state.select(Some(entity));
+                        RemoteResponse::ok()
+                    }
+                    None => RemoteResponse::error(format!("Entity not found by path: {}", path)),
+                }
+            }
         }
     }
 
@@ -440,6 +534,9 @@ impl Editor {
     }
 
     pub fn show(&mut self, ctx: &Context, engine: &mut Engine, viewport_texture: Option<egui::TextureId>) -> bool {
+        // Reset UI state tracking for this frame
+        self.ui_state.begin_frame();
+
         let mut should_exit = false;
         let mut toolbar_action = ToolbarAction::None;
 
@@ -542,9 +639,30 @@ struct EditorPanelWrapper<'a> {
 
 impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
     fn show_panel(&mut self, ui: &mut Ui, panel_type: PanelType) {
+        // Get panel ID and title for UI state tracking
+        let (panel_id, panel_title) = match panel_type {
+            PanelType::Hierarchy => ("hierarchy", "Hierarchy"),
+            PanelType::Inspector => ("inspector", "Inspector"),
+            PanelType::SceneView => ("scene_view", "Scene"),
+            PanelType::GameView => ("game_view", "Game"),
+            PanelType::Console => ("console", "Console"),
+            PanelType::Project => ("project", "Project"),
+            PanelType::ScriptEditor => ("script_editor", "Script Editor"),
+        };
+
+        // Register panel with UI state tracker
+        // Note: We set is_focused to false since egui doesn't expose focus tracking publicly.
+        // For more accurate focus tracking, we'd need to check if any child widget has focus.
+        self.editor.ui_state.register_panel(panel_id, panel_title, false);
+
         match panel_type {
             PanelType::Hierarchy => {
-                self.editor.scene_tree.show(ui, self.engine.world(), &mut self.editor.state);
+                self.editor.scene_tree.show(
+                    ui,
+                    self.engine.world(),
+                    &mut self.editor.state,
+                    &mut self.editor.ui_state,
+                );
             }
             PanelType::Inspector => {
                 // In play mode, show read-only indicator
@@ -552,7 +670,12 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                     ui.label("(Read-only during play)");
                     ui.separator();
                 }
-                let action = self.editor.inspector.show(ui, self.engine.world_mut(), &self.editor.state);
+                let action = self.editor.inspector.show(
+                    ui,
+                    self.engine.world_mut(),
+                    &self.editor.state,
+                    &mut self.editor.ui_state,
+                );
 
                 // Store the action for processing later
                 match &action {

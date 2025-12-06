@@ -37,6 +37,18 @@ pub enum RemoteCommand {
     SaveScript,
     GetScriptEditorState,
 
+    // UI State (for remote control and automated testing)
+    GetUiState,
+    ListPanels,
+    GetClickableElements,
+    FocusPanel { panel: String },
+    TriggerElement { id: String },
+
+    // Scene Tree Control
+    ExpandTreeNode { path: String },
+    CollapseTreeNode { path: String },
+    SelectByPath { path: String },
+
     // Utility
     Ping,
 }
@@ -83,6 +95,30 @@ pub struct ScriptErrorData {
     pub message: String,
 }
 
+/// UI panel state for remote queries
+#[derive(Debug, Clone, Serialize)]
+pub struct PanelInfo {
+    pub id: String,
+    pub title: String,
+    pub is_focused: bool,
+}
+
+/// Clickable element info for remote queries
+#[derive(Debug, Clone, Serialize)]
+pub struct ClickableInfo {
+    pub id: String,
+    pub label: String,
+    pub element_type: String,
+}
+
+/// Full UI state snapshot
+#[derive(Debug, Clone, Serialize)]
+pub struct UiStateData {
+    pub focused_panel: Option<String>,
+    pub panels: Vec<PanelInfo>,
+    pub clickable_elements: Vec<ClickableInfo>,
+}
+
 /// Response data variants
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
@@ -97,6 +133,9 @@ pub enum ResponseData {
     Entity(EntityDetails),
     Created { id: u64 },
     ScriptEditor(ScriptEditorData),
+    UiState(UiStateData),
+    Panels(Vec<PanelInfo>),
+    Clickables(Vec<ClickableInfo>),
 }
 
 /// Response sent back to the client
