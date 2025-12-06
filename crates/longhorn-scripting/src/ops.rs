@@ -12,6 +12,12 @@ thread_local! {
     static CONSOLE_CALLBACK: std::cell::RefCell<Option<ConsoleCallback>> = std::cell::RefCell::new(None);
 }
 
+/// Thread-local storage for pending events emitted by scripts
+thread_local! {
+    static PENDING_EVENTS: std::cell::RefCell<Vec<(String, serde_json::Value)>> =
+        std::cell::RefCell::new(Vec::new());
+}
+
 /// Set the console callback for the current thread
 pub fn set_console_callback(callback: Option<ConsoleCallback>) {
     CONSOLE_CALLBACK.with(|cb| {
@@ -151,10 +157,23 @@ pub fn op_get_current_entity() -> u64 {
     0
 }
 
+/// Op for emitting events from scripts
+#[op2]
+pub fn op_emit_event(#[string] event_name: String, #[serde] data: serde_json::Value) {
+    PENDING_EVENTS.with(|events| {
+        events.borrow_mut().push((event_name, data));
+    });
+}
+
+/// Collect all pending events emitted by scripts and clear the queue
+pub fn take_pending_events() -> Vec<(String, serde_json::Value)> {
+    PENDING_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
+}
+
 // Extension definition for all longhorn ops
 deno_core::extension!(
     longhorn_ops,
-    ops = [op_log, op_get_current_entity],
+    ops = [op_log, op_get_current_entity, op_emit_event],
 );
 
 #[cfg(test)]

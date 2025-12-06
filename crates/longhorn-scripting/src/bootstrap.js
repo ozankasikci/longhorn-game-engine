@@ -69,4 +69,10 @@ globalThis.Sprite = Sprite;
 globalThis.__scripts = __scripts;
 globalThis.__instances = __instances;
 
+// Engine API for scripts
+globalThis.engine = globalThis.engine || {};
+globalThis.engine.emit = function(eventName, data) {
+    Deno.core.ops.op_emit_event(eventName, data || {});
+};
+
 "bootstrap loaded";
