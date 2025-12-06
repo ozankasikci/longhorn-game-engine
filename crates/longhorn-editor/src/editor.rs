@@ -1,6 +1,6 @@
 use egui::Context;
 use longhorn_engine::Engine;
-use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot};
+use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole};
 
 pub struct Editor {
     state: EditorState,
@@ -9,6 +9,9 @@ pub struct Editor {
     viewport: ViewportPanel,
     toolbar: Toolbar,
     scene_snapshot: Option<SceneSnapshot>,
+    console_panel: ConsolePanel,
+    console: ScriptConsole,
+    console_open: bool,
 }
 
 impl Editor {
@@ -20,6 +23,9 @@ impl Editor {
             viewport: ViewportPanel::new(),
             toolbar: Toolbar::new(),
             scene_snapshot: None,
+            console_panel: ConsolePanel::new(),
+            console: ScriptConsole::new(),
+            console_open: false,
         }
     }
 
@@ -35,10 +41,17 @@ impl Editor {
         &mut self.viewport
     }
 
+    pub fn console(&self) -> &ScriptConsole {
+        &self.console
+    }
+
     /// Handle toolbar action and update state
     pub fn handle_toolbar_action(&mut self, action: ToolbarAction, engine: &mut Engine) {
         match action {
             ToolbarAction::None => {}
+            ToolbarAction::ToggleConsole => {
+                // Handled in show() method
+            }
             ToolbarAction::Play => {
                 // Capture scene state before playing
                 log::debug!("Capturing scene snapshot ({} entities)", engine.world().len());
@@ -113,7 +126,24 @@ impl Editor {
         });
 
         // Handle toolbar action
-        self.handle_toolbar_action(toolbar_action, engine);
+        match toolbar_action {
+            ToolbarAction::ToggleConsole => {
+                self.console_open = !self.console_open;
+            }
+            _ => self.handle_toolbar_action(toolbar_action, engine),
+        }
+
+        // Console panel (bottom, collapsible)
+        if self.console_open {
+            egui::TopBottomPanel::bottom("console")
+                .resizable(true)
+                .default_height(150.0)
+                .min_height(100.0)
+                .max_height(400.0)
+                .show(ctx, |ui| {
+                    self.console_panel.show(ui, &self.console);
+                });
+        }
 
         // Left panel - Scene Tree
         egui::SidePanel::left("scene_tree")

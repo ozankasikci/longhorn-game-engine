@@ -9,6 +9,7 @@ pub enum ToolbarAction {
     Pause,
     Resume,
     Stop,
+    ToggleConsole,
 }
 
 /// Toolbar with play controls
@@ -79,6 +80,13 @@ impl Toolbar {
                 (EditorMode::Play, true) => "Paused",
             };
             ui.label(mode_text);
+
+            // Spacer to push console button to the right
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("Console").clicked() {
+                    action = ToolbarAction::ToggleConsole;
+                }
+            });
         });
 
         action
