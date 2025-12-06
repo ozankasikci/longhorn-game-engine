@@ -79,7 +79,7 @@ pub fn create_default_dock_state() -> DockState<PanelType> {
     let [_main, _bottom] = dock_state.main_surface_mut().split_below(
         NodeIndex::root(),
         0.7,
-        vec![PanelType::Console, PanelType::Project],
+        vec![PanelType::Console, PanelType::Project, PanelType::AssetBrowser],
     );
 
     dock_state
