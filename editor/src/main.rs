@@ -81,8 +81,8 @@ impl EditorApp {
         };
 
         let mut editor = Editor::new();
-        // Populate asset browser with auto-loaded project's assets
-        editor.refresh_asset_tree(&engine);
+        // Populate project panel with auto-loaded project's assets
+        editor.refresh_project_tree(&engine);
 
         Self {
             window: None,

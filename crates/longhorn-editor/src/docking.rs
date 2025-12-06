@@ -13,7 +13,6 @@ pub enum PanelType {
     Console,
     Project,
     ScriptEditor,
-    AssetBrowser,
 }
 
 impl PanelType {
@@ -26,7 +25,6 @@ impl PanelType {
             PanelType::Console => "Console",
             PanelType::Project => "Project",
             PanelType::ScriptEditor => "Script Editor",
-            PanelType::AssetBrowser => "Assets",
         }
     }
 }
@@ -79,7 +77,7 @@ pub fn create_default_dock_state() -> DockState<PanelType> {
     let [_main, _bottom] = dock_state.main_surface_mut().split_below(
         NodeIndex::root(),
         0.7,
-        vec![PanelType::Console, PanelType::Project, PanelType::AssetBrowser],
+        vec![PanelType::Console, PanelType::Project],
     );
 
     dock_state

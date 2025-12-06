@@ -1,16 +1,16 @@
 use egui::{Ui, RichText, Color32};
-use crate::asset_browser_state::{AssetBrowserState, DirectoryNode, FileType};
+use crate::project_panel_state::{ProjectPanelState, DirectoryNode, FileType};
 use crate::styling::Spacing;
 use crate::ui_state::{UiStateTracker, TriggerAction};
-use super::{AssetBrowserAction, ContextAction};
+use super::{ProjectPanelAction, ContextAction};
 
 /// Render the grid view of the selected folder's contents
 pub fn show_grid_view(
     ui: &mut Ui,
-    state: &mut AssetBrowserState,
+    state: &mut ProjectPanelState,
     root: &DirectoryNode,
     ui_state: &mut UiStateTracker,
-) -> Option<AssetBrowserAction> {
+) -> Option<ProjectPanelAction> {
     let folder = find_folder(root, &state.selected_folder).unwrap_or(root);
     // Debug: log only once every 60 frames to avoid log spam
     static mut FRAME_COUNT: u32 = 0;
@@ -101,13 +101,13 @@ pub fn show_grid_view(
                 log::info!("  is_text_editable: {}", file.file_type.is_text_editable());
                 let new_action = if file.file_type.is_text_editable() {
                     log::info!("  -> Creating OpenScript action");
-                    AssetBrowserAction::OpenScript(file.path.clone())
+                    ProjectPanelAction::OpenScript(file.path.clone())
                 } else if file.file_type == FileType::Image {
                     log::info!("  -> Creating OpenImage action");
-                    AssetBrowserAction::OpenImage(file.path.clone())
+                    ProjectPanelAction::OpenImage(file.path.clone())
                 } else {
                     log::info!("  -> Creating OpenExternal action");
-                    AssetBrowserAction::OpenExternal(file.path.clone())
+                    ProjectPanelAction::OpenExternal(file.path.clone())
                 };
                 log::info!("  Action created: {:?}", new_action);
                 action = Some(new_action);
@@ -126,11 +126,11 @@ pub fn show_grid_view(
             log::info!("REMOTE: Double-click on {:?}, file_type={:?}, is_text_editable={}",
                 file.path, file.file_type, file.file_type.is_text_editable());
             action = Some(if file.file_type.is_text_editable() {
-                AssetBrowserAction::OpenScript(file.path.clone())
+                ProjectPanelAction::OpenScript(file.path.clone())
             } else if file.file_type == FileType::Image {
-                AssetBrowserAction::OpenImage(file.path.clone())
+                ProjectPanelAction::OpenImage(file.path.clone())
             } else {
-                AssetBrowserAction::OpenExternal(file.path.clone())
+                ProjectPanelAction::OpenExternal(file.path.clone())
             });
         }
 
@@ -139,7 +139,7 @@ pub fn show_grid_view(
         if is_right_clicked && file.file_type.is_text_editable() {
             // Directly trigger "Open in Editor" for right-click on text files
             log::info!("REMOTE: Right-click (Open in Editor) on {:?}", file.path);
-            action = Some(AssetBrowserAction::OpenScript(file.path.clone()));
+            action = Some(ProjectPanelAction::OpenScript(file.path.clone()));
         }
 
         // Context menu (right-click) - for manual interaction only
@@ -148,22 +148,22 @@ pub fn show_grid_view(
             if file.file_type.is_text_editable() {
                 if ui.button("Open in Editor").clicked() {
                     log::info!("UI: Open in Editor clicked for {:?}", file.path);
-                    action = Some(AssetBrowserAction::OpenScript(file.path.clone()));
+                    action = Some(ProjectPanelAction::OpenScript(file.path.clone()));
                     ui.close_menu();
                 }
                 ui.separator();
             }
             if ui.button("Rename").clicked() {
-                action = Some(AssetBrowserAction::Context(ContextAction::Rename(file.path.clone())));
+                action = Some(ProjectPanelAction::Context(ContextAction::Rename(file.path.clone())));
                 ui.close_menu();
             }
             if ui.button("Delete").clicked() {
-                action = Some(AssetBrowserAction::Context(ContextAction::Delete(file.path.clone())));
+                action = Some(ProjectPanelAction::Context(ContextAction::Delete(file.path.clone())));
                 ui.close_menu();
             }
             ui.separator();
             if ui.button("Open Externally").clicked() {
-                action = Some(AssetBrowserAction::OpenExternal(file.path.clone()));
+                action = Some(ProjectPanelAction::OpenExternal(file.path.clone()));
                 ui.close_menu();
             }
         });

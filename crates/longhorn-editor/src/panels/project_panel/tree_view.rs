@@ -1,23 +1,23 @@
 use egui::Ui;
-use crate::asset_browser_state::{AssetBrowserState, DirectoryNode};
+use crate::project_panel_state::{ProjectPanelState, DirectoryNode};
 use crate::styling::Spacing;
-use super::AssetBrowserAction;
+use super::ProjectPanelAction;
 
 /// Render the folder tree view - follows scene_tree.rs pattern
 pub fn show_tree_view(
     ui: &mut Ui,
-    state: &mut AssetBrowserState,
+    state: &mut ProjectPanelState,
     root: &DirectoryNode,
-) -> Option<AssetBrowserAction> {
+) -> Option<ProjectPanelAction> {
     show_tree_node(ui, state, root, 0)
 }
 
 fn show_tree_node(
     ui: &mut Ui,
-    state: &mut AssetBrowserState,
+    state: &mut ProjectPanelState,
     node: &DirectoryNode,
     depth: usize,
-) -> Option<AssetBrowserAction> {
+) -> Option<ProjectPanelAction> {
     let mut action = None;
 
     let is_expanded = state.expanded_folders.contains(&node.path);

@@ -8,7 +8,7 @@ use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_d
 use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData, UiStateData, PanelInfo, ClickableInfo};
 use crate::ui_state::{UiStateTracker, TriggerAction};
 use longhorn_core::{Name, Transform, World, EntityHandle};
-use crate::{AssetBrowserState, AssetBrowserPanel, AssetBrowserAction, DirectoryNode, ContextAction};
+use crate::{ProjectPanelState, ProjectPanel, ProjectPanelAction, DirectoryNode, ContextAction};
 
 pub struct Editor {
     state: EditorState,
@@ -24,9 +24,9 @@ pub struct Editor {
     script_editor_state: ScriptEditorState,
     script_editor_panel: ScriptEditorPanel,
     ui_state: UiStateTracker,
-    asset_browser_state: AssetBrowserState,
-    asset_browser_panel: AssetBrowserPanel,
-    asset_tree: Option<DirectoryNode>,
+    project_panel_state: ProjectPanelState,
+    project_panel: ProjectPanel,
+    project_tree: Option<DirectoryNode>,
     /// Flag to show script editor on next frame (deferred to avoid dock state borrow issues)
     pending_show_script_editor: bool,
 }
@@ -59,9 +59,9 @@ impl Editor {
             script_editor_state: ScriptEditorState::new(),
             script_editor_panel: ScriptEditorPanel::new(),
             ui_state: UiStateTracker::new(),
-            asset_browser_state: AssetBrowserState::new(),
-            asset_browser_panel: AssetBrowserPanel::new(),
-            asset_tree: None,
+            project_panel_state: ProjectPanelState::new(),
+            project_panel: ProjectPanel::new(),
+            project_tree: None,
             pending_show_script_editor: false,
         }
     }
@@ -278,7 +278,7 @@ impl Editor {
                 match engine.load_game(&path) {
                     Ok(()) => {
                         log::info!("Loaded project: {}", path);
-                        self.refresh_asset_tree(engine);
+                        self.refresh_project_tree(engine);
                         self.setup_event_subscriptions(engine);
                         RemoteResponse::ok()
                     }
@@ -445,13 +445,13 @@ impl Editor {
             RemoteCommand::GetAssetBrowserState => {
                 use crate::remote::{AssetBrowserData, AssetFileInfo};
 
-                let selected_folder = self.asset_browser_state.selected_folder.display().to_string();
-                let selected_file = self.asset_browser_state.selected_file.as_ref()
+                let selected_folder = self.project_panel_state.selected_folder.display().to_string();
+                let selected_file = self.project_panel_state.selected_file.as_ref()
                     .map(|p| p.display().to_string());
 
                 // Collect files from current folder
                 let mut files = Vec::new();
-                if let Some(tree) = &self.asset_tree {
+                if let Some(tree) = &self.project_tree {
                     fn find_folder<'a>(node: &'a DirectoryNode, path: &std::path::Path) -> Option<&'a DirectoryNode> {
                         if node.path == path {
                             return Some(node);
@@ -464,7 +464,7 @@ impl Editor {
                         None
                     }
 
-                    let folder = find_folder(tree, &self.asset_browser_state.selected_folder)
+                    let folder = find_folder(tree, &self.project_panel_state.selected_folder)
                         .unwrap_or(tree);
 
                     for file in &folder.files {
@@ -494,7 +494,7 @@ impl Editor {
                     let extension = file_path.extension()
                         .and_then(|e| e.to_str())
                         .map(|s| s.to_lowercase());
-                    let file_type = crate::asset_browser_state::FileType::from_extension(extension.as_deref());
+                    let file_type = crate::project_panel_state::FileType::from_extension(extension.as_deref());
 
                     log::info!("File type for '{}': {:?}, is_text_editable: {}", path, file_type, file_type.is_text_editable());
 
@@ -534,7 +534,7 @@ impl Editor {
             RemoteCommand::SelectAssetFile { path } => {
                 log::info!("Remote: Selecting asset file '{}'", path);
                 let file_path = std::path::PathBuf::from(&path);
-                self.asset_browser_state.selected_file = Some(file_path);
+                self.project_panel_state.selected_file = Some(file_path);
                 RemoteResponse::ok()
             }
 
@@ -547,7 +547,7 @@ impl Editor {
                     let extension = file_path.extension()
                         .and_then(|e| e.to_str())
                         .map(|s| s.to_lowercase());
-                    let file_type = crate::asset_browser_state::FileType::from_extension(extension.as_deref());
+                    let file_type = crate::project_panel_state::FileType::from_extension(extension.as_deref());
 
                     log::info!("Double-click: File type for '{}': {:?}, is_text_editable: {}", path, file_type, file_type.is_text_editable());
 
@@ -571,7 +571,7 @@ impl Editor {
                             log::error!("Double-click: Path {:?} is not under project {:?}", file_path, game_path);
                             RemoteResponse::error("File path is not under project root")
                         }
-                    } else if file_type == crate::asset_browser_state::FileType::Image {
+                    } else if file_type == crate::project_panel_state::FileType::Image {
                         log::info!("Double-click: TODO: Open image preview for {:?}", path);
                         RemoteResponse::ok()
                     } else {
@@ -597,7 +597,7 @@ impl Editor {
                     let extension = file_path.extension()
                         .and_then(|e| e.to_str())
                         .map(|s| s.to_lowercase());
-                    let file_type = crate::asset_browser_state::FileType::from_extension(extension.as_deref());
+                    let file_type = crate::project_panel_state::FileType::from_extension(extension.as_deref());
 
                     log::info!("Context Open in Editor: File type for '{}': {:?}, is_text_editable: {}", path, file_type, file_type.is_text_editable());
 
@@ -714,10 +714,10 @@ impl Editor {
         self.script_editor_state.set_errors(errors);
     }
 
-    /// Refresh the asset tree from disk
-    pub fn refresh_asset_tree(&mut self, engine: &Engine) {
+    /// Refresh the project tree from disk
+    pub fn refresh_project_tree(&mut self, engine: &Engine) {
         let game_path = engine.game_path();
-        log::info!("refresh_asset_tree called, game_path = {:?}", game_path);
+        log::info!("refresh_project_tree called, game_path = {:?}", game_path);
         if let Some(game_path) = game_path {
             // Also sync to editor state for other uses
             self.state.game_path = Some(game_path.to_string_lossy().to_string());
@@ -728,17 +728,17 @@ impl Editor {
                 Ok(tree) => {
                     log::info!("Scanned project tree: {} files, {} folders", tree.files.len(), tree.children.len());
                     // Set selected folder to root if not set
-                    if self.asset_browser_state.selected_folder.as_os_str().is_empty() {
-                        self.asset_browser_state.selected_folder = tree.path.clone();
+                    if self.project_panel_state.selected_folder.as_os_str().is_empty() {
+                        self.project_panel_state.selected_folder = tree.path.clone();
                     }
-                    self.asset_tree = Some(tree);
+                    self.project_tree = Some(tree);
                 }
                 Err(e) => {
                     log::error!("Failed to scan project directory: {}", e);
                 }
             }
         } else {
-            log::warn!("refresh_asset_tree: No game_path set");
+            log::warn!("refresh_project_tree: No game_path set");
         }
     }
 
@@ -827,7 +827,7 @@ impl Editor {
                             log::error!("Failed to load game: {}", e);
                         } else {
                             log::info!("Loaded game from: {:?}", test_project);
-                            self.refresh_asset_tree(engine);
+                            self.refresh_project_tree(engine);
                             self.setup_event_subscriptions(engine);
                         }
                         ui.close_menu();
@@ -923,7 +923,6 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
             PanelType::Console => ("console", "Console"),
             PanelType::Project => ("project", "Project"),
             PanelType::ScriptEditor => ("script_editor", "Script Editor"),
-            PanelType::AssetBrowser => ("asset_browser", "Assets"),
         };
 
         // Register panel with UI state tracker
@@ -968,31 +967,15 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                 self.editor.console_panel.show(ui, &self.editor.console);
             }
             PanelType::Project => {
-                // Project browser - placeholder for now
-                ui.label("Project browser coming soon...");
-            }
-            PanelType::ScriptEditor => {
-                let save_triggered = self.editor.script_editor_panel.show(ui, &mut self.editor.script_editor_state);
-                if save_triggered {
-                    if let Err(e) = self.editor.script_editor_state.save() {
-                        log::error!("Failed to save script: {}", e);
-                    } else {
-                        log::info!("Script saved");
-                        // Re-check for errors after save
-                        self.editor.recheck_script_errors();
-                    }
-                }
-            }
-            PanelType::AssetBrowser => {
-                if let Some(action) = self.editor.asset_browser_panel.show(
+                if let Some(action) = self.editor.project_panel.show(
                     ui,
-                    &mut self.editor.asset_browser_state,
-                    self.editor.asset_tree.as_ref(),
+                    &mut self.editor.project_panel_state,
+                    self.editor.project_tree.as_ref(),
                     &mut self.editor.ui_state,
                 ) {
-                    log::info!("=== EDITOR received AssetBrowserAction: {:?} ===", action);
+                    log::info!("=== EDITOR received ProjectPanelAction: {:?} ===", action);
                     match action {
-                        AssetBrowserAction::OpenScript(path) => {
+                        ProjectPanelAction::OpenScript(path) => {
                             log::info!("  Processing OpenScript for path: {:?}", path);
                             log::info!("  game_path: {:?}", self.editor.state.game_path);
                             if let Some(game_path) = &self.editor.state.game_path {
@@ -1019,22 +1002,22 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                                 log::error!("  No game_path set - cannot open script!");
                             }
                         }
-                        AssetBrowserAction::OpenImage(path) => {
+                        ProjectPanelAction::OpenImage(path) => {
                             log::info!("TODO: Open image preview: {:?}", path);
                         }
-                        AssetBrowserAction::OpenExternal(path) => {
+                        ProjectPanelAction::OpenExternal(path) => {
                             if let Err(e) = open::that(&path) {
                                 log::error!("Failed to open external: {}", e);
                             }
                         }
-                        AssetBrowserAction::Context(context_action) => {
+                        ProjectPanelAction::Context(context_action) => {
                             match context_action {
                                 ContextAction::CreateFolder => {
                                     // TODO: Show dialog for folder name
                                     log::info!("TODO: Create folder dialog");
                                 }
                                 ContextAction::Rename(path) => {
-                                    self.editor.asset_browser_state.renaming = Some(path);
+                                    self.editor.project_panel_state.renaming = Some(path);
                                 }
                                 ContextAction::Delete(path) => {
                                     if let Err(e) = crate::delete(&path) {
@@ -1042,13 +1025,25 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                                     } else {
                                         log::info!("Deleted: {:?}", path);
                                     }
-                                    self.editor.refresh_asset_tree(self.engine);
+                                    self.editor.refresh_project_tree(self.engine);
                                 }
                                 ContextAction::Refresh => {
-                                    self.editor.refresh_asset_tree(self.engine);
+                                    self.editor.refresh_project_tree(self.engine);
                                 }
                             }
                         }
+                    }
+                }
+            }
+            PanelType::ScriptEditor => {
+                let save_triggered = self.editor.script_editor_panel.show(ui, &mut self.editor.script_editor_state);
+                if save_triggered {
+                    if let Err(e) = self.editor.script_editor_state.save() {
+                        log::error!("Failed to save script: {}", e);
+                    } else {
+                        log::info!("Script saved");
+                        // Re-check for errors after save
+                        self.editor.recheck_script_errors();
                     }
                 }
             }

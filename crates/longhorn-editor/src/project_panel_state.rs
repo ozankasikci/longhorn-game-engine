@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::time::Instant;
 
-/// File type categorization for asset browser display
+/// File type categorization for project panel display
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileType {
     Script,
@@ -41,8 +41,8 @@ pub const MAX_TREE_WIDTH: f32 = 400.0;
 /// Double-click threshold in milliseconds
 const DOUBLE_CLICK_MS: u128 = 400;
 
-/// State for the asset browser panel
-pub struct AssetBrowserState {
+/// State for the project panel
+pub struct ProjectPanelState {
     /// Currently selected folder (shown in grid view)
     pub selected_folder: PathBuf,
     /// Expanded folders in tree view
@@ -57,9 +57,9 @@ pub struct AssetBrowserState {
     last_click: Option<(Instant, PathBuf)>,
 }
 
-impl std::fmt::Debug for AssetBrowserState {
+impl std::fmt::Debug for ProjectPanelState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AssetBrowserState")
+        f.debug_struct("ProjectPanelState")
             .field("selected_folder", &self.selected_folder)
             .field("expanded_folders", &self.expanded_folders)
             .field("selected_file", &self.selected_file)
@@ -69,7 +69,7 @@ impl std::fmt::Debug for AssetBrowserState {
     }
 }
 
-impl AssetBrowserState {
+impl ProjectPanelState {
     pub fn new() -> Self {
         Self {
             selected_folder: PathBuf::new(),
@@ -103,13 +103,13 @@ impl AssetBrowserState {
     }
 }
 
-impl Default for AssetBrowserState {
+impl Default for ProjectPanelState {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// A file entry in the asset browser
+/// A file entry in the project panel
 #[derive(Debug, Clone)]
 pub struct FileEntry {
     pub path: PathBuf,
@@ -134,7 +134,7 @@ impl FileEntry {
     }
 }
 
-/// A directory node in the asset browser tree
+/// A directory node in the project panel tree
 #[derive(Debug, Clone)]
 pub struct DirectoryNode {
     pub path: PathBuf,
@@ -225,8 +225,8 @@ mod tests {
     }
 
     #[test]
-    fn test_asset_browser_state_new() {
-        let state = AssetBrowserState::new();
+    fn test_project_panel_state_new() {
+        let state = ProjectPanelState::new();
         assert!(state.selected_folder.as_os_str().is_empty());
         assert!(state.expanded_folders.is_empty());
         assert!(state.selected_file.is_none());

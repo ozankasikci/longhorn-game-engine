@@ -7,30 +7,30 @@ pub use grid_view::*;
 pub use file_ops::*;
 
 use egui::{Ui, Vec2, Sense, CursorIcon};
-use crate::asset_browser_state::{AssetBrowserState, DirectoryNode, MIN_TREE_WIDTH, MAX_TREE_WIDTH};
+use crate::project_panel_state::{ProjectPanelState, DirectoryNode, MIN_TREE_WIDTH, MAX_TREE_WIDTH};
 use crate::styling::Colors;
 use crate::ui_state::UiStateTracker;
 
 /// Width of the resize handle
 const SPLITTER_WIDTH: f32 = 4.0;
 
-/// Asset browser panel with tree and grid views
-pub struct AssetBrowserPanel;
+/// Project panel with tree and grid views
+pub struct ProjectPanel;
 
-impl AssetBrowserPanel {
+impl ProjectPanel {
     pub fn new() -> Self {
         Self
     }
 
-    /// Show the asset browser panel
+    /// Show the project panel
     /// Returns an action if the user triggered one (e.g., open file)
     pub fn show(
         &mut self,
         ui: &mut Ui,
-        state: &mut AssetBrowserState,
+        state: &mut ProjectPanelState,
         root: Option<&DirectoryNode>,
         ui_state: &mut UiStateTracker,
-    ) -> Option<AssetBrowserAction> {
+    ) -> Option<ProjectPanelAction> {
         if root.is_none() {
             ui.centered_and_justified(|ui| {
                 ui.label("No project loaded");
@@ -64,7 +64,7 @@ impl AssetBrowserPanel {
         tree_ui.painter().rect_filled(tree_rect, 0.0, Colors::BG_EXTREME);
 
         egui::ScrollArea::vertical()
-            .id_salt("asset_tree_scroll")
+            .id_salt("project_tree_scroll")
             .show(&mut tree_ui, |ui| {
                 if let Some(tree_action) = show_tree_view(ui, state, root) {
                     action = Some(tree_action);
@@ -104,7 +104,7 @@ impl AssetBrowserPanel {
         let mut content_ui = ui.new_child(egui::UiBuilder::new().max_rect(content_rect));
 
         egui::ScrollArea::vertical()
-            .id_salt("asset_grid_scroll")
+            .id_salt("project_grid_scroll")
             .show(&mut content_ui, |ui| {
                 if let Some(grid_action) = show_grid_view(ui, state, root, ui_state) {
                     action = Some(grid_action);
@@ -118,7 +118,7 @@ impl AssetBrowserPanel {
     }
 }
 
-impl Default for AssetBrowserPanel {
+impl Default for ProjectPanel {
     fn default() -> Self {
         Self::new()
     }
@@ -133,9 +133,9 @@ pub enum ContextAction {
     Refresh,
 }
 
-/// Actions that can be triggered from the asset browser
+/// Actions that can be triggered from the project panel
 #[derive(Debug, Clone)]
-pub enum AssetBrowserAction {
+pub enum ProjectPanelAction {
     OpenScript(std::path::PathBuf),
     OpenImage(std::path::PathBuf),
     OpenExternal(std::path::PathBuf),
