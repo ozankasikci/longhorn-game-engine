@@ -1,6 +1,7 @@
 use crate::{EngineConfig, GameManifest};
 use longhorn_assets::{AssetManager, FilesystemSource};
 use longhorn_core::{Time, World};
+use longhorn_events::EventBus;
 use longhorn_input::{InputState, TouchEvent};
 use longhorn_renderer::{Camera, Renderer};
 use longhorn_scripting::ScriptRuntime;
@@ -28,6 +29,8 @@ pub struct Engine {
     game_manifest: Option<GameManifest>,
     /// Game path
     game_path: Option<String>,
+    /// Event bus
+    event_bus: EventBus,
 }
 
 impl Engine {
@@ -53,6 +56,7 @@ impl Engine {
             config,
             game_manifest: None,
             game_path: None,
+            event_bus: EventBus::new(),
         }
     }
 
@@ -87,6 +91,7 @@ impl Engine {
             config,
             game_manifest: None,
             game_path: None,
+            event_bus: EventBus::new(),
         })
     }
 
@@ -257,6 +262,16 @@ impl Engine {
     /// Get the game path if a game is loaded
     pub fn game_path(&self) -> Option<&Path> {
         self.game_path.as_ref().map(|p| Path::new(p))
+    }
+
+    /// Get mutable access to the event bus.
+    pub fn event_bus_mut(&mut self) -> &mut EventBus {
+        &mut self.event_bus
+    }
+
+    /// Get read-only access to the event bus.
+    pub fn event_bus(&self) -> &EventBus {
+        &self.event_bus
     }
 }
 

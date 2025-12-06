@@ -9,6 +9,7 @@ longhorn-renderer = { workspace = true }
 longhorn-input = { workspace = true }
 longhorn-assets = { workspace = true }
 longhorn-scripting = { workspace = true }
+longhorn-events = { workspace = true }
 glam = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
