@@ -28,3 +28,9 @@ pollster = "0.4"
 env_logger = { workspace = true }
 log = { workspace = true }
 glam = { workspace = true }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+tracing-log = "0.2"

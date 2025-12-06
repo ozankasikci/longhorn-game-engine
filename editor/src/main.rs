@@ -9,6 +9,7 @@ use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer};
 use longhorn_engine::Engine;
 use longhorn_core::{Name, Transform, Sprite, Enabled, AssetId, Script};
 use glam::Vec2;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 // Use wgpu from egui_wgpu to ensure version compatibility
 use egui_wgpu::wgpu;
@@ -345,7 +346,21 @@ impl ApplicationHandler for EditorApp {
 }
 
 fn main() {
-    env_logger::init();
+    // Set up tracing with console output to stderr
+    // Respects RUST_LOG env var, defaults to "info"
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info"));
+
+    tracing_subscriber::registry()
+        .with(env_filter)
+        .with(tracing_subscriber::fmt::layer()
+            .with_target(true)
+            .with_thread_ids(false)
+            .with_file(false))
+        .init();
+
+    // Bridge log crate to tracing (so existing log::info!() calls work)
+    tracing_log::LogTracer::init().ok();
 
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Poll);
