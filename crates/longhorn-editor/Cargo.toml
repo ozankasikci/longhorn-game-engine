@@ -7,6 +7,7 @@ edition.workspace = true
 longhorn-core = { workspace = true }
 longhorn-engine = { workspace = true }
 longhorn-renderer = { workspace = true }
+longhorn-scripting = { workspace = true }
 
 egui = { workspace = true }
 egui-wgpu = "0.29"

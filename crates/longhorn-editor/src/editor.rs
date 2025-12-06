@@ -1,5 +1,7 @@
 use egui::Context;
 use longhorn_engine::Engine;
+use longhorn_scripting::set_console_callback;
+use std::sync::Arc;
 use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole};
 
 pub struct Editor {
@@ -16,6 +18,18 @@ pub struct Editor {
 
 impl Editor {
     pub fn new() -> Self {
+        let console = ScriptConsole::new();
+
+        // Set up console callback for script runtime
+        let console_clone = console.clone();
+        set_console_callback(Some(Arc::new(move |level: &str, message: &str| {
+            match level {
+                "error" => console_clone.error(message.to_string()),
+                "warn" => console_clone.warn(message.to_string()),
+                _ => console_clone.log(message.to_string()),
+            }
+        })));
+
         Self {
             state: EditorState::new(),
             scene_tree: SceneTreePanel::new(),
@@ -24,7 +38,7 @@ impl Editor {
             toolbar: Toolbar::new(),
             scene_snapshot: None,
             console_panel: ConsolePanel::new(),
-            console: ScriptConsole::new(),
+            console,
             console_open: false,
         }
     }
