@@ -43,14 +43,15 @@ impl Engine {
         );
 
         // Use a temporary directory for assets
-        let temp_source = FilesystemSource::new(std::env::temp_dir());
+        let temp_dir = std::env::temp_dir();
+        let temp_source = FilesystemSource::new(&temp_dir);
 
         Self {
             world: World::new(),
             renderer: None,
             camera,
             input: InputState::new(),
-            assets: AssetManager::new(temp_source),
+            assets: AssetManager::new(temp_source, temp_dir),
             scripting: ScriptRuntime::new(),
             time: Time::new(),
             config,
@@ -78,14 +79,15 @@ impl Engine {
         );
 
         // Use a temporary directory for assets until a game is loaded
-        let temp_source = FilesystemSource::new(std::env::temp_dir());
+        let temp_dir = std::env::temp_dir();
+        let temp_source = FilesystemSource::new(&temp_dir);
 
         Ok(Self {
             world: World::new(),
             renderer: Some(renderer),
             camera,
             input: InputState::new(),
-            assets: AssetManager::new(temp_source),
+            assets: AssetManager::new(temp_source, temp_dir),
             scripting: ScriptRuntime::new(),
             time: Time::new(),
             config,
@@ -120,7 +122,7 @@ impl Engine {
 
         // Set up asset manager with game directory
         let game_source = FilesystemSource::new(path);
-        self.assets = AssetManager::new(game_source);
+        self.assets = AssetManager::new(game_source, path);
 
         // Preload assets
         for asset_path in &manifest.assets.preload {

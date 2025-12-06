@@ -62,6 +62,11 @@ impl AssetRegistry {
         self.path_to_id.iter().map(|(path, &id)| (path.as_str(), AssetId::new(id)))
     }
 
+    /// Get the next available ID (useful for synchronizing ID generation)
+    pub fn next_id(&self) -> u64 {
+        self.next_id
+    }
+
     /// Load the registry from a JSON file
     pub fn load(path: impl AsRef<Path>) -> io::Result<Self> {
         let path = path.as_ref();
