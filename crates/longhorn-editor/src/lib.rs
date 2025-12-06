@@ -6,6 +6,7 @@ mod panels;
 mod editor;
 mod console;
 mod remote;
+mod remote_server;
 
 pub use state::*;
 pub use toolbar::*;
@@ -15,3 +16,4 @@ pub use panels::*;
 pub use editor::*;
 pub use console::*;
 pub use remote::*;
+pub use remote_server::*;
