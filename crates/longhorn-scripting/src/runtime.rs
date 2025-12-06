@@ -321,7 +321,7 @@ impl ScriptRuntime {
                 if (inst && typeof inst.{} === "function") {{
                     const self = {};
                     inst.{}(self, {});
-                    return JSON.stringify({{ transform: self.transform, sprite: self.sprite }});
+                    return JSON.stringify({{ id: self.id, transform: self.transform, sprite: self.sprite }});
                 }} else {{
                     return "no method";
                 }}
