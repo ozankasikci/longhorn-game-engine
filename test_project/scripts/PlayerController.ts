@@ -9,5 +9,6 @@ export default class PlayerController {
   onUpdate(self: any, dt: number) {
     // Move right
     self.transform.position.x += this.speed * dt;
+	//self.transform.position.y += this.speed * dt;
   }
 }

@@ -420,14 +420,23 @@ impl ScriptRuntime {
         self.error = None;
     }
 
-    /// Reset the runtime (for editor Stop). Keeps compiled scripts but clears JS state.
+    /// Reset the runtime (for editor Stop). Reloads scripts from disk.
     pub fn reset(&mut self) {
         // Drop JS runtime first (V8 requires isolates dropped in order)
         self.js_runtime = None;
         self.instances.clear();
         self.initialized = false;
         self.error = None;
-        log::debug!("ScriptRuntime reset (keeping {} compiled scripts)", self.compiled_scripts.len());
+
+        // Reload scripts from disk to pick up any changes
+        if let Some(game_path) = self.game_path.clone() {
+            log::info!("Reloading scripts from: {}", game_path);
+            if let Err(e) = self.load_game(&game_path) {
+                log::error!("Failed to reload scripts: {}", e);
+            }
+        } else {
+            log::debug!("ScriptRuntime reset (no game path to reload from)");
+        }
     }
 
     /// Get list of available script paths

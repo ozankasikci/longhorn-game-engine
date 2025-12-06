@@ -73,6 +73,10 @@ impl Editor {
     pub fn take_pending_action(&mut self) -> EditorAction {
         let action = self.pending_action.clone();
         self.pending_action = EditorAction::None;
+        match &action {
+            EditorAction::None => {},
+            a => log::info!("take_pending_action returning: {:?}", a),
+        }
         action
     }
 
@@ -403,6 +407,8 @@ impl Editor {
                 self.scene_snapshot = Some(SceneSnapshot::capture(engine.world()));
                 self.state.mode = EditorMode::Play;
                 self.state.paused = false;
+                // Reload scripts from disk before starting to pick up any edits
+                engine.reset_scripting();
                 log::debug!("Calling engine.start()");
                 if let Err(e) = engine.start() {
                     log::error!("Failed to start engine: {}", e);
@@ -489,7 +495,9 @@ impl Editor {
                 // Get project path from engine
                 if let Some(project_path) = engine.game_path() {
                     log::info!("Project path: {:?}", project_path);
-                    let script_path = std::path::PathBuf::from(&path);
+                    // Scripts are stored in the scripts/ subdirectory
+                    let script_path = std::path::PathBuf::from("scripts").join(&path);
+                    log::info!("Full script path: {:?}", project_path.join(&script_path));
                     if let Err(e) = self.script_editor_state.open(script_path, project_path) {
                         log::error!("Failed to open script: {}", e);
                     } else {
@@ -547,6 +555,10 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                 let action = self.editor.inspector.show(ui, self.engine.world_mut(), &self.editor.state);
 
                 // Store the action for processing later
+                match &action {
+                    EditorAction::None => {},
+                    a => log::info!("Storing action in editor: {:?}", a),
+                }
                 self.editor.pending_action = action;
             }
             PanelType::SceneView | PanelType::GameView => {

@@ -112,6 +112,10 @@ impl InspectorPanel {
         }
 
         // Return any pending action
+        match &self.pending_action {
+            EditorAction::None => {},
+            action => log::info!("Inspector returning action: {:?}", action),
+        }
         self.pending_action.clone()
     }
 
@@ -153,8 +157,9 @@ impl InspectorPanel {
                     }
 
                     // Kebab menu button with popup
-                    ui.menu_button("⋮", |ui| {
-                        if ui.button("Edit").clicked() {
+                    let menu_response = ui.menu_button("⋮", |ui| {
+                        let edit_btn = ui.button("Edit");
+                        if edit_btn.clicked() {
                             log::info!("Edit button clicked for script: {}", path);
                             self.pending_action = EditorAction::OpenScriptEditor {
                                 path: path.to_string(),
@@ -162,6 +167,9 @@ impl InspectorPanel {
                             ui.close_menu();
                         }
                     });
+                    if menu_response.response.clicked() {
+                        log::info!("Kebab menu opened for script: {}", path);
+                    }
                 });
             });
 
