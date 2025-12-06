@@ -3,7 +3,7 @@ use longhorn_engine::Engine;
 use longhorn_scripting::set_console_callback;
 use std::sync::Arc;
 use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole};
-use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo};
+use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData};
 use longhorn_core::{Name, Transform, World, EntityHandle};
 
 pub struct Editor {
@@ -124,6 +124,43 @@ impl Editor {
                     })
                     .collect();
                 RemoteResponse::with_data(ResponseData::Entities(entities))
+            }
+
+            RemoteCommand::GetEntity { id } => {
+                // Find entity by raw ID (matching get_entities format)
+                let found = engine.world().inner().iter()
+                    .find(|e| e.entity().id() as u64 == id);
+
+                match found {
+                    Some(entity_ref) => {
+                        let entity = entity_ref.entity();
+                        let handle = EntityHandle::new(entity);
+
+                        // Get name
+                        let name = engine.world().get::<Name>(handle)
+                            .ok()
+                            .map(|n| n.0.clone())
+                            .unwrap_or_else(|| format!("Entity {}", id));
+
+                        // Get transform
+                        let transform = engine.world().get::<Transform>(handle)
+                            .ok()
+                            .map(|t| TransformData {
+                                position_x: t.position.x,
+                                position_y: t.position.y,
+                                rotation: t.rotation,
+                                scale_x: t.scale.x,
+                                scale_y: t.scale.y,
+                            });
+
+                        RemoteResponse::with_data(ResponseData::Entity(EntityDetails {
+                            id,
+                            name,
+                            transform,
+                        }))
+                    }
+                    None => RemoteResponse::error(format!("Entity not found: {}", id)),
+                }
             }
 
             RemoteCommand::SelectEntity { id } => {

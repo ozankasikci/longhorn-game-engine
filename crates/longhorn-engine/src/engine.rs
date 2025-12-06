@@ -141,6 +141,9 @@ impl Engine {
             return Err(EngineError::NoGameLoaded);
         }
 
+        // Reset time so first frame has delta = 0
+        self.time.reset();
+
         self.scripting.initialize(&mut self.world)?;
         log::info!("Game started");
 

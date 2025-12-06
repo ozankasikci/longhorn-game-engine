@@ -29,6 +29,14 @@ impl Time {
         self.last_update = now;
     }
 
+    /// Reset the time tracker (for editor Play)
+    /// This ensures the first frame after reset has delta = 0
+    pub fn reset(&mut self) {
+        let now = Instant::now();
+        self.last_update = now;
+        self.delta = Duration::ZERO;
+    }
+
     /// Get delta time since last frame (in seconds)
     pub fn delta(&self) -> f32 {
         self.delta.as_secs_f32()

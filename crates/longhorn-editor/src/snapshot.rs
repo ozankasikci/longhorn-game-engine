@@ -20,10 +20,14 @@ pub struct SceneSnapshot {
 impl SceneSnapshot {
     /// Capture current world state
     pub fn capture(world: &World) -> Self {
-        let mut entities = Vec::new();
+        // Collect entity IDs first, then sort by ID to ensure deterministic order
+        let mut entity_ids: Vec<_> = world.query::<()>().iter()
+            .map(|(entity, _)| entity)
+            .collect();
+        entity_ids.sort_by_key(|e| e.id());
 
-        // Query all entities and capture their components
-        for (entity, _) in world.query::<()>().iter() {
+        let mut entities = Vec::new();
+        for entity in entity_ids {
             let handle = EntityHandle::new(entity);
             let snapshot = EntitySnapshot {
                 name: world.get::<Name>(handle).ok().map(|r| (*r).clone()),

@@ -13,6 +13,7 @@ pub enum RemoteCommand {
     // State queries
     GetState,
     GetEntities,
+    GetEntity { id: u64 },
 
     // Entity manipulation
     SelectEntity { id: u64 },
@@ -42,6 +43,24 @@ pub struct EntityInfo {
     pub name: String,
 }
 
+/// Detailed entity information with components
+#[derive(Debug, Clone, Serialize)]
+pub struct EntityDetails {
+    pub id: u64,
+    pub name: String,
+    pub transform: Option<TransformData>,
+}
+
+/// Transform component data
+#[derive(Debug, Clone, Serialize)]
+pub struct TransformData {
+    pub position_x: f32,
+    pub position_y: f32,
+    pub rotation: f32,
+    pub scale_x: f32,
+    pub scale_y: f32,
+}
+
 /// Response data variants
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
@@ -53,6 +72,7 @@ pub enum ResponseData {
         selected_entity: Option<u64>,
     },
     Entities(Vec<EntityInfo>),
+    Entity(EntityDetails),
     Created { id: u64 },
 }
 
