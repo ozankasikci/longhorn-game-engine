@@ -44,6 +44,9 @@ impl Editor {
                 self.scene_snapshot = Some(SceneSnapshot::capture(engine.world()));
                 self.state.mode = EditorMode::Play;
                 self.state.paused = false;
+                if let Err(e) = engine.start() {
+                    log::error!("Failed to start engine: {}", e);
+                }
                 log::info!("Entering Play mode");
             }
             ToolbarAction::Pause => {
