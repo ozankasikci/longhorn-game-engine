@@ -7,7 +7,7 @@ use winit::{
 };
 use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer};
 use longhorn_engine::Engine;
-use longhorn_core::{Name, Transform, Sprite, Enabled, AssetId};
+use longhorn_core::{Name, Transform, Sprite, Enabled, AssetId, Script};
 use glam::Vec2;
 
 // Use wgpu from egui_wgpu to ensure version compatibility
@@ -46,6 +46,7 @@ impl EditorApp {
             .with(Transform::from_position(Vec2::new(100.0, 200.0)))
             .with(Sprite::new(AssetId::new(1), Vec2::new(32.0, 32.0)))
             .with(Enabled::default())
+            .with(Script::new("PlayerController.ts"))
             .build();
 
         engine.world_mut()

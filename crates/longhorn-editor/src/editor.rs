@@ -79,7 +79,19 @@ impl Editor {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Open Game").clicked() {
-                        log::info!("Open Game clicked (not implemented)");
+                        // For now, load test_project from workspace root
+                        let test_project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                            .parent()
+                            .unwrap()
+                            .parent()
+                            .unwrap()
+                            .join("test_project");
+
+                        if let Err(e) = engine.load_game(&test_project) {
+                            log::error!("Failed to load game: {}", e);
+                        } else {
+                            log::info!("Loaded game from: {:?}", test_project);
+                        }
                         ui.close_menu();
                     }
                     if ui.button("Exit").clicked() {
