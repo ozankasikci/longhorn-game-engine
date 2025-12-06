@@ -32,6 +32,11 @@ pub enum RemoteCommand {
     // Project
     LoadProject { path: String },
 
+    // Script Editor
+    OpenScript { path: String },
+    SaveScript,
+    GetScriptEditorState,
+
     // Utility
     Ping,
 }
@@ -61,6 +66,23 @@ pub struct TransformData {
     pub scale_y: f32,
 }
 
+/// Script editor state data
+#[derive(Debug, Clone, Serialize)]
+pub struct ScriptEditorData {
+    pub is_open: bool,
+    pub file_path: Option<String>,
+    pub is_dirty: bool,
+    pub error_count: usize,
+    pub errors: Vec<ScriptErrorData>,
+}
+
+/// Script error data for remote
+#[derive(Debug, Clone, Serialize)]
+pub struct ScriptErrorData {
+    pub line: usize,
+    pub message: String,
+}
+
 /// Response data variants
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
@@ -74,6 +96,7 @@ pub enum ResponseData {
     Entities(Vec<EntityInfo>),
     Entity(EntityDetails),
     Created { id: u64 },
+    ScriptEditor(ScriptEditorData),
 }
 
 /// Response sent back to the client

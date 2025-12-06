@@ -237,6 +237,65 @@ impl Editor {
                     Err(e) => RemoteResponse::error(format!("Failed to load project: {}", e)),
                 }
             }
+
+            RemoteCommand::OpenScript { path } => {
+                log::info!("Remote: Opening script '{}'", path);
+                if let Some(project_path) = engine.game_path() {
+                    let script_path = std::path::PathBuf::from(&path);
+                    match self.script_editor_state.open(script_path, project_path) {
+                        Ok(()) => {
+                            log::info!("Script opened successfully: {}", path);
+                            self.recheck_script_errors();
+                            self.ensure_script_editor_visible();
+                            RemoteResponse::ok()
+                        }
+                        Err(e) => {
+                            log::error!("Failed to open script '{}': {}", path, e);
+                            RemoteResponse::error(format!("Failed to open script: {}", e))
+                        }
+                    }
+                } else {
+                    log::error!("Cannot open script: No project loaded");
+                    RemoteResponse::error("No project loaded")
+                }
+            }
+
+            RemoteCommand::SaveScript => {
+                log::info!("Remote: Saving script");
+                if self.script_editor_state.is_open() {
+                    match self.script_editor_state.save() {
+                        Ok(()) => {
+                            log::info!("Script saved successfully");
+                            self.recheck_script_errors();
+                            RemoteResponse::ok()
+                        }
+                        Err(e) => {
+                            log::error!("Failed to save script: {}", e);
+                            RemoteResponse::error(format!("Failed to save script: {}", e))
+                        }
+                    }
+                } else {
+                    RemoteResponse::error("No script is open")
+                }
+            }
+
+            RemoteCommand::GetScriptEditorState => {
+                use crate::remote::{ScriptEditorData, ScriptErrorData};
+                let data = ScriptEditorData {
+                    is_open: self.script_editor_state.is_open(),
+                    file_path: self.script_editor_state.open_file.as_ref()
+                        .map(|p| p.display().to_string()),
+                    is_dirty: self.script_editor_state.is_dirty(),
+                    error_count: self.script_editor_state.errors.len(),
+                    errors: self.script_editor_state.errors.iter()
+                        .map(|e| ScriptErrorData {
+                            line: e.line,
+                            message: e.message.clone(),
+                        })
+                        .collect(),
+                };
+                RemoteResponse::with_data(ResponseData::ScriptEditor(data))
+            }
         }
     }
 
@@ -426,8 +485,10 @@ impl Editor {
         let action = self.take_pending_action();
         match action {
             EditorAction::OpenScriptEditor { path } => {
+                log::info!("EditorAction::OpenScriptEditor received for path: {}", path);
                 // Get project path from engine
                 if let Some(project_path) = engine.game_path() {
+                    log::info!("Project path: {:?}", project_path);
                     let script_path = std::path::PathBuf::from(&path);
                     if let Err(e) = self.script_editor_state.open(script_path, project_path) {
                         log::error!("Failed to open script: {}", e);
@@ -437,6 +498,8 @@ impl Editor {
                         // Add ScriptEditor panel to dock if not already there
                         self.ensure_script_editor_visible();
                     }
+                } else {
+                    log::error!("Cannot open script: No project loaded (game_path() returned None)");
                 }
             }
             EditorAction::None => {}

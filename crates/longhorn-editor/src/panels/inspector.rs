@@ -162,6 +162,7 @@ impl InspectorPanel {
                     // Popup menu below the kebab button
                     egui::popup_below_widget(ui, kebab_id, &kebab_response, egui::PopupCloseBehavior::CloseOnClickOutside, |ui: &mut Ui| {
                         if ui.button("Edit").clicked() {
+                            log::info!("Edit button clicked for script: {}", path);
                             self.pending_action = EditorAction::OpenScriptEditor {
                                 path: path.to_string(),
                             };
