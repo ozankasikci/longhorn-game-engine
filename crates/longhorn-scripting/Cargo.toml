@@ -11,3 +11,6 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
 deno_core = { workspace = true }
+
+[dev-dependencies]
+env_logger = { workspace = true }
