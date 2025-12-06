@@ -1,12 +1,14 @@
 # Script Execution Implementation Plan
 
+> **Note:** This implementation plan references deno_core. The implementation uses **rquickjs (QuickJS)** instead. See `crates/longhorn-scripting/src/js_runtime.rs` for current implementation.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Wire up TypeScript scripts to actually execute lifecycle methods (onStart, onUpdate, onDestroy).
 
 **Architecture:** JS runtime initialized with bootstrap code that defines Entity class and global registries. Compiled scripts are loaded and registered, instances created per entity, lifecycle methods called via dynamically generated JS.
 
-**Tech Stack:** Rust, deno_core, JavaScript
+**Tech Stack:** Rust, rquickjs, JavaScript
 
 ---
 

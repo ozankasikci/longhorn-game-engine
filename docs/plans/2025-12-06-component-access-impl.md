@@ -1,12 +1,14 @@
 # Component Access Implementation Plan
 
+> **Note:** This implementation plan references deno_core. The implementation uses **rquickjs (QuickJS)** instead.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Enable scripts to read/modify Transform and Sprite components through `self.transform` and `self.sprite` properties.
 
 **Architecture:** Rust injects component data as JSON into the `self` parameter before calling lifecycle methods. After the method returns, Rust reads back the (possibly modified) data and writes to World.
 
-**Tech Stack:** Rust, deno_core, serde_json, hecs ECS
+**Tech Stack:** Rust, rquickjs, serde_json, hecs ECS
 
 ---
 

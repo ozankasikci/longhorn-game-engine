@@ -1,5 +1,7 @@
 # TypeScript Scripting System Design
 
+> **Note:** This design document references Deno Core (V8) for scripting. The implementation has since migrated to **rquickjs (QuickJS)** for better compile times and simpler embedding. The script model and API design remain the same.
+
 ## Goal
 
 Add TypeScript as the scripting language for Longhorn, with scripts as components that can be attached to entities. Scripts affect gameplay like Unity MonoBehaviours or Godot scripts.

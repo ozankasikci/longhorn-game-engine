@@ -1,12 +1,14 @@
 # Longhorn v2 Implementation Plan
 
+> **Note:** This implementation plan references deno_core for scripting. The implementation uses **rquickjs (QuickJS)** instead for better compile times and simpler embedding.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build a working MVP of Longhorn v2 — a Rust-based 2D mobile game engine with TypeScript scripting, wgpu rendering, and egui editor.
 
 **Architecture:** Cargo workspace with 8 crates. Core foundation types → rendering/input/assets/scripting → engine integration → platform (mobile/editor). Each crate has a single responsibility with clear dependency boundaries.
 
-**Tech Stack:** Rust, wgpu, hecs, deno_core, egui, winit, glam
+**Tech Stack:** Rust, wgpu, hecs, rquickjs, egui, winit, glam
 
 ---
 

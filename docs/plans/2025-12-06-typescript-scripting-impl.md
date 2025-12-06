@@ -1,8 +1,10 @@
 # TypeScript Scripting System Implementation Plan
 
+> **Note:** This implementation plan references Deno Core. The implementation has since migrated to **rquickjs (QuickJS)**. See `crates/longhorn-scripting/src/js_runtime.rs` and `bootstrap.js` for current implementation.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Implement TypeScript scripting as attachable components on entities, using Deno Core for JS execution.
+**Goal:** Implement TypeScript scripting as attachable components on entities, using rquickjs (QuickJS) for JS execution.
 
 **Architecture:** Scripts are ECS components with a path and properties. Deno Core runs compiled TypeScript. Rust ops expose engine functionality (components, world, input) to JS. Scripts have class-based lifecycle methods (onStart, onUpdate, onDestroy).
 

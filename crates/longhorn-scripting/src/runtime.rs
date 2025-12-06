@@ -23,7 +23,7 @@ struct ScriptInstance {
     enabled: bool,
 }
 
-/// Script runtime - manages TypeScript execution via Deno Core
+/// Script runtime - manages TypeScript execution via rquickjs (QuickJS)
 pub struct ScriptRuntime {
     /// Compiled scripts cache (path -> compiled)
     compiled_scripts: HashMap<String, CompiledScript>,

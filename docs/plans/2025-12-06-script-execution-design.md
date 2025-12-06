@@ -1,5 +1,7 @@
 # Script Execution Design (Phase 1)
 
+> **Note:** This design document references Deno Core. The implementation uses **rquickjs (QuickJS)** instead. The `Deno.core.ops` pattern has been replaced with global functions like `__longhorn_log`. See `crates/longhorn-scripting/src/bootstrap.js` for current API.
+
 ## Goal
 
 Wire up the TypeScript scripting system so scripts actually execute. Currently `run_lifecycle` logs "Would call..." without executing JavaScript. This phase makes lifecycle methods (onStart, onUpdate, onDestroy) actually run.

@@ -1,5 +1,7 @@
 # Longhorn v2: Mobile 2D Game Engine Design
 
+> **Note:** This design document references Deno Core for scripting. The implementation has since migrated to **rquickjs (QuickJS)** for better compile times and simpler embedding. See `crates/longhorn-scripting/` for current implementation.
+
 ## Overview
 
 Longhorn v2 is a Rust-based 2D game engine specifically built for mobile games (iOS and Android). It features TypeScript scripting for game logic, wgpu-based rendering, and an egui desktop editor.

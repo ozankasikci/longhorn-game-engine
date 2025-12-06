@@ -1,12 +1,14 @@
 # Logging System Implementation Plan
 
+> **Note:** This implementation plan references Deno Core. The implementation uses **rquickjs (QuickJS)** instead.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a console panel for script output and session-based file logging for debugging.
 
 **Architecture:** Scripts call `console.log/warn/error` which writes to a shared buffer (displayed in UI) and to the file logger. Engine/editor logs go to file only. Console panel is a collapsible bottom drawer toggled via toolbar button.
 
-**Tech Stack:** Rust, egui, tracing + tracing-subscriber for file logging, Deno Core for script runtime.
+**Tech Stack:** Rust, egui, tracing + tracing-subscriber for file logging, rquickjs for script runtime.
 
 ---
 
