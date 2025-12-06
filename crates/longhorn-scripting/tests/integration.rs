@@ -1,4 +1,4 @@
-use longhorn_core::{Script, World};
+use longhorn_core::{Script, Transform, Vec2, World};
 use longhorn_scripting::ScriptRuntime;
 use std::path::PathBuf;
 
@@ -99,5 +99,127 @@ export default class LoggingScript {
     assert!(result.is_ok(), "Update failed: {:?}", result);
 
     // Cleanup
+    std::fs::remove_dir_all(&test_dir).ok();
+}
+
+#[test]
+fn test_script_reads_transform() {
+    let test_dir = std::env::temp_dir().join("test_script_reads_transform");
+    let scripts_dir = test_dir.join("scripts");
+    std::fs::create_dir_all(&scripts_dir).unwrap();
+
+    // Script that logs transform position
+    let script = r#"
+export default class ReadTransform {
+    onStart(self) {
+        console.log("pos:", self.transform.position.x, self.transform.position.y);
+    }
+}
+"#;
+    std::fs::write(scripts_dir.join("ReadTransform.ts"), script).unwrap();
+
+    let mut runtime = ScriptRuntime::new();
+    runtime.load_game(&test_dir).unwrap();
+
+    let mut world = World::new();
+    let entity = world
+        .spawn()
+        .with(Script::new("ReadTransform.ts"))
+        .with(Transform::from_position(Vec2::new(100.0, 200.0)))
+        .build();
+
+    runtime.initialize(&mut world).unwrap();
+
+    // Verify transform is still there (wasn't corrupted)
+    let t = world.get::<Transform>(entity).unwrap();
+    assert_eq!(t.position.x, 100.0);
+    assert_eq!(t.position.y, 200.0);
+
+    std::fs::remove_dir_all(&test_dir).ok();
+}
+
+#[test]
+fn test_script_modifies_transform() {
+    let test_dir = std::env::temp_dir().join("test_script_modifies_transform");
+    let scripts_dir = test_dir.join("scripts");
+    std::fs::create_dir_all(&scripts_dir).unwrap();
+
+    // Script that modifies position
+    let script = r#"
+export default class MoveRight {
+    onUpdate(self, dt) {
+        self.transform.position.x += 10;
+    }
+}
+"#;
+    std::fs::write(scripts_dir.join("MoveRight.ts"), script).unwrap();
+
+    let mut runtime = ScriptRuntime::new();
+    runtime.load_game(&test_dir).unwrap();
+
+    let mut world = World::new();
+    let entity = world
+        .spawn()
+        .with(Script::new("MoveRight.ts"))
+        .with(Transform::from_position(Vec2::new(0.0, 0.0)))
+        .build();
+
+    runtime.initialize(&mut world).unwrap();
+
+    // Run update
+    runtime.update(&mut world, 0.016).unwrap();
+
+    // Verify position changed
+    {
+        let t = world.get::<Transform>(entity).unwrap();
+        assert_eq!(t.position.x, 10.0);
+    }
+
+    // Run another update
+    runtime.update(&mut world, 0.016).unwrap();
+
+    {
+        let t = world.get::<Transform>(entity).unwrap();
+        assert_eq!(t.position.x, 20.0);
+    }
+
+    std::fs::remove_dir_all(&test_dir).ok();
+}
+
+#[test]
+fn test_script_handles_null_sprite() {
+    let test_dir = std::env::temp_dir().join("test_script_null_sprite");
+    let scripts_dir = test_dir.join("scripts");
+    std::fs::create_dir_all(&scripts_dir).unwrap();
+
+    // Script that checks for null sprite
+    let script = r#"
+export default class CheckSprite {
+    onStart(self) {
+        if (self.sprite === null) {
+            console.log("no sprite");
+        } else {
+            console.log("has sprite");
+        }
+    }
+}
+"#;
+    std::fs::write(scripts_dir.join("CheckSprite.ts"), script).unwrap();
+
+    let mut runtime = ScriptRuntime::new();
+    runtime.load_game(&test_dir).unwrap();
+
+    let mut world = World::new();
+    // Entity with transform but NO sprite
+    world
+        .spawn()
+        .with(Script::new("CheckSprite.ts"))
+        .with(Transform::new())
+        .build();
+
+    // Should not crash
+    let result = runtime.initialize(&mut world);
+    assert!(result.is_ok());
+
     std::fs::remove_dir_all(&test_dir).ok();
 }
