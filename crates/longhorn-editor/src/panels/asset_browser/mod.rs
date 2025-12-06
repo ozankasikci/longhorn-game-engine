@@ -1,8 +1,10 @@
 mod tree_view;
 mod grid_view;
+mod file_ops;
 
 pub use tree_view::*;
 pub use grid_view::*;
+pub use file_ops::*;
 
 use egui::Ui;
 use crate::asset_browser_state::{AssetBrowserState, DirectoryNode};
