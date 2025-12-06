@@ -39,7 +39,9 @@ egui = "0.29"
 eframe = { version = "0.29", default-features = false, features = ["default_fonts", "glow", "persistence"] }
 
 # Scripting
-deno_core = "0.311"
+rquickjs = { version = "0.10", features = ["classes", "properties", "parallel", "bindgen"] }
+# Note: SWC integration can be added later for production-grade TS compilation
+# For now, use simple regex-based type stripping (MVP approach)
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

@@ -1,5 +1,9 @@
 // crates/longhorn-scripting/src/ops.rs
-use deno_core::op2;
+//! Longhorn engine ops - functions exposed to JavaScript scripts
+//!
+//! These ops are registered as global functions in the QuickJS runtime
+//! and called from JavaScript via the bootstrap.js wrappers.
+
 use longhorn_core::Vec2;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -32,13 +36,37 @@ pub fn set_console_callback(callback: Option<ConsoleCallback>) {
 }
 
 /// Get the console callback for the current thread
-fn get_console_callback() -> Option<ConsoleCallback> {
+pub fn get_console_callback() -> Option<ConsoleCallback> {
     CONSOLE_CALLBACK.with(|cb| cb.borrow().clone())
+}
+
+/// Push a pending event (called from js_runtime ops)
+pub fn push_pending_event(event_name: String, data: serde_json::Value) {
+    PENDING_EVENTS.with(|events| {
+        events.borrow_mut().push((event_name, data));
+    });
+}
+
+/// Push a pending targeted event (called from js_runtime ops)
+pub fn push_pending_targeted_event(entity_id: u64, event_name: String, data: serde_json::Value) {
+    PENDING_TARGETED_EVENTS.with(|events| {
+        events.borrow_mut().push((entity_id, event_name, data));
+    });
+}
+
+/// Collect all pending events emitted by scripts and clear the queue
+pub fn take_pending_events() -> Vec<(String, serde_json::Value)> {
+    PENDING_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
+}
+
+/// Collect all pending targeted events emitted by scripts and clear the queue
+pub fn take_pending_targeted_events() -> Vec<(u64, String, serde_json::Value)> {
+    PENDING_TARGETED_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
 }
 
 /// Shared state accessible from ops
 pub struct OpsState {
-    // These will be set before script execution
+    /// Current entity ID being processed
     pub current_entity_id: Option<u64>,
 }
 
@@ -85,9 +113,15 @@ pub struct JsSprite {
 impl From<&longhorn_core::Transform> for JsTransform {
     fn from(t: &longhorn_core::Transform) -> Self {
         Self {
-            position: JsVec2 { x: t.position.x as f64, y: t.position.y as f64 },
+            position: JsVec2 {
+                x: t.position.x as f64,
+                y: t.position.y as f64,
+            },
             rotation: t.rotation as f64,
-            scale: JsVec2 { x: t.scale.x as f64, y: t.scale.y as f64 },
+            scale: JsVec2 {
+                x: t.scale.x as f64,
+                y: t.scale.y as f64,
+            },
         }
     }
 }
@@ -106,8 +140,16 @@ impl From<&longhorn_core::Sprite> for JsSprite {
     fn from(s: &longhorn_core::Sprite) -> Self {
         Self {
             texture: s.texture.0,
-            size: JsVec2 { x: s.size.x as f64, y: s.size.y as f64 },
-            color: [s.color[0] as f64, s.color[1] as f64, s.color[2] as f64, s.color[3] as f64],
+            size: JsVec2 {
+                x: s.size.x as f64,
+                y: s.size.y as f64,
+            },
+            color: [
+                s.color[0] as f64,
+                s.color[1] as f64,
+                s.color[2] as f64,
+                s.color[3] as f64,
+            ],
             flip_x: s.flip_x,
             flip_y: s.flip_y,
         }
@@ -119,7 +161,12 @@ impl From<JsSprite> for longhorn_core::Sprite {
         Self {
             texture: longhorn_core::AssetId::new(s.texture),
             size: Vec2::new(s.size.x as f32, s.size.y as f32),
-            color: [s.color[0] as f32, s.color[1] as f32, s.color[2] as f32, s.color[3] as f32],
+            color: [
+                s.color[0] as f32,
+                s.color[1] as f32,
+                s.color[2] as f32,
+                s.color[3] as f32,
+            ],
             flip_x: s.flip_x,
             flip_y: s.flip_y,
         }
@@ -133,71 +180,6 @@ pub struct JsSelf {
     pub transform: Option<JsTransform>,
     pub sprite: Option<JsSprite>,
 }
-
-// Note: In a full implementation, these ops would access the actual World.
-// For now, we define the interface. The ScriptRuntime will inject the World
-// via op state before calling scripts.
-
-#[op2(fast)]
-pub fn op_log(#[string] level: String, #[string] message: String) {
-    // Send to callback if set (for editor console)
-    if let Some(callback) = get_console_callback() {
-        callback(&level, &message);
-    }
-
-    // Also log via log crate for file output
-    match level.as_str() {
-        "error" => log::error!(target: "script", "{}", message),
-        "warn" => log::warn!(target: "script", "{}", message),
-        "info" => log::info!(target: "script", "{}", message),
-        "debug" => log::debug!(target: "script", "{}", message),
-        _ => log::info!(target: "script", "{}", message),
-    }
-}
-
-#[op2(fast)]
-#[bigint]
-pub fn op_get_current_entity() -> u64 {
-    // This will be replaced with actual state lookup
-    // For now, return 0 to indicate no current entity
-    0
-}
-
-/// Op for emitting events from scripts
-#[op2]
-pub fn op_emit_event(#[string] event_name: String, #[serde] data: serde_json::Value) {
-    PENDING_EVENTS.with(|events| {
-        events.borrow_mut().push((event_name, data));
-    });
-}
-
-/// Collect all pending events emitted by scripts and clear the queue
-pub fn take_pending_events() -> Vec<(String, serde_json::Value)> {
-    PENDING_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
-}
-
-/// Op for emitting entity-targeted events from scripts
-#[op2]
-pub fn op_emit_to_entity(
-    #[bigint] entity_id: u64,
-    #[string] event_name: String,
-    #[serde] data: serde_json::Value,
-) {
-    PENDING_TARGETED_EVENTS.with(|events| {
-        events.borrow_mut().push((entity_id, event_name, data));
-    });
-}
-
-/// Collect all pending targeted events emitted by scripts and clear the queue
-pub fn take_pending_targeted_events() -> Vec<(u64, String, serde_json::Value)> {
-    PENDING_TARGETED_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
-}
-
-// Extension definition for all longhorn ops
-deno_core::extension!(
-    longhorn_ops,
-    ops = [op_log, op_get_current_entity, op_emit_event, op_emit_to_entity],
-);
 
 #[cfg(test)]
 mod tests {
@@ -222,7 +204,38 @@ mod tests {
         assert!(json.contains("10"));
     }
 
-    // Note: op_log and op_get_current_entity are transformed by the #[op2] macro
-    // and are meant to be called from JavaScript, not directly from Rust tests.
-    // Integration tests will verify these ops work correctly.
+    #[test]
+    fn test_pending_events() {
+        // Clear any existing events
+        take_pending_events();
+
+        // Push some events
+        push_pending_event("test_event".to_string(), serde_json::json!({"foo": "bar"}));
+        push_pending_event("another_event".to_string(), serde_json::json!(42));
+
+        // Take events
+        let events = take_pending_events();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].0, "test_event");
+        assert_eq!(events[1].0, "another_event");
+
+        // Queue should be empty now
+        let events = take_pending_events();
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn test_pending_targeted_events() {
+        // Clear any existing events
+        take_pending_targeted_events();
+
+        // Push a targeted event
+        push_pending_targeted_event(123, "hit".to_string(), serde_json::json!({"damage": 10}));
+
+        // Take events
+        let events = take_pending_targeted_events();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].0, 123); // entity_id
+        assert_eq!(events[0].1, "hit"); // event_name
+    }
 }
