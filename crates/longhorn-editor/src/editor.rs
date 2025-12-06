@@ -8,7 +8,7 @@ use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_d
 use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData, UiStateData, PanelInfo, ClickableInfo};
 use crate::ui_state::UiStateTracker;
 use longhorn_core::{Name, Transform, World, EntityHandle};
-use crate::{AssetBrowserState, AssetBrowserPanel, AssetBrowserAction, DirectoryNode};
+use crate::{AssetBrowserState, AssetBrowserPanel, AssetBrowserAction, DirectoryNode, ContextAction};
 
 pub struct Editor {
     state: EditorState,
@@ -767,9 +767,27 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                                 log::error!("Failed to open external: {}", e);
                             }
                         }
-                        AssetBrowserAction::Context(_context_action) => {
-                            // TODO: Handle context actions in future tasks
-                            log::info!("TODO: Handle context menu action");
+                        AssetBrowserAction::Context(context_action) => {
+                            match context_action {
+                                ContextAction::CreateFolder => {
+                                    // TODO: Show dialog for folder name
+                                    log::info!("TODO: Create folder dialog");
+                                }
+                                ContextAction::Rename(path) => {
+                                    self.editor.asset_browser_state.renaming = Some(path);
+                                }
+                                ContextAction::Delete(path) => {
+                                    if let Err(e) = crate::delete(&path) {
+                                        log::error!("Failed to delete: {}", e);
+                                    } else {
+                                        log::info!("Deleted: {:?}", path);
+                                    }
+                                    self.editor.refresh_asset_tree();
+                                }
+                                ContextAction::Refresh => {
+                                    self.editor.refresh_asset_tree();
+                                }
+                            }
                         }
                     }
                 }
