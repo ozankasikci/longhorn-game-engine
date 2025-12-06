@@ -50,6 +50,13 @@ impl ScriptConsole {
     }
 
     fn push(&self, level: ConsoleLevel, message: String) {
+        // Log to file via log crate first (before moving message)
+        match level {
+            ConsoleLevel::Log => log::info!(target: "script", "{}", message),
+            ConsoleLevel::Warn => log::warn!(target: "script", "{}", message),
+            ConsoleLevel::Error => log::error!(target: "script", "{}", message),
+        }
+
         let mut entries = self.entries.lock().unwrap();
 
         // Drop oldest entries if at capacity
@@ -62,13 +69,6 @@ impl ScriptConsole {
             message,
             timestamp: Instant::now(),
         });
-
-        // Also log to file via log crate
-        match level {
-            ConsoleLevel::Log => log::info!(target: "script", "{}", entries.last().unwrap().message),
-            ConsoleLevel::Warn => log::warn!(target: "script", "{}", entries.last().unwrap().message),
-            ConsoleLevel::Error => log::error!(target: "script", "{}", entries.last().unwrap().message),
-        }
     }
 
     /// Get all entries (for UI display)
