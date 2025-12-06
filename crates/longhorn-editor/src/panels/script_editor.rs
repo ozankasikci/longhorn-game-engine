@@ -1,6 +1,7 @@
 // crates/longhorn-editor/src/panels/script_editor.rs
-use egui::{Color32, FontId, RichText, ScrollArea, TextEdit, Ui};
+use egui::{FontId, RichText, ScrollArea, TextEdit, Ui};
 use crate::script_editor_state::ScriptEditorState;
+use crate::styling::Colors;
 
 /// Script Editor panel with basic text editing and error display
 pub struct ScriptEditorPanel;
@@ -19,10 +20,10 @@ impl ScriptEditorPanel {
         if !state.is_open() {
             ui.vertical_centered(|ui| {
                 ui.add_space(20.0);
-                ui.label(RichText::new("No script open").color(Color32::DARK_GRAY));
+                ui.label(RichText::new("No script open").color(Colors::TEXT_MUTED));
                 ui.add_space(10.0);
                 ui.label(RichText::new("Select a script from the Project panel to begin editing")
-                    .color(Color32::DARK_GRAY)
+                    .color(Colors::TEXT_MUTED)
                     .size(12.0));
             });
             return false;
@@ -43,7 +44,7 @@ impl ScriptEditorPanel {
             // Save shortcut hint
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.label(RichText::new("Ctrl+S / Cmd+S to save")
-                    .color(Color32::DARK_GRAY)
+                    .color(Colors::TEXT_MUTED)
                     .size(12.0));
             });
         });
@@ -97,7 +98,7 @@ impl ScriptEditorPanel {
                 // Error panel header
                 ui.horizontal(|ui| {
                     ui.label(RichText::new(format!("Errors ({})", state.errors.len()))
-                        .color(Color32::from_rgb(255, 100, 100))
+                        .color(Colors::ERROR)
                         .strong());
                 });
 
@@ -111,16 +112,16 @@ impl ScriptEditorPanel {
                         for error in &state.errors {
                             ui.horizontal(|ui| {
                                 // Red dot indicator
-                                ui.label(RichText::new("●").color(Color32::from_rgb(255, 80, 80)));
+                                ui.label(RichText::new("●").color(Colors::ERROR_BRIGHT));
 
                                 // Line number
                                 ui.label(RichText::new(format!("Line {}:", error.line))
-                                    .color(Color32::from_rgb(255, 150, 150))
+                                    .color(Colors::ERROR_TEXT)
                                     .strong());
 
                                 // Error message
                                 ui.label(RichText::new(&error.message)
-                                    .color(Color32::from_rgb(255, 200, 200)));
+                                    .color(Colors::ERROR_MUTED));
                             });
                         }
                     });

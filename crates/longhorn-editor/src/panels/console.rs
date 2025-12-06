@@ -1,6 +1,7 @@
 // crates/longhorn-editor/src/panels/console.rs
-use egui::{Color32, RichText, ScrollArea, Ui};
+use egui::{RichText, ScrollArea, Ui};
 use crate::console::{ConsoleLevel, ScriptConsole};
+use crate::styling::Colors;
 
 /// Console panel showing script output
 pub struct ConsolePanel {
@@ -37,16 +38,16 @@ impl ConsolePanel {
             .show(ui, |ui| {
                 for entry in &entries {
                     let (prefix, color) = match entry.level {
-                        ConsoleLevel::Log => ("", Color32::GRAY),
-                        ConsoleLevel::Warn => ("⚠ ", Color32::YELLOW),
-                        ConsoleLevel::Error => ("✖ ", Color32::from_rgb(255, 100, 100)),
+                        ConsoleLevel::Log => ("", Colors::TEXT_SECONDARY),
+                        ConsoleLevel::Warn => ("⚠ ", Colors::WARNING),
+                        ConsoleLevel::Error => ("✖ ", Colors::ERROR),
                     };
 
                     ui.label(RichText::new(format!("{}{}", prefix, entry.message)).color(color));
                 }
 
                 if entries.is_empty() {
-                    ui.label(RichText::new("No console output").color(Color32::DARK_GRAY));
+                    ui.label(RichText::new("No console output").color(Colors::TEXT_MUTED));
                 }
             });
     }

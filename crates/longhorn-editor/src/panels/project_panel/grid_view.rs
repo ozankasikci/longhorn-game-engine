@@ -1,6 +1,6 @@
-use egui::{Ui, RichText, Color32};
+use egui::{Ui, RichText};
 use crate::project_panel_state::{ProjectPanelState, DirectoryNode, FileType};
-use crate::styling::Spacing;
+use crate::styling::{Colors, Spacing};
 use crate::ui_state::{UiStateTracker, TriggerAction};
 use super::{ProjectPanelAction, ContextAction};
 
@@ -34,7 +34,7 @@ pub fn show_grid_view(
 
     // Check if folder is empty
     if folder.children.is_empty() && folder.files.is_empty() {
-        ui.label(RichText::new("Empty folder").color(Color32::from_gray(100)));
+        ui.label(RichText::new("Empty folder").color(Colors::TEXT_MUTED));
         return None;
     }
 

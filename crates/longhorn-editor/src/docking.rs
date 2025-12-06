@@ -1,7 +1,7 @@
 use egui::Ui;
 use egui_dock::{DockArea, DockState, NodeIndex, TabViewer, Style};
 
-use crate::styling::Colors;
+use crate::styling::{Colors, Radius};
 
 /// Different types of dockable panels
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -89,22 +89,22 @@ pub fn create_dock_style(ui: &Ui) -> Style {
 
     // Tab styling - use vibrant accent for active tabs
     style.tab.active.bg_fill = Colors::ACCENT;
-    style.tab.active.text_color = egui::Color32::WHITE;
-    style.tab.focused.text_color = egui::Color32::WHITE;
+    style.tab.active.text_color = Colors::TEXT_ON_ACCENT;
+    style.tab.focused.text_color = Colors::TEXT_ON_ACCENT;
     style.tab.focused.bg_fill = Colors::ACCENT;
 
     // Inactive tabs - darker background
     style.tab.inactive.bg_fill = Colors::BG_WINDOW;
-    style.tab.inactive.text_color = egui::Color32::from_gray(180);
+    style.tab.inactive.text_color = Colors::TEXT_SECONDARY;
 
     // Hovered tabs
     style.tab.hovered.bg_fill = Colors::BG_WIDGET_HOVERED;
-    style.tab.hovered.text_color = egui::Color32::WHITE;
+    style.tab.hovered.text_color = Colors::TEXT_ON_ACCENT;
 
     // Tab outline and rounding
     style.tab.active.outline_color = Colors::ACCENT;
-    style.tab.active.rounding = egui::Rounding::same(4.0);
-    style.tab.inactive.rounding = egui::Rounding::same(4.0);
+    style.tab.active.rounding = Radius::all(Radius::MEDIUM);
+    style.tab.inactive.rounding = Radius::all(Radius::MEDIUM);
     style.tab.inactive.outline_color = Colors::STROKE_DEFAULT;
 
     // Separator styling
