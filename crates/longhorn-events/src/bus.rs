@@ -59,14 +59,6 @@ impl EventBus {
                     handler(event);
                 }
             }
-            // Also check for Custom event handlers by exact match
-            if let EventType::Custom(_) = &event.event_type {
-                if let Some(handlers) = self.subscriptions.get(&event.event_type) {
-                    for (_, handler) in handlers {
-                        handler(event);
-                    }
-                }
-            }
         }
 
         // Move to history
@@ -232,5 +224,22 @@ mod tests {
 
         assert_eq!(processed.len(), 1);
         assert_eq!(processed[0].target, EventTarget::Entity(42));
+    }
+
+    #[test]
+    fn test_custom_event_handlers_called_once() {
+        let mut bus = EventBus::new();
+        let counter = Arc::new(AtomicU32::new(0));
+        let counter_clone = counter.clone();
+
+        bus.subscribe(EventType::Custom("test".to_string()), move |_event| {
+            counter_clone.fetch_add(1, Ordering::SeqCst);
+        });
+
+        bus.emit(EventType::Custom("test".to_string()), serde_json::json!({}));
+        bus.process();
+
+        // Handler should be called exactly once, not twice
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
 }
