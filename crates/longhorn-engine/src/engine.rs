@@ -208,6 +208,15 @@ impl Engine {
             self.scripting.update(&mut self.world, self.time.delta())?;
         }
 
+        // Collect events emitted by scripts and forward to EventBus
+        let script_events = longhorn_scripting::take_pending_events();
+        for (name, data) in script_events {
+            self.event_bus.emit(
+                longhorn_events::EventType::Custom(name),
+                data,
+            );
+        }
+
         // Render if renderer is available
         if let Some(renderer) = &mut self.renderer {
             // Set clear color from config
