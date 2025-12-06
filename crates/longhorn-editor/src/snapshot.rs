@@ -1,4 +1,4 @@
-use longhorn_core::{World, Name, Transform, Sprite, Enabled, EntityHandle};
+use longhorn_core::{World, Name, Transform, Sprite, Enabled, EntityHandle, Script};
 use serde::{Deserialize, Serialize};
 
 /// Snapshot of an entity's components
@@ -8,6 +8,7 @@ pub struct EntitySnapshot {
     pub transform: Option<Transform>,
     pub sprite: Option<Sprite>,
     pub enabled: Option<Enabled>,
+    pub script: Option<Script>,
 }
 
 /// Snapshot of the entire scene for restore
@@ -29,6 +30,7 @@ impl SceneSnapshot {
                 transform: world.get::<Transform>(handle).ok().map(|r| (*r).clone()),
                 sprite: world.get::<Sprite>(handle).ok().map(|r| (*r).clone()),
                 enabled: world.get::<Enabled>(handle).ok().map(|r| (*r).clone()),
+                script: world.get::<Script>(handle).ok().map(|r| (*r).clone()),
             };
             entities.push(snapshot);
         }
@@ -56,6 +58,9 @@ impl SceneSnapshot {
             }
             if let Some(enabled) = entity_data.enabled {
                 builder = builder.with(enabled);
+            }
+            if let Some(script) = entity_data.script {
+                builder = builder.with(script);
             }
 
             builder.build();
