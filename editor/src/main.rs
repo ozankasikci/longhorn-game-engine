@@ -5,7 +5,7 @@ use winit::{
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
-use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer};
+use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer, RemoteServer};
 use longhorn_engine::Engine;
 use longhorn_core::{Name, Transform, Sprite, Enabled, AssetId, Script};
 use glam::Vec2;
@@ -22,6 +22,7 @@ struct EditorApp {
     viewport_renderer: Option<EditorViewportRenderer>,
     engine: Engine,
     editor: Editor,
+    remote_server: Option<RemoteServer>,
 }
 
 struct GpuState {
@@ -70,6 +71,15 @@ impl EditorApp {
             .with(Enabled::default())
             .build();
 
+        // Start remote control server
+        let remote_server = match RemoteServer::start() {
+            Ok(server) => Some(server),
+            Err(e) => {
+                log::warn!("Failed to start remote server: {}", e);
+                None
+            }
+        };
+
         Self {
             window: None,
             gpu_state: None,
@@ -77,6 +87,7 @@ impl EditorApp {
             viewport_renderer: None,
             engine,
             editor: Editor::new(),
+            remote_server,
         }
     }
 
@@ -180,6 +191,14 @@ impl EditorApp {
         let Some(window) = &self.window else { return };
         let Some(gpu) = &mut self.gpu_state else { return };
         let Some(egui_state) = &mut self.egui_state else { return };
+
+        // Process remote commands
+        if let Some(ref server) = self.remote_server {
+            while let Ok(pending) = server.command_rx.try_recv() {
+                let response = self.editor.process_remote_command(pending.command, &mut self.engine);
+                let _ = pending.response_tx.send(response);
+            }
+        }
 
         // Update game if in play mode and not paused
         let editor_state = self.editor.state();
