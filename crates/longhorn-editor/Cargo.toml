@@ -23,6 +23,8 @@ hecs = { workspace = true }
 bytemuck = { version = "1.14", features = ["derive"] }
 image = { workspace = true }
 open = "5"
+rfd = "0.15"
+pollster = "0.4"
 
 [dev-dependencies]
 tempfile = "3"

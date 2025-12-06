@@ -131,6 +131,7 @@ pub enum ContextAction {
     Rename(std::path::PathBuf),
     Delete(std::path::PathBuf),
     Refresh,
+    ImportAsset(std::path::PathBuf),
 }
 
 /// Actions that can be triggered from the project panel

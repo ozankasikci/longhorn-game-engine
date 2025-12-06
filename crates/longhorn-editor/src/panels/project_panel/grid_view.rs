@@ -32,10 +32,22 @@ pub fn show_grid_view(
     ui.separator();
     ui.add_space(Spacing::MARGIN_SMALL);
 
+    // Add context menu for the folder area
+    ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+        // Allocate a small invisible rect for the background context menu
+        let response = ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::click());
+        response.context_menu(|ui| {
+            if ui.button("Import Asset...").clicked() {
+                action = Some(ProjectPanelAction::Context(ContextAction::ImportAsset(folder.path.clone())));
+                ui.close_menu();
+            }
+        });
+    });
+
     // Check if folder is empty
     if folder.children.is_empty() && folder.files.is_empty() {
         ui.label(RichText::new("Empty folder").color(Colors::TEXT_MUTED));
-        return None;
+        return action;
     }
 
     // Simple list view - subfolders first
@@ -48,6 +60,14 @@ pub fn show_grid_view(
             state.selected_folder = child.path.clone();
             state.expanded_folders.insert(child.path.clone());
         }
+
+        // Context menu for folders
+        response.context_menu(|ui| {
+            if ui.button("Import Asset...").clicked() {
+                action = Some(ProjectPanelAction::Context(ContextAction::ImportAsset(child.path.clone())));
+                ui.close_menu();
+            }
+        });
     }
 
     // Then files

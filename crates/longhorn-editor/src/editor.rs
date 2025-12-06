@@ -269,6 +269,44 @@ impl Editor {
         // Reset UI state tracking for this frame
         self.ui_state.begin_frame();
 
+        // Check for pending import from file picker
+        let pending_import: Option<(std::path::PathBuf, std::path::PathBuf, String)> = ctx.data_mut(|d| {
+            d.remove_temp(egui::Id::new("pending_import"))
+        });
+
+        if let Some((source_path, target_folder, file_name)) = pending_import {
+            log::info!("Processing pending import: {:?} -> {:?}/{}", source_path, target_folder, file_name);
+
+            // Get project root to build relative path
+            if let Some(project_root) = engine.game_path() {
+                // Build destination path relative to project root
+                let relative_target = if let Ok(rel) = target_folder.strip_prefix(project_root) {
+                    rel.join(&file_name)
+                } else {
+                    // If target_folder is not under project_root, just use file_name
+                    std::path::PathBuf::from(&file_name)
+                };
+
+                let dest_relative_str = relative_target.to_str().unwrap_or(&file_name);
+
+                log::info!("Importing asset: {} -> {}", source_path.display(), dest_relative_str);
+
+                // Import the asset
+                match engine.assets_mut().import_asset(&source_path, dest_relative_str) {
+                    Ok(asset_id) => {
+                        log::info!("Successfully imported asset with ID: {}", asset_id.0);
+                        // Refresh the project tree to show the new file
+                        self.refresh_project_tree(engine);
+                    }
+                    Err(e) => {
+                        log::error!("Failed to import asset: {}", e);
+                    }
+                }
+            } else {
+                log::error!("Cannot import asset: No project loaded");
+            }
+        }
+
         let mut should_exit = false;
         let mut toolbar_action = ToolbarAction::None;
 
@@ -542,6 +580,35 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                                 }
                                 ContextAction::Refresh => {
                                     self.editor.refresh_project_tree(self.engine);
+                                }
+                                ContextAction::ImportAsset(target_folder) => {
+                                    log::info!("ImportAsset context action triggered for folder: {:?}", target_folder);
+                                    // Open file picker for image files
+                                    let task = rfd::AsyncFileDialog::new()
+                                        .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "bmp"])
+                                        .set_title("Import Asset")
+                                        .pick_file();
+
+                                    // Spawn async task to handle file selection
+                                    let target_folder = target_folder.clone();
+                                    let ctx = ui.ctx().clone();
+                                    std::thread::spawn(move || {
+                                        if let Some(file_handle) = pollster::block_on(task) {
+                                            let source_path = file_handle.path().to_path_buf();
+                                            let file_name = source_path
+                                                .file_name()
+                                                .and_then(|n| n.to_str())
+                                                .unwrap_or("unknown")
+                                                .to_string();
+
+                                            log::info!("Import asset: Selected file {:?}, target folder {:?}", source_path, target_folder);
+                                            // Store the import request for processing on next frame
+                                            ctx.data_mut(|d| {
+                                                d.insert_temp(egui::Id::new("pending_import"), (source_path, target_folder, file_name));
+                                            });
+                                            ctx.request_repaint();
+                                        }
+                                    });
                                 }
                             }
                         }
