@@ -7,6 +7,8 @@ mod editor;
 mod console;
 mod remote;
 mod remote_server;
+pub mod styling;
+pub mod docking;
 
 pub use state::*;
 pub use toolbar::*;
@@ -17,3 +19,5 @@ pub use editor::*;
 pub use console::*;
 pub use remote::*;
 pub use remote_server::*;
+pub use styling::apply_theme;
+pub use docking::*;

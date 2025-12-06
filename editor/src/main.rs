@@ -5,7 +5,7 @@ use winit::{
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
-use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer, RemoteServer};
+use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer, RemoteServer, apply_theme};
 use longhorn_engine::Engine;
 use longhorn_core::{Name, Transform, Sprite, Enabled, AssetId, Script};
 use glam::Vec2;
@@ -152,6 +152,10 @@ impl EditorApp {
 
         // Create egui state
         let ctx = egui::Context::default();
+
+        // Apply Longhorn theme
+        apply_theme(&ctx);
+
         let winit_state = egui_winit::State::new(
             ctx.clone(),
             egui::ViewportId::ROOT,
@@ -283,9 +287,9 @@ impl EditorApp {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.1,
-                            b: 0.1,
+                            r: 0.05,
+                            g: 0.05,
+                            b: 0.05,
                             a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,

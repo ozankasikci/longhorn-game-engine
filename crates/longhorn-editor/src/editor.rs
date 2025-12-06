@@ -1,8 +1,10 @@
-use egui::Context;
+use egui::{Context, Ui};
+use egui_dock::DockState;
 use longhorn_engine::Engine;
 use longhorn_scripting::set_console_callback;
 use std::sync::Arc;
 use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole};
+use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_dock_area};
 use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData};
 use longhorn_core::{Name, Transform, World, EntityHandle};
 
@@ -15,7 +17,7 @@ pub struct Editor {
     scene_snapshot: Option<SceneSnapshot>,
     console_panel: ConsolePanel,
     console: ScriptConsole,
-    console_open: bool,
+    dock_state: DockState<PanelType>,
 }
 
 impl Editor {
@@ -41,7 +43,7 @@ impl Editor {
             scene_snapshot: None,
             console_panel: ConsolePanel::new(),
             console,
-            console_open: false,
+            dock_state: create_default_dock_state(),
         }
     }
 
@@ -93,7 +95,7 @@ impl Editor {
             }
 
             RemoteCommand::ToggleConsole => {
-                self.console_open = !self.console_open;
+                // Console is now always visible in dock, this is a no-op
                 RemoteResponse::ok()
             }
 
@@ -301,7 +303,7 @@ impl Editor {
         match action {
             ToolbarAction::None => {}
             ToolbarAction::ToggleConsole => {
-                // Handled in show() method
+                // Console is always visible in dock now
             }
             ToolbarAction::Play => {
                 // Capture scene state before playing
@@ -368,6 +370,12 @@ impl Editor {
                         ui.close_menu();
                     }
                 });
+                ui.menu_button("Window", |ui| {
+                    if ui.button("Reset Layout").clicked() {
+                        self.dock_state = create_default_dock_state();
+                        ui.close_menu();
+                    }
+                });
             });
         });
 
@@ -377,50 +385,63 @@ impl Editor {
         });
 
         // Handle toolbar action
-        match toolbar_action {
-            ToolbarAction::ToggleConsole => {
-                self.console_open = !self.console_open;
-            }
-            _ => self.handle_toolbar_action(toolbar_action, engine),
+        if toolbar_action != ToolbarAction::None && toolbar_action != ToolbarAction::ToggleConsole {
+            self.handle_toolbar_action(toolbar_action, engine);
         }
 
-        // Console panel (bottom, collapsible)
-        if self.console_open {
-            egui::TopBottomPanel::bottom("console")
-                .resizable(true)
-                .default_height(150.0)
-                .min_height(100.0)
-                .max_height(400.0)
-                .show(ctx, |ui| {
-                    self.console_panel.show(ui, &self.console);
-                });
-        }
-
-        // Left panel - Scene Tree
-        egui::SidePanel::left("scene_tree")
-            .default_width(200.0)
-            .show(ctx, |ui| {
-                self.scene_tree.show(ui, engine.world(), &mut self.state);
-            });
-
-        // Right panel - Inspector
-        egui::SidePanel::right("inspector")
-            .default_width(250.0)
-            .show(ctx, |ui| {
-                // In play mode, show read-only indicator
-                if self.state.is_playing() {
-                    ui.label("(Read-only during play)");
-                    ui.separator();
-                }
-                self.inspector.show(ui, engine.world_mut(), &self.state);
-            });
-
-        // Center panel - Viewport
+        // Main dock area
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.viewport.show(ui, viewport_texture);
+            // We need to render panels which require access to engine/viewport_texture
+            // Use a wrapper struct that implements PanelRenderer
+            let mut wrapper = EditorPanelWrapper {
+                editor: self,
+                engine,
+                viewport_texture,
+            };
+
+            // Take dock_state temporarily to avoid borrow issues
+            let mut dock_state = std::mem::replace(&mut wrapper.editor.dock_state, create_default_dock_state());
+            show_dock_area(ui, &mut dock_state, &mut wrapper);
+            wrapper.editor.dock_state = dock_state;
         });
 
         should_exit
+    }
+}
+
+/// Wrapper struct that provides PanelRenderer implementation with access to Engine
+struct EditorPanelWrapper<'a> {
+    editor: &'a mut Editor,
+    engine: &'a mut Engine,
+    viewport_texture: Option<egui::TextureId>,
+}
+
+impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
+    fn show_panel(&mut self, ui: &mut Ui, panel_type: PanelType) {
+        match panel_type {
+            PanelType::Hierarchy => {
+                self.editor.scene_tree.show(ui, self.engine.world(), &mut self.editor.state);
+            }
+            PanelType::Inspector => {
+                // In play mode, show read-only indicator
+                if self.editor.state.is_playing() {
+                    ui.label("(Read-only during play)");
+                    ui.separator();
+                }
+                self.editor.inspector.show(ui, self.engine.world_mut(), &self.editor.state);
+            }
+            PanelType::SceneView | PanelType::GameView => {
+                // Both Scene and Game view show the viewport for now
+                self.editor.viewport.show(ui, self.viewport_texture);
+            }
+            PanelType::Console => {
+                self.editor.console_panel.show(ui, &self.editor.console);
+            }
+            PanelType::Project => {
+                // Project browser - placeholder for now
+                ui.label("Project browser coming soon...");
+            }
+        }
     }
 }
 
