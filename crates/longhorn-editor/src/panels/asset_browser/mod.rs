@@ -9,6 +9,7 @@ pub use file_ops::*;
 use egui::{Ui, Vec2, Sense, CursorIcon};
 use crate::asset_browser_state::{AssetBrowserState, DirectoryNode, MIN_TREE_WIDTH, MAX_TREE_WIDTH};
 use crate::styling::Colors;
+use crate::ui_state::UiStateTracker;
 
 /// Width of the resize handle
 const SPLITTER_WIDTH: f32 = 4.0;
@@ -28,6 +29,7 @@ impl AssetBrowserPanel {
         ui: &mut Ui,
         state: &mut AssetBrowserState,
         root: Option<&DirectoryNode>,
+        ui_state: &mut UiStateTracker,
     ) -> Option<AssetBrowserAction> {
         if root.is_none() {
             ui.centered_and_justified(|ui| {
@@ -104,7 +106,7 @@ impl AssetBrowserPanel {
         egui::ScrollArea::vertical()
             .id_salt("asset_grid_scroll")
             .show(&mut content_ui, |ui| {
-                if let Some(grid_action) = show_grid_view(ui, state, root) {
+                if let Some(grid_action) = show_grid_view(ui, state, root, ui_state) {
                     action = Some(grid_action);
                 }
             });

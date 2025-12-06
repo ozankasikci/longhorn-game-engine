@@ -42,12 +42,29 @@ pub enum RemoteCommand {
     ListPanels,
     GetClickableElements,
     FocusPanel { panel: String },
+    /// Trigger a UI element by ID (simple click)
     TriggerElement { id: String },
+    /// Click a UI element by ID
+    ClickElement { id: String },
+    /// Double-click a UI element by ID
+    DoubleClickElement { id: String },
+    /// Right-click a UI element by ID (opens context menu)
+    RightClickElement { id: String },
 
     // Scene Tree Control
     ExpandTreeNode { path: String },
     CollapseTreeNode { path: String },
     SelectByPath { path: String },
+
+    // Asset Browser
+    GetAssetBrowserState,
+    OpenAssetFile { path: String },
+    /// Select a file in the asset browser (single click)
+    SelectAssetFile { path: String },
+    /// Double-click on a file in the asset browser (opens in appropriate editor)
+    DoubleClickAssetFile { path: String },
+    /// Simulate clicking "Open in Editor" from context menu
+    AssetContextOpenInEditor { path: String },
 
     // Utility
     Ping,
@@ -119,6 +136,23 @@ pub struct UiStateData {
     pub clickable_elements: Vec<ClickableInfo>,
 }
 
+/// Asset browser state for remote queries
+#[derive(Debug, Clone, Serialize)]
+pub struct AssetBrowserData {
+    pub selected_folder: String,
+    pub selected_file: Option<String>,
+    pub files: Vec<AssetFileInfo>,
+}
+
+/// Asset file info
+#[derive(Debug, Clone, Serialize)]
+pub struct AssetFileInfo {
+    pub path: String,
+    pub name: String,
+    pub file_type: String,
+    pub is_text_editable: bool,
+}
+
 /// Response data variants
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
@@ -136,6 +170,7 @@ pub enum ResponseData {
     UiState(UiStateData),
     Panels(Vec<PanelInfo>),
     Clickables(Vec<ClickableInfo>),
+    AssetBrowser(AssetBrowserData),
 }
 
 /// Response sent back to the client

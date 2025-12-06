@@ -1,10 +1,12 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::time::Instant;
 
 /// File type categorization for asset browser display
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileType {
     Script,
+    Text,
     Image,
     Audio,
     Scene,
@@ -14,12 +16,18 @@ pub enum FileType {
 impl FileType {
     pub fn from_extension(ext: Option<&str>) -> Self {
         match ext {
-            Some("ts") => FileType::Script,
-            Some("png") | Some("jpg") | Some("jpeg") | Some("webp") => FileType::Image,
-            Some("wav") | Some("mp3") | Some("ogg") => FileType::Audio,
-            Some("scene.json") => FileType::Scene,
+            Some("ts") | Some("js") => FileType::Script,
+            Some("json") | Some("txt") | Some("md") | Some("html") | Some("css") | Some("toml") | Some("yaml") | Some("yml") => FileType::Text,
+            Some("png") | Some("jpg") | Some("jpeg") | Some("webp") | Some("gif") | Some("bmp") => FileType::Image,
+            Some("wav") | Some("mp3") | Some("ogg") | Some("flac") => FileType::Audio,
+            Some("scene") => FileType::Scene,
             _ => FileType::Unknown,
         }
+    }
+
+    /// Returns true if this file type should be opened in the script editor
+    pub fn is_text_editable(&self) -> bool {
+        matches!(self, FileType::Script | FileType::Text | FileType::Scene)
     }
 }
 
@@ -30,8 +38,10 @@ pub const MIN_TREE_WIDTH: f32 = 100.0;
 /// Maximum tree panel width
 pub const MAX_TREE_WIDTH: f32 = 400.0;
 
+/// Double-click threshold in milliseconds
+const DOUBLE_CLICK_MS: u128 = 400;
+
 /// State for the asset browser panel
-#[derive(Debug)]
 pub struct AssetBrowserState {
     /// Currently selected folder (shown in grid view)
     pub selected_folder: PathBuf,
@@ -43,6 +53,20 @@ pub struct AssetBrowserState {
     pub renaming: Option<PathBuf>,
     /// Width of the tree panel (user-resizable)
     pub tree_width: f32,
+    /// Last click time and path for manual double-click detection
+    last_click: Option<(Instant, PathBuf)>,
+}
+
+impl std::fmt::Debug for AssetBrowserState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AssetBrowserState")
+            .field("selected_folder", &self.selected_folder)
+            .field("expanded_folders", &self.expanded_folders)
+            .field("selected_file", &self.selected_file)
+            .field("renaming", &self.renaming)
+            .field("tree_width", &self.tree_width)
+            .finish()
+    }
 }
 
 impl AssetBrowserState {
@@ -53,7 +77,29 @@ impl AssetBrowserState {
             selected_file: None,
             renaming: None,
             tree_width: DEFAULT_TREE_WIDTH,
+            last_click: None,
         }
+    }
+
+    /// Check if this click is a double-click on the same file.
+    /// Returns true if it's a double-click, and updates the last click time.
+    pub fn check_double_click(&mut self, path: &PathBuf) -> bool {
+        let now = Instant::now();
+        let is_double_click = if let Some((last_time, last_path)) = &self.last_click {
+            last_path == path && now.duration_since(*last_time).as_millis() < DOUBLE_CLICK_MS
+        } else {
+            false
+        };
+
+        if is_double_click {
+            // Reset after double-click so triple-click doesn't trigger again
+            self.last_click = None;
+        } else {
+            // Record this click
+            self.last_click = Some((now, path.clone()));
+        }
+
+        is_double_click
     }
 }
 
@@ -157,11 +203,25 @@ mod tests {
     #[test]
     fn test_file_type_from_extension() {
         assert_eq!(FileType::from_extension(Some("ts")), FileType::Script);
+        assert_eq!(FileType::from_extension(Some("js")), FileType::Script);
+        assert_eq!(FileType::from_extension(Some("json")), FileType::Text);
+        assert_eq!(FileType::from_extension(Some("txt")), FileType::Text);
+        assert_eq!(FileType::from_extension(Some("md")), FileType::Text);
         assert_eq!(FileType::from_extension(Some("png")), FileType::Image);
         assert_eq!(FileType::from_extension(Some("jpg")), FileType::Image);
         assert_eq!(FileType::from_extension(Some("wav")), FileType::Audio);
         assert_eq!(FileType::from_extension(Some("xyz")), FileType::Unknown);
         assert_eq!(FileType::from_extension(None), FileType::Unknown);
+    }
+
+    #[test]
+    fn test_file_type_is_text_editable() {
+        assert!(FileType::Script.is_text_editable());
+        assert!(FileType::Text.is_text_editable());
+        assert!(FileType::Scene.is_text_editable());
+        assert!(!FileType::Image.is_text_editable());
+        assert!(!FileType::Audio.is_text_editable());
+        assert!(!FileType::Unknown.is_text_editable());
     }
 
     #[test]

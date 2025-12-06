@@ -5,6 +5,26 @@
 
 use serde::Serialize;
 
+/// Type of UI action to simulate
+#[derive(Debug, Clone, PartialEq)]
+pub enum TriggerAction {
+    /// Single left click
+    Click,
+    /// Double left click
+    DoubleClick,
+    /// Right click (context menu)
+    RightClick,
+}
+
+/// A pending trigger request
+#[derive(Debug, Clone)]
+pub struct PendingTrigger {
+    /// Element ID to trigger
+    pub element_id: String,
+    /// Type of action to perform
+    pub action: TriggerAction,
+}
+
 /// Tracks UI state for remote queries and control.
 ///
 /// This struct is updated each frame by panels and queried by remote commands.
@@ -25,8 +45,10 @@ pub struct UiStateTracker {
     pending_tree_collapse: Option<String>,
     /// Pending tree selection by path
     pending_tree_select: Option<String>,
-    /// Pending element trigger by ID
+    /// Pending element trigger by ID (legacy, for simple clicks)
     pending_trigger: Option<String>,
+    /// Pending element trigger with action type
+    pending_trigger_action: Option<PendingTrigger>,
 }
 
 /// State of a single panel
@@ -141,14 +163,31 @@ impl UiStateTracker {
         self.pending_tree_select.take()
     }
 
-    /// Request triggering of an element by ID
+    /// Request triggering of an element by ID (simple click)
     pub fn request_trigger(&mut self, element_id: String) {
         self.pending_trigger = Some(element_id);
     }
 
-    /// Check and consume pending trigger request
+    /// Check and consume pending trigger request (simple click)
     pub fn take_pending_trigger(&mut self) -> Option<String> {
         self.pending_trigger.take()
+    }
+
+    /// Request triggering of an element with a specific action type
+    pub fn request_trigger_action(&mut self, element_id: String, action: TriggerAction) {
+        self.pending_trigger_action = Some(PendingTrigger { element_id, action });
+    }
+
+    /// Check and consume pending trigger action request
+    pub fn take_pending_trigger_action(&mut self) -> Option<PendingTrigger> {
+        self.pending_trigger_action.take()
+    }
+
+    /// Check if there's a pending trigger for a specific element
+    pub fn has_pending_trigger_for(&self, element_id: &str) -> Option<&TriggerAction> {
+        self.pending_trigger_action.as_ref()
+            .filter(|t| t.element_id == element_id)
+            .map(|t| &t.action)
     }
 
     // ========== Queries (for remote responses) ==========

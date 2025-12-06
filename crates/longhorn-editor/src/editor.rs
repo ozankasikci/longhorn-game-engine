@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole, EditorAction, ScriptEditorState, ScriptEditorPanel, ScriptError};
 use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_dock_area};
 use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData, UiStateData, PanelInfo, ClickableInfo};
-use crate::ui_state::UiStateTracker;
+use crate::ui_state::{UiStateTracker, TriggerAction};
 use longhorn_core::{Name, Transform, World, EntityHandle};
 use crate::{AssetBrowserState, AssetBrowserPanel, AssetBrowserAction, DirectoryNode, ContextAction};
 
@@ -27,6 +27,8 @@ pub struct Editor {
     asset_browser_state: AssetBrowserState,
     asset_browser_panel: AssetBrowserPanel,
     asset_tree: Option<DirectoryNode>,
+    /// Flag to show script editor on next frame (deferred to avoid dock state borrow issues)
+    pending_show_script_editor: bool,
 }
 
 impl Editor {
@@ -60,6 +62,7 @@ impl Editor {
             asset_browser_state: AssetBrowserState::new(),
             asset_browser_panel: AssetBrowserPanel::new(),
             asset_tree: None,
+            pending_show_script_editor: false,
         }
     }
 
@@ -369,6 +372,21 @@ impl Editor {
                 RemoteResponse::ok()
             }
 
+            RemoteCommand::ClickElement { id } => {
+                self.ui_state.request_trigger_action(id, TriggerAction::Click);
+                RemoteResponse::ok()
+            }
+
+            RemoteCommand::DoubleClickElement { id } => {
+                self.ui_state.request_trigger_action(id, TriggerAction::DoubleClick);
+                RemoteResponse::ok()
+            }
+
+            RemoteCommand::RightClickElement { id } => {
+                self.ui_state.request_trigger_action(id, TriggerAction::RightClick);
+                RemoteResponse::ok()
+            }
+
             // Scene Tree Commands
             RemoteCommand::ExpandTreeNode { path } => {
                 self.ui_state.request_tree_expand(path);
@@ -400,6 +418,194 @@ impl Editor {
                         RemoteResponse::ok()
                     }
                     None => RemoteResponse::error(format!("Entity not found by path: {}", path)),
+                }
+            }
+
+            // Asset Browser Commands
+            RemoteCommand::GetAssetBrowserState => {
+                use crate::remote::{AssetBrowserData, AssetFileInfo};
+
+                let selected_folder = self.asset_browser_state.selected_folder.display().to_string();
+                let selected_file = self.asset_browser_state.selected_file.as_ref()
+                    .map(|p| p.display().to_string());
+
+                // Collect files from current folder
+                let mut files = Vec::new();
+                if let Some(tree) = &self.asset_tree {
+                    fn find_folder<'a>(node: &'a DirectoryNode, path: &std::path::Path) -> Option<&'a DirectoryNode> {
+                        if node.path == path {
+                            return Some(node);
+                        }
+                        for child in &node.children {
+                            if let Some(found) = find_folder(child, path) {
+                                return Some(found);
+                            }
+                        }
+                        None
+                    }
+
+                    let folder = find_folder(tree, &self.asset_browser_state.selected_folder)
+                        .unwrap_or(tree);
+
+                    for file in &folder.files {
+                        files.push(AssetFileInfo {
+                            path: file.path.display().to_string(),
+                            name: file.name.clone(),
+                            file_type: format!("{:?}", file.file_type),
+                            is_text_editable: file.file_type.is_text_editable(),
+                        });
+                    }
+                }
+
+                let data = AssetBrowserData {
+                    selected_folder,
+                    selected_file,
+                    files,
+                };
+                RemoteResponse::with_data(ResponseData::AssetBrowser(data))
+            }
+
+            RemoteCommand::OpenAssetFile { path } => {
+                log::info!("Remote: Opening asset file '{}'", path);
+                if let Some(game_path) = engine.game_path() {
+                    let file_path = std::path::PathBuf::from(&path);
+
+                    // Determine file type
+                    let extension = file_path.extension()
+                        .and_then(|e| e.to_str())
+                        .map(|s| s.to_lowercase());
+                    let file_type = crate::asset_browser_state::FileType::from_extension(extension.as_deref());
+
+                    log::info!("File type for '{}': {:?}, is_text_editable: {}", path, file_type, file_type.is_text_editable());
+
+                    if file_type.is_text_editable() {
+                        // Get relative path from project root
+                        if let Ok(relative) = file_path.strip_prefix(game_path) {
+                            let script_path = relative.to_path_buf();
+                            log::info!("Opening script from remote: {:?}", script_path);
+                            match self.script_editor_state.open(script_path, game_path) {
+                                Ok(()) => {
+                                    self.recheck_script_errors();
+                                    self.ensure_script_editor_visible();
+                                    RemoteResponse::ok()
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to open script: {}", e);
+                                    RemoteResponse::error(format!("Failed to open script: {}", e))
+                                }
+                            }
+                        } else {
+                            log::error!("Path {:?} is not under project {:?}", file_path, game_path);
+                            RemoteResponse::error("File path is not under project root")
+                        }
+                    } else {
+                        log::info!("File type {:?} is not text-editable, opening externally", file_type);
+                        if let Err(e) = open::that(&file_path) {
+                            RemoteResponse::error(format!("Failed to open external: {}", e))
+                        } else {
+                            RemoteResponse::ok()
+                        }
+                    }
+                } else {
+                    RemoteResponse::error("No project loaded")
+                }
+            }
+
+            RemoteCommand::SelectAssetFile { path } => {
+                log::info!("Remote: Selecting asset file '{}'", path);
+                let file_path = std::path::PathBuf::from(&path);
+                self.asset_browser_state.selected_file = Some(file_path);
+                RemoteResponse::ok()
+            }
+
+            RemoteCommand::DoubleClickAssetFile { path } => {
+                log::info!("Remote: Double-clicking asset file '{}'", path);
+                if let Some(game_path) = engine.game_path() {
+                    let file_path = std::path::PathBuf::from(&path);
+
+                    // Determine file type
+                    let extension = file_path.extension()
+                        .and_then(|e| e.to_str())
+                        .map(|s| s.to_lowercase());
+                    let file_type = crate::asset_browser_state::FileType::from_extension(extension.as_deref());
+
+                    log::info!("Double-click: File type for '{}': {:?}, is_text_editable: {}", path, file_type, file_type.is_text_editable());
+
+                    if file_type.is_text_editable() {
+                        // Open in script editor (same as AssetBrowserAction::OpenScript)
+                        if let Ok(relative) = file_path.strip_prefix(game_path) {
+                            let script_path = relative.to_path_buf();
+                            log::info!("Double-click: Opening script {:?}", script_path);
+                            match self.script_editor_state.open(script_path, game_path) {
+                                Ok(()) => {
+                                    self.recheck_script_errors();
+                                    self.ensure_script_editor_visible();
+                                    RemoteResponse::ok()
+                                }
+                                Err(e) => {
+                                    log::error!("Double-click: Failed to open script: {}", e);
+                                    RemoteResponse::error(format!("Failed to open script: {}", e))
+                                }
+                            }
+                        } else {
+                            log::error!("Double-click: Path {:?} is not under project {:?}", file_path, game_path);
+                            RemoteResponse::error("File path is not under project root")
+                        }
+                    } else if file_type == crate::asset_browser_state::FileType::Image {
+                        log::info!("Double-click: TODO: Open image preview for {:?}", path);
+                        RemoteResponse::ok()
+                    } else {
+                        // Open externally
+                        log::info!("Double-click: Opening externally {:?}", path);
+                        if let Err(e) = open::that(&file_path) {
+                            RemoteResponse::error(format!("Failed to open external: {}", e))
+                        } else {
+                            RemoteResponse::ok()
+                        }
+                    }
+                } else {
+                    RemoteResponse::error("No project loaded")
+                }
+            }
+
+            RemoteCommand::AssetContextOpenInEditor { path } => {
+                log::info!("Remote: Context menu 'Open in Editor' for '{}'", path);
+                if let Some(game_path) = engine.game_path() {
+                    let file_path = std::path::PathBuf::from(&path);
+
+                    // Determine file type
+                    let extension = file_path.extension()
+                        .and_then(|e| e.to_str())
+                        .map(|s| s.to_lowercase());
+                    let file_type = crate::asset_browser_state::FileType::from_extension(extension.as_deref());
+
+                    log::info!("Context Open in Editor: File type for '{}': {:?}, is_text_editable: {}", path, file_type, file_type.is_text_editable());
+
+                    if file_type.is_text_editable() {
+                        // Open in script editor (same as clicking "Open in Editor" in context menu)
+                        if let Ok(relative) = file_path.strip_prefix(game_path) {
+                            let script_path = relative.to_path_buf();
+                            log::info!("Context Open in Editor: Opening script {:?}", script_path);
+                            match self.script_editor_state.open(script_path, game_path) {
+                                Ok(()) => {
+                                    self.recheck_script_errors();
+                                    self.ensure_script_editor_visible();
+                                    RemoteResponse::ok()
+                                }
+                                Err(e) => {
+                                    log::error!("Context Open in Editor: Failed to open script: {}", e);
+                                    RemoteResponse::error(format!("Failed to open script: {}", e))
+                                }
+                            }
+                        } else {
+                            log::error!("Context Open in Editor: Path {:?} is not under project {:?}", file_path, game_path);
+                            RemoteResponse::error("File path is not under project root")
+                        }
+                    } else {
+                        RemoteResponse::error(format!("File type {:?} is not text-editable", file_type))
+                    }
+                } else {
+                    RemoteResponse::error("No project loaded")
                 }
             }
         }
@@ -516,12 +722,20 @@ impl Editor {
         }
     }
 
-    /// Ensure the ScriptEditor panel is visible in the dock
+    /// Request the ScriptEditor panel to be shown (deferred to avoid dock state borrow issues)
     fn ensure_script_editor_visible(&mut self) {
-        // Check if ScriptEditor is already in dock, if not add it
-        // For simplicity, we can add it as a new tab in the main area
-        // Add to root node as a new tab
-        self.dock_state.main_surface_mut().push_to_focused_leaf(PanelType::ScriptEditor);
+        log::info!("=== ensure_script_editor_visible called - setting pending flag ===");
+        self.pending_show_script_editor = true;
+    }
+
+    /// Actually show the script editor (call after dock rendering)
+    fn apply_pending_show_script_editor(&mut self) {
+        if self.pending_show_script_editor {
+            log::info!("=== apply_pending_show_script_editor: Adding ScriptEditor to dock ===");
+            self.dock_state.main_surface_mut().push_to_focused_leaf(PanelType::ScriptEditor);
+            self.pending_show_script_editor = false;
+            log::info!("  ScriptEditor added to dock");
+        }
     }
 
     /// Handle toolbar action and update state
@@ -661,6 +875,9 @@ impl Editor {
             let mut dock_state = std::mem::replace(&mut wrapper.editor.dock_state, create_default_dock_state());
             show_dock_area(ui, &mut dock_state, &mut wrapper);
             wrapper.editor.dock_state = dock_state;
+
+            // Apply any pending dock state changes AFTER rendering completes
+            wrapper.editor.apply_pending_show_script_editor();
         });
 
         should_exit
@@ -750,24 +967,35 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                     ui,
                     &mut self.editor.asset_browser_state,
                     self.editor.asset_tree.as_ref(),
+                    &mut self.editor.ui_state,
                 ) {
+                    log::info!("=== EDITOR received AssetBrowserAction: {:?} ===", action);
                     match action {
                         AssetBrowserAction::OpenScript(path) => {
+                            log::info!("  Processing OpenScript for path: {:?}", path);
+                            log::info!("  game_path: {:?}", self.editor.state.game_path);
                             if let Some(game_path) = &self.editor.state.game_path {
                                 let project_path = std::path::Path::new(game_path);
+                                log::info!("  project_path: {:?}", project_path);
                                 // Get relative path from project root
                                 if let Ok(relative) = path.strip_prefix(project_path) {
                                     let script_path = relative.to_path_buf();
-                                    log::info!("Opening script from asset browser: {:?}", script_path);
+                                    log::info!("  relative script_path: {:?}", script_path);
+                                    log::info!("  Calling script_editor_state.open()...");
                                     if let Err(e) = self.editor.script_editor_state.open(script_path, project_path) {
-                                        log::error!("Failed to open script: {}", e);
+                                        log::error!("  FAILED to open script: {}", e);
                                     } else {
+                                        log::info!("  Script opened successfully!");
                                         self.editor.recheck_script_errors();
+                                        log::info!("  Calling ensure_script_editor_visible()...");
                                         self.editor.ensure_script_editor_visible();
+                                        log::info!("  Script editor should now be visible");
                                     }
                                 } else {
-                                    log::error!("Script path {:?} is not under project {:?}", path, project_path);
+                                    log::error!("  Script path {:?} is not under project {:?}", path, project_path);
                                 }
+                            } else {
+                                log::error!("  No game_path set - cannot open script!");
                             }
                         }
                         AssetBrowserAction::OpenImage(path) => {
