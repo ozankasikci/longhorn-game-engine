@@ -8,6 +8,7 @@ use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_d
 use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData, UiStateData, PanelInfo, ClickableInfo};
 use crate::ui_state::UiStateTracker;
 use longhorn_core::{Name, Transform, World, EntityHandle};
+use crate::{AssetBrowserState, AssetBrowserPanel, AssetBrowserAction, DirectoryNode};
 
 pub struct Editor {
     state: EditorState,
@@ -23,6 +24,9 @@ pub struct Editor {
     script_editor_state: ScriptEditorState,
     script_editor_panel: ScriptEditorPanel,
     ui_state: UiStateTracker,
+    asset_browser_state: AssetBrowserState,
+    asset_browser_panel: AssetBrowserPanel,
+    asset_tree: Option<DirectoryNode>,
 }
 
 impl Editor {
@@ -53,6 +57,9 @@ impl Editor {
             script_editor_state: ScriptEditorState::new(),
             script_editor_panel: ScriptEditorPanel::new(),
             ui_state: UiStateTracker::new(),
+            asset_browser_state: AssetBrowserState::new(),
+            asset_browser_panel: AssetBrowserPanel::new(),
+            asset_tree: None,
         }
     }
 
@@ -249,6 +256,7 @@ impl Editor {
                 match engine.load_game(&path) {
                     Ok(()) => {
                         log::info!("Loaded project: {}", path);
+                        self.refresh_asset_tree();
                         RemoteResponse::ok()
                     }
                     Err(e) => RemoteResponse::error(format!("Failed to load project: {}", e)),
@@ -480,6 +488,27 @@ impl Editor {
         self.script_editor_state.set_errors(errors);
     }
 
+    /// Refresh the asset tree from disk
+    pub fn refresh_asset_tree(&mut self) {
+        if let Some(game_path) = &self.state.game_path {
+            let assets_path = std::path::Path::new(game_path).join("assets");
+            if assets_path.exists() {
+                match DirectoryNode::scan(&assets_path) {
+                    Ok(tree) => {
+                        // Set selected folder to root if not set
+                        if self.asset_browser_state.selected_folder.as_os_str().is_empty() {
+                            self.asset_browser_state.selected_folder = tree.path.clone();
+                        }
+                        self.asset_tree = Some(tree);
+                    }
+                    Err(e) => {
+                        log::error!("Failed to scan assets directory: {}", e);
+                    }
+                }
+            }
+        }
+    }
+
     /// Ensure the ScriptEditor panel is visible in the dock
     fn ensure_script_editor_visible(&mut self) {
         // Check if ScriptEditor is already in dock, if not add it
@@ -557,6 +586,7 @@ impl Editor {
                             log::error!("Failed to load game: {}", e);
                         } else {
                             log::info!("Loaded game from: {:?}", test_project);
+                            self.refresh_asset_tree();
                         }
                         ui.close_menu();
                     }
@@ -648,6 +678,7 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
             PanelType::Console => ("console", "Console"),
             PanelType::Project => ("project", "Project"),
             PanelType::ScriptEditor => ("script_editor", "Script Editor"),
+            PanelType::AssetBrowser => ("asset_browser", "Assets"),
         };
 
         // Register panel with UI state tracker
@@ -704,6 +735,38 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                         log::info!("Script saved");
                         // Re-check for errors after save
                         self.editor.recheck_script_errors();
+                    }
+                }
+            }
+            PanelType::AssetBrowser => {
+                if let Some(action) = self.editor.asset_browser_panel.show(
+                    ui,
+                    &mut self.editor.asset_browser_state,
+                    self.editor.asset_tree.as_ref(),
+                ) {
+                    match action {
+                        AssetBrowserAction::OpenScript(path) => {
+                            if let Some(game_path) = &self.editor.state.game_path {
+                                let project_path = std::path::Path::new(game_path);
+                                if let Ok(relative) = path.strip_prefix(project_path.join("assets")) {
+                                    let script_path = std::path::PathBuf::from("assets").join(relative);
+                                    if let Err(e) = self.editor.script_editor_state.open(script_path, project_path) {
+                                        log::error!("Failed to open script: {}", e);
+                                    } else {
+                                        self.editor.recheck_script_errors();
+                                        self.editor.ensure_script_editor_visible();
+                                    }
+                                }
+                            }
+                        }
+                        AssetBrowserAction::OpenImage(path) => {
+                            log::info!("TODO: Open image preview: {:?}", path);
+                        }
+                        AssetBrowserAction::OpenExternal(path) => {
+                            if let Err(e) = open::that(&path) {
+                                log::error!("Failed to open external: {}", e);
+                            }
+                        }
                     }
                 }
             }
