@@ -7,6 +7,7 @@ use crate::EditorState;
 pub enum EditorAction {
     None,
     OpenScriptEditor { path: String },
+    OpenTexturePicker { entity: hecs::Entity },
 }
 
 pub struct InspectorPanel {
@@ -103,7 +104,7 @@ impl InspectorPanel {
             if ui.add_enabled(!has_sprite, egui::Button::new("Sprite")).clicked() {
                 log::info!("Adding Sprite component to entity");
                 // Add sprite with default values (texture ID 0, 32x32 size, white color)
-                // AssetId(0) is used as "no texture" placeholder until user selects one via texture picker (Task 5)
+                // AssetId(0) is used as "no texture" placeholder until user selects one via texture picker
                 let sprite = Sprite::new(
                     longhorn_core::AssetId::new(0),
                     glam::Vec2::new(32.0, 32.0)
@@ -111,7 +112,11 @@ impl InspectorPanel {
                 if let Err(e) = world.set(handle, sprite) {
                     log::error!("Failed to add sprite: {:?}", e);
                 } else {
-                    log::info!("Added Sprite component to entity");
+                    log::info!("Added Sprite component to entity - opening texture picker");
+                    // Open texture picker immediately after adding the component
+                    self.pending_action = EditorAction::OpenTexturePicker {
+                        entity: handle.id(),
+                    };
                 }
                 ui.close_menu();
             }
@@ -155,10 +160,12 @@ impl InspectorPanel {
                     }
                 });
 
-                // Change Texture button (placeholder for Task 5)
+                // Change Texture button - opens texture picker popup
                 if ui.button("Change Texture").clicked() {
-                    log::info!("Change Texture button clicked (texture picker not yet implemented)");
-                    // TODO: Task 5 will implement the texture picker popup
+                    log::info!("Change Texture button clicked - opening texture picker");
+                    self.pending_action = EditorAction::OpenTexturePicker {
+                        entity: handle.id(),
+                    };
                 }
 
                 ui.separator();

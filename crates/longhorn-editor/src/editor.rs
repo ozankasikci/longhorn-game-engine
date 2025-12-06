@@ -8,6 +8,7 @@ use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_d
 use crate::remote::{RemoteCommand, RemoteResponse};
 use crate::ui_state::UiStateTracker;
 use crate::{ProjectPanelState, ProjectPanel, ProjectPanelAction, DirectoryNode, ContextAction};
+use crate::texture_picker::{TexturePickerState, TexturePickerAction};
 
 pub struct Editor {
     state: EditorState,
@@ -28,6 +29,8 @@ pub struct Editor {
     project_tree: Option<DirectoryNode>,
     /// Flag to show script editor on next frame (deferred to avoid dock state borrow issues)
     pending_show_script_editor: bool,
+    /// Texture picker state
+    texture_picker_state: TexturePickerState,
 }
 
 impl Editor {
@@ -62,6 +65,7 @@ impl Editor {
             project_panel: ProjectPanel::new(),
             project_tree: None,
             pending_show_script_editor: false,
+            texture_picker_state: TexturePickerState::new(),
         }
     }
 
@@ -133,6 +137,11 @@ impl Editor {
     /// Get a reference to the project tree
     pub fn project_tree(&self) -> Option<&DirectoryNode> {
         self.project_tree.as_ref()
+    }
+
+    /// Get a mutable reference to the texture picker state
+    pub fn texture_picker_state_mut(&mut self) -> &mut TexturePickerState {
+        &mut self.texture_picker_state
     }
 
     /// Get and clear any pending editor action
@@ -332,6 +341,10 @@ impl Editor {
                     log::error!("Cannot open script: No project loaded (game_path() returned None)");
                 }
             }
+            EditorAction::OpenTexturePicker { entity } => {
+                log::info!("EditorAction::OpenTexturePicker received for entity: {:?}", entity);
+                self.texture_picker_state.open_for_entity(entity);
+            }
             EditorAction::None => {}
         }
 
@@ -353,6 +366,48 @@ impl Editor {
             // Apply any pending dock state changes AFTER rendering completes
             wrapper.editor.apply_pending_show_script_editor();
         });
+
+        // Show texture picker popup (if open)
+        if self.texture_picker_state.is_open {
+            // Collect all image files from the project tree
+            let image_files = if let Some(ref tree) = self.project_tree {
+                crate::texture_picker::collect_image_files(tree)
+            } else {
+                Vec::new()
+            };
+
+            // Get project root before mutable borrow (clone to avoid lifetime issues)
+            let project_root = engine.game_path().map(|p| p.to_path_buf());
+
+            // Show the texture picker
+            let picker_action = crate::texture_picker::show_texture_picker(
+                ctx,
+                &mut self.texture_picker_state,
+                &image_files,
+                engine.assets_mut(),
+                project_root.as_deref(),
+            );
+
+            // Handle the action
+            match picker_action {
+                TexturePickerAction::SelectTexture { entity, asset_id, path } => {
+                    log::info!("Texture selected: {} (ID: {})", path, asset_id.0);
+
+                    // Update the Sprite component with the new texture
+                    let handle = longhorn_core::EntityHandle::new(entity);
+                    match engine.world_mut().get_mut::<longhorn_core::Sprite>(handle) {
+                        Ok(mut sprite) => {
+                            sprite.texture = asset_id;
+                            log::info!("Updated sprite texture to {}", asset_id.0);
+                        }
+                        Err(e) => {
+                            log::error!("Failed to get Sprite component for entity {:?}: {}", entity, e);
+                        }
+                    }
+                }
+                TexturePickerAction::None => {}
+            }
+        }
 
         should_exit
     }
