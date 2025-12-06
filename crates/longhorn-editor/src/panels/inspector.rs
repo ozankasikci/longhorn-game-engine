@@ -151,25 +151,20 @@ impl InspectorPanel {
                 ui.heading("Script");
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // Remove button
-                    if ui.button("Remove").clicked() {
-                        should_remove = true;
-                    }
-
-                    // Kebab menu button with popup
-                    let menu_response = ui.menu_button("⋮", |ui| {
-                        let edit_btn = ui.button("Edit");
-                        if edit_btn.clicked() {
+                    // Kebab menu button with Edit and Remove options
+                    ui.menu_button("...", |ui| {
+                        if ui.button("Edit").clicked() {
                             log::info!("Edit button clicked for script: {}", path);
                             self.pending_action = EditorAction::OpenScriptEditor {
                                 path: path.to_string(),
                             };
                             ui.close_menu();
                         }
+                        if ui.button("Remove").clicked() {
+                            should_remove = true;
+                            ui.close_menu();
+                        }
                     });
-                    if menu_response.response.clicked() {
-                        log::info!("Kebab menu opened for script: {}", path);
-                    }
                 });
             });
 

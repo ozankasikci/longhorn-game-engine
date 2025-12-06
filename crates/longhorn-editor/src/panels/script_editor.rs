@@ -33,7 +33,7 @@ impl ScriptEditorPanel {
             // Filename with dirty indicator
             if let Some(filename) = state.filename() {
                 let display_text = if state.is_dirty() {
-                    format!("{} ●", filename)
+                    format!("{}*", filename)
                 } else {
                     filename.to_string()
                 };
