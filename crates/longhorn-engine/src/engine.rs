@@ -217,6 +217,16 @@ impl Engine {
             );
         }
 
+        // Collect targeted events emitted by scripts and forward to EventBus
+        let targeted_events = longhorn_scripting::take_pending_targeted_events();
+        for (entity_id, name, data) in targeted_events {
+            self.event_bus.emit_targeted(
+                longhorn_events::EventType::Custom(name),
+                longhorn_events::EventTarget::Entity(entity_id),
+                data,
+            );
+        }
+
         // Render if renderer is available
         if let Some(renderer) = &mut self.renderer {
             // Set clear color from config

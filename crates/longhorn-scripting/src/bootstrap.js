@@ -74,5 +74,8 @@ globalThis.engine = globalThis.engine || {};
 globalThis.engine.emit = function(eventName, data) {
     Deno.core.ops.op_emit_event(eventName, data || {});
 };
+globalThis.engine.sendTo = function(entityId, eventName, data) {
+    Deno.core.ops.op_emit_to_entity(entityId, eventName, data || {});
+};
 
 "bootstrap loaded";

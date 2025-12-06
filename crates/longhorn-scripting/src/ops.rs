@@ -18,6 +18,12 @@ thread_local! {
         std::cell::RefCell::new(Vec::new());
 }
 
+/// Thread-local storage for pending entity-targeted events
+thread_local! {
+    static PENDING_TARGETED_EVENTS: std::cell::RefCell<Vec<(u64, String, serde_json::Value)>> =
+        std::cell::RefCell::new(Vec::new());
+}
+
 /// Set the console callback for the current thread
 pub fn set_console_callback(callback: Option<ConsoleCallback>) {
     CONSOLE_CALLBACK.with(|cb| {
@@ -170,10 +176,27 @@ pub fn take_pending_events() -> Vec<(String, serde_json::Value)> {
     PENDING_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
 }
 
+/// Op for emitting entity-targeted events from scripts
+#[op2]
+pub fn op_emit_to_entity(
+    #[bigint] entity_id: u64,
+    #[string] event_name: String,
+    #[serde] data: serde_json::Value,
+) {
+    PENDING_TARGETED_EVENTS.with(|events| {
+        events.borrow_mut().push((entity_id, event_name, data));
+    });
+}
+
+/// Collect all pending targeted events emitted by scripts and clear the queue
+pub fn take_pending_targeted_events() -> Vec<(u64, String, serde_json::Value)> {
+    PENDING_TARGETED_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
+}
+
 // Extension definition for all longhorn ops
 deno_core::extension!(
     longhorn_ops,
-    ops = [op_log, op_get_current_entity, op_emit_event],
+    ops = [op_log, op_get_current_entity, op_emit_event, op_emit_to_entity],
 );
 
 #[cfg(test)]
