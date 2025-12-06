@@ -1,6 +1,9 @@
 use egui::Ui;
-use longhorn_core::{World, Name, EntityHandle};
+use longhorn_core::{World, Name, EntityHandle, Sprite};
+use longhorn_assets::{AssetManager, FilesystemSource};
 use crate::{EditorState, UiStateTracker};
+use std::path::PathBuf;
+use glam::Vec2;
 
 pub struct SceneTreePanel;
 
@@ -12,9 +15,11 @@ impl SceneTreePanel {
     pub fn show(
         &mut self,
         ui: &mut Ui,
-        world: &World,
+        world: &mut World,
         state: &mut EditorState,
         ui_state: &mut UiStateTracker,
+        game_path: Option<&std::path::Path>,
+        asset_manager: &mut AssetManager<FilesystemSource>,
     ) {
         ui.heading("Scene Tree");
         ui.separator();
@@ -58,8 +63,90 @@ impl SceneTreePanel {
                     .map(|id| id == element_id)
                     .unwrap_or(false);
 
-                if ui.selectable_label(is_selected, &name).clicked() || should_trigger {
-                    state.select(Some(entity));
+                // Wrap the selectable label in a drop zone for drag-drop support
+                let (drop_result, dropped_payload) = ui.dnd_drop_zone::<PathBuf, ()>(
+                    egui::Frame::none(),
+                    |ui| {
+                        // Create the selectable label inside the drop zone
+                        let response = ui.selectable_label(is_selected, &name);
+
+                        // Handle click selection
+                        if response.clicked() || should_trigger {
+                            state.select(Some(entity));
+                        }
+                    },
+                );
+
+                // Add visual feedback when dragging over
+                if drop_result.response.hovered() && ui.input(|i| i.pointer.any_down()) {
+                    // Highlight the entity when hovering with a drag
+                    ui.painter().rect_stroke(
+                        drop_result.response.rect,
+                        2.0,
+                        egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 180, 255)),
+                    );
+                }
+
+                if let Some(dropped_path) = dropped_payload {
+                    // Check if it's an image file
+                    if let Some(ext) = dropped_path.extension() {
+                        let ext_str = ext.to_string_lossy().to_lowercase();
+                        if matches!(ext_str.as_str(), "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp") {
+                            log::info!("Image file dropped on entity: {:?}", dropped_path);
+
+                            // Get relative path from game root
+                            if let Some(game_path) = game_path {
+                                if let Ok(relative_path) = dropped_path.strip_prefix(game_path) {
+                                    let path_str = relative_path.to_string_lossy().to_string();
+                                    log::info!("Relative path: {}", path_str);
+
+                                    // Try to get existing asset ID from registry, or import the asset
+                                    let asset_id = if let Some(id) = asset_manager.registry().get_id(&path_str) {
+                                        id
+                                    } else {
+                                        // If not in registry, auto-import it
+                                        log::info!("Image {} not in asset registry, importing...", path_str);
+                                        match asset_manager.import_asset(&*dropped_path, &path_str) {
+                                            Ok(id) => {
+                                                log::info!("Successfully imported {} with ID {}", path_str, id.0);
+                                                id
+                                            }
+                                            Err(e) => {
+                                                log::error!("Failed to import asset {}: {}", path_str, e);
+                                                // Skip this drop if import fails
+                                                continue;
+                                            }
+                                        }
+                                    };
+
+                                    // Check if entity already has a Sprite component
+                                    let has_sprite = world.get::<Sprite>(handle).is_ok();
+
+                                    if has_sprite {
+                                        // Replace the texture
+                                        if let Ok(mut sprite) = world.get_mut::<Sprite>(handle) {
+                                            log::info!("Replacing sprite texture on entity {} with asset {}", entity.id(), asset_id.0);
+                                            sprite.texture = asset_id;
+                                        }
+                                    } else {
+                                        // Add new Sprite component with default size
+                                        log::info!("Adding sprite component to entity {} with asset {}", entity.id(), asset_id.0);
+                                        // TODO: Get actual image dimensions from loaded texture data
+                                        let sprite = Sprite::new(asset_id, Vec2::new(32.0, 32.0));
+                                        if let Err(e) = world.set(handle, sprite) {
+                                            log::error!("Failed to add sprite component: {:?}", e);
+                                        }
+                                    }
+                                } else {
+                                    log::warn!("Dropped file is not under game path: {:?}", dropped_path);
+                                }
+                            } else {
+                                log::warn!("No game path set, cannot process dropped file");
+                            }
+                        } else {
+                            log::info!("Non-image file dropped, ignoring: {:?}", dropped_path);
+                        }
+                    }
                 }
             }
         }

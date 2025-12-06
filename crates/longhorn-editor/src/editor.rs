@@ -440,11 +440,17 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
 
         match panel_type {
             PanelType::Hierarchy => {
+                // Get game_path before the mutable borrow (convert to owned PathBuf)
+                let game_path = self.engine.game_path().map(|p| p.to_path_buf());
+                // Split borrows: we need both world and assets mutably
+                let (world, assets) = self.engine.world_and_assets_mut();
                 self.editor.scene_tree.show(
                     ui,
-                    self.engine.world(),
+                    world,
                     &mut self.editor.state,
                     &mut self.editor.ui_state,
+                    game_path.as_deref(),
+                    assets,
                 );
             }
             PanelType::Inspector => {

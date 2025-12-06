@@ -304,6 +304,12 @@ impl Engine {
         &mut self.assets
     }
 
+    /// Get mutable references to both world and assets
+    /// This is useful when you need to modify both at the same time without borrowing issues
+    pub fn world_and_assets_mut(&mut self) -> (&mut World, &mut AssetManager<FilesystemSource>) {
+        (&mut self.world, &mut self.assets)
+    }
+
     /// Get the engine configuration
     pub fn config(&self) -> &EngineConfig {
         &self.config

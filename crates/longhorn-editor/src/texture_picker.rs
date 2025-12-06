@@ -200,7 +200,9 @@ mod tests {
     #[test]
     fn test_texture_picker_open_close() {
         let mut state = TexturePickerState::new();
-        let entity = hecs::Entity::from_bits(1).unwrap();
+        // Create a real entity by spawning into a hecs World
+        let mut world = hecs::World::new();
+        let entity = world.spawn(());
 
         state.open_for_entity(entity);
         assert!(state.is_open);

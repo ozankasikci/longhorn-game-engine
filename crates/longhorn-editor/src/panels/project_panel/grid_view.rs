@@ -73,7 +73,21 @@ pub fn show_grid_view(
         // Check for pending remote trigger
         let pending_action = ui_state.has_pending_trigger_for(&element_id).cloned();
 
-        let response = ui.selectable_label(is_selected, &label);
+        // Enable drag source for image files
+        let response = if file.file_type == FileType::Image {
+            // Make this item draggable by wrapping it in a drag source
+            let response = ui.dnd_drag_source(
+                egui::Id::new(format!("drag_source_{}", file.path.display())),
+                file.path.clone(),
+                |ui| {
+                    ui.selectable_label(is_selected, &label)
+                },
+            ).response;
+
+            response
+        } else {
+            ui.selectable_label(is_selected, &label)
+        };
 
         // Log ALL interaction states for debugging
         if response.clicked() {
