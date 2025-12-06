@@ -10,6 +10,7 @@ mod remote_server;
 mod script_editor_state;
 mod project_panel_state;
 mod ui_state;
+mod commands;
 pub mod styling;
 pub mod docking;
 

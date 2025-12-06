@@ -5,9 +5,8 @@ use longhorn_scripting::set_console_callback;
 use std::sync::Arc;
 use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole, EditorAction, ScriptEditorState, ScriptEditorPanel, ScriptError};
 use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_dock_area};
-use crate::remote::{RemoteCommand, RemoteResponse, ResponseData, EntityInfo, EntityDetails, TransformData, UiStateData, PanelInfo, ClickableInfo};
-use crate::ui_state::{UiStateTracker, TriggerAction};
-use longhorn_core::{Name, Transform, World, EntityHandle};
+use crate::remote::{RemoteCommand, RemoteResponse};
+use crate::ui_state::UiStateTracker;
 use crate::{ProjectPanelState, ProjectPanel, ProjectPanelAction, DirectoryNode, ContextAction};
 
 pub struct Editor {
@@ -67,7 +66,7 @@ impl Editor {
     }
 
     /// Set up event subscriptions for debugging world events
-    fn setup_event_subscriptions(&mut self, engine: &mut Engine) {
+    pub fn setup_event_subscriptions(&mut self, engine: &mut Engine) {
         use longhorn_events::EventType;
 
         engine.event_bus_mut().subscribe(
@@ -111,6 +110,31 @@ impl Editor {
         &self.console
     }
 
+    /// Get a reference to the script editor state
+    pub fn script_editor_state(&self) -> &ScriptEditorState {
+        &self.script_editor_state
+    }
+
+    /// Get a mutable reference to the script editor state
+    pub fn script_editor_state_mut(&mut self) -> &mut ScriptEditorState {
+        &mut self.script_editor_state
+    }
+
+    /// Get a reference to the project panel state
+    pub fn project_panel_state(&self) -> &ProjectPanelState {
+        &self.project_panel_state
+    }
+
+    /// Get a mutable reference to the project panel state
+    pub fn project_panel_state_mut(&mut self) -> &mut ProjectPanelState {
+        &mut self.project_panel_state
+    }
+
+    /// Get a reference to the project tree
+    pub fn project_tree(&self) -> Option<&DirectoryNode> {
+        self.project_tree.as_ref()
+    }
+
     /// Get and clear any pending editor action
     pub fn take_pending_action(&mut self) -> EditorAction {
         let action = self.pending_action.clone();
@@ -128,582 +152,11 @@ impl Editor {
         command: RemoteCommand,
         engine: &mut Engine,
     ) -> RemoteResponse {
-        match command {
-            RemoteCommand::Ping => {
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::Play => {
-                self.handle_toolbar_action(crate::ToolbarAction::Play, engine);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::Pause => {
-                self.handle_toolbar_action(crate::ToolbarAction::Pause, engine);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::Resume => {
-                self.handle_toolbar_action(crate::ToolbarAction::Resume, engine);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::Stop => {
-                self.handle_toolbar_action(crate::ToolbarAction::Stop, engine);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::ToggleConsole => {
-                // Console is now always visible in dock, this is a no-op
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::GetState => {
-                let selected = self.state.selected_entity
-                    .map(|e| e.id() as u64);
-                RemoteResponse::with_data(ResponseData::State {
-                    mode: format!("{:?}", self.state.mode),
-                    paused: self.state.paused,
-                    entity_count: engine.world().len(),
-                    selected_entity: selected,
-                })
-            }
-
-            RemoteCommand::GetEntities => {
-                let entities: Vec<EntityInfo> = engine.world().inner().iter()
-                    .map(|entity_ref| {
-                        let entity = entity_ref.entity();
-                        let handle = EntityHandle::new(entity);
-                        let name = engine.world().get::<Name>(handle)
-                            .ok()
-                            .map(|n| n.0.clone())
-                            .unwrap_or_else(|| format!("Entity {}", entity.id()));
-                        EntityInfo {
-                            id: entity.id() as u64,
-                            name,
-                        }
-                    })
-                    .collect();
-                RemoteResponse::with_data(ResponseData::Entities(entities))
-            }
-
-            RemoteCommand::GetEntity { id } => {
-                // Find entity by raw ID (matching get_entities format)
-                let found = engine.world().inner().iter()
-                    .find(|e| e.entity().id() as u64 == id);
-
-                match found {
-                    Some(entity_ref) => {
-                        let entity = entity_ref.entity();
-                        let handle = EntityHandle::new(entity);
-
-                        // Get name
-                        let name = engine.world().get::<Name>(handle)
-                            .ok()
-                            .map(|n| n.0.clone())
-                            .unwrap_or_else(|| format!("Entity {}", id));
-
-                        // Get transform
-                        let transform = engine.world().get::<Transform>(handle)
-                            .ok()
-                            .map(|t| TransformData {
-                                position_x: t.position.x,
-                                position_y: t.position.y,
-                                rotation: t.rotation,
-                                scale_x: t.scale.x,
-                                scale_y: t.scale.y,
-                            });
-
-                        RemoteResponse::with_data(ResponseData::Entity(EntityDetails {
-                            id,
-                            name,
-                            transform,
-                        }))
-                    }
-                    None => RemoteResponse::error(format!("Entity not found: {}", id)),
-                }
-            }
-
-            RemoteCommand::SelectEntity { id } => {
-                // Find entity by ID
-                let found = engine.world().inner().iter()
-                    .find(|e| e.entity().id() as u64 == id)
-                    .map(|e| e.entity());
-
-                match found {
-                    Some(entity) => {
-                        self.state.select(Some(entity));
-                        RemoteResponse::ok()
-                    }
-                    None => RemoteResponse::error(format!("Entity not found: {}", id)),
-                }
-            }
-
-            RemoteCommand::CreateEntity { name } => {
-                let entity = engine.world_mut()
-                    .spawn()
-                    .with(Name::new(&name))
-                    .with(Transform::default())
-                    .build();
-                let id = entity.id().to_bits().get();
-                log::info!("Created entity '{}' with id {}", name, id);
-                RemoteResponse::with_data(ResponseData::Created { id })
-            }
-
-            RemoteCommand::DeleteEntity { id } => {
-                use longhorn_core::EntityId;
-                match EntityId::from_bits(id) {
-                    Some(entity_id) => {
-                        let handle = EntityHandle::new(entity_id);
-                        if engine.world_mut().despawn(handle).is_ok() {
-                            // Deselect if this was selected
-                            if self.state.selected_entity.map(|e| e.id() as u64) == Some(id) {
-                                self.state.select(None);
-                            }
-                            log::info!("Deleted entity {}", id);
-                            RemoteResponse::ok()
-                        } else {
-                            RemoteResponse::error(format!("Entity not found: {}", id))
-                        }
-                    }
-                    None => RemoteResponse::error(format!("Invalid entity id: {}", id)),
-                }
-            }
-
-            RemoteCommand::SetProperty { entity, component, field, value } => {
-                Self::set_entity_property(engine.world_mut(), entity, &component, &field, value)
-            }
-
-            RemoteCommand::LoadProject { path } => {
-                match engine.load_game(&path) {
-                    Ok(()) => {
-                        log::info!("Loaded project: {}", path);
-                        self.refresh_project_tree(engine);
-                        self.setup_event_subscriptions(engine);
-                        RemoteResponse::ok()
-                    }
-                    Err(e) => RemoteResponse::error(format!("Failed to load project: {}", e)),
-                }
-            }
-
-            RemoteCommand::OpenScript { path } => {
-                log::info!("Remote: Opening script '{}'", path);
-                if let Some(project_path) = engine.game_path() {
-                    let script_path = std::path::PathBuf::from(&path);
-                    match self.script_editor_state.open(script_path, project_path) {
-                        Ok(()) => {
-                            log::info!("Script opened successfully: {}", path);
-                            self.recheck_script_errors();
-                            self.ensure_script_editor_visible();
-                            RemoteResponse::ok()
-                        }
-                        Err(e) => {
-                            log::error!("Failed to open script '{}': {}", path, e);
-                            RemoteResponse::error(format!("Failed to open script: {}", e))
-                        }
-                    }
-                } else {
-                    log::error!("Cannot open script: No project loaded");
-                    RemoteResponse::error("No project loaded")
-                }
-            }
-
-            RemoteCommand::SaveScript => {
-                log::info!("Remote: Saving script");
-                if self.script_editor_state.is_open() {
-                    match self.script_editor_state.save() {
-                        Ok(()) => {
-                            log::info!("Script saved successfully");
-                            self.recheck_script_errors();
-                            RemoteResponse::ok()
-                        }
-                        Err(e) => {
-                            log::error!("Failed to save script: {}", e);
-                            RemoteResponse::error(format!("Failed to save script: {}", e))
-                        }
-                    }
-                } else {
-                    RemoteResponse::error("No script is open")
-                }
-            }
-
-            RemoteCommand::GetScriptEditorState => {
-                use crate::remote::{ScriptEditorData, ScriptErrorData};
-                let data = ScriptEditorData {
-                    is_open: self.script_editor_state.is_open(),
-                    file_path: self.script_editor_state.open_file.as_ref()
-                        .map(|p| p.display().to_string()),
-                    is_dirty: self.script_editor_state.is_dirty(),
-                    error_count: self.script_editor_state.errors.len(),
-                    errors: self.script_editor_state.errors.iter()
-                        .map(|e| ScriptErrorData {
-                            line: e.line,
-                            message: e.message.clone(),
-                        })
-                        .collect(),
-                };
-                RemoteResponse::with_data(ResponseData::ScriptEditor(data))
-            }
-
-            // UI State Commands
-            RemoteCommand::GetUiState => {
-                let snapshot = self.ui_state.snapshot();
-                let data = UiStateData {
-                    focused_panel: snapshot.focused_panel,
-                    panels: snapshot.panels.into_iter().map(|p| PanelInfo {
-                        id: p.id,
-                        title: p.title,
-                        is_focused: p.is_focused,
-                    }).collect(),
-                    clickable_elements: snapshot.clickable_elements.into_iter().map(|c| ClickableInfo {
-                        id: c.id,
-                        label: c.label,
-                        element_type: c.element_type,
-                    }).collect(),
-                };
-                RemoteResponse::with_data(ResponseData::UiState(data))
-            }
-
-            RemoteCommand::ListPanels => {
-                let panels: Vec<PanelInfo> = self.ui_state.panels().iter().map(|p| PanelInfo {
-                    id: p.id.clone(),
-                    title: p.title.clone(),
-                    is_focused: p.is_focused,
-                }).collect();
-                RemoteResponse::with_data(ResponseData::Panels(panels))
-            }
-
-            RemoteCommand::GetClickableElements => {
-                let elements: Vec<ClickableInfo> = self.ui_state.clickable_elements().iter().map(|c| ClickableInfo {
-                    id: c.id.clone(),
-                    label: c.label.clone(),
-                    element_type: c.element_type.clone(),
-                }).collect();
-                RemoteResponse::with_data(ResponseData::Clickables(elements))
-            }
-
-            RemoteCommand::FocusPanel { panel } => {
-                self.ui_state.request_focus(panel);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::TriggerElement { id } => {
-                self.ui_state.request_trigger(id);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::ClickElement { id } => {
-                self.ui_state.request_trigger_action(id, TriggerAction::Click);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::DoubleClickElement { id } => {
-                self.ui_state.request_trigger_action(id, TriggerAction::DoubleClick);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::RightClickElement { id } => {
-                self.ui_state.request_trigger_action(id, TriggerAction::RightClick);
-                RemoteResponse::ok()
-            }
-
-            // Scene Tree Commands
-            RemoteCommand::ExpandTreeNode { path } => {
-                self.ui_state.request_tree_expand(path);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::CollapseTreeNode { path } => {
-                self.ui_state.request_tree_collapse(path);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::SelectByPath { path } => {
-                // Find entity by name path (for now, simple name match)
-                // Path format: "EntityName" or "Parent/Child/Entity"
-                let entity_name = path.split('/').last().unwrap_or(&path);
-                let found = engine.world().inner().iter()
-                    .find(|entity_ref| {
-                        let handle = EntityHandle::new(entity_ref.entity());
-                        engine.world().get::<Name>(handle)
-                            .ok()
-                            .map(|n| n.0 == entity_name)
-                            .unwrap_or(false)
-                    })
-                    .map(|e| e.entity());
-
-                match found {
-                    Some(entity) => {
-                        self.state.select(Some(entity));
-                        RemoteResponse::ok()
-                    }
-                    None => RemoteResponse::error(format!("Entity not found by path: {}", path)),
-                }
-            }
-
-            // Asset Browser Commands
-            RemoteCommand::GetAssetBrowserState => {
-                use crate::remote::{AssetBrowserData, AssetFileInfo};
-
-                let selected_folder = self.project_panel_state.selected_folder.display().to_string();
-                let selected_file = self.project_panel_state.selected_file.as_ref()
-                    .map(|p| p.display().to_string());
-
-                // Collect files from current folder
-                let mut files = Vec::new();
-                if let Some(tree) = &self.project_tree {
-                    fn find_folder<'a>(node: &'a DirectoryNode, path: &std::path::Path) -> Option<&'a DirectoryNode> {
-                        if node.path == path {
-                            return Some(node);
-                        }
-                        for child in &node.children {
-                            if let Some(found) = find_folder(child, path) {
-                                return Some(found);
-                            }
-                        }
-                        None
-                    }
-
-                    let folder = find_folder(tree, &self.project_panel_state.selected_folder)
-                        .unwrap_or(tree);
-
-                    for file in &folder.files {
-                        files.push(AssetFileInfo {
-                            path: file.path.display().to_string(),
-                            name: file.name.clone(),
-                            file_type: format!("{:?}", file.file_type),
-                            is_text_editable: file.file_type.is_text_editable(),
-                        });
-                    }
-                }
-
-                let data = AssetBrowserData {
-                    selected_folder,
-                    selected_file,
-                    files,
-                };
-                RemoteResponse::with_data(ResponseData::AssetBrowser(data))
-            }
-
-            RemoteCommand::OpenAssetFile { path } => {
-                log::info!("Remote: Opening asset file '{}'", path);
-                if let Some(game_path) = engine.game_path() {
-                    let file_path = std::path::PathBuf::from(&path);
-
-                    // Determine file type
-                    let extension = file_path.extension()
-                        .and_then(|e| e.to_str())
-                        .map(|s| s.to_lowercase());
-                    let file_type = crate::project_panel_state::FileType::from_extension(extension.as_deref());
-
-                    log::info!("File type for '{}': {:?}, is_text_editable: {}", path, file_type, file_type.is_text_editable());
-
-                    if file_type.is_text_editable() {
-                        // Get relative path from project root
-                        if let Ok(relative) = file_path.strip_prefix(game_path) {
-                            let script_path = relative.to_path_buf();
-                            log::info!("Opening script from remote: {:?}", script_path);
-                            match self.script_editor_state.open(script_path, game_path) {
-                                Ok(()) => {
-                                    self.recheck_script_errors();
-                                    self.ensure_script_editor_visible();
-                                    RemoteResponse::ok()
-                                }
-                                Err(e) => {
-                                    log::error!("Failed to open script: {}", e);
-                                    RemoteResponse::error(format!("Failed to open script: {}", e))
-                                }
-                            }
-                        } else {
-                            log::error!("Path {:?} is not under project {:?}", file_path, game_path);
-                            RemoteResponse::error("File path is not under project root")
-                        }
-                    } else {
-                        log::info!("File type {:?} is not text-editable, opening externally", file_type);
-                        if let Err(e) = open::that(&file_path) {
-                            RemoteResponse::error(format!("Failed to open external: {}", e))
-                        } else {
-                            RemoteResponse::ok()
-                        }
-                    }
-                } else {
-                    RemoteResponse::error("No project loaded")
-                }
-            }
-
-            RemoteCommand::SelectAssetFile { path } => {
-                log::info!("Remote: Selecting asset file '{}'", path);
-                let file_path = std::path::PathBuf::from(&path);
-                self.project_panel_state.selected_file = Some(file_path);
-                RemoteResponse::ok()
-            }
-
-            RemoteCommand::DoubleClickAssetFile { path } => {
-                log::info!("Remote: Double-clicking asset file '{}'", path);
-                if let Some(game_path) = engine.game_path() {
-                    let file_path = std::path::PathBuf::from(&path);
-
-                    // Determine file type
-                    let extension = file_path.extension()
-                        .and_then(|e| e.to_str())
-                        .map(|s| s.to_lowercase());
-                    let file_type = crate::project_panel_state::FileType::from_extension(extension.as_deref());
-
-                    log::info!("Double-click: File type for '{}': {:?}, is_text_editable: {}", path, file_type, file_type.is_text_editable());
-
-                    if file_type.is_text_editable() {
-                        // Open in script editor (same as AssetBrowserAction::OpenScript)
-                        if let Ok(relative) = file_path.strip_prefix(game_path) {
-                            let script_path = relative.to_path_buf();
-                            log::info!("Double-click: Opening script {:?}", script_path);
-                            match self.script_editor_state.open(script_path, game_path) {
-                                Ok(()) => {
-                                    self.recheck_script_errors();
-                                    self.ensure_script_editor_visible();
-                                    RemoteResponse::ok()
-                                }
-                                Err(e) => {
-                                    log::error!("Double-click: Failed to open script: {}", e);
-                                    RemoteResponse::error(format!("Failed to open script: {}", e))
-                                }
-                            }
-                        } else {
-                            log::error!("Double-click: Path {:?} is not under project {:?}", file_path, game_path);
-                            RemoteResponse::error("File path is not under project root")
-                        }
-                    } else if file_type == crate::project_panel_state::FileType::Image {
-                        log::info!("Double-click: TODO: Open image preview for {:?}", path);
-                        RemoteResponse::ok()
-                    } else {
-                        // Open externally
-                        log::info!("Double-click: Opening externally {:?}", path);
-                        if let Err(e) = open::that(&file_path) {
-                            RemoteResponse::error(format!("Failed to open external: {}", e))
-                        } else {
-                            RemoteResponse::ok()
-                        }
-                    }
-                } else {
-                    RemoteResponse::error("No project loaded")
-                }
-            }
-
-            RemoteCommand::AssetContextOpenInEditor { path } => {
-                log::info!("Remote: Context menu 'Open in Editor' for '{}'", path);
-                if let Some(game_path) = engine.game_path() {
-                    let file_path = std::path::PathBuf::from(&path);
-
-                    // Determine file type
-                    let extension = file_path.extension()
-                        .and_then(|e| e.to_str())
-                        .map(|s| s.to_lowercase());
-                    let file_type = crate::project_panel_state::FileType::from_extension(extension.as_deref());
-
-                    log::info!("Context Open in Editor: File type for '{}': {:?}, is_text_editable: {}", path, file_type, file_type.is_text_editable());
-
-                    if file_type.is_text_editable() {
-                        // Open in script editor (same as clicking "Open in Editor" in context menu)
-                        if let Ok(relative) = file_path.strip_prefix(game_path) {
-                            let script_path = relative.to_path_buf();
-                            log::info!("Context Open in Editor: Opening script {:?}", script_path);
-                            match self.script_editor_state.open(script_path, game_path) {
-                                Ok(()) => {
-                                    self.recheck_script_errors();
-                                    self.ensure_script_editor_visible();
-                                    RemoteResponse::ok()
-                                }
-                                Err(e) => {
-                                    log::error!("Context Open in Editor: Failed to open script: {}", e);
-                                    RemoteResponse::error(format!("Failed to open script: {}", e))
-                                }
-                            }
-                        } else {
-                            log::error!("Context Open in Editor: Path {:?} is not under project {:?}", file_path, game_path);
-                            RemoteResponse::error("File path is not under project root")
-                        }
-                    } else {
-                        RemoteResponse::error(format!("File type {:?} is not text-editable", file_type))
-                    }
-                } else {
-                    RemoteResponse::error("No project loaded")
-                }
-            }
-        }
-    }
-
-    fn set_entity_property(
-        world: &mut World,
-        entity_id: u64,
-        component: &str,
-        field: &str,
-        value: serde_json::Value,
-    ) -> RemoteResponse {
-        use longhorn_core::EntityId;
-
-        let entity_id = match EntityId::from_bits(entity_id) {
-            Some(id) => id,
-            None => return RemoteResponse::error(format!("Invalid entity id: {}", entity_id)),
-        };
-        let handle = EntityHandle::new(entity_id);
-
-        match component {
-            "Transform" => {
-                let mut transform = match world.get::<Transform>(handle) {
-                    Ok(t) => (*t).clone(),
-                    Err(_) => return RemoteResponse::error("Entity has no Transform"),
-                };
-
-                match field {
-                    "position.x" => {
-                        if let Some(v) = value.as_f64() {
-                            transform.position.x = v as f32;
-                        }
-                    }
-                    "position.y" => {
-                        if let Some(v) = value.as_f64() {
-                            transform.position.y = v as f32;
-                        }
-                    }
-                    "rotation" => {
-                        if let Some(v) = value.as_f64() {
-                            transform.rotation = v as f32;
-                        }
-                    }
-                    "scale.x" => {
-                        if let Some(v) = value.as_f64() {
-                            transform.scale.x = v as f32;
-                        }
-                    }
-                    "scale.y" => {
-                        if let Some(v) = value.as_f64() {
-                            transform.scale.y = v as f32;
-                        }
-                    }
-                    _ => return RemoteResponse::error(format!("Unknown field: {}", field)),
-                }
-
-                if world.set(handle, transform).is_err() {
-                    return RemoteResponse::error("Failed to set Transform");
-                }
-                RemoteResponse::ok()
-            }
-            "Name" => {
-                if field == "name" || field == "0" {
-                    if let Some(s) = value.as_str() {
-                        if world.set(handle, Name::new(s)).is_err() {
-                            return RemoteResponse::error("Failed to set Name");
-                        }
-                        return RemoteResponse::ok();
-                    }
-                }
-                RemoteResponse::error(format!("Invalid Name field: {}", field))
-            }
-            _ => RemoteResponse::error(format!("Unknown component: {}", component)),
-        }
+        crate::commands::process_remote_command(self, command, engine)
     }
 
     /// Re-check for TypeScript errors in the current script
-    fn recheck_script_errors(&mut self) {
+    pub fn recheck_script_errors(&mut self) {
         // Use TypeScriptCompiler to check for errors
         use longhorn_scripting::TypeScriptCompiler;
         let mut compiler = TypeScriptCompiler::new();
@@ -743,7 +196,7 @@ impl Editor {
     }
 
     /// Request the ScriptEditor panel to be shown (deferred to avoid dock state borrow issues)
-    fn ensure_script_editor_visible(&mut self) {
+    pub fn ensure_script_editor_visible(&mut self) {
         log::info!("=== ensure_script_editor_visible called - setting pending flag ===");
         self.pending_show_script_editor = true;
     }
