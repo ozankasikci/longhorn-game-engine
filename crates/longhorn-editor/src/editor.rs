@@ -256,7 +256,7 @@ impl Editor {
                 match engine.load_game(&path) {
                     Ok(()) => {
                         log::info!("Loaded project: {}", path);
-                        self.refresh_asset_tree();
+                        self.refresh_asset_tree(engine);
                         RemoteResponse::ok()
                     }
                     Err(e) => RemoteResponse::error(format!("Failed to load project: {}", e)),
@@ -489,23 +489,30 @@ impl Editor {
     }
 
     /// Refresh the asset tree from disk
-    pub fn refresh_asset_tree(&mut self) {
-        if let Some(game_path) = &self.state.game_path {
-            let assets_path = std::path::Path::new(game_path).join("assets");
-            if assets_path.exists() {
-                match DirectoryNode::scan(&assets_path) {
-                    Ok(tree) => {
-                        // Set selected folder to root if not set
-                        if self.asset_browser_state.selected_folder.as_os_str().is_empty() {
-                            self.asset_browser_state.selected_folder = tree.path.clone();
-                        }
-                        self.asset_tree = Some(tree);
+    pub fn refresh_asset_tree(&mut self, engine: &Engine) {
+        let game_path = engine.game_path();
+        log::info!("refresh_asset_tree called, game_path = {:?}", game_path);
+        if let Some(game_path) = game_path {
+            // Also sync to editor state for other uses
+            self.state.game_path = Some(game_path.to_string_lossy().to_string());
+
+            // Scan the project root directory (not just assets/)
+            log::info!("Scanning project at: {:?}", game_path);
+            match DirectoryNode::scan(game_path) {
+                Ok(tree) => {
+                    log::info!("Scanned project tree: {} files, {} folders", tree.files.len(), tree.children.len());
+                    // Set selected folder to root if not set
+                    if self.asset_browser_state.selected_folder.as_os_str().is_empty() {
+                        self.asset_browser_state.selected_folder = tree.path.clone();
                     }
-                    Err(e) => {
-                        log::error!("Failed to scan assets directory: {}", e);
-                    }
+                    self.asset_tree = Some(tree);
+                }
+                Err(e) => {
+                    log::error!("Failed to scan project directory: {}", e);
                 }
             }
+        } else {
+            log::warn!("refresh_asset_tree: No game_path set");
         }
     }
 
@@ -586,9 +593,7 @@ impl Editor {
                             log::error!("Failed to load game: {}", e);
                         } else {
                             log::info!("Loaded game from: {:?}", test_project);
-                            // Sync game_path to editor state
-                            self.state.game_path = Some(test_project.to_string_lossy().to_string());
-                            self.refresh_asset_tree();
+                            self.refresh_asset_tree(engine);
                         }
                         ui.close_menu();
                     }
@@ -750,14 +755,18 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                         AssetBrowserAction::OpenScript(path) => {
                             if let Some(game_path) = &self.editor.state.game_path {
                                 let project_path = std::path::Path::new(game_path);
-                                if let Ok(relative) = path.strip_prefix(project_path.join("assets")) {
-                                    let script_path = std::path::PathBuf::from("assets").join(relative);
+                                // Get relative path from project root
+                                if let Ok(relative) = path.strip_prefix(project_path) {
+                                    let script_path = relative.to_path_buf();
+                                    log::info!("Opening script from asset browser: {:?}", script_path);
                                     if let Err(e) = self.editor.script_editor_state.open(script_path, project_path) {
                                         log::error!("Failed to open script: {}", e);
                                     } else {
                                         self.editor.recheck_script_errors();
                                         self.editor.ensure_script_editor_visible();
                                     }
+                                } else {
+                                    log::error!("Script path {:?} is not under project {:?}", path, project_path);
                                 }
                             }
                         }
@@ -784,10 +793,10 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                                     } else {
                                         log::info!("Deleted: {:?}", path);
                                     }
-                                    self.editor.refresh_asset_tree();
+                                    self.editor.refresh_asset_tree(self.engine);
                                 }
                                 ContextAction::Refresh => {
-                                    self.editor.refresh_asset_tree();
+                                    self.editor.refresh_asset_tree(self.engine);
                                 }
                             }
                         }

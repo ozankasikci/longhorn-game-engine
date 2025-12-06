@@ -23,6 +23,13 @@ impl FileType {
     }
 }
 
+/// Default tree panel width
+pub const DEFAULT_TREE_WIDTH: f32 = 180.0;
+/// Minimum tree panel width
+pub const MIN_TREE_WIDTH: f32 = 100.0;
+/// Maximum tree panel width
+pub const MAX_TREE_WIDTH: f32 = 400.0;
+
 /// State for the asset browser panel
 #[derive(Debug)]
 pub struct AssetBrowserState {
@@ -34,6 +41,8 @@ pub struct AssetBrowserState {
     pub selected_file: Option<PathBuf>,
     /// Active rename operation
     pub renaming: Option<PathBuf>,
+    /// Width of the tree panel (user-resizable)
+    pub tree_width: f32,
 }
 
 impl AssetBrowserState {
@@ -43,6 +52,7 @@ impl AssetBrowserState {
             expanded_folders: HashSet::new(),
             selected_file: None,
             renaming: None,
+            tree_width: DEFAULT_TREE_WIDTH,
         }
     }
 }

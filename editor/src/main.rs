@@ -80,13 +80,17 @@ impl EditorApp {
             }
         };
 
+        let mut editor = Editor::new();
+        // Populate asset browser with auto-loaded project's assets
+        editor.refresh_asset_tree(&engine);
+
         Self {
             window: None,
             gpu_state: None,
             egui_state: None,
             viewport_renderer: None,
             engine,
-            editor: Editor::new(),
+            editor,
             remote_server,
         }
     }
