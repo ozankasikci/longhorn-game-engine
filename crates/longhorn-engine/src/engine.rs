@@ -321,6 +321,39 @@ impl Engine {
     pub fn event_bus(&self) -> &EventBus {
         &self.event_bus
     }
+
+    /// Spawn an entity with a name and emit EntitySpawned event.
+    pub fn spawn_entity(&mut self, name: &str) -> longhorn_core::EntityHandle {
+        use longhorn_core::Name;
+
+        let handle = self.world.spawn().with(Name::new(name)).build();
+        let id = handle.id().to_bits().get();
+
+        self.event_bus.emit(
+            longhorn_events::EventType::EntitySpawned,
+            serde_json::json!({
+                "entity": id,
+                "name": name,
+            }),
+        );
+
+        handle
+    }
+
+    /// Despawn an entity and emit EntityDespawned event.
+    pub fn despawn_entity(&mut self, handle: longhorn_core::EntityHandle) -> Result<(), EngineError> {
+        let id = handle.id().to_bits().get();
+
+        self.event_bus.emit(
+            longhorn_events::EventType::EntityDespawned,
+            serde_json::json!({
+                "entity": id,
+            }),
+        );
+
+        self.world.despawn(handle)?;
+        Ok(())
+    }
 }
 
 /// Engine errors
