@@ -1,5 +1,7 @@
 use egui::Ui;
 use longhorn_core::{World, Name, Transform, Sprite, Enabled, EntityHandle, Script, ScriptValue};
+use longhorn_engine::MainCamera;
+use longhorn_renderer::Camera;
 use crate::EditorState;
 
 /// Actions that can be triggered from the Inspector panel
@@ -97,6 +99,16 @@ impl InspectorPanel {
 
         ui.separator();
 
+        // Camera component (editable)
+        self.show_camera_component(ui, world, handle);
+
+        ui.separator();
+
+        // MainCamera component (marker)
+        self.show_main_camera_component(ui, world, handle);
+
+        ui.separator();
+
         // Add Component dropdown at bottom
         ui.menu_button("Add Component", |ui| {
             // Sprite option
@@ -131,6 +143,31 @@ impl InspectorPanel {
                     log::error!("Failed to add script: {:?}", e);
                 } else {
                     log::info!("Added TestScript.ts to entity");
+                }
+                ui.close_menu();
+            }
+
+            // Camera option
+            let has_camera = world.get::<Camera>(handle).is_ok();
+            if ui.add_enabled(!has_camera, egui::Button::new("Camera")).clicked() {
+                log::info!("Adding Camera component to entity");
+                let camera = Camera::new(800.0, 600.0);
+                if let Err(e) = world.set(handle, camera) {
+                    log::error!("Failed to add camera: {:?}", e);
+                } else {
+                    log::info!("Added Camera component to entity");
+                }
+                ui.close_menu();
+            }
+
+            // MainCamera option
+            let has_main_camera = world.get::<MainCamera>(handle).is_ok();
+            if ui.add_enabled(!has_main_camera, egui::Button::new("MainCamera")).clicked() {
+                log::info!("Adding MainCamera component to entity");
+                if let Err(e) = world.set(handle, MainCamera) {
+                    log::error!("Failed to add MainCamera: {:?}", e);
+                } else {
+                    log::info!("Added MainCamera component to entity");
                 }
                 ui.close_menu();
             }
@@ -346,6 +383,81 @@ impl InspectorPanel {
         });
 
         result
+    }
+
+    fn show_camera_component(&mut self, ui: &mut Ui, world: &mut World, handle: EntityHandle) {
+        // Clone camera data to avoid borrow checker issues with UI
+        let camera_data = if let Ok(camera) = world.get::<Camera>(handle) {
+            Some((camera.zoom, camera.viewport_size))
+        } else {
+            None
+        };
+
+        if let Some((mut zoom, viewport_size)) = camera_data {
+            let mut should_remove = false;
+
+            ui.group(|ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("Camera");
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("Remove").clicked() {
+                            should_remove = true;
+                        }
+                    });
+                });
+
+                ui.separator();
+
+                // Zoom (editable)
+                ui.horizontal(|ui| {
+                    ui.label("Zoom:");
+                    ui.add(egui::DragValue::new(&mut zoom).speed(0.01).range(0.1..=10.0));
+                });
+
+                // Viewport size (read-only)
+                ui.horizontal(|ui| {
+                    ui.label("Viewport:");
+                    ui.label(format!("{}x{}", viewport_size.x, viewport_size.y));
+                });
+            });
+
+            // Apply changes after UI rendering
+            if should_remove {
+                if let Err(e) = world.remove::<Camera>(handle) {
+                    log::error!("Failed to remove camera: {:?}", e);
+                } else {
+                    log::info!("Removed Camera component from entity");
+                }
+            } else {
+                // Update camera if zoom changed
+                if let Ok(mut camera) = world.get_mut::<Camera>(handle) {
+                    camera.zoom = zoom;
+                }
+            }
+        }
+    }
+
+    fn show_main_camera_component(&mut self, ui: &mut Ui, world: &mut World, handle: EntityHandle) {
+        if world.get::<MainCamera>(handle).is_ok() {
+            ui.group(|ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("MainCamera");
+                    ui.label("✓");
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("Remove").clicked() {
+                            if let Err(e) = world.remove::<MainCamera>(handle) {
+                                log::error!("Failed to remove MainCamera: {:?}", e);
+                            } else {
+                                log::info!("Removed MainCamera component from entity");
+                            }
+                        }
+                    });
+                });
+
+                ui.separator();
+                ui.label("This camera will be used in Game View during Play mode.");
+            });
+        }
     }
 }
 
