@@ -73,6 +73,36 @@ impl<S: AssetSource> AssetManager<S> {
             .map(|(_, data)| data)
     }
 
+    /// Load a texture by its AssetId (looks up path in registry)
+    pub fn load_texture_by_id(&mut self, asset_id: AssetId) -> io::Result<AssetHandle<TextureData>> {
+        // First check if it's already loaded in the cache
+        if self.texture_cache.values().any(|(id, _)| *id == asset_id) {
+            return Ok(AssetHandle::new(asset_id));
+        }
+
+        // Look up the path in the registry
+        let path = self.registry.get_path(asset_id).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Asset ID {:?} not found in registry", asset_id),
+            )
+        })?;
+
+        // Load the texture from the path
+        let bytes = self.source.load_bytes(path)?;
+        let texture_data = TextureData::from_bytes(&bytes)?;
+
+        // Cache it with the existing asset ID (not a new one)
+        self.texture_cache.insert(path.to_string(), (asset_id, texture_data));
+
+        Ok(AssetHandle::new(asset_id))
+    }
+
+    /// Check if a texture is loaded (in cache)
+    pub fn is_texture_loaded(&self, asset_id: AssetId) -> bool {
+        self.texture_cache.values().any(|(id, _)| *id == asset_id)
+    }
+
     /// Get a texture by its path
     pub fn get_texture_by_path(&self, path: &str) -> Option<&TextureData> {
         self.texture_cache.get(path).map(|(_, data)| data)
