@@ -30,23 +30,15 @@ pub mod types;
 
 // Panel modules
 pub mod console;
-pub mod drag_drop;
-pub mod folder_manager;
 pub mod game_view;
 pub mod hierarchy;
 pub mod inspector;
-pub mod keyboard_shortcuts;
-pub mod multi_selection;
-pub mod project;
-pub mod search;
-pub mod undo_redo;
 
 // Re-export panels
 pub use console::ConsolePanel;
 pub use game_view::GameViewPanel;
 pub use hierarchy::HierarchyPanel;
 pub use inspector::InspectorPanel;
-pub use project::ProjectPanel;
 
 // Re-export commonly used types
 pub use types::{
