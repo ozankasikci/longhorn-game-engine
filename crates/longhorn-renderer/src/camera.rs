@@ -1,4 +1,5 @@
 use glam::{Mat4, Vec2, Vec3};
+use serde::{Deserialize, Serialize};
 
 /// 2D camera with position, zoom, and viewport size
 #[derive(Debug, Clone)]
@@ -10,6 +11,11 @@ pub struct Camera {
     /// Viewport size in pixels
     pub viewport_size: Vec2,
 }
+
+/// Marker component indicating this camera is the main game camera
+/// Only one MainCamera should exist per scene
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct MainCamera;
 
 impl Camera {
     /// Create a new camera with the given viewport dimensions
@@ -183,5 +189,17 @@ mod tests {
 
         assert!((back_to_screen.x - screen_pos.x).abs() < 0.1);
         assert!((back_to_screen.y - screen_pos.y).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_main_camera_component_registration() {
+        use longhorn_core::ecs::World;
+
+        let mut world = World::new();
+
+        let entity = world.spawn().build();
+        world.set(entity, MainCamera).unwrap();
+
+        assert!(world.has::<MainCamera>(entity));
     }
 }
