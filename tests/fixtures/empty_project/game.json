@@ -1,0 +1,11 @@
+{
+  "name": "Empty Test Project",
+  "version": "1.0.0",
+  "viewport": {
+    "width": 800,
+    "height": 600
+  },
+  "assets": {
+    "preload": []
+  }
+}

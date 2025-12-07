@@ -1,0 +1,13 @@
+[package]
+name = "longhorn-test-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Test client for Longhorn Editor remote control"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]

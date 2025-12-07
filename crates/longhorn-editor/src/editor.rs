@@ -98,6 +98,20 @@ impl Editor {
         &mut self.ui_state
     }
 
+    /// Request a screenshot to be taken (placeholder for future implementation)
+    pub fn request_screenshot(&self, _path: String) {
+        // TODO: Implement actual screenshot capture
+        // This would need to be handled in the main render loop
+        log::info!("Screenshot requested (not yet implemented)");
+    }
+
+    /// Request waiting for N frames (placeholder for future implementation)
+    pub fn request_wait_frames(&self, _count: u32) {
+        // TODO: Implement frame waiting
+        // This would need to be handled in the main render loop
+        log::info!("Wait frames requested (not yet implemented)");
+    }
+
     pub fn state(&self) -> &EditorState {
         &self.state
     }

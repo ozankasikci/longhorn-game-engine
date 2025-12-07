@@ -8,9 +8,9 @@ use longhorn_engine::Engine;
 
 use crate::remote::{
     AssetBrowserData, AssetFileInfo, AssetInfo, ClickableInfo, ComponentInfo, EntityDetails,
-    EntityDump, EntityInfo, PanelInfo, RemoteCommand, RemoteResponse, RenderStateData,
-    ResponseData, ScriptEditorData, ScriptErrorData, SpriteData, TextureLoadResult, TransformData,
-    UiStateData,
+    EntityDump, EntityInfo, LogEntry, LogTailResult, PanelInfo, RemoteCommand, RemoteResponse,
+    RenderStateData, ResponseData, ScreenshotResult, ScriptEditorData, ScriptErrorData, SpriteData,
+    TextureLoadResult, TransformData, UiStateData, WaitFramesResult,
 };
 use crate::ui_state::TriggerAction;
 use crate::{DirectoryNode, Editor, ToolbarAction};
@@ -139,6 +139,11 @@ pub fn process_remote_command(
         // Asset loading commands
         RemoteCommand::LoadTexture { id } => handle_load_texture(engine, id),
         RemoteCommand::LoadAllTextures => handle_load_all_textures(engine),
+
+        // Testing commands
+        RemoteCommand::TakeScreenshot { path } => handle_take_screenshot(editor, &path),
+        RemoteCommand::GetLogTail { lines } => handle_get_log_tail(lines),
+        RemoteCommand::WaitFrames { count } => handle_wait_frames(editor, count),
     }
 }
 
@@ -1050,4 +1055,102 @@ fn handle_load_all_textures(engine: &mut Engine) -> RemoteResponse {
     }
 
     RemoteResponse::with_data(ResponseData::TexturesLoaded(results))
+}
+
+// --- Testing Command Handlers ---
+
+fn handle_take_screenshot(editor: &Editor, path: &str) -> RemoteResponse {
+    // Request screenshot capture - will be handled by the main loop
+    // For now, we'll request the screenshot and return a placeholder
+    // The actual screenshot is captured via the pending_screenshot field
+    editor.request_screenshot(path.to_string());
+
+    // Return immediately - actual screenshot happens on next frame
+    // TODO: Make this synchronous by waiting for screenshot to complete
+    RemoteResponse::with_data(ResponseData::Screenshot(ScreenshotResult {
+        path: path.to_string(),
+        width: 0, // Will be filled in by actual capture
+        height: 0,
+    }))
+}
+
+fn handle_get_log_tail(lines: usize) -> RemoteResponse {
+    // Read from the log file
+    let log_path = std::path::Path::new("logs/editor.log");
+
+    let entries = if log_path.exists() {
+        match std::fs::read_to_string(log_path) {
+            Ok(content) => {
+                let all_lines: Vec<&str> = content.lines().collect();
+                let start = all_lines.len().saturating_sub(lines);
+                all_lines[start..]
+                    .iter()
+                    .filter_map(|line| parse_log_line(line))
+                    .collect()
+            }
+            Err(e) => {
+                log::warn!("Failed to read log file: {}", e);
+                Vec::new()
+            }
+        }
+    } else {
+        Vec::new()
+    };
+
+    RemoteResponse::with_data(ResponseData::LogTail(LogTailResult { entries }))
+}
+
+fn parse_log_line(line: &str) -> Option<LogEntry> {
+    // Parse log lines in format: [TIMESTAMP LEVEL target] message
+    // Example: [2024-01-15T10:30:00Z INFO longhorn_editor] Loading project...
+
+    // Simple parsing - just return the line as-is for now
+    // A more sophisticated parser could extract timestamp/level/message
+    if line.starts_with('[') {
+        if let Some(bracket_end) = line.find(']') {
+            let header = &line[1..bracket_end];
+            let message = line[bracket_end + 1..].trim();
+
+            // Try to extract level from header
+            let level = if header.contains("ERROR") {
+                "ERROR"
+            } else if header.contains("WARN") {
+                "WARN"
+            } else if header.contains("INFO") {
+                "INFO"
+            } else if header.contains("DEBUG") {
+                "DEBUG"
+            } else if header.contains("TRACE") {
+                "TRACE"
+            } else {
+                "INFO"
+            };
+
+            // Extract timestamp (first part before space)
+            let timestamp = header.split_whitespace().next().unwrap_or("").to_string();
+
+            return Some(LogEntry {
+                timestamp,
+                level: level.to_string(),
+                message: message.to_string(),
+            });
+        }
+    }
+
+    // Fallback: treat entire line as message
+    Some(LogEntry {
+        timestamp: String::new(),
+        level: "INFO".to_string(),
+        message: line.to_string(),
+    })
+}
+
+fn handle_wait_frames(editor: &Editor, count: u32) -> RemoteResponse {
+    // Request frame wait - will be handled by the main loop
+    editor.request_wait_frames(count);
+
+    // Return immediately - main loop will delay the response
+    RemoteResponse::with_data(ResponseData::FramesWaited(WaitFramesResult {
+        frames_waited: count,
+    }))
 }

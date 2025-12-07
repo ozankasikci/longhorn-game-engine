@@ -84,6 +84,14 @@ pub enum RemoteCommand {
     LoadTexture { id: u64 },
     /// Load all registered textures
     LoadAllTextures,
+
+    // Testing commands
+    /// Take a screenshot and save to the specified path
+    TakeScreenshot { path: String },
+    /// Get the last N log entries
+    GetLogTail { lines: usize },
+    /// Wait for a number of frames to pass before responding
+    WaitFrames { count: u32 },
 }
 
 /// Information about an entity (minimal)
@@ -224,6 +232,34 @@ pub struct TextureLoadResult {
     pub error: Option<String>,
 }
 
+/// Screenshot result
+#[derive(Debug, Clone, Serialize)]
+pub struct ScreenshotResult {
+    pub path: String,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// Log entry for get_log_tail
+#[derive(Debug, Clone, Serialize)]
+pub struct LogEntry {
+    pub timestamp: String,
+    pub level: String,
+    pub message: String,
+}
+
+/// Log tail result
+#[derive(Debug, Clone, Serialize)]
+pub struct LogTailResult {
+    pub entries: Vec<LogEntry>,
+}
+
+/// Wait frames result
+#[derive(Debug, Clone, Serialize)]
+pub struct WaitFramesResult {
+    pub frames_waited: u32,
+}
+
 /// Response data variants
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
@@ -248,6 +284,9 @@ pub enum ResponseData {
     EntityDump(EntityDump),
     TextureLoaded(TextureLoadResult),
     TexturesLoaded(Vec<TextureLoadResult>),
+    Screenshot(ScreenshotResult),
+    LogTail(LogTailResult),
+    FramesWaited(WaitFramesResult),
 }
 
 /// Response sent back to the client
