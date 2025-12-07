@@ -284,6 +284,11 @@ impl Engine {
         &mut self.camera
     }
 
+    /// Get a reference to the renderer (if available)
+    pub fn renderer(&self) -> Option<&Renderer> {
+        self.renderer.as_ref()
+    }
+
     /// Get a reference to the input state
     pub fn input(&self) -> &InputState {
         &self.input

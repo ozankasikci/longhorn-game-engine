@@ -125,6 +125,11 @@ impl TextureCache {
     pub fn clear(&mut self) {
         self.textures.clear();
     }
+
+    /// Get all cached texture IDs
+    pub fn keys(&self) -> Vec<AssetId> {
+        self.textures.keys().copied().collect()
+    }
 }
 
 impl Default for TextureCache {

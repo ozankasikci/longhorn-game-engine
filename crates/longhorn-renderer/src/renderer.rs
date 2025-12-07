@@ -192,6 +192,16 @@ impl Renderer {
         self.clear_color = color;
     }
 
+    /// Check if a texture is loaded
+    pub fn has_texture(&self, asset_id: AssetId) -> bool {
+        self.texture_cache.contains(asset_id)
+    }
+
+    /// Get all loaded texture IDs
+    pub fn loaded_texture_ids(&self) -> Vec<AssetId> {
+        self.texture_cache.keys()
+    }
+
     /// Upload a texture to the GPU
     pub fn upload_texture(
         &mut self,
