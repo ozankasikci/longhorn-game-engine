@@ -1059,14 +1059,11 @@ fn handle_load_all_textures(engine: &mut Engine) -> RemoteResponse {
 
 // --- Testing Command Handlers ---
 
-fn handle_take_screenshot(editor: &Editor, path: &str) -> RemoteResponse {
-    // Request screenshot capture - will be handled by the main loop
-    // For now, we'll request the screenshot and return a placeholder
-    // The actual screenshot is captured via the pending_screenshot field
+fn handle_take_screenshot(editor: &mut Editor, path: &str) -> RemoteResponse {
+    // Request screenshot capture - will be handled by the main loop on next frame
     editor.request_screenshot(path.to_string());
 
     // Return immediately - actual screenshot happens on next frame
-    // TODO: Make this synchronous by waiting for screenshot to complete
     RemoteResponse::with_data(ResponseData::Screenshot(ScreenshotResult {
         path: path.to_string(),
         width: 0, // Will be filled in by actual capture

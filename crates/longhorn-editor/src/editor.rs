@@ -32,6 +32,8 @@ pub struct Editor {
     pending_show_script_editor: bool,
     /// Texture picker state
     texture_picker_state: TexturePickerState,
+    /// Pending screenshot request (path to save)
+    pending_screenshot: Option<String>,
 }
 
 impl Editor {
@@ -67,6 +69,7 @@ impl Editor {
             project_tree: None,
             pending_show_script_editor: false,
             texture_picker_state: TexturePickerState::new(),
+            pending_screenshot: None,
         }
     }
 
@@ -99,11 +102,15 @@ impl Editor {
         &mut self.ui_state
     }
 
-    /// Request a screenshot to be taken (placeholder for future implementation)
-    pub fn request_screenshot(&self, _path: String) {
-        // TODO: Implement actual screenshot capture
-        // This would need to be handled in the main render loop
-        log::info!("Screenshot requested (not yet implemented)");
+    /// Request a screenshot to be taken on the next frame
+    pub fn request_screenshot(&mut self, path: String) {
+        log::info!("Screenshot requested: {}", path);
+        self.pending_screenshot = Some(path);
+    }
+
+    /// Take and consume a pending screenshot request
+    pub fn take_pending_screenshot(&mut self) -> Option<String> {
+        self.pending_screenshot.take()
     }
 
     /// Request waiting for N frames (placeholder for future implementation)
@@ -247,6 +254,9 @@ impl Editor {
                 // Console is always visible in dock now
             }
             ToolbarAction::Play => {
+                // Clear selection because entity IDs will change during Play mode
+                self.state.selected_entity = None;
+
                 // Enter play mode using the new snapshot system
                 if let Err(e) = self.state.enter_play_mode(engine.world(), engine.assets()) {
                     eprintln!("Failed to enter play mode: {}", e);
@@ -277,6 +287,9 @@ impl Editor {
                     eprintln!("Failed to exit play mode: {}", e);
                     return;
                 }
+
+                // Clear selection because entity IDs have changed after restoring snapshot
+                self.state.selected_entity = None;
 
                 // Reset script runtime so it re-initializes on next Play
                 engine.reset_scripting();
@@ -401,7 +414,7 @@ impl Editor {
                 }
             }
             EditorAction::OpenTexturePicker { entity } => {
-                log::info!("EditorAction::OpenTexturePicker received for entity: {:?}", entity);
+                log::info!("EditorAction::OpenTexturePicker received for entity ID: {} (raw: {:?})", entity.id(), entity);
                 self.texture_picker_state.open_for_entity(entity);
             }
             EditorAction::None => {}
@@ -451,7 +464,7 @@ impl Editor {
             // Handle the action
             match picker_action {
                 TexturePickerAction::SelectTexture { entity, asset_id, path } => {
-                    log::info!("Texture selected: {} (ID: {})", path, asset_id.0);
+                    log::info!("Texture selected: {} (ID: {}) for entity ID: {} (raw: {:?})", path, asset_id.0, entity.id(), entity);
 
                     // Load the texture into the AssetManager cache so it's available for rendering
                     match engine.assets_mut().load_texture_by_id(asset_id) {
@@ -467,12 +480,19 @@ impl Editor {
                     let handle = longhorn_core::EntityHandle::new(entity);
                     match engine.world_mut().get_mut::<longhorn_core::Sprite>(handle) {
                         Ok(mut sprite) => {
+                            let old_texture = sprite.texture;
                             sprite.texture = asset_id;
-                            log::info!("Updated sprite texture to {}", asset_id.0);
+                            log::info!("[TEXTURE_CHANGE] Entity {} texture: {} -> {}", entity.id(), old_texture.0, asset_id.0);
                         }
                         Err(e) => {
                             log::error!("Failed to get Sprite component for entity {:?}: {}", entity, e);
                         }
+                    }
+
+                    // DIAGNOSTIC: Dump all entity textures after the change to verify isolation
+                    log::info!("[TEXTURE_VERIFY] All entity textures after change:");
+                    for (eid, sprite) in engine.world().query::<&longhorn_core::Sprite>().iter() {
+                        log::info!("[TEXTURE_VERIFY]   Entity {}: texture ID = {}", eid.id(), sprite.texture.0);
                     }
                 }
                 TexturePickerAction::None => {}

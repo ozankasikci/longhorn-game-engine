@@ -235,6 +235,18 @@ impl EditorApp {
                     Some(&mut egui_state.renderer),
                 );
             }
+
+            // Handle pending screenshot requests
+            if let Some(path) = self.editor.take_pending_screenshot() {
+                match viewport_renderer.capture_screenshot(&gpu.device, &gpu.queue, &path) {
+                    Ok((width, height)) => {
+                        log::info!("Screenshot captured: {} ({}x{})", path, width, height);
+                    }
+                    Err(e) => {
+                        log::error!("Failed to capture screenshot: {}", e);
+                    }
+                }
+            }
         }
 
         // Get surface texture
