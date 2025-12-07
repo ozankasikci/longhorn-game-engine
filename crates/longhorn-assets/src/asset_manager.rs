@@ -58,8 +58,8 @@ impl<S: AssetSource> AssetManager<S> {
         let bytes = self.source.load_bytes(path)?;
         let texture_data = TextureData::from_bytes(&bytes)?;
 
-        // Cache it
-        let id = self.next_id();
+        // Cache it - reuse registry ID if it exists, otherwise generate new one
+        let id = self.registry.get_id(path).unwrap_or_else(|| self.next_id());
         self.texture_cache.insert(path.to_string(), (id, texture_data));
 
         Ok(AssetHandle::new(id))

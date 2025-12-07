@@ -131,6 +131,32 @@ impl Engine {
             }
         }
 
+        // Preload all textures from the registry
+        // This ensures textures are loaded into memory when the project opens
+        let texture_ids: Vec<(String, longhorn_core::AssetId)> = self.assets.registry()
+            .iter()
+            .filter(|(path, _)| {
+                path.ends_with(".png") || path.ends_with(".jpg") || path.ends_with(".jpeg")
+            })
+            .map(|(path, id)| {
+                log::info!("Found texture in registry: {} -> ID {:?}", path, id);
+                (path.to_string(), id)
+            })
+            .collect();
+
+        log::info!("Preloading {} textures from registry", texture_ids.len());
+
+        for (path, texture_id) in texture_ids {
+            match self.assets.load_texture_by_id(texture_id) {
+                Ok(_) => {
+                    log::info!("Successfully preloaded texture: {} (ID {:?})", path, texture_id);
+                }
+                Err(e) => {
+                    log::warn!("Failed to preload texture {} (ID {:?}): {}", path, texture_id, e);
+                }
+            }
+        }
+
         // Load game in script runtime
         self.scripting.load_game(path)?;
 
