@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::time::Instant;
+use std::time::{Instant, SystemTime};
+use serde::{Deserialize, Serialize};
 
 /// File type categorization for project panel display
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +30,30 @@ impl FileType {
     pub fn is_text_editable(&self) -> bool {
         matches!(self, FileType::Script | FileType::Text | FileType::Scene)
     }
+
+    /// Get the color for this file type
+    pub fn icon_color(&self) -> [u8; 3] {
+        match self {
+            FileType::Script => [100, 150, 255],   // Blue
+            FileType::Text => [150, 150, 150],     // Gray
+            FileType::Image => [100, 200, 100],    // Green
+            FileType::Audio => [200, 100, 200],    // Purple
+            FileType::Scene => [255, 150, 50],     // Orange
+            FileType::Unknown => [128, 128, 128],  // Dark gray
+        }
+    }
+
+    /// Get the icon character for this file type
+    pub fn icon_char(&self) -> &'static str {
+        match self {
+            FileType::Script => "📜",
+            FileType::Text => "📄",
+            FileType::Image => "🖼",
+            FileType::Audio => "🎵",
+            FileType::Scene => "🎬",
+            FileType::Unknown => "📦",
+        }
+    }
 }
 
 /// Default tree panel width
@@ -45,6 +70,8 @@ const DOUBLE_CLICK_MS: u128 = 400;
 pub struct ProjectPanelState {
     /// Currently selected folder (shown in grid view)
     pub selected_folder: PathBuf,
+    /// Current folder being viewed in content pane
+    pub current_folder: PathBuf,
     /// Expanded folders in tree view
     pub expanded_folders: HashSet<PathBuf>,
     /// Currently selected file
@@ -61,6 +88,7 @@ impl std::fmt::Debug for ProjectPanelState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProjectPanelState")
             .field("selected_folder", &self.selected_folder)
+            .field("current_folder", &self.current_folder)
             .field("expanded_folders", &self.expanded_folders)
             .field("selected_file", &self.selected_file)
             .field("renaming", &self.renaming)
@@ -73,12 +101,57 @@ impl ProjectPanelState {
     pub fn new() -> Self {
         Self {
             selected_folder: PathBuf::new(),
+            current_folder: PathBuf::new(),
             expanded_folders: HashSet::new(),
             selected_file: None,
             renaming: None,
             tree_width: DEFAULT_TREE_WIDTH,
             last_click: None,
         }
+    }
+
+    /// Navigate to a folder (for breadcrumbs)
+    pub fn navigate_to(&mut self, folder: PathBuf) {
+        self.current_folder = folder;
+    }
+
+    /// Save the panel state to a file
+    pub fn save_to_file(&self, project_root: &std::path::Path) -> std::io::Result<()> {
+        let state_file = project_root.join(".longhorn").join("project_panel_state.json");
+
+        // Create .longhorn directory if it doesn't exist
+        if let Some(parent) = state_file.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Serialize only the persistent parts
+        let persistent_state = PersistentPanelState {
+            expanded_folders: self.expanded_folders.iter().cloned().collect(),
+            selected_folder: self.selected_folder.clone(),
+            tree_width: self.tree_width,
+        };
+
+        let json = serde_json::to_string_pretty(&persistent_state)?;
+        std::fs::write(state_file, json)?;
+        Ok(())
+    }
+
+    /// Load the panel state from a file
+    pub fn load_from_file(&mut self, project_root: &std::path::Path) -> std::io::Result<()> {
+        let state_file = project_root.join(".longhorn").join("project_panel_state.json");
+
+        if !state_file.exists() {
+            return Ok(()); // No saved state, use defaults
+        }
+
+        let json = std::fs::read_to_string(state_file)?;
+        let persistent_state: PersistentPanelState = serde_json::from_str(&json)?;
+
+        self.expanded_folders = persistent_state.expanded_folders.into_iter().collect();
+        self.selected_folder = persistent_state.selected_folder;
+        self.tree_width = persistent_state.tree_width;
+
+        Ok(())
     }
 
     /// Check if this click is a double-click on the same file.
@@ -116,6 +189,8 @@ pub struct FileEntry {
     pub name: String,
     pub extension: Option<String>,
     pub file_type: FileType,
+    pub size: Option<u64>,
+    pub modified: Option<SystemTime>,
 }
 
 impl FileEntry {
@@ -125,11 +200,37 @@ impl FileEntry {
             .and_then(|e| e.to_str())
             .map(|s| s.to_lowercase());
         let file_type = FileType::from_extension(extension.as_deref());
+
+        // Get file metadata
+        let metadata = std::fs::metadata(&path).ok();
+        let size = metadata.as_ref().and_then(|m| Some(m.len()));
+        let modified = metadata.as_ref().and_then(|m| m.modified().ok());
+
         Self {
             path,
             name,
             extension,
             file_type,
+            size,
+            modified,
+        }
+    }
+
+    /// Format file size for display
+    pub fn format_size(&self) -> String {
+        match self.size {
+            Some(bytes) => {
+                if bytes < 1024 {
+                    format!("{} B", bytes)
+                } else if bytes < 1024 * 1024 {
+                    format!("{:.1} KB", bytes as f64 / 1024.0)
+                } else if bytes < 1024 * 1024 * 1024 {
+                    format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                } else {
+                    format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
+                }
+            }
+            None => "Unknown".to_string(),
         }
     }
 }
@@ -192,6 +293,14 @@ impl DirectoryNode {
 
         Ok(node)
     }
+}
+
+/// Persistent state that gets saved to disk
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PersistentPanelState {
+    expanded_folders: Vec<PathBuf>,
+    selected_folder: PathBuf,
+    tree_width: f32,
 }
 
 #[cfg(test)]

@@ -202,6 +202,15 @@ impl Editor {
         self.script_editor_state.set_errors(errors);
     }
 
+    /// Save the project panel state to disk
+    pub fn save_panel_state(&self, engine: &Engine) {
+        if let Some(game_path) = engine.game_path() {
+            if let Err(e) = self.project_panel_state.save_to_file(game_path) {
+                log::warn!("Failed to save project panel state: {}", e);
+            }
+        }
+    }
+
     /// Refresh the project tree from disk
     pub fn refresh_project_tree(&mut self, engine: &Engine) {
         let game_path = engine.game_path();
@@ -215,6 +224,12 @@ impl Editor {
             match DirectoryNode::scan(game_path) {
                 Ok(tree) => {
                     log::info!("Scanned project tree: {} files, {} folders", tree.files.len(), tree.children.len());
+
+                    // Load saved panel state
+                    if let Err(e) = self.project_panel_state.load_from_file(game_path) {
+                        log::warn!("Failed to load project panel state: {}", e);
+                    }
+
                     // Set selected folder to root if not set
                     if self.project_panel_state.selected_folder.as_os_str().is_empty() {
                         self.project_panel_state.selected_folder = tree.path.clone();
