@@ -23,9 +23,15 @@ struct GpuTextureResource {
 
 /// Renders the game scene to an off-screen texture for display in egui
 pub struct EditorViewportRenderer {
-    // Render target
-    render_texture: wgpu::Texture,
-    render_view: wgpu::TextureView,
+    // Render targets
+    // Renamed from render_texture
+    editor_render_texture: wgpu::Texture,
+    editor_render_view: wgpu::TextureView,
+
+    // New field for game view
+    game_render_texture: Option<wgpu::Texture>,
+    game_render_view: Option<wgpu::TextureView>,
+
     size: (u32, u32),
 
     // Sprite pipeline
@@ -148,8 +154,10 @@ impl EditorViewportRenderer {
             Self::create_test_texture(device, queue, &texture_bind_group_layout);
 
         Self {
-            render_texture,
-            render_view,
+            editor_render_texture: render_texture,
+            editor_render_view: render_view,
+            game_render_texture: None,
+            game_render_view: None,
             size: (width, height),
             pipeline,
             camera_buffer,
@@ -366,8 +374,8 @@ impl EditorViewportRenderer {
         }
 
         let (texture, view) = Self::create_render_texture(device, width, height);
-        self.render_texture = texture;
-        self.render_view = view;
+        self.editor_render_texture = texture;
+        self.editor_render_view = view;
         self.size = (width, height);
 
         // Update camera viewport
@@ -379,11 +387,11 @@ impl EditorViewportRenderer {
     }
 
     pub fn texture(&self) -> &wgpu::Texture {
-        &self.render_texture
+        &self.editor_render_texture
     }
 
     pub fn view(&self) -> &wgpu::TextureView {
-        &self.render_view
+        &self.editor_render_view
     }
 
     /// Render sprites from the world to the off-screen texture
@@ -436,7 +444,7 @@ impl EditorViewportRenderer {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Editor Viewport Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.render_view,
+                    view: &self.editor_render_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.clear_color.to_wgpu()),
@@ -546,7 +554,7 @@ impl EditorViewportRenderer {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Editor Viewport Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.render_view,
+                    view: &self.editor_render_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.clear_color.to_wgpu()),
@@ -588,7 +596,7 @@ impl EditorViewportRenderer {
     ) {
         let id = egui_renderer.register_native_texture(
             device,
-            &self.render_view,
+            &self.editor_render_view,
             wgpu::FilterMode::Linear,
         );
         self.egui_texture_id = Some(id);
@@ -602,7 +610,7 @@ impl EditorViewportRenderer {
         if let Some(id) = self.egui_texture_id {
             egui_renderer.update_egui_texture_from_wgpu_texture(
                 device,
-                &self.render_view,
+                &self.editor_render_view,
                 wgpu::FilterMode::Linear,
                 id,
             );
@@ -611,5 +619,20 @@ impl EditorViewportRenderer {
 
     pub fn egui_texture_id(&self) -> Option<egui::TextureId> {
         self.egui_texture_id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_viewport_renderer_has_editor_texture() {
+        // This is a structure test - verify fields exist
+        // Actual rendering requires GPU context, tested manually
+        let _test_compile = |renderer: &EditorViewportRenderer| {
+            let _editor_tex = &renderer.editor_render_texture;
+            let _game_tex = &renderer.game_render_texture;
+        };
     }
 }
