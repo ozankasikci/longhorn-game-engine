@@ -171,6 +171,33 @@ impl EditorClient {
         Ok(())
     }
 
+    // ========== Sprite Operations ==========
+
+    /// Set the texture of an entity's sprite by asset ID.
+    pub fn set_sprite_texture(&mut self, entity: u64, texture_id: u64) -> Result<(), EditorError> {
+        self.set_property(entity, "Sprite", "texture", texture_id)
+    }
+
+    /// Set the size of an entity's sprite.
+    pub fn set_sprite_size(&mut self, entity: u64, width: f32, height: f32) -> Result<(), EditorError> {
+        self.set_property(entity, "Sprite", "size.x", width)?;
+        self.set_property(entity, "Sprite", "size.y", height)
+    }
+
+    /// Set the flip state of an entity's sprite.
+    pub fn set_sprite_flip(&mut self, entity: u64, flip_x: bool, flip_y: bool) -> Result<(), EditorError> {
+        self.set_property(entity, "Sprite", "flip_x", flip_x)?;
+        self.set_property(entity, "Sprite", "flip_y", flip_y)
+    }
+
+    /// Set the color of an entity's sprite (RGBA, values 0.0-1.0).
+    pub fn set_sprite_color(&mut self, entity: u64, r: f32, g: f32, b: f32, a: f32) -> Result<(), EditorError> {
+        self.set_property(entity, "Sprite", "color.r", r)?;
+        self.set_property(entity, "Sprite", "color.g", g)?;
+        self.set_property(entity, "Sprite", "color.b", b)?;
+        self.set_property(entity, "Sprite", "color.a", a)
+    }
+
     // ========== UI Control ==========
 
     /// Get the current UI state.

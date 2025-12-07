@@ -1,6 +1,9 @@
-//! State-related integration tests.
+//! State-related integration tests for the Longhorn Editor.
 //!
 //! Tests for editor state transitions (play/pause/stop), mode changes, etc.
+//!
+//! These tests require a running editor instance.
+//! Run with: cargo test --test editor_state -- --ignored
 
 use longhorn_test_client::EditorClient;
 

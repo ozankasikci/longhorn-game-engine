@@ -1,6 +1,9 @@
-//! Entity-related integration tests.
+//! Entity-related integration tests for the Longhorn Editor.
 //!
 //! Tests for entity CRUD operations.
+//!
+//! These tests require a running editor instance.
+//! Run with: cargo test --test editor_entity -- --ignored
 
 use longhorn_test_client::EditorClient;
 
