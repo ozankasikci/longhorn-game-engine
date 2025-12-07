@@ -214,14 +214,27 @@ impl EditorApp {
             let _ = self.engine.update();
         }
 
-        // Render game viewport with asset textures
+        // Render scene view (always) and game view (conditional on Play mode)
         if let Some(viewport_renderer) = &mut self.viewport_renderer {
-            viewport_renderer.render_with_assets(
+            // Always render scene view with editor camera
+            viewport_renderer.render_scene_view(
                 &gpu.device,
                 &gpu.queue,
                 self.engine.world(),
                 self.engine.assets(),
+                self.editor.editor_camera(),
             );
+
+            // Conditionally render game view in Play mode
+            if self.editor.state().mode == EditorMode::Play {
+                viewport_renderer.render_game_view(
+                    &gpu.device,
+                    &gpu.queue,
+                    self.engine.world(),
+                    self.engine.assets(),
+                    Some(&mut egui_state.renderer),
+                );
+            }
         }
 
         // Get surface texture

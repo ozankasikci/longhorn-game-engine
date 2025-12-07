@@ -123,6 +123,10 @@ impl Editor {
         &mut self.state
     }
 
+    pub fn editor_camera(&self) -> &EditorCamera {
+        &self.editor_camera
+    }
+
     pub fn viewport_mut(&mut self) -> &mut ViewportPanel {
         &mut self.viewport
     }
