@@ -541,8 +541,13 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                 }
                 self.editor.pending_action = action;
             }
-            PanelType::SceneView | PanelType::GameView => {
-                // Both Scene and Game view show the viewport for now
+            PanelType::SceneView => {
+                // Scene view - capture camera input and apply to editor camera
+                let camera_input = self.editor.viewport.show(ui, self.viewport_texture);
+                self.editor.editor_camera.handle_input(&camera_input);
+            }
+            PanelType::GameView => {
+                // Game view - no camera input (shows game camera perspective)
                 self.editor.viewport.show(ui, self.viewport_texture);
             }
             PanelType::Console => {

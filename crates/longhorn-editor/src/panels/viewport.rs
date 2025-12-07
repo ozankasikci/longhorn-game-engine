@@ -1,5 +1,7 @@
 use egui::{Ui, TextureId, Sense};
 use crate::styling::Colors;
+use crate::CameraInput;
+use glam::Vec2;
 
 pub struct ViewportPanel {}
 
@@ -8,7 +10,7 @@ impl ViewportPanel {
         Self {}
     }
 
-    pub fn show(&mut self, ui: &mut Ui, texture_id: Option<TextureId>) -> egui::Response {
+    pub fn show(&mut self, ui: &mut Ui, texture_id: Option<TextureId>) -> CameraInput {
         ui.heading("Viewport");
         ui.separator();
 
@@ -40,7 +42,18 @@ impl ViewportPanel {
             );
         }
 
-        response
+        // Capture camera input when hovered
+        let mut camera_input = CameraInput::default();
+        if response.hovered() {
+            camera_input.mmb_held = ui.input(|i| {
+                i.pointer.button_down(egui::PointerButton::Middle)
+            });
+            let drag_delta = response.drag_delta();
+            camera_input.mouse_delta = Vec2::new(drag_delta.x, drag_delta.y);
+            camera_input.scroll_delta = ui.input(|i| i.smooth_scroll_delta.y);
+        }
+
+        camera_input
     }
 }
 
