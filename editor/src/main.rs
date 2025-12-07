@@ -214,9 +214,14 @@ impl EditorApp {
             let _ = self.engine.update();
         }
 
-        // Render game viewport
+        // Render game viewport with asset textures
         if let Some(viewport_renderer) = &mut self.viewport_renderer {
-            viewport_renderer.render(&gpu.device, &gpu.queue, self.engine.world());
+            viewport_renderer.render_with_assets(
+                &gpu.device,
+                &gpu.queue,
+                self.engine.world(),
+                self.engine.assets(),
+            );
         }
 
         // Get surface texture
