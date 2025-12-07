@@ -3,6 +3,59 @@
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+/// File type categorization for project panel display
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileType {
+    Script,
+    Text,
+    Image,
+    Audio,
+    Scene,
+    Unknown,
+}
+
+impl FileType {
+    pub fn from_extension(ext: Option<&str>) -> Self {
+        match ext {
+            Some("ts") | Some("js") | Some("cs") => FileType::Script,
+            Some("json") | Some("txt") | Some("md") | Some("html") | Some("css") | Some("toml") | Some("yaml") | Some("yml") => FileType::Text,
+            Some("png") | Some("jpg") | Some("jpeg") | Some("webp") | Some("gif") | Some("bmp") => FileType::Image,
+            Some("wav") | Some("mp3") | Some("ogg") | Some("flac") => FileType::Audio,
+            Some("scene") => FileType::Scene,
+            _ => FileType::Unknown,
+        }
+    }
+
+    /// Returns true if this file type should be opened in the script editor
+    pub fn is_text_editable(&self) -> bool {
+        matches!(self, FileType::Script | FileType::Text | FileType::Scene)
+    }
+
+    /// Get the color for this file type
+    pub fn icon_color(&self) -> [u8; 3] {
+        match self {
+            FileType::Script => [100, 150, 255],   // Blue
+            FileType::Text => [150, 150, 150],     // Gray
+            FileType::Image => [100, 200, 100],    // Green
+            FileType::Audio => [200, 100, 200],    // Purple
+            FileType::Scene => [255, 150, 50],     // Orange
+            FileType::Unknown => [128, 128, 128],  // Dark gray
+        }
+    }
+
+    /// Get the icon character for this file type
+    pub fn icon_char(&self) -> &'static str {
+        match self {
+            FileType::Script => "📜",
+            FileType::Text => "📄",
+            FileType::Image => "🖼",
+            FileType::Audio => "🎵",
+            FileType::Scene => "🎬",
+            FileType::Unknown => "📦",
+        }
+    }
+}
+
 /// Texture asset for displaying in editor
 #[derive(Clone, Debug)]
 pub struct TextureAsset {

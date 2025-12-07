@@ -23,6 +23,7 @@ struct EditorApp {
     engine: Engine,
     editor: Editor,
     remote_server: Option<RemoteServer>,
+    last_save_time: std::time::Instant,
 }
 
 struct GpuState {
@@ -92,6 +93,7 @@ impl EditorApp {
             engine,
             editor,
             remote_server,
+            last_save_time: std::time::Instant::now(),
         }
     }
 
@@ -199,6 +201,12 @@ impl EditorApp {
         let Some(window) = &self.window else { return };
         let Some(gpu) = &mut self.gpu_state else { return };
         let Some(egui_state) = &mut self.egui_state else { return };
+
+        // Periodically save panel state (every 5 seconds)
+        if self.last_save_time.elapsed().as_secs() >= 5 {
+            self.editor.save_panel_state(&self.engine);
+            self.last_save_time = std::time::Instant::now();
+        }
 
         // Process remote commands
         if let Some(ref server) = self.remote_server {
@@ -394,6 +402,8 @@ impl ApplicationHandler for EditorApp {
 
         match event {
             WindowEvent::CloseRequested => {
+                // Save panel state before closing
+                self.editor.save_panel_state(&self.engine);
                 event_loop.exit();
             }
             WindowEvent::Resized(size) => {

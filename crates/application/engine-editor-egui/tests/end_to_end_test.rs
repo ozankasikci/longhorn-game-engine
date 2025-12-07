@@ -30,7 +30,6 @@ fn test_complete_object_creation_workflow() {
 fn test_complete_asset_loading_workflow() {
     // Test loading and using assets across crates
     use engine_editor_assets::{create_default_textures, TextureManager};
-    use engine_editor_panels::ProjectPanel;
 
     // 1. Create texture manager and load default textures
     let mut texture_manager = TextureManager::new();
@@ -45,9 +44,6 @@ fn test_complete_asset_loading_workflow() {
             texture.path.clone(),
         );
     }
-
-    // 3. Create project panel that would display these assets
-    let _project_panel = ProjectPanel::new();
     let project_assets = engine_editor_assets::create_default_project_assets();
 
     // 4. Verify assets are available
