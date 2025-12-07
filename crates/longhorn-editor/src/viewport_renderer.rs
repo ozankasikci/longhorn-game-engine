@@ -636,11 +636,10 @@ impl EditorViewportRenderer {
     }
 
     pub fn game_texture_size(&self) -> Option<(u32, u32)> {
-        if self.game_render_texture.is_some() {
-            Some(self.size)
-        } else {
-            None
-        }
+        self.game_render_texture.as_ref().map(|texture| {
+            let size = texture.size();
+            (size.width, size.height)
+        })
     }
 }
 
