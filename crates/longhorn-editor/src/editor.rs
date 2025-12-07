@@ -286,7 +286,7 @@ impl Editor {
         }
     }
 
-    pub fn show(&mut self, ctx: &Context, engine: &mut Engine, viewport_texture: Option<egui::TextureId>) -> bool {
+    pub fn show(&mut self, ctx: &Context, engine: &mut Engine, viewport_texture: Option<egui::TextureId>, game_texture: Option<egui::TextureId>) -> bool {
         // Reset UI state tracking for this frame
         self.ui_state.begin_frame();
 
@@ -415,6 +415,7 @@ impl Editor {
                 editor: self,
                 engine,
                 viewport_texture,
+                game_texture,
             };
 
             // Take dock_state temporarily to avoid borrow issues
@@ -487,6 +488,30 @@ struct EditorPanelWrapper<'a> {
     editor: &'a mut Editor,
     engine: &'a mut Engine,
     viewport_texture: Option<egui::TextureId>,
+    game_texture: Option<egui::TextureId>,
+}
+
+impl<'a> EditorPanelWrapper<'a> {
+    fn show_game_placeholder(&self, ui: &mut Ui, message: &str) {
+        let available = ui.available_size();
+        let (rect, _response) = ui.allocate_exact_size(available, egui::Sense::hover());
+
+        // Draw dark background
+        ui.painter().rect_filled(
+            rect,
+            0.0,
+            crate::styling::Colors::BG_VIEWPORT,
+        );
+
+        // Draw centered message
+        ui.painter().text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            message,
+            egui::FontId::proportional(20.0),
+            crate::styling::Colors::TEXT_SECONDARY,
+        );
+    }
 }
 
 impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
@@ -547,8 +572,19 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                 self.editor.editor_camera.handle_input(&camera_input);
             }
             PanelType::GameView => {
-                // Game view - no camera input (shows game camera perspective)
-                self.editor.viewport.show(ui, self.viewport_texture);
+                // Game view - shows game camera perspective when playing
+                if self.editor.state.is_playing() {
+                    if let Some(game_tex) = self.game_texture {
+                        // Show game texture when in Play mode and texture is available
+                        self.editor.viewport.show(ui, Some(game_tex));
+                    } else {
+                        // In Play mode but no MainCamera found
+                        self.show_game_placeholder(ui, "⚠ No MainCamera in scene");
+                    }
+                } else {
+                    // Not in Play mode
+                    self.show_game_placeholder(ui, "Press ▶ Play to start");
+                }
             }
             PanelType::Console => {
                 self.editor.console_panel.show(ui, &self.editor.console);

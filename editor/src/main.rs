@@ -262,9 +262,13 @@ impl EditorApp {
             .as_ref()
             .and_then(|vr| vr.editor_texture_id());
 
+        let game_texture = self.viewport_renderer
+            .as_ref()
+            .and_then(|vr| vr.game_texture_id());
+
         let mut should_exit = false;
         let full_output = egui_state.ctx.run(raw_input, |ctx| {
-            should_exit = self.editor.show(ctx, &mut self.engine, viewport_texture);
+            should_exit = self.editor.show(ctx, &mut self.engine, viewport_texture, game_texture);
         });
 
         if should_exit {
