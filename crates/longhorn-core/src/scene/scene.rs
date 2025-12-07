@@ -1,4 +1,4 @@
-use crate::ecs::{Enabled, Name, Sprite, World};
+use crate::ecs::{Enabled, Name, Script, Sprite, World};
 use crate::math::Transform;
 use crate::types::{AssetId, LonghornError, Result};
 use serde::{Deserialize, Serialize};
@@ -45,6 +45,10 @@ pub struct SerializedComponents {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "Sprite")]
     pub sprite: Option<SerializedSprite>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "Script")]
+    pub script: Option<Script>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "Enabled")]
@@ -123,6 +127,7 @@ impl Scene {
                 name: None,
                 transform: None,
                 sprite: None,
+                script: None,
                 enabled: None,
             };
 
@@ -151,6 +156,11 @@ impl Scene {
                     flip_x: sprite.flip_x,
                     flip_y: sprite.flip_y,
                 });
+            }
+
+            // Try to get Script component
+            if let Ok(script) = world.inner().get::<&Script>(entity_id) {
+                components.script = Some((*script).clone());
             }
 
             // Try to get Enabled component
@@ -285,6 +295,11 @@ impl Scene {
                 builder = builder.with(sprite);
             }
 
+            // Add Script component if present
+            if let Some(ref script) = serialized_entity.components.script {
+                builder = builder.with(script.clone());
+            }
+
             // Add Enabled component if present
             if let Some(ref enabled) = serialized_entity.components.enabled {
                 builder = builder.with(Enabled::new(*enabled));
@@ -413,6 +428,7 @@ mod tests {
                 name: Some("Player".to_string()),
                 transform: None,
                 sprite: None,
+                script: None,
                 enabled: Some(true),
             },
         };
@@ -445,6 +461,7 @@ mod tests {
                     flip_x: false,
                     flip_y: false,
                 }),
+                script: None,
                 enabled: Some(true),
             },
         };
@@ -558,6 +575,7 @@ mod tests {
                     flip_x: true,
                     flip_y: false,
                 }),
+                script: None,
                 enabled: Some(false),
             },
         };
@@ -693,6 +711,7 @@ mod tests {
                     flip_x: false,
                     flip_y: false,
                 }),
+                script: None,
                 enabled: Some(true),
             },
         };
@@ -738,6 +757,7 @@ mod tests {
                     flip_x: false,
                     flip_y: false,
                 }),
+                script: None,
                 enabled: Some(true),
             },
         };
@@ -779,5 +799,57 @@ mod tests {
         assert_eq!(deserialized.position, Vec2::new(10.0, 20.0));
         assert_eq!(deserialized.rotation, 1.5);
         assert_eq!(deserialized.scale, Vec2::new(2.0, 3.0));
+    }
+
+    #[test]
+    fn test_script_component_serialization() {
+        use crate::ecs::Script;
+        use std::collections::HashMap;
+
+        let mut world = World::new();
+        let registry = MockRegistry::new();
+
+        // Create entity with Script component
+        let mut properties = HashMap::new();
+        properties.insert("speed".to_string(), crate::ecs::ScriptValue::Number(10.0));
+
+        let script = Script::with_properties("PlayerController.ts", properties);
+
+        world
+            .spawn()
+            .with(Name::new("Player"))
+            .with(Transform::from_position(Vec2::new(0.0, 0.0)))
+            .with(script)
+            .build();
+
+        // Extract scene from world
+        let scene = Scene::from_world(&world, &registry);
+
+        // Verify Script was serialized
+        let player = scene
+            .entities
+            .iter()
+            .find(|e| e.components.name.as_ref().map(|n| n.as_str()) == Some("Player"))
+            .unwrap();
+
+        assert!(player.components.script.is_some(), "Script component should be serialized");
+        let script_data = player.components.script.as_ref().unwrap();
+        assert_eq!(script_data.path, "PlayerController.ts");
+        assert_eq!(script_data.enabled, true);
+        assert_eq!(script_data.properties.get("speed"), Some(&crate::ecs::ScriptValue::Number(10.0)));
+
+        // Test roundtrip: spawn into new world
+        let mut new_world = World::new();
+        let mut asset_loader = MockAssetLoader::new();
+        scene.spawn_into(&mut new_world, &mut asset_loader).unwrap();
+
+        // Verify Script was deserialized
+        let player_handle = new_world.find("Player").unwrap();
+        assert!(new_world.has::<Script>(player_handle), "Script component should be restored");
+
+        let restored_script = new_world.get::<Script>(player_handle).unwrap();
+        assert_eq!(restored_script.path, "PlayerController.ts");
+        assert_eq!(restored_script.enabled, true);
+        assert_eq!(restored_script.get_property("speed"), Some(&crate::ecs::ScriptValue::Number(10.0)));
     }
 }
