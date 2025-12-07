@@ -12,6 +12,7 @@ mod project_panel_state;
 mod ui_state;
 mod commands;
 mod texture_picker;
+mod camera;
 pub mod styling;
 pub mod docking;
 
@@ -28,5 +29,6 @@ pub use script_editor_state::*;
 pub use project_panel_state::*;
 pub use ui_state::*;
 pub use texture_picker::*;
+pub use camera::{EditorCamera, CameraInput};
 pub use styling::apply_theme;
 pub use docking::*;
