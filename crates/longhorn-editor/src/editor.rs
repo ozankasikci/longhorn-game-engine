@@ -9,8 +9,10 @@ use crate::remote::{RemoteCommand, RemoteResponse};
 use crate::ui_state::UiStateTracker;
 use crate::{ProjectPanelState, ProjectPanel, ProjectPanelAction, DirectoryNode, ContextAction};
 use crate::texture_picker::{TexturePickerState, TexturePickerAction};
+use crate::EditorCamera;
 
 pub struct Editor {
+    editor_camera: EditorCamera,
     state: EditorState,
     scene_tree: SceneTreePanel,
     inspector: InspectorPanel,
@@ -48,6 +50,7 @@ impl Editor {
         })));
 
         Self {
+            editor_camera: EditorCamera::new(),
             state: EditorState::new(),
             scene_tree: SceneTreePanel::new(),
             inspector: InspectorPanel::new(),
