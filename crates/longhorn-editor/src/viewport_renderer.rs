@@ -58,6 +58,7 @@ pub struct EditorViewportRenderer {
 
     // egui integration
     egui_texture_id: Option<egui::TextureId>,
+    game_egui_texture_id: Option<egui::TextureId>,
 }
 
 impl EditorViewportRenderer {
@@ -170,6 +171,7 @@ impl EditorViewportRenderer {
             camera,
             clear_color: Color::from_rgba8(40, 44, 52, 255), // Dark background
             egui_texture_id: None,
+            game_egui_texture_id: None,
         }
     }
 
@@ -620,6 +622,26 @@ impl EditorViewportRenderer {
     pub fn egui_texture_id(&self) -> Option<egui::TextureId> {
         self.egui_texture_id
     }
+
+    pub fn editor_texture_id(&self) -> Option<egui::TextureId> {
+        self.egui_texture_id
+    }
+
+    pub fn game_texture_id(&self) -> Option<egui::TextureId> {
+        self.game_egui_texture_id
+    }
+
+    pub fn editor_texture_size(&self) -> (u32, u32) {
+        self.size
+    }
+
+    pub fn game_texture_size(&self) -> Option<(u32, u32)> {
+        if self.game_render_texture.is_some() {
+            Some(self.size)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -633,6 +655,21 @@ mod tests {
         let _test_compile = |renderer: &EditorViewportRenderer| {
             let _editor_tex = &renderer.editor_render_texture;
             let _game_tex = &renderer.game_render_texture;
+        };
+    }
+
+    #[test]
+    fn test_editor_texture_id_getter() {
+        let _test_compile = |renderer: &EditorViewportRenderer| {
+            let _id: Option<egui::TextureId> = renderer.editor_texture_id();
+        };
+    }
+
+    #[test]
+    fn test_game_texture_id_getter_when_none() {
+        let _test_compile = |renderer: &EditorViewportRenderer| {
+            let id: Option<egui::TextureId> = renderer.game_texture_id();
+            assert!(id.is_none());
         };
     }
 }
