@@ -40,6 +40,8 @@ impl InspectorPanel {
             return EditorAction::None;
         };
 
+        log::info!("Inspector.show() - selected entity: ID {} (raw: {:?}, to_bits: {})", selected.id(), selected, selected.to_bits().get());
+
         let handle = EntityHandle::new(selected);
 
         // Check if entity still exists
@@ -199,9 +201,10 @@ impl InspectorPanel {
 
                 // Change Texture button - opens texture picker popup
                 if ui.button("Change Texture").clicked() {
-                    log::info!("Change Texture button clicked - opening texture picker");
+                    let entity_id = handle.id();
+                    log::info!("Change Texture button clicked - opening texture picker for entity ID: {} (raw: {:?})", entity_id.id(), entity_id);
                     self.pending_action = EditorAction::OpenTexturePicker {
-                        entity: handle.id(),
+                        entity: entity_id,
                     };
                 }
 

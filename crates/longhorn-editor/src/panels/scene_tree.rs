@@ -72,6 +72,7 @@ impl SceneTreePanel {
 
                         // Handle click selection
                         if response.clicked() || should_trigger {
+                            log::info!("SceneTree - selecting entity '{}': ID {} (raw: {:?}, to_bits: {})", name, entity.id(), entity, entity.to_bits().get());
                             state.select(Some(entity));
                         }
                     },

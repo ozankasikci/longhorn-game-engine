@@ -20,6 +20,7 @@ impl TexturePickerState {
 
     /// Open the texture picker for a specific entity
     pub fn open_for_entity(&mut self, entity: hecs::Entity) {
+        log::info!("TexturePicker.open_for_entity called with entity ID: {} (raw: {:?})", entity.id(), entity);
         self.is_open = true;
         self.target_entity = Some(entity);
     }
@@ -65,6 +66,8 @@ pub fn show_texture_picker(
     let Some(target_entity) = state.target_entity else {
         return TexturePickerAction::None;
     };
+
+    log::info!("show_texture_picker using target_entity ID: {} (raw: {:?})", target_entity.id(), target_entity);
 
     let mut action = TexturePickerAction::None;
     let mut should_close = false;
