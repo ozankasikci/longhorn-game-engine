@@ -260,7 +260,7 @@ impl EditorApp {
 
         let viewport_texture = self.viewport_renderer
             .as_ref()
-            .and_then(|vr| vr.egui_texture_id());
+            .and_then(|vr| vr.editor_texture_id());
 
         let mut should_exit = false;
         let full_output = egui_state.ctx.run(raw_input, |ctx| {
