@@ -3,12 +3,13 @@
 //! This module handles all remote commands sent to the editor via the remote control interface.
 //! Commands are processed synchronously and return a response.
 
-use longhorn_core::{EntityHandle, EntityId, Name, Transform, World};
+use longhorn_core::{AssetId, EntityHandle, EntityId, Name, Sprite, Transform, Vec2, World};
 use longhorn_engine::Engine;
 
 use crate::remote::{
-    AssetBrowserData, AssetFileInfo, ClickableInfo, EntityDetails, EntityInfo, PanelInfo,
-    RemoteCommand, RemoteResponse, ResponseData, ScriptEditorData, ScriptErrorData, TransformData,
+    AssetBrowserData, AssetFileInfo, AssetInfo, ClickableInfo, ComponentInfo, EntityDetails,
+    EntityDump, EntityInfo, PanelInfo, RemoteCommand, RemoteResponse, RenderStateData,
+    ResponseData, ScriptEditorData, ScriptErrorData, SpriteData, TextureLoadResult, TransformData,
     UiStateData,
 };
 use crate::ui_state::TriggerAction;
@@ -128,13 +129,23 @@ pub fn process_remote_command(
         RemoteCommand::AssetContextOpenInEditor { path } => {
             handle_asset_context_open_in_editor(editor, engine, &path)
         }
+
+        // Debug commands
+        RemoteCommand::GetEntityComponents { id } => handle_get_entity_components(engine, id),
+        RemoteCommand::GetAssets => handle_get_assets(engine),
+        RemoteCommand::GetRenderState => handle_get_render_state(editor, engine),
+        RemoteCommand::DumpEntity { id } => handle_dump_entity(engine, id),
+
+        // Asset loading commands
+        RemoteCommand::LoadTexture { id } => handle_load_texture(engine, id),
+        RemoteCommand::LoadAllTextures => handle_load_all_textures(engine),
     }
 }
 
 // --- State Query Handlers ---
 
 fn handle_get_state(editor: &Editor, engine: &Engine) -> RemoteResponse {
-    let selected = editor.state().selected_entity.map(|e| e.id() as u64);
+    let selected = editor.state().selected_entity.map(|e| e.to_bits().get());
     RemoteResponse::with_data(ResponseData::State {
         mode: format!("{:?}", editor.state().mode),
         paused: editor.state().paused,
@@ -158,7 +169,7 @@ fn handle_get_entities(engine: &Engine) -> RemoteResponse {
                 .map(|n| n.0.clone())
                 .unwrap_or_else(|| format!("Entity {}", entity.id()));
             EntityInfo {
-                id: entity.id() as u64,
+                id: entity.to_bits().get(),
                 name,
             }
         })
@@ -171,7 +182,7 @@ fn handle_get_entity(engine: &Engine, id: u64) -> RemoteResponse {
         .world()
         .inner()
         .iter()
-        .find(|e| e.entity().id() as u64 == id);
+        .find(|e| e.entity().to_bits().get() == id);
 
     match found {
         Some(entity_ref) => {
@@ -214,7 +225,7 @@ fn handle_select_entity(editor: &mut Editor, engine: &Engine, id: u64) -> Remote
         .world()
         .inner()
         .iter()
-        .find(|e| e.entity().id() as u64 == id)
+        .find(|e| e.entity().to_bits().get() == id)
         .map(|e| e.entity());
 
     match found {
@@ -321,6 +332,73 @@ fn set_entity_property(
                 }
             }
             RemoteResponse::error(format!("Invalid Name field: {}", field))
+        }
+        "Sprite" => {
+            let mut sprite = match world.get::<Sprite>(handle) {
+                Ok(s) => (*s).clone(),
+                Err(_) => {
+                    // Create a new sprite if one doesn't exist
+                    Sprite::new(AssetId(0), Vec2::new(64.0, 64.0))
+                }
+            };
+
+            match field {
+                "texture" => {
+                    if let Some(v) = value.as_u64() {
+                        sprite.texture = AssetId(v);
+                    } else if let Some(v) = value.as_i64() {
+                        sprite.texture = AssetId(v as u64);
+                    } else {
+                        return RemoteResponse::error("texture must be a number (AssetId)");
+                    }
+                }
+                "size.x" | "size_x" => {
+                    if let Some(v) = value.as_f64() {
+                        sprite.size.x = v as f32;
+                    }
+                }
+                "size.y" | "size_y" => {
+                    if let Some(v) = value.as_f64() {
+                        sprite.size.y = v as f32;
+                    }
+                }
+                "flip_x" => {
+                    if let Some(v) = value.as_bool() {
+                        sprite.flip_x = v;
+                    }
+                }
+                "flip_y" => {
+                    if let Some(v) = value.as_bool() {
+                        sprite.flip_y = v;
+                    }
+                }
+                "color.r" => {
+                    if let Some(v) = value.as_f64() {
+                        sprite.color[0] = v as f32;
+                    }
+                }
+                "color.g" => {
+                    if let Some(v) = value.as_f64() {
+                        sprite.color[1] = v as f32;
+                    }
+                }
+                "color.b" => {
+                    if let Some(v) = value.as_f64() {
+                        sprite.color[2] = v as f32;
+                    }
+                }
+                "color.a" => {
+                    if let Some(v) = value.as_f64() {
+                        sprite.color[3] = v as f32;
+                    }
+                }
+                _ => return RemoteResponse::error(format!("Unknown Sprite field: {}", field)),
+            }
+
+            if world.set(handle, sprite).is_err() {
+                return RemoteResponse::error("Failed to set Sprite");
+            }
+            RemoteResponse::ok()
         }
         _ => RemoteResponse::error(format!("Unknown component: {}", component)),
     }
@@ -707,4 +785,252 @@ fn handle_asset_context_open_in_editor(
     } else {
         RemoteResponse::error("No project loaded")
     }
+}
+
+// --- Debug Handlers ---
+
+fn handle_get_entity_components(engine: &Engine, id: u64) -> RemoteResponse {
+    let entity_id = match EntityId::from_bits(id) {
+        Some(id) => id,
+        None => return RemoteResponse::error(format!("Invalid entity id: {}", id)),
+    };
+    let handle = EntityHandle::new(entity_id);
+
+    let mut components = Vec::new();
+
+    // Check for Name
+    if let Ok(name) = engine.world().get::<Name>(handle) {
+        components.push(ComponentInfo {
+            name: "Name".to_string(),
+            data: serde_json::json!({ "value": name.0 }),
+        });
+    }
+
+    // Check for Transform
+    if let Ok(transform) = engine.world().get::<Transform>(handle) {
+        components.push(ComponentInfo {
+            name: "Transform".to_string(),
+            data: serde_json::json!({
+                "position": { "x": transform.position.x, "y": transform.position.y },
+                "rotation": transform.rotation,
+                "scale": { "x": transform.scale.x, "y": transform.scale.y }
+            }),
+        });
+    }
+
+    // Check for Sprite
+    if let Ok(sprite) = engine.world().get::<Sprite>(handle) {
+        components.push(ComponentInfo {
+            name: "Sprite".to_string(),
+            data: serde_json::json!({
+                "texture_id": sprite.texture.0,
+                "size": { "x": sprite.size.x, "y": sprite.size.y },
+                "color": sprite.color,
+                "flip_x": sprite.flip_x,
+                "flip_y": sprite.flip_y
+            }),
+        });
+    }
+
+    // Check for Script component
+    if let Ok(script) = engine.world().get::<longhorn_core::Script>(handle) {
+        components.push(ComponentInfo {
+            name: "Script".to_string(),
+            data: serde_json::json!({ "path": script.path }),
+        });
+    }
+
+    RemoteResponse::with_data(ResponseData::Components(components))
+}
+
+fn handle_get_assets(engine: &Engine) -> RemoteResponse {
+    let mut assets = Vec::new();
+
+    // Get asset registry info from the engine
+    if let Some(game_path) = engine.game_path() {
+        let assets_json_path = game_path.join("assets.json");
+        if assets_json_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&assets_json_path) {
+                if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, u64>>(&content) {
+                    for (path, id) in map {
+                        // Check if texture is loaded in renderer
+                        let loaded = engine
+                            .renderer()
+                            .map(|r| r.has_texture(AssetId(id)))
+                            .unwrap_or(false);
+                        assets.push(AssetInfo {
+                            id,
+                            path,
+                            loaded,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    RemoteResponse::with_data(ResponseData::Assets(assets))
+}
+
+fn handle_get_render_state(_editor: &Editor, engine: &Engine) -> RemoteResponse {
+    // Get texture IDs from renderer
+    let (loaded_texture_count, texture_ids) = match engine.renderer() {
+        Some(renderer) => {
+            let ids = renderer.loaded_texture_ids();
+            (ids.len(), ids.into_iter().map(|id| id.0).collect())
+        }
+        None => (0, Vec::new()),
+    };
+
+    // Count sprites in the world
+    let sprite_count = engine
+        .world()
+        .inner()
+        .query::<&Sprite>()
+        .iter()
+        .count();
+
+    let data = RenderStateData {
+        loaded_texture_count,
+        texture_ids,
+        sprite_count,
+    };
+
+    RemoteResponse::with_data(ResponseData::RenderState(data))
+}
+
+fn handle_dump_entity(engine: &Engine, id: u64) -> RemoteResponse {
+    let entity_id = match EntityId::from_bits(id) {
+        Some(id) => id,
+        None => return RemoteResponse::error(format!("Invalid entity id: {}", id)),
+    };
+    let handle = EntityHandle::new(entity_id);
+
+    // Get Name
+    let name = engine.world().get::<Name>(handle).ok().map(|n| n.0.clone());
+
+    // Get Transform
+    let transform = engine.world().get::<Transform>(handle).ok().map(|t| TransformData {
+        position_x: t.position.x,
+        position_y: t.position.y,
+        rotation: t.rotation,
+        scale_x: t.scale.x,
+        scale_y: t.scale.y,
+    });
+
+    // Get Sprite
+    let sprite = engine.world().get::<Sprite>(handle).ok().map(|s| SpriteData {
+        texture_id: s.texture.0,
+        size_x: s.size.x,
+        size_y: s.size.y,
+        color: s.color,
+        flip_x: s.flip_x,
+        flip_y: s.flip_y,
+    });
+
+    // Check for Script
+    let has_script = engine.world().get::<longhorn_core::Script>(handle).is_ok();
+
+    // Get component names
+    let mut component_names = Vec::new();
+    if name.is_some() {
+        component_names.push("Name".to_string());
+    }
+    if transform.is_some() {
+        component_names.push("Transform".to_string());
+    }
+    if sprite.is_some() {
+        component_names.push("Sprite".to_string());
+    }
+    if has_script {
+        component_names.push("Script".to_string());
+    }
+
+    let dump = EntityDump {
+        id,
+        name,
+        transform,
+        sprite,
+        has_script,
+        component_names,
+    };
+
+    RemoteResponse::with_data(ResponseData::EntityDump(dump))
+}
+
+// --- Asset Loading Handlers ---
+
+fn handle_load_texture(engine: &mut Engine, id: u64) -> RemoteResponse {
+    let asset_id = AssetId(id);
+
+    // Get the path from the asset manager's registry
+    let path = match engine.assets().get_asset_path(asset_id) {
+        Some(p) => p.to_string(),
+        None => return RemoteResponse::error(format!("Asset ID {} not found in registry", id)),
+    };
+
+    // Load the texture
+    match engine.assets_mut().load_texture_by_id(asset_id) {
+        Ok(_) => {
+            log::info!("Loaded texture {} from path '{}'", id, path);
+            RemoteResponse::with_data(ResponseData::TextureLoaded(TextureLoadResult {
+                id,
+                path,
+                success: true,
+                error: None,
+            }))
+        }
+        Err(e) => {
+            log::error!("Failed to load texture {}: {}", id, e);
+            RemoteResponse::with_data(ResponseData::TextureLoaded(TextureLoadResult {
+                id,
+                path,
+                success: false,
+                error: Some(e.to_string()),
+            }))
+        }
+    }
+}
+
+fn handle_load_all_textures(engine: &mut Engine) -> RemoteResponse {
+    let mut results = Vec::new();
+
+    // Get all registered assets from the registry
+    if let Some(game_path) = engine.game_path() {
+        let assets_json_path = game_path.join("assets.json");
+        if assets_json_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&assets_json_path) {
+                if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, u64>>(&content) {
+                    for (path, id) in map {
+                        // Only load image assets
+                        if path.ends_with(".png") || path.ends_with(".jpg") || path.ends_with(".jpeg") {
+                            let asset_id = AssetId(id);
+                            match engine.assets_mut().load_texture_by_id(asset_id) {
+                                Ok(_) => {
+                                    log::info!("Loaded texture {} from path '{}'", id, path);
+                                    results.push(TextureLoadResult {
+                                        id,
+                                        path,
+                                        success: true,
+                                        error: None,
+                                    });
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to load texture {} ({}): {}", id, path, e);
+                                    results.push(TextureLoadResult {
+                                        id,
+                                        path,
+                                        success: false,
+                                        error: Some(e.to_string()),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    RemoteResponse::with_data(ResponseData::TexturesLoaded(results))
 }
