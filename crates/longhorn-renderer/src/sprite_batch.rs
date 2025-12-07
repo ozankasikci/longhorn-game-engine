@@ -107,9 +107,11 @@ impl SpriteBatch {
         self.sprites.is_empty()
     }
 
-    /// Sort sprites by z-index (lower values rendered first)
+    /// Sort sprites by texture (for batching) then z-index (for layering)
     pub fn sort(&mut self) {
-        self.sprites.sort_by_key(|s| s.z_index);
+        // Sort by texture first to group sprites for efficient batching,
+        // then by z_index for proper layering within each texture group
+        self.sprites.sort_by_key(|s| (s.texture.0, s.z_index));
     }
 
     /// Get an iterator over the sprites

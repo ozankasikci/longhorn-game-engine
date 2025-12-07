@@ -402,6 +402,101 @@ impl EditorViewportRenderer {
         &self.editor_render_view
     }
 
+    /// Capture a screenshot of the editor viewport and save to a PNG file
+    pub fn capture_screenshot(&self, device: &wgpu::Device, queue: &wgpu::Queue, path: &str) -> Result<(u32, u32), String> {
+        let (width, height) = self.size;
+
+        // Calculate buffer dimensions (must be aligned to 256 bytes per row for wgpu)
+        let bytes_per_pixel = 4; // RGBA8
+        let unpadded_bytes_per_row = width * bytes_per_pixel;
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let padded_bytes_per_row = ((unpadded_bytes_per_row + align - 1) / align) * align;
+        let buffer_size = (padded_bytes_per_row * height) as wgpu::BufferAddress;
+
+        // Create a buffer to copy the texture data into
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Screenshot Buffer"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        // Create command encoder for the copy operation
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Screenshot Encoder"),
+        });
+
+        // Copy texture to buffer
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                texture: &self.editor_render_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded_bytes_per_row),
+                    rows_per_image: Some(height),
+                },
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        // Submit the copy command
+        queue.submit(Some(encoder.finish()));
+
+        // Map the buffer to read the data
+        let buffer_slice = buffer.slice(..);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            sender.send(result).unwrap();
+        });
+
+        // Poll the device until the buffer is mapped
+        device.poll(wgpu::Maintain::Wait);
+
+        if let Ok(Ok(())) = receiver.recv() {
+            let data = buffer_slice.get_mapped_range();
+
+            // Convert padded buffer data to image
+            let mut image_data = Vec::with_capacity((width * height * bytes_per_pixel) as usize);
+            for row in 0..height {
+                let row_start = (row * padded_bytes_per_row) as usize;
+                let row_end = row_start + (width * bytes_per_pixel) as usize;
+                image_data.extend_from_slice(&data[row_start..row_end]);
+            }
+
+            drop(data);
+            buffer.unmap();
+
+            // Save as PNG
+            match image::save_buffer(
+                path,
+                &image_data,
+                width,
+                height,
+                image::ColorType::Rgba8,
+            ) {
+                Ok(_) => {
+                    log::info!("Screenshot saved to: {} ({}x{})", path, width, height);
+                    Ok((width, height))
+                }
+                Err(e) => {
+                    Err(format!("Failed to save screenshot: {}", e))
+                }
+            }
+        } else {
+            Err("Failed to map buffer for screenshot".to_string())
+        }
+    }
+
     /// Render sprites from the world to the off-screen texture
     ///
     /// This method now takes the asset manager to load textures on demand
@@ -666,12 +761,16 @@ impl EditorViewportRenderer {
 
         // Collect sprites from world and upload textures as needed
         let mut batch = SpriteBatch::new();
-        for (_entity_id, (sprite, transform)) in world.query::<(&Sprite, &Transform)>().iter() {
+        for (entity_id, (sprite, transform)) in world.query::<(&Sprite, &Transform)>().iter() {
             // Upload texture to GPU if not already cached
             if !self.texture_cache.contains_key(&sprite.texture) {
+                log::info!("Texture {} not in GPU cache, attempting to load from AssetManager", sprite.texture.0);
                 let handle = AssetHandle::<TextureData>::new(sprite.texture);
                 if let Some(texture_data) = assets.get_texture(handle) {
+                    log::info!("Loaded texture {} from AssetManager, uploading to GPU", sprite.texture.0);
                     self.upload_texture(device, queue, sprite.texture, texture_data);
+                } else {
+                    log::warn!("Texture {} not found in AssetManager! Using fallback texture", sprite.texture.0);
                 }
             }
 
@@ -685,6 +784,15 @@ impl EditorViewportRenderer {
         }
 
         batch.sort();
+
+        // Debug: Log sprite batch info
+        log::info!("Sprite batch has {} sprites", batch.len());
+        for (i, sprite) in batch.iter().enumerate() {
+            log::info!("  Sprite {}: texture={}, z_index={}, position=({}, {}), size=({}, {})",
+                i, sprite.texture.0, sprite.z_index,
+                sprite.position.x, sprite.position.y,
+                sprite.size.x, sprite.size.y);
+        }
 
         // Get the appropriate texture view based on the target
         // This is done AFTER all mutable borrows are complete
@@ -726,26 +834,75 @@ impl EditorViewportRenderer {
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
 
             // Render sprites grouped by texture
+            // Collect batches with their texture and vertex ranges
+            struct TextureBatch {
+                texture: AssetId,
+                start_vertex: u32,
+                vertex_count: u32,
+            }
+
+            let mut batches = Vec::new();
+            let mut all_vertices = Vec::new();
             let mut current_texture: Option<AssetId> = None;
-            let mut vertices = Vec::new();
+            let mut batch_start = 0u32;
 
             for sprite in batch.iter() {
-                // If texture changed, flush previous batch
+                // If texture changed, record the previous batch
                 if current_texture.is_some() && current_texture != Some(sprite.texture) {
-                    if !vertices.is_empty() {
-                        self.render_vertices_batch(queue, &mut render_pass, &vertices, current_texture.unwrap());
-                        vertices.clear();
+                    let vertex_count = all_vertices.len() as u32 - batch_start;
+                    if vertex_count > 0 {
+                        batches.push(TextureBatch {
+                            texture: current_texture.unwrap(),
+                            start_vertex: batch_start,
+                            vertex_count,
+                        });
+                        log::info!("Recorded batch: texture={}, start={}, count={}",
+                            current_texture.unwrap().0, batch_start, vertex_count);
                     }
+                    batch_start = all_vertices.len() as u32;
                 }
 
                 current_texture = Some(sprite.texture);
                 let sprite_verts = SpriteBatch::generate_vertices(sprite);
-                vertices.extend_from_slice(&sprite_verts);
+                all_vertices.extend_from_slice(&sprite_verts);
             }
 
-            // Render remaining vertices
-            if !vertices.is_empty() && current_texture.is_some() {
-                self.render_vertices_batch(queue, &mut render_pass, &vertices, current_texture.unwrap());
+            // Record the final batch
+            if current_texture.is_some() {
+                let vertex_count = all_vertices.len() as u32 - batch_start;
+                if vertex_count > 0 {
+                    batches.push(TextureBatch {
+                        texture: current_texture.unwrap(),
+                        start_vertex: batch_start,
+                        vertex_count,
+                    });
+                    log::info!("Recorded final batch: texture={}, start={}, count={}",
+                        current_texture.unwrap().0, batch_start, vertex_count);
+                }
+            }
+
+            // Upload all vertices to the buffer once
+            if !all_vertices.is_empty() {
+                const MAX_VERTICES: usize = 1000 * 6;
+                let vertices_to_upload = if all_vertices.len() > MAX_VERTICES {
+                    log::warn!("Total vertex count exceeds buffer capacity ({} > {}). Truncating.",
+                               all_vertices.len(), MAX_VERTICES);
+                    &all_vertices[..MAX_VERTICES]
+                } else {
+                    &all_vertices[..]
+                };
+
+                queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(vertices_to_upload));
+                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+
+                // Render each batch with its texture
+                for batch in batches.iter() {
+                    let bind_group = self.get_texture_bind_group(batch.texture);
+                    render_pass.set_bind_group(1, bind_group, &[]);
+                    render_pass.draw(batch.start_vertex..(batch.start_vertex + batch.vertex_count), 0..1);
+                    log::info!("Drew batch: texture={}, vertices {}..{}",
+                        batch.texture.0, batch.start_vertex, batch.start_vertex + batch.vertex_count);
+                }
             }
         }
 
