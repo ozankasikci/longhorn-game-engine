@@ -67,11 +67,8 @@ impl EditorState {
     ) -> Result<(), Box<dyn Error>> {
         // Restore world from snapshot
         if let Some(snapshot) = &self.play_mode_snapshot {
-            // Clear the current world
-            world.clear();
-
-            // Spawn entities from snapshot
-            snapshot.spawn_into(world, asset_loader)?;
+            // Restore entities in-place to preserve entity IDs
+            snapshot.restore_into(world, asset_loader)?;
         }
 
         self.mode = EditorMode::Scene;
