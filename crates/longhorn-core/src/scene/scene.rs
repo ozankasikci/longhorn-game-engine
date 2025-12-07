@@ -1,4 +1,4 @@
-use crate::ecs::{Enabled, Name, Script, Sprite, World};
+use crate::ecs::{Enabled, EntityHandle, Name, Script, Sprite, World};
 use crate::math::Transform;
 use crate::types::{AssetId, LonghornError, Result};
 use serde::{Deserialize, Serialize};
@@ -310,6 +310,176 @@ impl Scene {
         }
 
         Ok(entity_map)
+    }
+
+    /// Restore entities in-place from this scene, preserving entity IDs
+    ///
+    /// This method updates existing entities to match the snapshot without
+    /// destroying and recreating them, which preserves entity IDs and prevents
+    /// component scrambling.
+    ///
+    /// # Arguments
+    /// * `world` - The target ECS world to restore entities into
+    /// * `asset_loader` - Asset loader to load textures referenced in sprites
+    pub fn restore_into<L: AssetLoader>(
+        &self,
+        world: &mut World,
+        asset_loader: &mut L,
+    ) -> Result<()> {
+        use std::collections::HashMap;
+        use glam::Vec2;
+
+        // Build a map of serialized entity ID -> SerializedEntity
+        let snapshot_entities: HashMap<u64, &SerializedEntity> = self
+            .entities
+            .iter()
+            .map(|e| (e.id, e))
+            .collect();
+
+        // Track which snapshot entities we've processed
+        let mut processed_ids = std::collections::HashSet::new();
+
+        // Collect all entity IDs first to avoid borrow checker issues
+        let entity_ids: Vec<_> = world.query::<()>().iter().map(|(id, _)| id).collect();
+
+        // Update existing entities in-place
+        for entity_id in entity_ids {
+            let entity_bits = entity_id.to_bits().get();
+
+            if let Some(serialized) = snapshot_entities.get(&entity_bits) {
+                // This entity exists in the snapshot - update its components
+                processed_ids.insert(entity_bits);
+
+                // Remove all existing components by getting mutable access
+                // Note: We can't remove components in hecs, so we'll just overwrite them
+
+                // Update/add Name
+                if let Some(ref name) = serialized.components.name {
+                    let _ = world.inner_mut().insert_one(entity_id, Name::new(name.clone()));
+                } else if world.has::<Name>(EntityHandle::new(entity_id)) {
+                    let _ = world.inner_mut().remove_one::<Name>(entity_id);
+                }
+
+                // Update/add Transform
+                if let Some(ref transform) = serialized.components.transform {
+                    let _ = world.inner_mut().insert_one(entity_id, Transform::from(transform.clone()));
+                } else if world.has::<Transform>(EntityHandle::new(entity_id)) {
+                    let _ = world.inner_mut().remove_one::<Transform>(entity_id);
+                }
+
+                // Update/add Sprite
+                if let Some(ref sprite_data) = serialized.components.sprite {
+                    // Try to load the texture
+                    let texture_id = match asset_loader.load_texture(&sprite_data.texture_path) {
+                        Ok(id) => id,
+                        Err(_) => {
+                            // Fallback: try loading by ID
+                            match asset_loader.load_texture_by_id(AssetId::new(sprite_data.texture_id)) {
+                                Ok(id) => id,
+                                Err(e) => {
+                                    eprintln!(
+                                        "Warning: Failed to load texture '{}': {}. Keeping existing Sprite unchanged.",
+                                        sprite_data.texture_path, e
+                                    );
+                                    // Don't remove the Sprite - keep it unchanged
+                                    // Just skip updating it and continue to other components
+                                    if let Some(ref script) = serialized.components.script {
+                                        let _ = world.inner_mut().insert_one(entity_id, script.clone());
+                                    } else if world.has::<Script>(EntityHandle::new(entity_id)) {
+                                        let _ = world.inner_mut().remove_one::<Script>(entity_id);
+                                    }
+
+                                    if let Some(ref enabled) = serialized.components.enabled {
+                                        let _ = world.inner_mut().insert_one(entity_id, Enabled::new(*enabled));
+                                    } else if world.has::<Enabled>(EntityHandle::new(entity_id)) {
+                                        let _ = world.inner_mut().remove_one::<Enabled>(entity_id);
+                                    }
+                                    continue;
+                                }
+                            }
+                        }
+                    };
+
+                    let sprite = Sprite {
+                        texture: texture_id,
+                        size: Vec2::new(sprite_data.size[0], sprite_data.size[1]),
+                        color: sprite_data.color,
+                        flip_x: sprite_data.flip_x,
+                        flip_y: sprite_data.flip_y,
+                    };
+                    let _ = world.inner_mut().insert_one(entity_id, sprite);
+                } else if world.has::<Sprite>(EntityHandle::new(entity_id)) {
+                    let _ = world.inner_mut().remove_one::<Sprite>(entity_id);
+                }
+
+                // Update/add Script
+                if let Some(ref script) = serialized.components.script {
+                    let _ = world.inner_mut().insert_one(entity_id, script.clone());
+                } else if world.has::<Script>(EntityHandle::new(entity_id)) {
+                    let _ = world.inner_mut().remove_one::<Script>(entity_id);
+                }
+
+                // Update/add Enabled
+                if let Some(ref enabled) = serialized.components.enabled {
+                    let _ = world.inner_mut().insert_one(entity_id, Enabled::new(*enabled));
+                } else if world.has::<Enabled>(EntityHandle::new(entity_id)) {
+                    let _ = world.inner_mut().remove_one::<Enabled>(entity_id);
+                }
+            } else {
+                // This entity doesn't exist in the snapshot - despawn it
+                let _ = world.inner_mut().despawn(entity_id);
+            }
+        }
+
+        // Spawn any entities that exist in the snapshot but not in the world
+        // (This shouldn't normally happen for play mode snapshots, but handle it for completeness)
+        for serialized in &self.entities {
+            if !processed_ids.contains(&serialized.id) {
+                // This entity only exists in the snapshot - spawn it
+                // Note: We can't control the entity ID in hecs, so this entity will get a new ID
+                eprintln!(
+                    "Warning: Entity {} from snapshot not found in world. Spawning with new ID.",
+                    serialized.id
+                );
+
+                let mut builder = world.spawn();
+
+                if let Some(ref name) = serialized.components.name {
+                    builder = builder.with(Name::new(name.clone()));
+                }
+
+                if let Some(ref transform) = serialized.components.transform {
+                    builder = builder.with(Transform::from(transform.clone()));
+                }
+
+                if let Some(ref sprite_data) = serialized.components.sprite {
+                    if let Ok(texture_id) = asset_loader.load_texture(&sprite_data.texture_path)
+                        .or_else(|_| asset_loader.load_texture_by_id(AssetId::new(sprite_data.texture_id)))
+                    {
+                        let sprite = Sprite {
+                            texture: texture_id,
+                            size: Vec2::new(sprite_data.size[0], sprite_data.size[1]),
+                            color: sprite_data.color,
+                            flip_x: sprite_data.flip_x,
+                            flip_y: sprite_data.flip_y,
+                        };
+                        builder = builder.with(sprite);
+                    }
+                }
+
+                if let Some(ref script) = serialized.components.script {
+                    builder = builder.with(script.clone());
+                }
+
+                if let Some(ref enabled) = serialized.components.enabled {
+                    builder = builder.with(Enabled::new(*enabled));
+                }
+
+                builder.build();
+            }
+        }
+
+        Ok(())
     }
 
     /// Add an entity to the scene
