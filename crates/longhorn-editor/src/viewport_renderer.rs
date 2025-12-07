@@ -21,6 +21,12 @@ struct GpuTextureResource {
     height: u32,
 }
 
+/// Identifies which render target to use
+enum RenderTarget {
+    Editor,
+    Game,
+}
+
 /// Renders the game scene to an off-screen texture for display in egui
 pub struct EditorViewportRenderer {
     // Render targets
@@ -579,12 +585,8 @@ impl EditorViewportRenderer {
         self.camera.position = editor_camera.transform.position;
         self.camera.zoom = editor_camera.zoom;
 
-        // Clone the view reference to avoid borrow checker issues
-        let view = &self.editor_render_view as *const wgpu::TextureView;
-        let view_ref = unsafe { &*view };
-
         // Render to editor texture
-        self.render_to_texture(device, queue, world, assets, view_ref);
+        self.render_to_texture(device, queue, world, assets, RenderTarget::Editor);
     }
 
     /// Render game view using the main camera from the scene
@@ -594,6 +596,7 @@ impl EditorViewportRenderer {
         queue: &wgpu::Queue,
         world: &World,
         assets: &AssetManager<S>,
+        egui_renderer: Option<&mut egui_wgpu::Renderer>,
     ) {
         use longhorn_engine::MainCamera;
         use longhorn_renderer::Camera as RendererCamera;
@@ -613,6 +616,17 @@ impl EditorViewportRenderer {
             if self.game_render_texture.is_none() {
                 let (width, height) = self.size;
                 let (game_texture, game_view) = Self::create_render_texture(device, width, height);
+
+                // Register with egui if renderer is provided
+                if let Some(renderer) = egui_renderer {
+                    let texture_id = renderer.register_native_texture(
+                        device,
+                        &game_view,
+                        wgpu::FilterMode::Linear,
+                    );
+                    self.game_egui_texture_id = Some(texture_id);
+                }
+
                 self.game_render_texture = Some(game_texture);
                 self.game_render_view = Some(game_view);
             }
@@ -625,12 +639,7 @@ impl EditorViewportRenderer {
             self.camera.zoom = camera.zoom;
 
             // Render to game texture
-            if let Some(game_view) = &self.game_render_view {
-                // Clone the view reference to avoid borrow checker issues
-                let view = game_view as *const wgpu::TextureView;
-                let view_ref = unsafe { &*view };
-                self.render_to_texture(device, queue, world, assets, view_ref);
-            }
+            self.render_to_texture(device, queue, world, assets, RenderTarget::Game);
 
             // Restore camera
             self.camera.position = saved_position;
@@ -645,7 +654,7 @@ impl EditorViewportRenderer {
         queue: &wgpu::Queue,
         world: &World,
         assets: &AssetManager<S>,
-        target_view: &wgpu::TextureView,
+        target: RenderTarget,
     ) {
         // Update camera uniform
         self.camera_uniform.update(self.camera.view_projection());
@@ -676,6 +685,20 @@ impl EditorViewportRenderer {
         }
 
         batch.sort();
+
+        // Get the appropriate texture view based on the target
+        // This is done AFTER all mutable borrows are complete
+        let target_view = match target {
+            RenderTarget::Editor => &self.editor_render_view,
+            RenderTarget::Game => {
+                if let Some(view) = &self.game_render_view {
+                    view
+                } else {
+                    // Fall back to editor view if game view not allocated
+                    &self.editor_render_view
+                }
+            }
+        };
 
         // Create command encoder
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
