@@ -3,7 +3,7 @@ use egui_dock::DockState;
 use longhorn_engine::Engine;
 use longhorn_scripting::set_console_callback;
 use std::sync::Arc;
-use crate::{EditorState, EditorMode, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, SceneSnapshot, ConsolePanel, ScriptConsole, EditorAction, ScriptEditorState, ScriptEditorPanel, ScriptError};
+use crate::{EditorState, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, ConsolePanel, ScriptConsole, EditorAction, ScriptEditorState, ScriptEditorPanel, ScriptError};
 use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_dock_area};
 use crate::remote::{RemoteCommand, RemoteResponse};
 use crate::ui_state::UiStateTracker;
@@ -18,7 +18,6 @@ pub struct Editor {
     inspector: InspectorPanel,
     viewport: ViewportPanel,
     toolbar: Toolbar,
-    scene_snapshot: Option<SceneSnapshot>,
     console_panel: ConsolePanel,
     console: ScriptConsole,
     dock_state: DockState<PanelType>,
@@ -56,7 +55,6 @@ impl Editor {
             inspector: InspectorPanel::new(),
             viewport: ViewportPanel::new(),
             toolbar: Toolbar::new(),
-            scene_snapshot: None,
             console_panel: ConsolePanel::new(),
             console,
             dock_state: create_default_dock_state(),
@@ -249,10 +247,12 @@ impl Editor {
                 // Console is always visible in dock now
             }
             ToolbarAction::Play => {
-                // Capture scene state before playing
-                log::debug!("Capturing scene snapshot ({} entities)", engine.world().len());
-                self.scene_snapshot = Some(SceneSnapshot::capture(engine.world()));
-                self.state.mode = EditorMode::Play;
+                // Enter play mode using the new snapshot system
+                if let Err(e) = self.state.enter_play_mode(engine.world(), engine.assets()) {
+                    eprintln!("Failed to enter play mode: {}", e);
+                    return;
+                }
+
                 self.state.paused = false;
                 // Reload scripts from disk before starting to pick up any edits
                 engine.reset_scripting();
@@ -271,15 +271,15 @@ impl Editor {
                 log::info!("Game resumed");
             }
             ToolbarAction::Stop => {
-                // Restore scene state
-                if let Some(snapshot) = self.scene_snapshot.take() {
-                    log::debug!("Restoring scene snapshot ({} entities)", snapshot.entities.len());
-                    snapshot.restore(engine.world_mut());
-                    log::info!("Scene restored ({} entities)", engine.world().len());
+                // Exit play mode using the new snapshot system
+                let (world, assets) = engine.world_and_assets_mut();
+                if let Err(e) = self.state.exit_play_mode(world, assets) {
+                    eprintln!("Failed to exit play mode: {}", e);
+                    return;
                 }
+
                 // Reset script runtime so it re-initializes on next Play
                 engine.reset_scripting();
-                self.state.mode = EditorMode::Scene;
                 self.state.paused = false;
                 log::info!("Entering Scene mode");
             }

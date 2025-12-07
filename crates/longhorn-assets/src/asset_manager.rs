@@ -220,6 +220,30 @@ impl<S: AssetSource> AssetManager<S> {
     }
 }
 
+// Implement AssetRegistry trait for AssetManager
+impl<S: AssetSource> longhorn_core::AssetRegistry for AssetManager<S> {
+    fn get_path(&self, id: AssetId) -> Option<&str> {
+        self.registry.get_path(id)
+    }
+
+    fn get_id(&self, path: &str) -> Option<AssetId> {
+        self.registry.get_id(path)
+    }
+}
+
+// Implement AssetLoader trait for AssetManager
+impl<S: AssetSource> longhorn_core::AssetLoader for AssetManager<S> {
+    fn load_texture(&mut self, path: &str) -> io::Result<AssetId> {
+        let handle = AssetManager::load_texture(self, path)?;
+        Ok(handle.id())
+    }
+
+    fn load_texture_by_id(&mut self, id: AssetId) -> io::Result<AssetId> {
+        let handle = AssetManager::load_texture_by_id(self, id)?;
+        Ok(handle.id())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
