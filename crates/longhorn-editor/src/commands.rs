@@ -3,7 +3,7 @@
 //! This module handles all remote commands sent to the editor via the remote control interface.
 //! Commands are processed synchronously and return a response.
 
-use longhorn_core::{AssetId, EntityHandle, EntityId, Name, Sprite, Transform, Vec2, World};
+use longhorn_core::{AssetId, EntityHandle, EntityId, Name, Sprite, Transform, Vec2};
 use longhorn_engine::Engine;
 
 use crate::remote::{
@@ -62,7 +62,7 @@ pub fn process_remote_command(
             component,
             field,
             value,
-        } => set_entity_property(engine.world_mut(), entity, &component, &field, value),
+        } => set_entity_property(engine, entity, &component, &field, value),
 
         // Project
         RemoteCommand::LoadProject { path } => handle_load_project(editor, engine, &path),
@@ -269,7 +269,7 @@ fn handle_delete_entity(editor: &mut Editor, engine: &mut Engine, id: u64) -> Re
 }
 
 fn set_entity_property(
-    world: &mut World,
+    engine: &mut Engine,
     entity_id: u64,
     component: &str,
     field: &str,
@@ -283,6 +283,7 @@ fn set_entity_property(
 
     match component {
         "Transform" => {
+            let world = engine.world_mut();
             let mut transform = match world.get::<Transform>(handle) {
                 Ok(t) => (*t).clone(),
                 Err(_) => return RemoteResponse::error("Entity has no Transform"),
@@ -323,6 +324,7 @@ fn set_entity_property(
             RemoteResponse::ok()
         }
         "Name" => {
+            let world = engine.world_mut();
             if field == "name" || field == "0" {
                 if let Some(s) = value.as_str() {
                     if world.set(handle, Name::new(s)).is_err() {
@@ -334,6 +336,7 @@ fn set_entity_property(
             RemoteResponse::error(format!("Invalid Name field: {}", field))
         }
         "Sprite" => {
+            let world = engine.world_mut();
             let mut sprite = match world.get::<Sprite>(handle) {
                 Ok(s) => (*s).clone(),
                 Err(_) => {
@@ -344,13 +347,30 @@ fn set_entity_property(
 
             match field {
                 "texture" => {
-                    if let Some(v) = value.as_u64() {
-                        sprite.texture = AssetId(v);
+                    let asset_id = if let Some(v) = value.as_u64() {
+                        AssetId(v)
                     } else if let Some(v) = value.as_i64() {
-                        sprite.texture = AssetId(v as u64);
+                        AssetId(v as u64)
                     } else {
                         return RemoteResponse::error("texture must be a number (AssetId)");
+                    };
+                    sprite.texture = asset_id;
+
+                    // Load the texture into the AssetManager cache so it's available for rendering
+                    // We need to update the sprite first, then load the texture
+                    if engine.world_mut().set(handle, sprite).is_err() {
+                        return RemoteResponse::error("Failed to set Sprite");
                     }
+
+                    // Now load the texture
+                    if let Err(e) = engine.assets_mut().load_texture_by_id(asset_id) {
+                        log::warn!("Failed to load texture {}: {}", asset_id.0, e);
+                        // Don't fail the command - sprite was set, texture just couldn't be loaded
+                    } else {
+                        log::info!("Loaded texture {} into cache", asset_id.0);
+                    }
+
+                    return RemoteResponse::ok();
                 }
                 "size.x" | "size_x" => {
                     if let Some(v) = value.as_f64() {
@@ -395,7 +415,7 @@ fn set_entity_property(
                 _ => return RemoteResponse::error(format!("Unknown Sprite field: {}", field)),
             }
 
-            if world.set(handle, sprite).is_err() {
+            if engine.world_mut().set(handle, sprite).is_err() {
                 return RemoteResponse::error("Failed to set Sprite");
             }
             RemoteResponse::ok()
@@ -853,11 +873,8 @@ fn handle_get_assets(engine: &Engine) -> RemoteResponse {
             if let Ok(content) = std::fs::read_to_string(&assets_json_path) {
                 if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, u64>>(&content) {
                     for (path, id) in map {
-                        // Check if texture is loaded in renderer
-                        let loaded = engine
-                            .renderer()
-                            .map(|r| r.has_texture(AssetId(id)))
-                            .unwrap_or(false);
+                        // Check if texture is loaded in the AssetManager cache
+                        let loaded = engine.assets().is_texture_loaded(AssetId(id));
                         assets.push(AssetInfo {
                             id,
                             path,

@@ -431,6 +431,16 @@ impl Editor {
                 TexturePickerAction::SelectTexture { entity, asset_id, path } => {
                     log::info!("Texture selected: {} (ID: {})", path, asset_id.0);
 
+                    // Load the texture into the AssetManager cache so it's available for rendering
+                    match engine.assets_mut().load_texture_by_id(asset_id) {
+                        Ok(_) => {
+                            log::info!("Loaded texture {} into cache", asset_id.0);
+                        }
+                        Err(e) => {
+                            log::error!("Failed to load texture {}: {}", asset_id.0, e);
+                        }
+                    }
+
                     // Update the Sprite component with the new texture
                     let handle = longhorn_core::EntityHandle::new(entity);
                     match engine.world_mut().get_mut::<longhorn_core::Sprite>(handle) {
