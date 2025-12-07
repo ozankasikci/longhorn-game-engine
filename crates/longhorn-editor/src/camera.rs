@@ -52,6 +52,22 @@ impl EditorCamera {
         // Pan speed scales with zoom level
         self.zoom * 0.01
     }
+
+    /// Frame the camera on a specific entity
+    pub fn frame_entity(&mut self, entity_position: Vec2, entity_size: Vec2) {
+        // Center camera on entity
+        self.transform.position = entity_position;
+
+        // Adjust zoom to fit entity in view
+        // Assume viewport size of 1000x1000 for now (can be refined)
+        let viewport_size = 1000.0;
+        let max_dimension = entity_size.x.max(entity_size.y);
+
+        if max_dimension > 0.0 {
+            self.zoom = viewport_size / (max_dimension * 2.0);
+            self.zoom = self.zoom.clamp(0.1, 10.0);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -93,5 +109,21 @@ mod tests {
 
         assert!(camera.zoom > 1.0);
         assert!(camera.zoom <= 10.0); // Clamped
+    }
+
+    #[test]
+    fn test_frame_entity() {
+        let mut camera = EditorCamera::default();
+        let entity_position = Vec2::new(100.0, 50.0);
+        let entity_size = Vec2::new(20.0, 20.0);
+
+        camera.frame_entity(entity_position, entity_size);
+
+        // Camera should center on entity
+        assert!((camera.transform.position.x - 100.0).abs() < 0.01);
+        assert!((camera.transform.position.y - 50.0).abs() < 0.01);
+
+        // Zoom should be adjusted to fit entity
+        assert!(camera.zoom > 0.0);
     }
 }

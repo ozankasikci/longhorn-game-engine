@@ -568,15 +568,32 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
             }
             PanelType::SceneView => {
                 // Scene view - capture camera input and apply to editor camera
-                let camera_input = self.editor.viewport.show(ui, self.viewport_texture);
+                let (camera_input, action) = self.editor.viewport.show(ui, self.viewport_texture);
                 self.editor.editor_camera.handle_input(&camera_input);
+
+                // Handle F key to frame selected entity
+                if action.frame_selected {
+                    if let Some(selected) = self.editor.state.selected_entity {
+                        let handle = longhorn_core::EntityHandle::new(selected);
+                        if let Ok(transform) = self.engine.world().get::<longhorn_core::Transform>(handle) {
+                            // Get sprite size if available, otherwise use default
+                            let entity_size = if let Ok(sprite) = self.engine.world().get::<longhorn_core::Sprite>(handle) {
+                                sprite.size
+                            } else {
+                                glam::Vec2::new(64.0, 64.0) // Default size
+                            };
+                            self.editor.editor_camera.frame_entity(transform.position, entity_size);
+                        }
+                    }
+                }
             }
             PanelType::GameView => {
                 // Game view - shows game camera perspective when playing
                 if self.editor.state.is_playing() {
                     if let Some(game_tex) = self.game_texture {
                         // Show game texture when in Play mode and texture is available
-                        self.editor.viewport.show(ui, Some(game_tex));
+                        // We don't use the action from GameView since framing is for Scene view only
+                        let _ = self.editor.viewport.show(ui, Some(game_tex));
                     } else {
                         // In Play mode but no MainCamera found
                         self.show_game_placeholder(ui, "⚠ No MainCamera in scene");

@@ -5,12 +5,18 @@ use glam::Vec2;
 
 pub struct ViewportPanel {}
 
+/// Actions that can be triggered from the viewport
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ViewportAction {
+    pub frame_selected: bool,
+}
+
 impl ViewportPanel {
     pub fn new() -> Self {
         Self {}
     }
 
-    pub fn show(&mut self, ui: &mut Ui, texture_id: Option<TextureId>) -> CameraInput {
+    pub fn show(&mut self, ui: &mut Ui, texture_id: Option<TextureId>) -> (CameraInput, ViewportAction) {
         ui.heading("Viewport");
         ui.separator();
 
@@ -44,6 +50,8 @@ impl ViewportPanel {
 
         // Capture camera input when hovered
         let mut camera_input = CameraInput::default();
+        let mut action = ViewportAction::default();
+
         if response.hovered() {
             camera_input.mmb_held = ui.input(|i| {
                 i.pointer.button_down(egui::PointerButton::Middle)
@@ -51,9 +59,12 @@ impl ViewportPanel {
             let drag_delta = response.drag_delta();
             camera_input.mouse_delta = Vec2::new(drag_delta.x, drag_delta.y);
             camera_input.scroll_delta = ui.input(|i| i.smooth_scroll_delta.y);
+
+            // Check for F key to frame selected entity
+            action.frame_selected = ui.input(|i| i.key_pressed(egui::Key::F));
         }
 
-        camera_input
+        (camera_input, action)
     }
 }
 
