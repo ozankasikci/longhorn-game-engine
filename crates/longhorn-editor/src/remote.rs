@@ -68,6 +68,22 @@ pub enum RemoteCommand {
 
     // Utility
     Ping,
+
+    // Debug commands
+    /// Get all components on an entity
+    GetEntityComponents { id: u64 },
+    /// Get loaded assets info
+    GetAssets,
+    /// Get renderer state (textures loaded, sprite batch info)
+    GetRenderState,
+    /// Dump full entity state including all component data
+    DumpEntity { id: u64 },
+
+    // Asset loading commands
+    /// Load a texture by asset ID
+    LoadTexture { id: u64 },
+    /// Load all registered textures
+    LoadAllTextures,
 }
 
 /// Information about an entity (minimal)
@@ -153,6 +169,61 @@ pub struct AssetFileInfo {
     pub is_text_editable: bool,
 }
 
+/// Sprite component data for debugging
+#[derive(Debug, Clone, Serialize)]
+pub struct SpriteData {
+    pub texture_id: u64,
+    pub size_x: f32,
+    pub size_y: f32,
+    pub color: [f32; 4],
+    pub flip_x: bool,
+    pub flip_y: bool,
+}
+
+/// Component info for debugging
+#[derive(Debug, Clone, Serialize)]
+pub struct ComponentInfo {
+    pub name: String,
+    pub data: serde_json::Value,
+}
+
+/// Full entity dump with all components
+#[derive(Debug, Clone, Serialize)]
+pub struct EntityDump {
+    pub id: u64,
+    pub name: Option<String>,
+    pub transform: Option<TransformData>,
+    pub sprite: Option<SpriteData>,
+    pub has_script: bool,
+    pub component_names: Vec<String>,
+}
+
+/// Asset info for debugging
+#[derive(Debug, Clone, Serialize)]
+pub struct AssetInfo {
+    pub id: u64,
+    pub path: String,
+    pub loaded: bool,
+}
+
+/// Render state info for debugging
+#[derive(Debug, Clone, Serialize)]
+pub struct RenderStateData {
+    pub loaded_texture_count: usize,
+    pub texture_ids: Vec<u64>,
+    pub sprite_count: usize,
+}
+
+/// Texture load result
+#[derive(Debug, Clone, Serialize)]
+pub struct TextureLoadResult {
+    pub id: u64,
+    pub path: String,
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 /// Response data variants
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
@@ -171,6 +242,12 @@ pub enum ResponseData {
     Panels(Vec<PanelInfo>),
     Clickables(Vec<ClickableInfo>),
     AssetBrowser(AssetBrowserData),
+    Components(Vec<ComponentInfo>),
+    Assets(Vec<AssetInfo>),
+    RenderState(RenderStateData),
+    EntityDump(EntityDump),
+    TextureLoaded(TextureLoadResult),
+    TexturesLoaded(Vec<TextureLoadResult>),
 }
 
 /// Response sent back to the client
