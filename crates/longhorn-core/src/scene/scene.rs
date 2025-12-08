@@ -114,6 +114,78 @@ impl Scene {
         }
     }
 
+}
+
+/// Recursively serialize an entity and its children
+fn serialize_entity<R: AssetRegistry>(
+        world: &World,
+        registry: &R,
+        entity_id: hecs::Entity,
+    ) -> SerializedEntity {
+        let entity_u64 = entity_id.to_bits().get();
+        let entity_handle = EntityHandle::new(entity_id);
+
+        let mut components = SerializedComponents {
+            name: None,
+            transform: None,
+            sprite: None,
+            script: None,
+            enabled: None,
+        };
+
+        // Try to get Name component
+        if let Ok(name) = world.inner().get::<&Name>(entity_id) {
+            components.name = Some(name.as_str().to_string());
+        }
+
+        // Try to get Transform component
+        if let Ok(transform) = world.inner().get::<&Transform>(entity_id) {
+            components.transform = Some((*transform).into());
+        }
+
+        // Try to get Sprite component
+        if let Ok(sprite) = world.inner().get::<&Sprite>(entity_id) {
+            let texture_path = registry
+                .get_path(sprite.texture)
+                .unwrap_or("unknown")
+                .to_string();
+
+            components.sprite = Some(SerializedSprite {
+                texture_path,
+                texture_id: sprite.texture.0,
+                size: [sprite.size.x, sprite.size.y],
+                color: sprite.color,
+                flip_x: sprite.flip_x,
+                flip_y: sprite.flip_y,
+            });
+        }
+
+        // Try to get Script component
+        if let Ok(script) = world.inner().get::<&Script>(entity_id) {
+            components.script = Some((*script).clone());
+        }
+
+        // Try to get Enabled component
+        if let Ok(enabled) = world.inner().get::<&Enabled>(entity_id) {
+            components.enabled = Some(enabled.is_enabled());
+        }
+
+        // Recursively serialize children
+        let mut children = Vec::new();
+        if let Ok(children_comp) = world.get::<crate::ecs::Children>(entity_handle) {
+            for &child_id in children_comp.iter() {
+                children.push(serialize_entity(world, registry, child_id));
+            }
+        }
+
+        SerializedEntity {
+            id: entity_u64,
+            components,
+            children,
+        }
+    }
+
+impl Scene {
     /// Extract scene data from an ECS World
     ///
     /// # Arguments
@@ -122,60 +194,14 @@ impl Scene {
     pub fn from_world<R: AssetRegistry>(world: &World, registry: &R) -> Self {
         let mut entities = Vec::new();
 
-        // Iterate over all entities and serialize their components
+        // Find all root entities (entities without Parent component)
         for (entity_id, _) in world.query::<()>().iter() {
-            let entity_u64 = entity_id.to_bits().get();
+            let entity_handle = EntityHandle::new(entity_id);
 
-            let mut components = SerializedComponents {
-                name: None,
-                transform: None,
-                sprite: None,
-                script: None,
-                enabled: None,
-            };
-
-            // Try to get Name component
-            if let Ok(name) = world.inner().get::<&Name>(entity_id) {
-                components.name = Some(name.as_str().to_string());
+            // Only serialize entities that don't have a Parent component
+            if world.get::<crate::ecs::Parent>(entity_handle).is_err() {
+                entities.push(serialize_entity(world, registry, entity_id));
             }
-
-            // Try to get Transform component
-            if let Ok(transform) = world.inner().get::<&Transform>(entity_id) {
-                components.transform = Some((*transform).into());
-            }
-
-            // Try to get Sprite component
-            if let Ok(sprite) = world.inner().get::<&Sprite>(entity_id) {
-                let texture_path = registry
-                    .get_path(sprite.texture)
-                    .unwrap_or("unknown")
-                    .to_string();
-
-                components.sprite = Some(SerializedSprite {
-                    texture_path,
-                    texture_id: sprite.texture.0,
-                    size: [sprite.size.x, sprite.size.y],
-                    color: sprite.color,
-                    flip_x: sprite.flip_x,
-                    flip_y: sprite.flip_y,
-                });
-            }
-
-            // Try to get Script component
-            if let Ok(script) = world.inner().get::<&Script>(entity_id) {
-                components.script = Some((*script).clone());
-            }
-
-            // Try to get Enabled component
-            if let Ok(enabled) = world.inner().get::<&Enabled>(entity_id) {
-                components.enabled = Some(enabled.is_enabled());
-            }
-
-            entities.push(SerializedEntity {
-                id: entity_u64,
-                components,
-                children: Vec::new(),
-            });
         }
 
         Self {
@@ -605,6 +631,7 @@ mod tests {
                 script: None,
                 enabled: Some(true),
             },
+            children: Vec::new(),
         };
 
         scene.add_entity(entity);
@@ -638,6 +665,7 @@ mod tests {
                 script: None,
                 enabled: Some(true),
             },
+            children: Vec::new(),
         };
 
         scene.add_entity(entity);
@@ -752,6 +780,7 @@ mod tests {
                 script: None,
                 enabled: Some(false),
             },
+            children: Vec::new(),
         };
 
         scene.add_entity(entity);
@@ -888,6 +917,7 @@ mod tests {
                 script: None,
                 enabled: Some(true),
             },
+            children: Vec::new(),
         };
 
         scene.add_entity(entity);
@@ -934,6 +964,7 @@ mod tests {
                 script: None,
                 enabled: Some(true),
             },
+            children: Vec::new(),
         };
 
         scene.add_entity(entity);
