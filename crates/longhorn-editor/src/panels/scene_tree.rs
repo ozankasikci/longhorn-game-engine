@@ -68,7 +68,9 @@ impl SceneTreePanel {
         let has_children = !node.children.is_empty();
         let is_expanded = self.expanded_entities.contains(&entity_bits);
 
-        ui.horizontal(|ui| {
+        let mut reparent_target = None;
+
+        let response = ui.horizontal(|ui| {
             // Indent based on depth
             ui.add_space(depth as f32 * 16.0);
 
@@ -96,15 +98,55 @@ impl SceneTreePanel {
                 .map(|id| id == element_id)
                 .unwrap_or(false);
 
-            // Entity name (selectable)
-            let response = ui.selectable_label(is_selected, &node.name);
+            // Entity name (selectable) - wrapped as drag source
+            let label_response = ui.selectable_label(is_selected, &node.name);
 
-            if response.clicked() || should_trigger {
+            if label_response.clicked() || should_trigger {
                 log::info!("SceneTree - selecting entity '{}': ID {} (raw: {:?}, to_bits: {})",
                     node.name, entity.id(), entity, entity_bits);
                 state.select(Some(entity));
             }
-        });
+
+            // Make the label a drag source
+            label_response.dnd_set_drag_payload(entity_bits);
+
+            label_response
+        }).inner;
+
+        // Check if something was dropped on this entity
+        if let Some(dropped_entity_bits) = response.dnd_release_payload::<u64>() {
+            // Don't allow dropping on self
+            if *dropped_entity_bits != entity_bits {
+                reparent_target = Some(*dropped_entity_bits);
+            }
+        }
+
+        // Highlight when hovering during drag
+        if response.hovered() && ui.input(|i| i.pointer.any_down()) {
+            ui.painter().rect_stroke(
+                response.rect,
+                2.0,
+                egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 180, 255)),
+            );
+        }
+
+        // Perform reparenting if drop occurred
+        if let Some(dragged_bits) = reparent_target {
+            // Find the dragged entity by reconstructing it from bits
+            let dragged_entity = hecs::Entity::from_bits(dragged_bits).unwrap();
+            let dragged_handle = EntityHandle::new(dragged_entity);
+            let target_handle = EntityHandle::new(entity);
+
+            // Use hierarchy system to set parent with cycle detection
+            match longhorn_core::ecs::hierarchy::set_parent(world, dragged_handle, target_handle) {
+                Ok(()) => {
+                    log::info!("Reparented entity {} to {}", dragged_entity.id(), entity.id());
+                }
+                Err(e) => {
+                    log::warn!("Failed to reparent: {:?}", e);
+                }
+            }
+        }
 
         // Recursively show children if expanded
         if is_expanded {
