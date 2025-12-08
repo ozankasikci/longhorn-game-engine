@@ -1,5 +1,5 @@
 use egui::Ui;
-use longhorn_core::{World, Name, EntityHandle, Sprite};
+use longhorn_core::{World, Name, EntityHandle, Sprite, Parent, Children};
 use longhorn_assets::{AssetManager, FilesystemSource};
 use crate::{EditorState, UiStateTracker};
 use std::path::PathBuf;
@@ -8,6 +8,41 @@ use glam::Vec2;
 
 pub struct SceneTreePanel {
     expanded_entities: HashSet<u64>, // Track which entities are expanded (using entity bits)
+}
+
+/// Represents an entity node in the hierarchy tree
+struct EntityNode {
+    entity: hecs::Entity,
+    name: String,
+    children: Vec<EntityNode>,
+}
+
+impl EntityNode {
+    /// Recursively build tree from root entity
+    fn from_entity(world: &World, entity: hecs::Entity) -> Self {
+        let handle = EntityHandle::new(entity);
+
+        let name = world.get::<Name>(handle)
+            .ok()
+            .map(|n| n.0.clone())
+            .unwrap_or_else(|| format!("Entity {}", entity.id()));
+
+        let mut children = Vec::new();
+
+        // Get children if this entity has Children component
+        if let Ok(children_comp) = world.get::<Children>(handle) {
+            for &child_entity in children_comp.iter() {
+                // Recursively build child nodes
+                children.push(EntityNode::from_entity(world, child_entity));
+            }
+        }
+
+        EntityNode {
+            entity,
+            name,
+            children,
+        }
+    }
 }
 
 impl SceneTreePanel {
