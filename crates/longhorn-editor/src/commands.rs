@@ -8,9 +8,10 @@ use longhorn_engine::Engine;
 
 use crate::remote::{
     AssetBrowserData, AssetFileInfo, AssetInfo, ClickableInfo, ComponentInfo, EntityDetails,
-    EntityDump, EntityInfo, LogEntry, LogTailResult, PanelInfo, RemoteCommand, RemoteResponse,
-    RenderStateData, ResponseData, ScreenshotResult, ScriptEditorData, ScriptErrorData, SpriteData,
-    TextureLoadResult, TransformData, UiStateData, WaitFramesResult,
+    EntityDump, EntityInfo, GizmoDragResult, GizmoStateData, LogEntry, LogTailResult, PanelInfo,
+    RemoteCommand, RemoteResponse, RenderStateData, ResponseData, ScreenshotResult,
+    ScriptEditorData, ScriptErrorData, SpriteData, TextureLoadResult, TransformData, UiStateData,
+    WaitFramesResult,
 };
 use crate::ui_state::TriggerAction;
 use crate::{DirectoryNode, Editor, ToolbarAction};
@@ -144,6 +145,15 @@ pub fn process_remote_command(
         RemoteCommand::TakeScreenshot { path } => handle_take_screenshot(editor, &path),
         RemoteCommand::GetLogTail { lines } => handle_get_log_tail(lines),
         RemoteCommand::WaitFrames { count } => handle_wait_frames(editor, count),
+
+        // Gizmo commands
+        RemoteCommand::GetGizmoState => handle_get_gizmo_state(editor),
+        RemoteCommand::SimulateGizmoDrag {
+            entity_id,
+            handle,
+            delta_x,
+            delta_y,
+        } => handle_simulate_gizmo_drag(editor, engine, entity_id, &handle, delta_x, delta_y),
     }
 }
 
@@ -1149,5 +1159,98 @@ fn handle_wait_frames(editor: &Editor, count: u32) -> RemoteResponse {
     // Return immediately - main loop will delay the response
     RemoteResponse::with_data(ResponseData::FramesWaited(WaitFramesResult {
         frames_waited: count,
+    }))
+}
+
+// --- Gizmo Handlers ---
+
+fn handle_get_gizmo_state(editor: &Editor) -> RemoteResponse {
+    use crate::gizmo::{GizmoHandle, GizmoMode};
+
+    let gizmo_state = editor.gizmo_state();
+
+    // Convert GizmoMode to string
+    let mode_str = match gizmo_state.mode {
+        GizmoMode::None => "none",
+        GizmoMode::Move => "move",
+        GizmoMode::Rotate => "rotate",
+        GizmoMode::Scale => "scale",
+    };
+
+    // Convert GizmoHandle to string
+    let handle_to_string = |handle: GizmoHandle| -> String {
+        match handle {
+            GizmoHandle::MoveX => "move_x".to_string(),
+            GizmoHandle::MoveY => "move_y".to_string(),
+            GizmoHandle::MoveXY => "move_xy".to_string(),
+            GizmoHandle::RotateCircle => "rotate_circle".to_string(),
+            GizmoHandle::ScaleX => "scale_x".to_string(),
+            GizmoHandle::ScaleY => "scale_y".to_string(),
+            GizmoHandle::ScaleXY => "scale_xy".to_string(),
+        }
+    };
+
+    let active_handle = gizmo_state.active_handle.map(handle_to_string);
+    let hover_handle = gizmo_state.hover_handle.map(handle_to_string);
+    let is_dragging = gizmo_state.is_dragging();
+
+    RemoteResponse::with_data(ResponseData::GizmoState(GizmoStateData {
+        mode: mode_str.to_string(),
+        active_handle,
+        hover_handle,
+        is_dragging,
+    }))
+}
+
+fn handle_simulate_gizmo_drag(
+    editor: &mut Editor,
+    engine: &mut Engine,
+    entity_id: u64,
+    handle: &str,
+    delta_x: f32,
+    delta_y: f32,
+) -> RemoteResponse {
+    use crate::gizmo::{update_transform_from_drag, GizmoHandle};
+
+    // Convert entity_id to EntityId
+    let Some(entity) = EntityId::from_bits(entity_id) else {
+        return RemoteResponse::error(format!("Invalid entity ID: {}", entity_id));
+    };
+    let handle_entity = EntityHandle::new(entity);
+
+    // Get the current transform (clone it to avoid borrow checker issues)
+    let old_transform = {
+        let Ok(transform) = engine.world().get::<Transform>(handle_entity) else {
+            return RemoteResponse::error("Entity not found or has no Transform component");
+        };
+        *transform
+    };
+    let old_position = [old_transform.position.x, old_transform.position.y];
+
+    // Parse the handle string
+    let gizmo_handle = match handle {
+        "move_x" => GizmoHandle::MoveX,
+        "move_y" => GizmoHandle::MoveY,
+        "move_xy" => GizmoHandle::MoveXY,
+        _ => return RemoteResponse::error(format!("Invalid gizmo handle: {}", handle)),
+    };
+
+    // The delta is already in world space (from the remote command)
+    let world_delta = Vec2::new(delta_x, delta_y);
+    let new_transform = update_transform_from_drag(gizmo_handle, old_transform, world_delta);
+
+    // Apply the new transform
+    if let Ok(mut transform) = engine.world_mut().get_mut::<Transform>(handle_entity) {
+        *transform = new_transform;
+    } else {
+        return RemoteResponse::error("Failed to update transform");
+    }
+
+    let new_position = [new_transform.position.x, new_transform.position.y];
+
+    RemoteResponse::with_data(ResponseData::GizmoDrag(GizmoDragResult {
+        entity_id,
+        old_position,
+        new_position,
     }))
 }

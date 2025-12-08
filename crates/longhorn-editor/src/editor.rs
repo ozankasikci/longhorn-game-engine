@@ -10,6 +10,7 @@ use crate::ui_state::UiStateTracker;
 use crate::{ProjectPanelState, ProjectPanel, ProjectPanelAction, DirectoryNode, ContextAction};
 use crate::texture_picker::{TexturePickerState, TexturePickerAction};
 use crate::EditorCamera;
+use crate::{GizmoState, GizmoConfig, GizmoMode};
 
 pub struct Editor {
     editor_camera: EditorCamera,
@@ -34,6 +35,10 @@ pub struct Editor {
     texture_picker_state: TexturePickerState,
     /// Pending screenshot request (path to save)
     pending_screenshot: Option<String>,
+    /// Gizmo state for transform manipulation
+    gizmo_state: GizmoState,
+    /// Gizmo visual configuration
+    gizmo_config: GizmoConfig,
 }
 
 impl Editor {
@@ -70,6 +75,8 @@ impl Editor {
             pending_show_script_editor: false,
             texture_picker_state: TexturePickerState::new(),
             pending_screenshot: None,
+            gizmo_state: GizmoState::new(GizmoMode::Move),
+            gizmo_config: GizmoConfig::default(),
         }
     }
 
@@ -168,6 +175,11 @@ impl Editor {
     /// Get a mutable reference to the texture picker state
     pub fn texture_picker_state_mut(&mut self) -> &mut TexturePickerState {
         &mut self.texture_picker_state
+    }
+
+    /// Get a reference to the gizmo state
+    pub fn gizmo_state(&self) -> &GizmoState {
+        &self.gizmo_state
     }
 
     /// Get and clear any pending editor action
@@ -314,7 +326,7 @@ impl Editor {
         }
     }
 
-    pub fn show(&mut self, ctx: &Context, engine: &mut Engine, viewport_texture: Option<egui::TextureId>, game_texture: Option<egui::TextureId>) -> bool {
+    pub fn show(&mut self, ctx: &Context, engine: &mut Engine, viewport_texture: Option<egui::TextureId>, viewport_texture_size: glam::Vec2, game_texture: Option<egui::TextureId>) -> bool {
         // Reset UI state tracking for this frame
         self.ui_state.begin_frame();
 
@@ -443,6 +455,7 @@ impl Editor {
                 editor: self,
                 engine,
                 viewport_texture,
+                viewport_texture_size,
                 game_texture,
             };
 
@@ -523,6 +536,7 @@ struct EditorPanelWrapper<'a> {
     editor: &'a mut Editor,
     engine: &'a mut Engine,
     viewport_texture: Option<egui::TextureId>,
+    viewport_texture_size: glam::Vec2,
     game_texture: Option<egui::TextureId>,
 }
 
@@ -602,9 +616,43 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                 self.editor.pending_action = action;
             }
             PanelType::SceneView => {
+                // Get selected entity transform
+                let selected_transform = self.editor.state.selected_entity
+                    .and_then(|entity| {
+                        let handle = longhorn_core::EntityHandle::new(entity);
+                        self.engine.world().get::<longhorn_core::Transform>(handle).ok()
+                            .map(|t| *t)
+                    });
+
                 // Scene view - capture camera input and apply to editor camera
-                let (camera_input, action) = self.editor.viewport.show(ui, self.viewport_texture);
+                let (camera_input, action) = self.editor.viewport.show(
+                    ui,
+                    self.viewport_texture,
+                    self.viewport_texture_size,
+                    &mut self.editor.gizmo_state,
+                    &self.editor.gizmo_config,
+                    selected_transform,
+                    self.editor.editor_camera.transform.position,
+                    self.editor.editor_camera.zoom,
+                    self.engine.world(),
+                );
                 self.editor.editor_camera.handle_input(&camera_input);
+
+                // Handle transform updates from gizmo
+                if let Some(new_transform) = action.transform_update {
+                    if let Some(selected) = self.editor.state.selected_entity {
+                        let handle = longhorn_core::EntityHandle::new(selected);
+                        if let Ok(mut transform) = self.engine.world_mut().get_mut::<longhorn_core::Transform>(handle) {
+                            *transform = new_transform;
+                        }
+                    }
+                }
+
+                // Handle entity selection by clicking
+                if let Some(clicked_entity) = action.entity_clicked {
+                    self.editor.state.selected_entity = Some(clicked_entity);
+                    log::info!("Entity selected by clicking: {}", clicked_entity.id());
+                }
 
                 // Handle F key to frame selected entity
                 if action.frame_selected {
@@ -624,11 +672,21 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
             }
             PanelType::GameView => {
                 // Game view - shows game camera perspective when playing
+                ui.heading("Game View (Main Camera - Play Mode Only)");
+                ui.separator();
+
                 if self.editor.state.is_playing() {
                     if let Some(game_tex) = self.game_texture {
-                        // Show game texture when in Play mode and texture is available
-                        // We don't use the action from GameView since framing is for Scene view only
-                        let _ = self.editor.viewport.show(ui, Some(game_tex));
+                        // Show game texture when in Play mode - simple display without gizmos
+                        let available = ui.available_size();
+                        let (rect, _response) = ui.allocate_exact_size(available, egui::Sense::hover());
+
+                        ui.painter().image(
+                            game_tex,
+                            rect,
+                            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                            crate::styling::Colors::TEXT_ON_ACCENT,
+                        );
                     } else {
                         // In Play mode but no MainCamera found
                         self.show_game_placeholder(ui, "⚠ No MainCamera in scene");

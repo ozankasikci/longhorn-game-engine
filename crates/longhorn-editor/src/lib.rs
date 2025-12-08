@@ -13,6 +13,7 @@ mod ui_state;
 mod commands;
 mod texture_picker;
 mod camera;
+mod gizmo;
 pub mod styling;
 pub mod docking;
 
@@ -30,5 +31,6 @@ pub use project_panel_state::*;
 pub use ui_state::*;
 pub use texture_picker::*;
 pub use camera::{EditorCamera, CameraInput};
+pub use gizmo::{GizmoMode, GizmoState, GizmoConfig};
 pub use styling::apply_theme;
 pub use docking::*;

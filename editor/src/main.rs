@@ -282,13 +282,21 @@ impl EditorApp {
             .as_ref()
             .and_then(|vr| vr.editor_texture_id());
 
+        let viewport_texture_size = self.viewport_renderer
+            .as_ref()
+            .map(|vr| {
+                let (width, height) = vr.editor_texture_size();
+                glam::Vec2::new(width as f32, height as f32)
+            })
+            .unwrap_or(glam::Vec2::new(800.0, 600.0)); // Default size if no renderer
+
         let game_texture = self.viewport_renderer
             .as_ref()
             .and_then(|vr| vr.game_texture_id());
 
         let mut should_exit = false;
         let full_output = egui_state.ctx.run(raw_input, |ctx| {
-            should_exit = self.editor.show(ctx, &mut self.engine, viewport_texture, game_texture);
+            should_exit = self.editor.show(ctx, &mut self.engine, viewport_texture, viewport_texture_size, game_texture);
         });
 
         if should_exit {

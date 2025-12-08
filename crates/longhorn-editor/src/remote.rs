@@ -92,6 +92,17 @@ pub enum RemoteCommand {
     GetLogTail { lines: usize },
     /// Wait for a number of frames to pass before responding
     WaitFrames { count: u32 },
+
+    // Gizmo commands
+    /// Get the current gizmo state
+    GetGizmoState,
+    /// Simulate dragging a gizmo handle (for automated testing)
+    SimulateGizmoDrag {
+        entity_id: u64,
+        handle: String, // "move_x", "move_y", "move_xy"
+        delta_x: f32,
+        delta_y: f32,
+    },
 }
 
 /// Information about an entity (minimal)
@@ -260,6 +271,23 @@ pub struct WaitFramesResult {
     pub frames_waited: u32,
 }
 
+/// Gizmo state data for remote queries
+#[derive(Debug, Clone, Serialize)]
+pub struct GizmoStateData {
+    pub mode: String, // "none", "move", "rotate", "scale"
+    pub active_handle: Option<String>,
+    pub hover_handle: Option<String>,
+    pub is_dragging: bool,
+}
+
+/// Gizmo drag simulation result
+#[derive(Debug, Clone, Serialize)]
+pub struct GizmoDragResult {
+    pub entity_id: u64,
+    pub old_position: [f32; 2],
+    pub new_position: [f32; 2],
+}
+
 /// Response data variants
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
@@ -287,6 +315,8 @@ pub enum ResponseData {
     Screenshot(ScreenshotResult),
     LogTail(LogTailResult),
     FramesWaited(WaitFramesResult),
+    GizmoState(GizmoStateData),
+    GizmoDrag(GizmoDragResult),
 }
 
 /// Response sent back to the client
