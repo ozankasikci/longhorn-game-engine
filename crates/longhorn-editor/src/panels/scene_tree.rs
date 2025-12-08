@@ -3,13 +3,18 @@ use longhorn_core::{World, Name, EntityHandle, Sprite};
 use longhorn_assets::{AssetManager, FilesystemSource};
 use crate::{EditorState, UiStateTracker};
 use std::path::PathBuf;
+use std::collections::HashSet;
 use glam::Vec2;
 
-pub struct SceneTreePanel;
+pub struct SceneTreePanel {
+    expanded_entities: HashSet<u64>, // Track which entities are expanded (using entity bits)
+}
 
 impl SceneTreePanel {
     pub fn new() -> Self {
-        Self
+        Self {
+            expanded_entities: HashSet::new(),
+        }
     }
 
     pub fn show(
