@@ -173,6 +173,50 @@ pub fn collect_descendants(world: &World, entity: EntityHandle) -> Vec<EntityId>
     descendants
 }
 
+/// Compute the world-space transform for an entity
+///
+/// Walks up the parent chain and combines transforms.
+/// If entity has no parent, returns its local transform.
+pub fn compute_global_transform(world: &World, entity: EntityHandle) -> Transform {
+    // Get entity's local transform
+    let local_transform = world.get::<Transform>(entity)
+        .map(|t| *t)
+        .unwrap_or_else(|_| Transform::new());
+
+    // If no parent, local == global
+    if let Ok(parent_comp) = world.get::<Parent>(entity) {
+        let parent = EntityHandle::new(parent_comp.get());
+        let parent_global = compute_global_transform(world, parent);
+
+        // Combine parent's global with this entity's local
+        combine_transforms(&parent_global, &local_transform)
+    } else {
+        local_transform
+    }
+}
+
+/// Combine two transforms (parent * child)
+fn combine_transforms(parent: &Transform, child: &Transform) -> Transform {
+    use glam::Vec2;
+
+    // Apply parent's scale to child's position
+    let scaled_child_pos = child.position * parent.scale;
+
+    // Rotate child's position by parent's rotation
+    let cos = parent.rotation.cos();
+    let sin = parent.rotation.sin();
+    let rotated_pos = Vec2::new(
+        scaled_child_pos.x * cos - scaled_child_pos.y * sin,
+        scaled_child_pos.x * sin + scaled_child_pos.y * cos,
+    );
+
+    Transform {
+        position: parent.position + rotated_pos,
+        rotation: parent.rotation + child.rotation,
+        scale: parent.scale * child.scale,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -337,5 +381,45 @@ mod tests {
         assert!(descendants.contains(&child1.id()));
         assert!(descendants.contains(&child2.id()));
         assert!(descendants.contains(&grandchild.id()));
+    }
+
+    #[test]
+    fn test_compute_global_transform() {
+        use glam::Vec2;
+
+        let mut world = World::new();
+
+        // Parent at (100, 0) with no rotation/scale
+        let parent = world.spawn()
+            .with(Children::new())
+            .with(Transform::from_position(Vec2::new(100.0, 0.0)))
+            .build();
+
+        // Child at local position (50, 0)
+        let child = world.spawn()
+            .with(Transform::from_position(Vec2::new(50.0, 0.0)))
+            .build();
+
+        set_parent(&mut world, child, parent).unwrap();
+
+        let global = compute_global_transform(&world, child);
+
+        // Global position should be (150, 0)
+        assert_eq!(global.position, Vec2::new(150.0, 0.0));
+    }
+
+    #[test]
+    fn test_compute_global_transform_no_parent() {
+        use glam::Vec2;
+
+        let mut world = World::new();
+        let entity = world.spawn()
+            .with(Transform::from_position(Vec2::new(100.0, 50.0)))
+            .build();
+
+        let global = compute_global_transform(&world, entity);
+
+        // Without parent, global == local
+        assert_eq!(global.position, Vec2::new(100.0, 50.0));
     }
 }
