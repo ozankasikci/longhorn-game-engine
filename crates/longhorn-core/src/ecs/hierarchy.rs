@@ -105,6 +105,55 @@ pub fn clear_parent(world: &mut World, child: EntityHandle) -> Result<(), Hierar
     Ok(())
 }
 
+/// Check if `ancestor` is an ancestor of `entity`
+fn is_ancestor(world: &World, entity: EntityHandle, ancestor: EntityHandle) -> bool {
+    if entity == ancestor {
+        return true;
+    }
+
+    if let Ok(parent_comp) = world.get::<Parent>(entity) {
+        let parent = EntityHandle::new(parent_comp.get());
+        is_ancestor(world, parent, ancestor)
+    } else {
+        false
+    }
+}
+
+/// Change an entity's parent, or set initial parent
+///
+/// If entity already has a parent, it will be removed from the old parent first.
+///
+/// # Errors
+/// - `EntityNotFound` if parent or child doesn't exist
+/// - `SelfParenting` if parent == child
+/// - `CycleDetected` if new_parent is a descendant of child
+pub fn set_parent(world: &mut World, child: EntityHandle, new_parent: EntityHandle) -> Result<(), HierarchyError> {
+    if !world.exists(child) {
+        return Err(HierarchyError::EntityNotFound(child.id()));
+    }
+    if !world.exists(new_parent) {
+        return Err(HierarchyError::EntityNotFound(new_parent.id()));
+    }
+
+    // Prevent self-parenting
+    if child == new_parent {
+        return Err(HierarchyError::SelfParenting(child.id()));
+    }
+
+    // Prevent cycles: new_parent cannot be a descendant of child
+    if is_ancestor(world, new_parent, child) {
+        return Err(HierarchyError::CycleDetected { child: child.id() });
+    }
+
+    // Remove from old parent if exists
+    clear_parent(world, child)?;
+
+    // Add to new parent
+    add_child(world, new_parent, child)?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,5 +250,47 @@ mod tests {
         // Verify child removed from old parent's Children
         let children = world.get::<Children>(parent).unwrap();
         assert_eq!(children.len(), 0);
+    }
+
+    #[test]
+    fn test_set_parent() {
+        let mut world = World::new();
+        let parent1 = world.spawn().with(Children::new()).build();
+        let parent2 = world.spawn().with(Children::new()).build();
+        let child = world.spawn().build();
+
+        // Set initial parent
+        set_parent(&mut world, child, parent1).unwrap();
+        assert_eq!(world.get::<Parent>(child).unwrap().get(), parent1.id());
+
+        // Change parent
+        set_parent(&mut world, child, parent2).unwrap();
+
+        // Verify new parent
+        assert_eq!(world.get::<Parent>(child).unwrap().get(), parent2.id());
+
+        // Verify removed from old parent
+        let children1 = world.get::<Children>(parent1).unwrap();
+        assert_eq!(children1.len(), 0);
+
+        // Verify added to new parent
+        let children2 = world.get::<Children>(parent2).unwrap();
+        assert_eq!(children2.len(), 1);
+    }
+
+    #[test]
+    fn test_set_parent_cycle_detection() {
+        let mut world = World::new();
+        let grandparent = world.spawn().with(Children::new()).build();
+        let parent = world.spawn().with(Children::new()).build();
+        let child = world.spawn().with(Children::new()).build();
+
+        // Create hierarchy: grandparent -> parent -> child
+        set_parent(&mut world, parent, grandparent).unwrap();
+        set_parent(&mut world, child, parent).unwrap();
+
+        // Try to make grandparent a child of child (creates cycle)
+        let result = set_parent(&mut world, grandparent, child);
+        assert_eq!(result, Err(HierarchyError::CycleDetected { child: grandparent.id() }));
     }
 }
