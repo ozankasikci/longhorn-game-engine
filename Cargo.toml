@@ -23,7 +23,7 @@ repository = "https://github.com/user/longhorn-game-engine-v2"
 
 [workspace.dependencies]
 # ECS
-hecs = "0.10"
+hecs = { version = "0.10", features = ["serde"] }
 
 # Math
 glam = { version = "0.27", features = ["serde"] }

@@ -1,5 +1,6 @@
 use crate::types::AssetId;
 use glam::Vec2;
+use hecs::Entity;
 use serde::{Deserialize, Serialize};
 
 /// Name component for entities
@@ -114,6 +115,61 @@ impl Sprite {
     }
 }
 
+/// Parent component - stores reference to parent entity
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Parent(pub Entity);
+
+impl Parent {
+    pub fn new(entity: Entity) -> Self {
+        Self(entity)
+    }
+
+    pub fn get(&self) -> Entity {
+        self.0
+    }
+}
+
+/// Children component - stores list of child entities
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct Children(pub Vec<Entity>);
+
+impl Children {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn with_children(children: Vec<Entity>) -> Self {
+        Self(children)
+    }
+
+    pub fn add(&mut self, entity: Entity) {
+        if !self.0.contains(&entity) {
+            self.0.push(entity);
+        }
+    }
+
+    pub fn remove(&mut self, entity: Entity) -> bool {
+        if let Some(pos) = self.0.iter().position(|&e| e == entity) {
+            self.0.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Entity> {
+        self.0.iter()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,5 +218,41 @@ mod tests {
         let sprite = Sprite::with_color(texture, Vec2::new(32.0, 32.0), color);
 
         assert_eq!(sprite.color, color);
+    }
+
+    #[test]
+    fn test_parent_component() {
+        let mut world = hecs::World::new();
+        let parent_id = world.spawn(());
+        let _child_id = world.spawn(());
+
+        let parent = Parent::new(parent_id);
+        assert_eq!(parent.get(), parent_id);
+    }
+
+    #[test]
+    fn test_children_component() {
+        let mut world = hecs::World::new();
+        let child1 = world.spawn(());
+        let child2 = world.spawn(());
+
+        let mut children = Children::new();
+        assert!(children.is_empty());
+        assert_eq!(children.len(), 0);
+
+        children.add(child1);
+        assert_eq!(children.len(), 1);
+
+        children.add(child2);
+        assert_eq!(children.len(), 2);
+
+        // Adding same child twice should not duplicate
+        children.add(child1);
+        assert_eq!(children.len(), 2);
+
+        assert!(children.remove(child1));
+        assert_eq!(children.len(), 1);
+
+        assert!(!children.remove(child1)); // Already removed
     }
 }
