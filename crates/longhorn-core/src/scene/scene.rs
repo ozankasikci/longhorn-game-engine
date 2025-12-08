@@ -523,6 +523,7 @@ impl Scene {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ecs::Children;
     use glam::Vec2;
     use std::env;
 
@@ -1053,5 +1054,116 @@ mod tests {
         assert_eq!(restored_script.path, "PlayerController.ts");
         assert_eq!(restored_script.enabled, true);
         assert_eq!(restored_script.get_property("speed"), Some(&crate::ecs::ScriptValue::Number(10.0)));
+    }
+
+    #[test]
+    fn test_hierarchical_scene_serialization() {
+        use crate::ecs::hierarchy::set_parent;
+
+        let mut world = World::new();
+        let registry = MockRegistry::new();
+
+        // Create parent entity
+        let parent = world
+            .spawn()
+            .with(Name::new("Parent"))
+            .with(Transform::from_position(Vec2::new(100.0, 100.0)))
+            .with(Children::new())
+            .build();
+
+        // Create child entity
+        let child = world
+            .spawn()
+            .with(Name::new("Child"))
+            .with(Transform::from_position(Vec2::new(50.0, 0.0)))
+            .build();
+
+        // Set up hierarchy
+        set_parent(&mut world, child, parent).unwrap();
+
+        // Create scene from world
+        let scene = Scene::from_world(&world, &registry);
+
+        // Verify structure
+        assert_eq!(scene.entities.len(), 1); // Only root entity
+        assert_eq!(scene.entities[0].children.len(), 1); // One child
+
+        // Verify parent
+        let parent_entity = &scene.entities[0];
+        assert_eq!(parent_entity.components.name, Some("Parent".to_string()));
+
+        // Verify child
+        let child_entity = &parent_entity.children[0];
+        assert_eq!(child_entity.components.name, Some("Child".to_string()));
+    }
+
+    #[test]
+    fn test_hierarchical_scene_roundtrip() {
+        use crate::ecs::hierarchy::set_parent;
+
+        let mut world1 = World::new();
+        let registry = MockRegistry::new();
+
+        // Create grandparent -> parent -> child hierarchy
+        let grandparent = world1
+            .spawn()
+            .with(Name::new("Grandparent"))
+            .with(Transform::from_position(Vec2::new(0.0, 0.0)))
+            .with(Children::new())
+            .build();
+
+        let parent = world1
+            .spawn()
+            .with(Name::new("Parent"))
+            .with(Transform::from_position(Vec2::new(100.0, 0.0)))
+            .with(Children::new())
+            .build();
+
+        let child = world1
+            .spawn()
+            .with(Name::new("Child"))
+            .with(Transform::from_position(Vec2::new(50.0, 0.0)))
+            .build();
+
+        set_parent(&mut world1, parent, grandparent).unwrap();
+        set_parent(&mut world1, child, parent).unwrap();
+
+        // Serialize
+        let scene = Scene::from_world(&world1, &registry);
+
+        // Deserialize into new world
+        let mut world2 = World::new();
+        let mut loader = MockAssetLoader::new();
+        scene.spawn_into(&mut world2, &mut loader).unwrap();
+
+        // Verify hierarchy was restored
+        let entities: Vec<_> = world2.query::<&Name>().iter().map(|(e, n)| (e, n.as_str().to_string())).collect();
+        assert_eq!(entities.len(), 3);
+
+        // Find entities by name
+        let find_by_name = |name: &str| -> EntityHandle {
+            entities.iter()
+                .find(|(_, n)| n == name)
+                .map(|(e, _)| EntityHandle::new(*e))
+                .unwrap()
+        };
+
+        let gp = find_by_name("Grandparent");
+        let p = find_by_name("Parent");
+        let c = find_by_name("Child");
+
+        // Verify parent relationships
+        assert!(world2.get::<crate::ecs::Parent>(gp).is_err()); // No parent
+        assert_eq!(world2.get::<crate::ecs::Parent>(p).unwrap().get(), gp.id());
+        assert_eq!(world2.get::<crate::ecs::Parent>(c).unwrap().get(), p.id());
+
+        // Verify children relationships
+        let gp_children = world2.get::<crate::ecs::Children>(gp).unwrap();
+        assert_eq!(gp_children.len(), 1);
+        assert!(gp_children.iter().any(|&e| e == p.id()));
+
+        let p_children = world2.get::<crate::ecs::Children>(p).unwrap();
+        assert_eq!(p_children.len(), 1);
+        assert!(p_children.iter().any(|&e| e == c.id()));
     }
 }
