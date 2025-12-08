@@ -77,8 +77,14 @@ impl InspectorPanel {
             });
             ui.horizontal(|ui| {
                 ui.label("Scale:");
-                ui.add(egui::DragValue::new(&mut transform.scale.x).prefix("x: ").speed(0.01));
-                ui.add(egui::DragValue::new(&mut transform.scale.y).prefix("y: ").speed(0.01));
+                let x_changed = ui.add(egui::DragValue::new(&mut transform.scale.x).prefix("x: ").speed(0.01)).changed();
+                let y_changed = ui.add(egui::DragValue::new(&mut transform.scale.y).prefix("y: ").speed(0.01)).changed();
+
+                // Clamp scale to prevent negative or zero values
+                if x_changed || y_changed {
+                    transform.scale.x = transform.scale.x.max(0.01);
+                    transform.scale.y = transform.scale.y.max(0.01);
+                }
             });
         }
 

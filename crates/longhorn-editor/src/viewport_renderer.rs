@@ -555,7 +555,7 @@ impl EditorViewportRenderer {
         for (_entity_id, (sprite, transform)) in world.query::<(&Sprite, &Transform)>().iter() {
             batch.add(SpriteInstance {
                 position: transform.position,
-                size: sprite.size,
+                size: sprite.size * transform.scale, // Apply transform scale to sprite size
                 color: Color::new(sprite.color[0], sprite.color[1], sprite.color[2], sprite.color[3]),
                 texture: sprite.texture,
                 z_index: 0,
@@ -776,7 +776,7 @@ impl EditorViewportRenderer {
 
             batch.add(SpriteInstance {
                 position: transform.position,
-                size: sprite.size,
+                size: sprite.size * transform.scale, // Apply transform scale to sprite size
                 color: Color::new(sprite.color[0], sprite.color[1], sprite.color[2], sprite.color[3]),
                 texture: sprite.texture,
                 z_index: 0,

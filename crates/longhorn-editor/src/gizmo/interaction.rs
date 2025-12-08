@@ -36,8 +36,9 @@ pub fn hit_test_gizmo(
     match mode {
         GizmoMode::None => None,
         GizmoMode::Move => hit_test_move_gizmo(mouse_pos, screen_pos, config),
-        GizmoMode::Rotate | GizmoMode::Scale => {
-            // TODO: Implement for rotate and scale
+        GizmoMode::Scale => hit_test_scale_gizmo(mouse_pos, screen_pos, config),
+        GizmoMode::Rotate => {
+            // TODO: Implement for rotate
             None
         }
     }
@@ -76,6 +77,35 @@ fn hit_test_move_gizmo(
     None
 }
 
+/// Hit test for scale gizmo handles
+fn hit_test_scale_gizmo(
+    mouse_pos: Vec2,
+    screen_pos: Vec2,
+    config: &GizmoConfig,
+) -> Option<GizmoHandle> {
+    let cube_half_size = config.scale_cube_size / 2.0;
+    let center_half_size = config.center_handle_size / 2.0;
+
+    // Check center cube first (highest priority for uniform scaling)
+    if point_in_rect(mouse_pos, screen_pos, center_half_size) {
+        return Some(GizmoHandle::ScaleXY);
+    }
+
+    // Check X-axis cube at end of X axis
+    let x_cube_pos = screen_pos + Vec2::new(config.arrow_length, 0.0);
+    if point_in_rect(mouse_pos, x_cube_pos, cube_half_size) {
+        return Some(GizmoHandle::ScaleX);
+    }
+
+    // Check Y-axis cube at end of Y axis (negative Y for screen coords)
+    let y_cube_pos = screen_pos - Vec2::new(0.0, config.arrow_length);
+    if point_in_rect(mouse_pos, y_cube_pos, cube_half_size) {
+        return Some(GizmoHandle::ScaleY);
+    }
+
+    None
+}
+
 /// Calculate new transform based on drag delta
 pub fn update_transform_from_drag(
     handle: GizmoHandle,
@@ -85,6 +115,7 @@ pub fn update_transform_from_drag(
     let mut new_transform = drag_start_transform;
 
     match handle {
+        // Move gizmo handles
         GizmoHandle::MoveX => {
             // Only move horizontally
             new_transform.position.x += world_delta.x;
@@ -98,8 +129,32 @@ pub fn update_transform_from_drag(
             new_transform.position.x += world_delta.x;
             new_transform.position.y += world_delta.y;
         }
+
+        // Scale gizmo handles
+        GizmoHandle::ScaleX => {
+            // Scale horizontally based on X delta
+            // Use a multiplier for more intuitive scaling (0.01 = 1% per pixel)
+            let scale_factor = 1.0 + (world_delta.x * 0.01);
+            new_transform.scale.x = (drag_start_transform.scale.x * scale_factor).max(0.01);
+        }
+        GizmoHandle::ScaleY => {
+            // Scale vertically based on Y delta (inverted because screen Y is flipped)
+            let scale_factor = 1.0 - (world_delta.y * 0.01);
+            new_transform.scale.y = (drag_start_transform.scale.y * scale_factor).max(0.01);
+        }
+        GizmoHandle::ScaleXY => {
+            // Uniform scaling based on combined delta magnitude
+            // Use the larger absolute component for more responsive scaling
+            let delta_magnitude = world_delta.x.abs().max(world_delta.y.abs());
+            let direction = if world_delta.x + world_delta.y > 0.0 { 1.0 } else { -1.0 };
+            let scale_factor = 1.0 + (delta_magnitude * direction * 0.01);
+
+            new_transform.scale.x = (drag_start_transform.scale.x * scale_factor).max(0.01);
+            new_transform.scale.y = (drag_start_transform.scale.y * scale_factor).max(0.01);
+        }
+
         _ => {
-            // TODO: Implement rotate and scale
+            // TODO: Implement rotate handles
         }
     }
 
