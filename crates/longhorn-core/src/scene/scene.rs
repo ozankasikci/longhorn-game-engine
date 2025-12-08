@@ -242,7 +242,80 @@ impl Scene {
 
         Ok(scene)
     }
+}
 
+/// Recursively spawn an entity and its children
+fn spawn_entity<L: AssetLoader>(
+    world: &mut World,
+    asset_loader: &mut L,
+    serialized: &SerializedEntity,
+    parent: Option<EntityHandle>,
+) -> Result<EntityHandle> {
+    let mut builder = world.spawn();
+
+    // Add Name component if present
+    if let Some(ref name) = serialized.components.name {
+        builder = builder.with(Name::new(name.clone()));
+    }
+
+    // Add Transform component if present
+    if let Some(ref transform) = serialized.components.transform {
+        builder = builder.with(Transform::from(transform.clone()));
+    }
+
+    // Add Sprite component if present
+    if let Some(ref sprite_data) = serialized.components.sprite {
+        // Try to load the texture
+        let texture_id = match asset_loader.load_texture(&sprite_data.texture_path) {
+            Ok(id) => Some(id),
+            Err(_) => {
+                // Fallback to loading by ID
+                asset_loader
+                    .load_texture_by_id(AssetId(sprite_data.texture_id))
+                    .ok()
+            }
+        };
+
+        // Only add Sprite if we successfully loaded a texture
+        if let Some(texture_id) = texture_id {
+            builder = builder.with(Sprite {
+                texture: texture_id,
+                size: glam::Vec2::new(sprite_data.size[0], sprite_data.size[1]),
+                color: sprite_data.color,
+                flip_x: sprite_data.flip_x,
+                flip_y: sprite_data.flip_y,
+            });
+        }
+    }
+
+    // Add Script component if present
+    if let Some(ref script) = serialized.components.script {
+        builder = builder.with(script.clone());
+    }
+
+    // Add Enabled component if present
+    if let Some(enabled) = serialized.components.enabled {
+        builder = builder.with(Enabled::new(enabled));
+    }
+
+    // Build the entity
+    let entity_handle = builder.build();
+
+    // Set parent if provided
+    if let Some(parent_handle) = parent {
+        crate::ecs::hierarchy::add_child(world, parent_handle, entity_handle)
+            .map_err(|e| LonghornError::InvalidOperation(format!("Failed to set parent: {:?}", e)))?;
+    }
+
+    // Recursively spawn children
+    for child in &serialized.children {
+        spawn_entity(world, asset_loader, child, Some(entity_handle))?;
+    }
+
+    Ok(entity_handle)
+}
+
+impl Scene {
     /// Spawn all entities from this scene into a World
     ///
     /// # Arguments
@@ -255,88 +328,12 @@ impl Scene {
         &self,
         world: &mut World,
         asset_loader: &mut L,
-    ) -> Result<HashMap<u64, crate::ecs::EntityHandle>> {
+    ) -> Result<HashMap<u64, EntityHandle>> {
         let mut entity_map = HashMap::new();
 
         for serialized_entity in &self.entities {
-            let mut builder = world.spawn();
-
-            // Add Name component if present
-            if let Some(ref name) = serialized_entity.components.name {
-                builder = builder.with(Name::new(name.clone()));
-            }
-
-            // Add Transform component if present
-            if let Some(ref transform) = serialized_entity.components.transform {
-                builder = builder.with(Transform::from(transform.clone()));
-            }
-
-            // Add Sprite component if present
-            if let Some(ref sprite_data) = serialized_entity.components.sprite {
-                // Try to load the texture
-                let texture_id = match asset_loader.load_texture(&sprite_data.texture_path) {
-                    Ok(id) => {
-                        // Verify ID matches if possible (warn on mismatch)
-                        if id.0 != sprite_data.texture_id {
-                            eprintln!(
-                                "Warning: Texture ID mismatch for '{}': expected {}, got {}",
-                                sprite_data.texture_path, sprite_data.texture_id, id.0
-                            );
-                        }
-                        id
-                    }
-                    Err(_) => {
-                        // Fallback: try loading by ID
-                        match asset_loader.load_texture_by_id(AssetId::new(sprite_data.texture_id)) {
-                            Ok(id) => {
-                                eprintln!(
-                                    "Info: Loaded texture by ID {} (path '{}' not found)",
-                                    sprite_data.texture_id, sprite_data.texture_path
-                                );
-                                id
-                            }
-                            Err(e) => {
-                                eprintln!(
-                                    "Warning: Failed to load texture '{}': {}. Skipping Sprite component.",
-                                    sprite_data.texture_path, e
-                                );
-                                // Skip the sprite component but continue with the entity
-                                // Build what we have so far
-                                if let Some(ref enabled) = serialized_entity.components.enabled {
-                                    builder = builder.with(Enabled::new(*enabled));
-                                }
-                                let handle = builder.build();
-                                entity_map.insert(serialized_entity.id, handle);
-                                continue;
-                            }
-                        }
-                    }
-                };
-
-                use glam::Vec2;
-                let sprite = Sprite {
-                    texture: texture_id,
-                    size: Vec2::new(sprite_data.size[0], sprite_data.size[1]),
-                    color: sprite_data.color,
-                    flip_x: sprite_data.flip_x,
-                    flip_y: sprite_data.flip_y,
-                };
-
-                builder = builder.with(sprite);
-            }
-
-            // Add Script component if present
-            if let Some(ref script) = serialized_entity.components.script {
-                builder = builder.with(script.clone());
-            }
-
-            // Add Enabled component if present
-            if let Some(ref enabled) = serialized_entity.components.enabled {
-                builder = builder.with(Enabled::new(*enabled));
-            }
-
-            let handle = builder.build();
-            entity_map.insert(serialized_entity.id, handle);
+            let entity_handle = spawn_entity(world, asset_loader, serialized_entity, None)?;
+            entity_map.insert(serialized_entity.id, entity_handle);
         }
 
         Ok(entity_map)
