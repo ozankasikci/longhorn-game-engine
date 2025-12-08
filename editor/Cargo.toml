@@ -11,6 +11,7 @@ path = "src/main.rs"
 longhorn-core = { workspace = true }
 longhorn-engine = { workspace = true }
 longhorn-editor = { workspace = true }
+longhorn-remote = { workspace = true }
 
 # Windowing
 winit = { workspace = true }

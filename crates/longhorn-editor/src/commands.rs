@@ -6,7 +6,7 @@
 use longhorn_core::{AssetId, EntityHandle, EntityId, Name, Sprite, Transform, Vec2};
 use longhorn_engine::Engine;
 
-use crate::remote::{
+use longhorn_remote::{
     AssetBrowserData, AssetFileInfo, AssetInfo, ClickableInfo, ComponentInfo, EntityDetails,
     EntityDump, EntityInfo, GizmoDragResult, GizmoStateData, LogEntry, LogTailResult, PanelInfo,
     RemoteCommand, RemoteResponse, RenderStateData, ResponseData, ScreenshotResult,

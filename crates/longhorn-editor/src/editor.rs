@@ -5,7 +5,7 @@ use longhorn_scripting::set_console_callback;
 use std::sync::Arc;
 use crate::{EditorState, SceneTreePanel, InspectorPanel, ViewportPanel, Toolbar, ToolbarAction, ConsolePanel, ScriptConsole, EditorAction, ScriptEditorState, ScriptEditorPanel, ScriptError};
 use crate::docking::{PanelType, PanelRenderer, create_default_dock_state, show_dock_area};
-use crate::remote::{RemoteCommand, RemoteResponse};
+use longhorn_remote::{RemoteCommand, RemoteResponse};
 use crate::ui_state::UiStateTracker;
 use crate::{ProjectPanelState, ProjectPanel, ProjectPanelAction, DirectoryNode, ContextAction};
 use crate::texture_picker::{TexturePickerState, TexturePickerAction};

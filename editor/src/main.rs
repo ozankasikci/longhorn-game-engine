@@ -5,8 +5,9 @@ use winit::{
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
-use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer, RemoteServer, apply_theme};
+use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer, apply_theme};
 use longhorn_engine::Engine;
+use longhorn_remote::RemoteServer;
 use longhorn_core::{Name, Transform, Sprite, Enabled, AssetId, Script};
 use glam::Vec2;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};

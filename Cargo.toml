@@ -11,6 +11,7 @@ members = [
     "crates/longhorn-editor",
     "crates/longhorn-events",
     "crates/longhorn-test-client",
+    "crates/longhorn-remote",
     "editor",
 ]
 
@@ -67,3 +68,4 @@ longhorn-mobile = { path = "crates/longhorn-mobile" }
 longhorn-editor = { path = "crates/longhorn-editor" }
 longhorn-events = { path = "crates/longhorn-events" }
 longhorn-test-client = { path = "crates/longhorn-test-client" }
+longhorn-remote = { path = "crates/longhorn-remote" }

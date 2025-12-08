@@ -1,11 +1,10 @@
-// crates/longhorn-editor/src/remote_server.rs
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::path::Path;
 
-use crate::remote::{PendingCommand, RemoteCommand, RemoteResponse};
+use crate::types::{PendingCommand, RemoteCommand, RemoteResponse};
 
 const SOCKET_PATH: &str = "/tmp/longhorn-editor.sock";
 
