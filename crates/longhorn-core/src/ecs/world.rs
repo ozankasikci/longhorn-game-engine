@@ -28,9 +28,31 @@ impl World {
 
     /// Despawn an entity
     pub fn despawn(&mut self, entity: EntityHandle) -> Result<()> {
-        self.world
-            .despawn(entity.id)
-            .map_err(|_| LonghornError::EntityNotFound(entity.id))
+        use crate::ecs::hierarchy::{collect_descendants, clear_parent};
+
+        if !self.exists(entity) {
+            return Err(LonghornError::EntityNotFound(entity.id));
+        }
+
+        // Collect all descendants before deleting
+        let descendants = collect_descendants(self, entity);
+
+        // Remove from parent's Children list if has parent
+        clear_parent(self, entity).ok();
+
+        // Despawn the entity
+        self.world.despawn(entity.id)
+            .map_err(|_| LonghornError::EntityNotFound(entity.id))?;
+
+        // Despawn all descendants
+        for descendant in descendants {
+            let descendant_handle = EntityHandle::new(descendant);
+            if self.exists(descendant_handle) {
+                self.world.despawn(descendant).ok();
+            }
+        }
+
+        Ok(())
     }
 
     /// Check if an entity exists
@@ -355,5 +377,27 @@ mod tests {
         assert!(world.has::<Transform>(entity));
         assert!(world.has::<Enabled>(entity));
         assert!(world.has::<Sprite>(entity));
+    }
+
+    #[test]
+    fn test_despawn_cascade_delete() {
+        use crate::ecs::hierarchy::set_parent;
+        use crate::ecs::Children;
+
+        let mut world = World::new();
+        let parent = world.spawn().with(Children::new()).build();
+        let child1 = world.spawn().with(Children::new()).build();
+        let grandchild = world.spawn().build();
+
+        set_parent(&mut world, child1, parent).unwrap();
+        set_parent(&mut world, grandchild, child1).unwrap();
+
+        // Despawn parent should cascade to descendants
+        world.despawn(parent).unwrap();
+
+        // All should be despawned
+        assert!(!world.exists(parent));
+        assert!(!world.exists(child1));
+        assert!(!world.exists(grandchild));
     }
 }
