@@ -34,8 +34,8 @@ impl EditorCamera {
     }
 
     pub fn handle_input(&mut self, input: &CameraInput) {
-        // Middle mouse button - Pan
-        if input.mmb_held {
+        // Middle mouse button or Right mouse button - Pan
+        if input.mmb_held || input.rmb_held {
             let pan_speed = self.pan_speed();
             self.transform.position.x -= input.mouse_delta.x * pan_speed;
             self.transform.position.y += input.mouse_delta.y * pan_speed;

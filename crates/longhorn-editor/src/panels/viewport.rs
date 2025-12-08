@@ -183,8 +183,23 @@ impl ViewportPanel {
             camera_input.mmb_held = ui.input(|i| {
                 i.pointer.button_down(egui::PointerButton::Middle)
             });
+            camera_input.rmb_held = ui.input(|i| {
+                i.pointer.button_down(egui::PointerButton::Secondary)
+            });
+
+            // Get mouse delta - need to check both primary drag (for gizmos) and manual delta for RMB
             let drag_delta = response.drag_delta();
-            camera_input.mouse_delta = Vec2::new(drag_delta.x, drag_delta.y);
+
+            // For RMB, we need to manually get the pointer delta since Sense doesn't track secondary button drags
+            let pointer_delta = ui.input(|i| i.pointer.delta());
+
+            // Use pointer delta if RMB is held, otherwise use the response drag delta
+            if camera_input.rmb_held {
+                camera_input.mouse_delta = Vec2::new(pointer_delta.x, pointer_delta.y);
+            } else {
+                camera_input.mouse_delta = Vec2::new(drag_delta.x, drag_delta.y);
+            }
+
             camera_input.scroll_delta = ui.input(|i| i.smooth_scroll_delta.y);
 
             // Check for F key to frame selected entity
