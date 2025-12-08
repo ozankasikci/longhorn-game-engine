@@ -29,6 +29,9 @@ pub trait AssetLoader {
 pub struct SerializedEntity {
     pub id: u64,
     pub components: SerializedComponents,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<SerializedEntity>,
 }
 
 /// Container for all component data
@@ -171,6 +174,7 @@ impl Scene {
             entities.push(SerializedEntity {
                 id: entity_u64,
                 components,
+                children: Vec::new(),
             });
         }
 
