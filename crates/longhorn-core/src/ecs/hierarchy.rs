@@ -56,6 +56,55 @@ pub fn add_child(world: &mut World, parent: EntityHandle, child: EntityHandle) -
     Ok(())
 }
 
+/// Remove a child entity from its parent
+///
+/// # Errors
+/// - `EntityNotFound` if parent or child doesn't exist
+pub fn remove_child(world: &mut World, parent: EntityHandle, child: EntityHandle) -> Result<(), HierarchyError> {
+    if !world.exists(parent) {
+        return Err(HierarchyError::EntityNotFound(parent.id()));
+    }
+    if !world.exists(child) {
+        return Err(HierarchyError::EntityNotFound(child.id()));
+    }
+
+    // Remove from parent's Children component
+    if let Ok(mut children) = world.get_mut::<Children>(parent) {
+        children.remove(child.id());
+    }
+
+    // Remove Parent component from child
+    world.remove::<Parent>(child).ok();
+
+    Ok(())
+}
+
+/// Remove an entity from its parent
+///
+/// # Errors
+/// - `EntityNotFound` if child doesn't exist
+pub fn clear_parent(world: &mut World, child: EntityHandle) -> Result<(), HierarchyError> {
+    if !world.exists(child) {
+        return Err(HierarchyError::EntityNotFound(child.id()));
+    }
+
+    // Get parent before removing component
+    if let Ok(parent_comp) = world.get::<Parent>(child) {
+        let parent_id = parent_comp.get();
+        let parent = EntityHandle::new(parent_id);
+
+        // Remove from old parent's Children list
+        if let Ok(mut children) = world.get_mut::<Children>(parent) {
+            children.remove(child.id());
+        }
+    }
+
+    // Remove Parent component
+    world.remove::<Parent>(child).ok();
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,5 +163,43 @@ mod tests {
 
         let result = add_child(&mut world, entity, entity);
         assert_eq!(result, Err(HierarchyError::SelfParenting(entity.id())));
+    }
+
+    #[test]
+    fn test_remove_child() {
+        let mut world = World::new();
+        let parent = world.spawn().with(Children::new()).build();
+        let child = world.spawn().build();
+
+        add_child(&mut world, parent, child).unwrap();
+
+        // Remove child from parent
+        remove_child(&mut world, parent, child).unwrap();
+
+        // Verify Parent component removed from child
+        assert!(world.get::<Parent>(child).is_err());
+
+        // Verify child removed from parent's Children
+        let children = world.get::<Children>(parent).unwrap();
+        assert_eq!(children.len(), 0);
+    }
+
+    #[test]
+    fn test_clear_parent() {
+        let mut world = World::new();
+        let parent = world.spawn().with(Children::new()).build();
+        let child = world.spawn().build();
+
+        add_child(&mut world, parent, child).unwrap();
+
+        // Clear child's parent
+        clear_parent(&mut world, child).unwrap();
+
+        // Verify Parent component removed
+        assert!(world.get::<Parent>(child).is_err());
+
+        // Verify child removed from old parent's Children
+        let children = world.get::<Children>(parent).unwrap();
+        assert_eq!(children.len(), 0);
     }
 }
