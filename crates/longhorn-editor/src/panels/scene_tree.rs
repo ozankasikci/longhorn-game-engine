@@ -52,6 +52,79 @@ impl SceneTreePanel {
         }
     }
 
+    /// Recursively render an entity node in the tree
+    fn show_entity_node(
+        &mut self,
+        ui: &mut Ui,
+        node: &EntityNode,
+        world: &mut World,
+        state: &mut EditorState,
+        ui_state: &mut UiStateTracker,
+        game_path: Option<&std::path::Path>,
+        asset_manager: &mut AssetManager<FilesystemSource>,
+        depth: usize,
+    ) {
+        let entity = node.entity;
+        let entity_bits = entity.to_bits().get();
+        let is_selected = state.is_selected(entity);
+        let has_children = !node.children.is_empty();
+        let is_expanded = self.expanded_entities.contains(&entity_bits);
+
+        ui.horizontal(|ui| {
+            // Indent based on depth
+            ui.add_space(depth as f32 * 16.0);
+
+            // Expand/collapse button if has children
+            if has_children {
+                let arrow = if is_expanded { "▼" } else { "▶" };
+                if ui.small_button(arrow).clicked() {
+                    if is_expanded {
+                        self.expanded_entities.remove(&entity_bits);
+                    } else {
+                        self.expanded_entities.insert(entity_bits);
+                    }
+                }
+            } else {
+                // Add spacing to align childless entities
+                ui.add_space(20.0);
+            }
+
+            // Register as clickable for remote control
+            let element_id = format!("entity_{}", entity.id());
+            ui_state.register_clickable(&element_id, &node.name, "selectable");
+
+            // Check if should be triggered remotely
+            let should_trigger = ui_state.take_pending_trigger()
+                .map(|id| id == element_id)
+                .unwrap_or(false);
+
+            // Entity name (selectable)
+            let response = ui.selectable_label(is_selected, &node.name);
+
+            if response.clicked() || should_trigger {
+                log::info!("SceneTree - selecting entity '{}': ID {} (raw: {:?}, to_bits: {})",
+                    node.name, entity.id(), entity, entity_bits);
+                state.select(Some(entity));
+            }
+        });
+
+        // Recursively show children if expanded
+        if is_expanded {
+            for child in &node.children {
+                self.show_entity_node(
+                    ui,
+                    child,
+                    world,
+                    state,
+                    ui_state,
+                    game_path,
+                    asset_manager,
+                    depth + 1,
+                );
+            }
+        }
+    }
+
     pub fn show(
         &mut self,
         ui: &mut Ui,
