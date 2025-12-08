@@ -154,6 +154,25 @@ pub fn set_parent(world: &mut World, child: EntityHandle, new_parent: EntityHand
     Ok(())
 }
 
+/// Recursively collect all descendants of an entity
+///
+/// Returns a Vec of all descendants in depth-first order.
+/// Used for cascade deletion.
+pub fn collect_descendants(world: &World, entity: EntityHandle) -> Vec<EntityId> {
+    let mut descendants = Vec::new();
+
+    if let Ok(children) = world.get::<Children>(entity) {
+        for &child in children.iter() {
+            descendants.push(child);
+            // Recursively collect grandchildren
+            let child_handle = EntityHandle::new(child);
+            descendants.extend(collect_descendants(world, child_handle));
+        }
+    }
+
+    descendants
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -292,5 +311,31 @@ mod tests {
         // Try to make grandparent a child of child (creates cycle)
         let result = set_parent(&mut world, grandparent, child);
         assert_eq!(result, Err(HierarchyError::CycleDetected { child: grandparent.id() }));
+    }
+
+    #[test]
+    fn test_collect_descendants() {
+        let mut world = World::new();
+        let root = world.spawn().with(Children::new()).build();
+        let child1 = world.spawn().with(Children::new()).build();
+        let child2 = world.spawn().with(Children::new()).build();
+        let grandchild = world.spawn().build();
+
+        // Create hierarchy:
+        //   root
+        //   ├── child1
+        //   │   └── grandchild
+        //   └── child2
+        set_parent(&mut world, child1, root).unwrap();
+        set_parent(&mut world, child2, root).unwrap();
+        set_parent(&mut world, grandchild, child1).unwrap();
+
+        let descendants = collect_descendants(&world, root);
+
+        // Should return all descendants in depth-first order
+        assert_eq!(descendants.len(), 3);
+        assert!(descendants.contains(&child1.id()));
+        assert!(descendants.contains(&child2.id()));
+        assert!(descendants.contains(&grandchild.id()));
     }
 }
