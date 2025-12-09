@@ -132,19 +132,25 @@ impl SceneTreePanel {
 
         // Perform reparenting if drop occurred
         if let Some(dragged_bits) = reparent_target {
-            // Find the dragged entity by reconstructing it from bits
-            let dragged_entity = hecs::Entity::from_bits(dragged_bits).unwrap();
-            let dragged_handle = EntityHandle::new(dragged_entity);
-            let target_handle = EntityHandle::new(entity);
+            // Find the dragged entity (safely handle case where entity was deleted during drag)
+            if let Some(dragged_entity) = world.inner().iter()
+                .find(|e| e.entity().to_bits().get() == dragged_bits)
+                .map(|e| e.entity())
+            {
+                let dragged_handle = EntityHandle::new(dragged_entity);
+                let target_handle = EntityHandle::new(entity);
 
-            // Use hierarchy system to set parent with cycle detection
-            match longhorn_core::ecs::hierarchy::set_parent(world, dragged_handle, target_handle) {
-                Ok(()) => {
-                    log::info!("Reparented entity {} to {}", dragged_entity.id(), entity.id());
+                // Use hierarchy system to set parent with cycle detection
+                match longhorn_core::ecs::hierarchy::set_parent(world, dragged_handle, target_handle) {
+                    Ok(()) => {
+                        log::info!("Reparented entity {} to {}", dragged_entity.id(), entity.id());
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to reparent: {:?}", e);
+                    }
                 }
-                Err(e) => {
-                    log::warn!("Failed to reparent: {:?}", e);
-                }
+            } else {
+                log::warn!("Dropped entity no longer exists (bits: {})", dragged_bits);
             }
         }
 
