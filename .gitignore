@@ -9,3 +9,5 @@ Cargo.lock
 .worktrees/
 .playwright-mcp/
 **/.longhorn/
+docs/
+.claude/
