@@ -228,6 +228,61 @@ impl SceneTreePanel {
                 0, // depth = 0 for root
             );
         }
+
+        // Add drop zone at bottom to make entities root-level
+        ui.add_space(10.0);
+        let (rect, response) = ui.allocate_exact_size(
+            egui::vec2(ui.available_width(), 30.0),
+            egui::Sense::hover(),
+        );
+
+        // Visual feedback for drop zone
+        if response.hovered() && ui.input(|i| i.pointer.any_down()) {
+            ui.painter().rect_filled(
+                rect,
+                2.0,
+                egui::Color32::from_rgba_premultiplied(100, 180, 255, 30),
+            );
+            ui.painter().text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "Drop here to make root entity",
+                egui::FontId::default(),
+                egui::Color32::from_rgb(100, 180, 255),
+            );
+        } else {
+            ui.painter().rect_stroke(
+                rect,
+                2.0,
+                egui::Stroke::new(1.0, ui.style().visuals.widgets.noninteractive.bg_stroke.color),
+            );
+            ui.painter().text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "Drop here to make root entity",
+                egui::FontId::default(),
+                ui.style().visuals.text_color(),
+            );
+        }
+
+        // Check for drop on root zone
+        if let Some(dropped_entity_bits) = response.dnd_release_payload::<u64>() {
+            // Find the entity and clear its parent
+            if let Some(dropped_entity) = world.inner().iter()
+                .find(|e| e.entity().to_bits().get() == *dropped_entity_bits)
+                .map(|e| e.entity())
+            {
+                let handle = EntityHandle::new(dropped_entity);
+                match longhorn_core::ecs::hierarchy::clear_parent(world, handle) {
+                    Ok(()) => {
+                        log::info!("Cleared parent for entity {} (now root)", dropped_entity.id());
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to clear parent: {:?}", e);
+                    }
+                }
+            }
+        }
     }
 }
 
