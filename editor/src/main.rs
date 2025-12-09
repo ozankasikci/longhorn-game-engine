@@ -44,13 +44,14 @@ impl EditorApp {
     fn new() -> Self {
         let mut engine = Engine::new_headless();
 
-        // Auto-load test_project
+        // Auto-load examples/test-project
         let test_project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join("test_project");
+            .join("examples")
+            .join("test-project");
         if let Err(e) = engine.load_game(&test_project) {
-            log::warn!("Failed to auto-load test_project: {}", e);
+            log::warn!("Failed to auto-load examples/test-project: {}", e);
         } else {
             log::info!("Auto-loaded game from: {:?}", test_project);
         }
