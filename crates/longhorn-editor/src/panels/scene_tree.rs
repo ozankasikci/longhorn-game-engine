@@ -70,7 +70,7 @@ impl SceneTreePanel {
 
         let mut reparent_target = None;
 
-        let response = ui.horizontal(|ui| {
+        let horizontal_response = ui.horizontal(|ui| {
             // Indent based on depth
             ui.add_space(depth as f32 * 16.0);
 
@@ -98,31 +98,49 @@ impl SceneTreePanel {
                 .map(|id| id == element_id)
                 .unwrap_or(false);
 
-            // Entity name (selectable) - wrapped as drag source
-            let label_response = ui.selectable_label(is_selected, &node.name);
+            // Use egui's dnd_drag_source for proper drag-and-drop support
+            let drag_source_id = egui::Id::new(("scene_tree_entity", entity_bits));
+            let drag_response = ui.dnd_drag_source(drag_source_id, entity_bits, |ui| {
+                let label_response = ui.selectable_label(is_selected, &node.name);
 
-            if label_response.clicked() || should_trigger {
-                log::info!("SceneTree - selecting entity '{}': ID {} (raw: {:?}, to_bits: {})",
-                    node.name, entity.id(), entity, entity_bits);
-                state.select(Some(entity));
-            }
+                if label_response.clicked() || should_trigger {
+                    log::info!("SceneTree - selecting entity '{}': ID {} (raw: {:?}, to_bits: {})",
+                        node.name, entity.id(), entity, entity_bits);
+                    state.select(Some(entity));
+                }
 
-            // Make the label a drag source
-            label_response.dnd_set_drag_payload(entity_bits);
+                label_response
+            });
 
-            label_response
-        }).inner;
+            log::debug!("SceneTree DND: Set drag source for entity {} ({}), is_dragged: {}",
+                entity.id(), node.name, drag_response.response.dragged());
+
+            drag_response.response
+        });
+
+        let response = horizontal_response.inner;
+
+        // Check if something is being dragged over this entity
+        let can_accept_payload = response.dnd_hover_payload::<u64>().is_some();
+        if can_accept_payload {
+            log::info!("SceneTree DND: Hover detected on entity {} ({})", entity.id(), node.name);
+        }
 
         // Check if something was dropped on this entity
         if let Some(dropped_entity_bits) = response.dnd_release_payload::<u64>() {
+            log::info!("SceneTree DND: Drop detected! Dropped {} onto entity {} ({})",
+                dropped_entity_bits, entity.id(), node.name);
             // Don't allow dropping on self
             if *dropped_entity_bits != entity_bits {
+                log::info!("SceneTree DND: Valid drop (not self), will reparent");
                 reparent_target = Some(*dropped_entity_bits);
+            } else {
+                log::warn!("SceneTree DND: Dropping on self, ignoring");
             }
         }
 
         // Highlight when hovering during drag
-        if response.hovered() && ui.input(|i| i.pointer.any_down()) {
+        if can_accept_payload {
             ui.painter().rect_stroke(
                 response.rect,
                 2.0,
@@ -132,6 +150,7 @@ impl SceneTreePanel {
 
         // Perform reparenting if drop occurred
         if let Some(dragged_bits) = reparent_target {
+            log::info!("SceneTree DND: Attempting to reparent entity bits {}", dragged_bits);
             // Find the dragged entity (safely handle case where entity was deleted during drag)
             if let Some(dragged_entity) = world.inner().iter()
                 .find(|e| e.entity().to_bits().get() == dragged_bits)
@@ -140,17 +159,21 @@ impl SceneTreePanel {
                 let dragged_handle = EntityHandle::new(dragged_entity);
                 let target_handle = EntityHandle::new(entity);
 
+                log::info!("SceneTree DND: Found dragged entity {}, setting parent to {}",
+                    dragged_entity.id(), entity.id());
+
                 // Use hierarchy system to set parent with cycle detection
                 match longhorn_core::ecs::hierarchy::set_parent(world, dragged_handle, target_handle) {
                     Ok(()) => {
-                        log::info!("Reparented entity {} to {}", dragged_entity.id(), entity.id());
+                        log::info!("SceneTree DND: SUCCESS - Reparented entity {} to {}",
+                            dragged_entity.id(), entity.id());
                     }
                     Err(e) => {
-                        log::warn!("Failed to reparent: {:?}", e);
+                        log::warn!("SceneTree DND: FAILED to reparent: {:?}", e);
                     }
                 }
             } else {
-                log::warn!("Dropped entity no longer exists (bits: {})", dragged_bits);
+                log::warn!("SceneTree DND: Dropped entity no longer exists (bits: {})", dragged_bits);
             }
         }
 
@@ -267,20 +290,24 @@ impl SceneTreePanel {
 
         // Check for drop on root zone
         if let Some(dropped_entity_bits) = response.dnd_release_payload::<u64>() {
+            log::info!("SceneTree DND: Drop detected on root zone! Entity bits: {}", dropped_entity_bits);
             // Find the entity and clear its parent
             if let Some(dropped_entity) = world.inner().iter()
                 .find(|e| e.entity().to_bits().get() == *dropped_entity_bits)
                 .map(|e| e.entity())
             {
                 let handle = EntityHandle::new(dropped_entity);
+                log::info!("SceneTree DND: Found entity {}, clearing parent", dropped_entity.id());
                 match longhorn_core::ecs::hierarchy::clear_parent(world, handle) {
                     Ok(()) => {
-                        log::info!("Cleared parent for entity {} (now root)", dropped_entity.id());
+                        log::info!("SceneTree DND: SUCCESS - Cleared parent for entity {} (now root)", dropped_entity.id());
                     }
                     Err(e) => {
-                        log::warn!("Failed to clear parent: {:?}", e);
+                        log::warn!("SceneTree DND: FAILED to clear parent: {:?}", e);
                     }
                 }
+            } else {
+                log::warn!("SceneTree DND: Entity not found for bits: {}", dropped_entity_bits);
             }
         }
     }
