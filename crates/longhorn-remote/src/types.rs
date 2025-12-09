@@ -25,6 +25,15 @@ pub enum RemoteCommand {
         field: String,
         value: serde_json::Value,
     },
+    /// Set an entity's parent (creates hierarchy)
+    SetEntityParent {
+        child_id: u64,
+        parent_id: u64,
+    },
+    /// Clear an entity's parent (make it root level)
+    ClearEntityParent {
+        child_id: u64,
+    },
 
     // UI
     ToggleConsole,
@@ -102,6 +111,17 @@ pub enum RemoteCommand {
         handle: String, // "move_x", "move_y", "move_xy"
         delta_x: f32,
         delta_y: f32,
+    },
+
+    // Scene Tree Drag-Drop commands (for testing)
+    /// Simulate dragging one entity onto another in the scene tree
+    SimulateSceneTreeDrag {
+        dragged_entity_id: u64,
+        target_entity_id: u64,
+    },
+    /// Simulate dragging an entity to the root drop zone
+    SimulateSceneTreeDragToRoot {
+        entity_id: u64,
     },
 }
 

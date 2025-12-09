@@ -64,6 +64,12 @@ pub fn process_remote_command(
             field,
             value,
         } => set_entity_property(engine, entity, &component, &field, value),
+        RemoteCommand::SetEntityParent { child_id, parent_id } => {
+            handle_set_entity_parent(engine, child_id, parent_id)
+        }
+        RemoteCommand::ClearEntityParent { child_id } => {
+            handle_clear_entity_parent(engine, child_id)
+        }
 
         // Project
         RemoteCommand::LoadProject { path } => handle_load_project(editor, engine, &path),
@@ -154,6 +160,15 @@ pub fn process_remote_command(
             delta_x,
             delta_y,
         } => handle_simulate_gizmo_drag(editor, engine, entity_id, &handle, delta_x, delta_y),
+
+        // Scene Tree Drag-Drop commands
+        RemoteCommand::SimulateSceneTreeDrag {
+            dragged_entity_id,
+            target_entity_id,
+        } => handle_simulate_scene_tree_drag(editor, engine, dragged_entity_id, target_entity_id),
+        RemoteCommand::SimulateSceneTreeDragToRoot { entity_id } => {
+            handle_simulate_scene_tree_drag_to_root(editor, engine, entity_id)
+        }
     }
 }
 
@@ -280,6 +295,45 @@ fn handle_delete_entity(editor: &mut Editor, engine: &mut Engine, id: u64) -> Re
             }
         }
         None => RemoteResponse::error(format!("Invalid entity id: {}", id)),
+    }
+}
+
+fn handle_set_entity_parent(engine: &mut Engine, child_id: u64, parent_id: u64) -> RemoteResponse {
+    use longhorn_core::ecs::hierarchy::set_parent;
+
+    let child_entity = match EntityId::from_bits(child_id) {
+        Some(id) => EntityHandle::new(id),
+        None => return RemoteResponse::error(format!("Invalid child entity id: {}", child_id)),
+    };
+
+    let parent_entity = match EntityId::from_bits(parent_id) {
+        Some(id) => EntityHandle::new(id),
+        None => return RemoteResponse::error(format!("Invalid parent entity id: {}", parent_id)),
+    };
+
+    match set_parent(engine.world_mut(), child_entity, parent_entity) {
+        Ok(()) => {
+            log::info!("Set parent: entity {} -> parent {}", child_id, parent_id);
+            RemoteResponse::ok()
+        }
+        Err(e) => RemoteResponse::error(format!("Failed to set parent: {:?}", e)),
+    }
+}
+
+fn handle_clear_entity_parent(engine: &mut Engine, child_id: u64) -> RemoteResponse {
+    use longhorn_core::ecs::hierarchy::clear_parent;
+
+    let child_entity = match EntityId::from_bits(child_id) {
+        Some(id) => EntityHandle::new(id),
+        None => return RemoteResponse::error(format!("Invalid child entity id: {}", child_id)),
+    };
+
+    match clear_parent(engine.world_mut(), child_entity) {
+        Ok(()) => {
+            log::info!("Cleared parent for entity {}", child_id);
+            RemoteResponse::ok()
+        }
+        Err(e) => RemoteResponse::error(format!("Failed to clear parent: {:?}", e)),
     }
 }
 
@@ -1253,4 +1307,101 @@ fn handle_simulate_gizmo_drag(
         old_position,
         new_position,
     }))
+}
+
+// --- Scene Tree Drag-Drop Handlers ---
+
+fn handle_simulate_scene_tree_drag(
+    _editor: &mut Editor,
+    engine: &mut Engine,
+    dragged_entity_id: u64,
+    target_entity_id: u64,
+) -> RemoteResponse {
+    use longhorn_core::ecs::hierarchy::set_parent;
+
+    log::info!(
+        "Remote: Simulating scene tree drag: {} -> {}",
+        dragged_entity_id,
+        target_entity_id
+    );
+
+    // Validate entities exist
+    let dragged_entity = match EntityId::from_bits(dragged_entity_id) {
+        Some(id) => EntityHandle::new(id),
+        None => {
+            return RemoteResponse::error(format!(
+                "Invalid dragged entity id: {}",
+                dragged_entity_id
+            ))
+        }
+    };
+
+    let target_entity = match EntityId::from_bits(target_entity_id) {
+        Some(id) => EntityHandle::new(id),
+        None => {
+            return RemoteResponse::error(format!(
+                "Invalid target entity id: {}",
+                target_entity_id
+            ))
+        }
+    };
+
+    // Verify entities still exist in world
+    if engine.world().get::<Name>(dragged_entity).is_err() {
+        return RemoteResponse::error(format!("Dragged entity {} not found", dragged_entity_id));
+    }
+    if engine.world().get::<Name>(target_entity).is_err() {
+        return RemoteResponse::error(format!("Target entity {} not found", target_entity_id));
+    }
+
+    // Perform the reparenting
+    match set_parent(engine.world_mut(), dragged_entity, target_entity) {
+        Ok(()) => {
+            log::info!(
+                "Successfully reparented entity {} to {}",
+                dragged_entity_id,
+                target_entity_id
+            );
+            RemoteResponse::ok()
+        }
+        Err(e) => {
+            log::error!("Failed to reparent: {:?}", e);
+            RemoteResponse::error(format!("Failed to reparent: {:?}", e))
+        }
+    }
+}
+
+fn handle_simulate_scene_tree_drag_to_root(
+    _editor: &mut Editor,
+    engine: &mut Engine,
+    entity_id: u64,
+) -> RemoteResponse {
+    use longhorn_core::ecs::hierarchy::clear_parent;
+
+    log::info!(
+        "Remote: Simulating scene tree drag to root: {}",
+        entity_id
+    );
+
+    let entity = match EntityId::from_bits(entity_id) {
+        Some(id) => EntityHandle::new(id),
+        None => return RemoteResponse::error(format!("Invalid entity id: {}", entity_id)),
+    };
+
+    // Verify entity exists
+    if engine.world().get::<Name>(entity).is_err() {
+        return RemoteResponse::error(format!("Entity {} not found", entity_id));
+    }
+
+    // Clear the parent
+    match clear_parent(engine.world_mut(), entity) {
+        Ok(()) => {
+            log::info!("Successfully cleared parent for entity {}", entity_id);
+            RemoteResponse::ok()
+        }
+        Err(e) => {
+            log::error!("Failed to clear parent: {:?}", e);
+            RemoteResponse::error(format!("Failed to clear parent: {:?}", e))
+        }
+    }
 }
