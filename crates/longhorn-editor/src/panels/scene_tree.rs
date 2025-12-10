@@ -1,5 +1,5 @@
 use egui::Ui;
-use longhorn_core::{World, Name, EntityHandle, Parent, Children};
+use longhorn_core::{World, Name, EntityHandle, Parent, Children, Transform, GlobalTransform};
 use longhorn_assets::{AssetManager, FilesystemSource};
 use crate::{EditorState, UiStateTracker};
 use std::collections::HashSet;
@@ -162,6 +162,21 @@ impl SceneTreePanel {
                 log::info!("SceneTree DND: Found dragged entity {}, setting parent to {}",
                     dragged_entity.id(), entity.id());
 
+                // Preserve world transform when reparenting
+                // Get current world position of dragged entity (copy to avoid borrow issues)
+                let dragged_global_opt = world.get::<GlobalTransform>(dragged_handle).ok().map(|r| *r);
+                let parent_global_opt = world.get::<GlobalTransform>(target_handle).ok().map(|r| *r);
+
+                if let (Some(dragged_global), Some(parent_global)) = (dragged_global_opt, parent_global_opt) {
+                    // Calculate new local transform to maintain world position
+                    // local = parent_global.inverse() * entity_global
+                    let new_local_transform = parent_global.to_local_transform(&dragged_global);
+
+                    // Update the entity's local Transform
+                    let _ = world.set(dragged_handle, new_local_transform);
+                    log::info!("SceneTree DND: Adjusted local transform to preserve world position");
+                }
+
                 // Use hierarchy system to set parent with cycle detection
                 match longhorn_core::ecs::hierarchy::set_parent(world, dragged_handle, target_handle) {
                     Ok(()) => {
@@ -298,6 +313,20 @@ impl SceneTreePanel {
             {
                 let handle = EntityHandle::new(dropped_entity);
                 log::info!("SceneTree DND: Found entity {}, clearing parent", dropped_entity.id());
+
+                // Preserve world transform when making root
+                // The local Transform should equal the current GlobalTransform (copy to avoid borrow issues)
+                let global_opt = world.get::<GlobalTransform>(handle).ok().map(|r| *r);
+                if let Some(global) = global_opt {
+                    let new_local = Transform::from_components(
+                        global.position,
+                        global.rotation,
+                        global.scale,
+                    );
+                    let _ = world.set(handle, new_local);
+                    log::info!("SceneTree DND: Set local transform to preserve world position when becoming root");
+                }
+
                 match longhorn_core::ecs::hierarchy::clear_parent(world, handle) {
                     Ok(()) => {
                         log::info!("SceneTree DND: SUCCESS - Cleared parent for entity {} (now root)", dropped_entity.id());

@@ -68,6 +68,40 @@ impl GlobalTransform {
         }
     }
 
+    /// Calculate the local Transform needed to achieve a target GlobalTransform
+    /// when this GlobalTransform is the parent
+    ///
+    /// This is the inverse operation of mul_transform:
+    /// - Forward: child_global = parent_global.mul_transform(child_local)
+    /// - Inverse: child_local = parent_global.to_local_transform(child_global)
+    ///
+    /// Used when reparenting entities to preserve their world position.
+    pub fn to_local_transform(&self, target_global: &GlobalTransform) -> Transform {
+        // Calculate local position
+        // Reverse: translate, rotate, scale
+        let relative = target_global.position - self.position;
+
+        // Reverse rotation
+        let neg_rotation = -self.rotation;
+        let cos = neg_rotation.cos();
+        let sin = neg_rotation.sin();
+        let rotated = Vec2::new(
+            relative.x * cos - relative.y * sin,
+            relative.x * sin + relative.y * cos,
+        );
+
+        // Reverse scale
+        let local_position = rotated / self.scale;
+
+        // Calculate local rotation (subtract parent's rotation)
+        let local_rotation = target_global.rotation - self.rotation;
+
+        // Calculate local scale (divide by parent's scale)
+        let local_scale = target_global.scale / self.scale;
+
+        Transform::from_components(local_position, local_rotation, local_scale)
+    }
+
     /// Transform a point by this global transform
     fn transform_point(&self, point: Vec2) -> Vec2 {
         // Apply scale
