@@ -98,24 +98,24 @@ impl SceneTreePanel {
                 .map(|id| id == element_id)
                 .unwrap_or(false);
 
-            // Use egui's dnd_drag_source for proper drag-and-drop support
-            let drag_source_id = egui::Id::new(("scene_tree_entity", entity_bits));
-            let drag_response = ui.dnd_drag_source(drag_source_id, entity_bits, |ui| {
-                let label_response = ui.selectable_label(is_selected, &node.name);
+            // Create selectable label with drag sensing enabled
+            let mut label_resp = ui.selectable_label(is_selected, &node.name);
+            label_resp = label_resp.interact(egui::Sense::click_and_drag());
 
-                if label_response.clicked() || should_trigger {
-                    log::info!("SceneTree - selecting entity '{}': ID {} (raw: {:?}, to_bits: {})",
-                        node.name, entity.id(), entity, entity_bits);
-                    state.select(Some(entity));
-                }
+            // Handle clicks for selection
+            if label_resp.clicked() || should_trigger {
+                log::info!("SceneTree - selecting entity '{}': ID {} (raw: {:?}, to_bits: {})",
+                    node.name, entity.id(), entity, entity_bits);
+                state.select(Some(entity));
+            }
 
-                label_response
-            });
+            // Enable dragging only when actually being dragged
+            if label_resp.drag_started() || label_resp.dragged() {
+                log::info!("SceneTree DND: Setting drag payload for entity bits {}", entity_bits);
+                label_resp.dnd_set_drag_payload(entity_bits);
+            }
 
-            log::debug!("SceneTree DND: Set drag source for entity {} ({}), is_dragged: {}",
-                entity.id(), node.name, drag_response.response.dragged());
-
-            drag_response.response
+            label_resp
         });
 
         let response = horizontal_response.inner;
