@@ -617,13 +617,15 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                 self.editor.pending_action = action;
             }
             PanelType::SceneView => {
-                // Get selected entity transform
-                let selected_transform = self.editor.state.selected_entity
-                    .and_then(|entity| {
+                // Get selected entity transforms (both local and global)
+                let (selected_transform, selected_global_transform) = self.editor.state.selected_entity
+                    .map(|entity| {
                         let handle = longhorn_core::EntityHandle::new(entity);
-                        self.engine.world().get::<longhorn_core::Transform>(handle).ok()
-                            .map(|t| *t)
-                    });
+                        let transform = self.engine.world().get::<longhorn_core::Transform>(handle).ok().map(|t| *t);
+                        let global_transform = self.engine.world().get::<longhorn_core::GlobalTransform>(handle).ok().map(|t| *t);
+                        (transform, global_transform)
+                    })
+                    .unwrap_or((None, None));
 
                 // Scene view - capture camera input and apply to editor camera
                 let (camera_input, action) = self.editor.viewport.show(
@@ -633,6 +635,7 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                     &mut self.editor.gizmo_state,
                     &self.editor.gizmo_config,
                     selected_transform,
+                    selected_global_transform,
                     self.editor.editor_camera.transform.position,
                     self.editor.editor_camera.zoom,
                     self.engine.world(),

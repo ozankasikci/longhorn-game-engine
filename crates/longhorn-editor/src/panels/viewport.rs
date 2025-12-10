@@ -4,7 +4,7 @@ use crate::CameraInput;
 use crate::{GizmoState, GizmoConfig};
 use crate::gizmo::{hit_test_gizmo, update_transform_from_drag, draw_gizmo};
 use glam::Vec2;
-use longhorn_core::{Transform, Sprite, World};
+use longhorn_core::{Transform, GlobalTransform, Sprite, World};
 
 pub struct ViewportPanel {}
 
@@ -29,6 +29,7 @@ impl ViewportPanel {
         gizmo_state: &mut GizmoState,
         gizmo_config: &GizmoConfig,
         selected_transform: Option<Transform>,
+        selected_global_transform: Option<GlobalTransform>,
         camera_pos: Vec2,
         camera_zoom: f32,
         world: &World,
@@ -113,8 +114,9 @@ impl ViewportPanel {
         };
 
         // Handle gizmo interaction if entity is selected
-        if let Some(transform) = selected_transform {
-            let screen_pos = world_to_screen(transform.position);
+        if let (Some(transform), Some(global_transform)) = (selected_transform, selected_global_transform) {
+            // Use GlobalTransform for rendering position (correct world position)
+            let screen_pos = world_to_screen(global_transform.position);
 
             // Get mouse position in viewport
             let mouse_pos = ui.input(|i| i.pointer.hover_pos())
