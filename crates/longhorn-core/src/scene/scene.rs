@@ -339,6 +339,17 @@ impl Scene {
         Ok(entity_map)
     }
 
+    /// Recursively collect all entities (including children) into a HashMap
+    fn collect_all_entities<'a>(
+        serialized: &'a SerializedEntity,
+        map: &mut std::collections::HashMap<u64, &'a SerializedEntity>,
+    ) {
+        map.insert(serialized.id, serialized);
+        for child in &serialized.children {
+            Self::collect_all_entities(child, map);
+        }
+    }
+
     /// Restore entities in-place from this scene, preserving entity IDs
     ///
     /// This method updates existing entities to match the snapshot without
@@ -357,11 +368,11 @@ impl Scene {
         use glam::Vec2;
 
         // Build a map of serialized entity ID -> SerializedEntity
-        let snapshot_entities: HashMap<u64, &SerializedEntity> = self
-            .entities
-            .iter()
-            .map(|e| (e.id, e))
-            .collect();
+        // This recursively collects ALL entities including children
+        let mut snapshot_entities: HashMap<u64, &SerializedEntity> = HashMap::new();
+        for entity in &self.entities {
+            Self::collect_all_entities(entity, &mut snapshot_entities);
+        }
 
         // Track which snapshot entities we've processed
         let mut processed_ids = std::collections::HashSet::new();
