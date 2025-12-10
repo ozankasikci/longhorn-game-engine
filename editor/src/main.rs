@@ -224,6 +224,9 @@ impl EditorApp {
             let _ = self.engine.update();
         }
 
+        // Propagate transforms before rendering
+        longhorn_core::propagate_transforms(self.engine.world_mut());
+
         // Render scene view (always) and game view (conditional on Play mode)
         if let Some(viewport_renderer) = &mut self.viewport_renderer {
             // Always render scene view with editor camera

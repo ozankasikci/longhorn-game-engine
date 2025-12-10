@@ -3,7 +3,7 @@ use wgpu::util::DeviceExt;
 use glam::Vec2;
 use std::collections::HashMap;
 use longhorn_assets::{AssetManager, AssetSource, AssetHandle, TextureData};
-use longhorn_core::{AssetId, Sprite, Transform, World};
+use longhorn_core::{AssetId, GlobalTransform, Sprite, Transform, World};
 use longhorn_renderer::{
     pipeline::{create_sprite_pipeline, CameraUniform},
     Camera, Color, SpriteBatch, SpriteInstance, SpriteVertex,
@@ -552,10 +552,10 @@ impl EditorViewportRenderer {
 
         // Collect sprites from world
         let mut batch = SpriteBatch::new();
-        for (_entity_id, (sprite, transform)) in world.query::<(&Sprite, &Transform)>().iter() {
+        for (_entity_id, (sprite, global_transform)) in world.query::<(&Sprite, &GlobalTransform)>().iter() {
             batch.add(SpriteInstance {
-                position: transform.position,
-                size: sprite.size * transform.scale, // Apply transform scale to sprite size
+                position: global_transform.position,
+                size: sprite.size * global_transform.scale, // Apply transform scale to sprite size
                 color: Color::new(sprite.color[0], sprite.color[1], sprite.color[2], sprite.color[3]),
                 texture: sprite.texture,
                 z_index: 0,
@@ -761,7 +761,7 @@ impl EditorViewportRenderer {
 
         // Collect sprites from world and upload textures as needed
         let mut batch = SpriteBatch::new();
-        for (entity_id, (sprite, transform)) in world.query::<(&Sprite, &Transform)>().iter() {
+        for (entity_id, (sprite, global_transform)) in world.query::<(&Sprite, &GlobalTransform)>().iter() {
             // Upload texture to GPU if not already cached
             if !self.texture_cache.contains_key(&sprite.texture) {
                 log::info!("Texture {} not in GPU cache, attempting to load from AssetManager", sprite.texture.0);
@@ -775,8 +775,8 @@ impl EditorViewportRenderer {
             }
 
             batch.add(SpriteInstance {
-                position: transform.position,
-                size: sprite.size * transform.scale, // Apply transform scale to sprite size
+                position: global_transform.position,
+                size: sprite.size * global_transform.scale, // Apply transform scale to sprite size
                 color: Color::new(sprite.color[0], sprite.color[1], sprite.color[2], sprite.color[3]),
                 texture: sprite.texture,
                 z_index: 0,
