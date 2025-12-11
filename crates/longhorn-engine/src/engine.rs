@@ -260,8 +260,25 @@ impl Engine {
             // Set clear color from config
             renderer.set_clear_color(self.config.clear_color());
 
+            // Determine which camera to use for rendering:
+            // 1. If MainCamera component exists in the scene, use it (for consistent editor/mobile view)
+            // 2. Otherwise, fall back to engine's default camera (for backward compatibility)
+            let rendering_camera = {
+                use longhorn_renderer::MainCamera;
+                let mut query = self.world.query::<(&Camera, &MainCamera)>();
+
+                // Check if MainCamera exists and copy its data
+                if let Some((_entity, (main_camera, _marker))) = query.iter().next() {
+                    // Clone MainCamera data
+                    main_camera.clone()
+                } else {
+                    // Fall back to engine's default camera
+                    self.camera.clone()
+                }
+            };
+
             // Render the world
-            renderer.render(&self.world, &self.assets, &self.camera)?;
+            renderer.render(&self.world, &self.assets, &rendering_camera)?;
         }
 
         // Reset per-frame input state
