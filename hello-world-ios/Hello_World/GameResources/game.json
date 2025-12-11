@@ -1,0 +1,12 @@
+{
+  "name": "Hello World",
+  "version": "1.0.0",
+  "entry": "src/main.ts",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "assets": {
+    "preload": []
+  }
+}
