@@ -6,7 +6,7 @@ use winit::{
     window::{Window, WindowId},
 };
 use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer, apply_theme};
-use longhorn_engine::Engine;
+use longhorn_engine::{Engine, Camera, MainCamera};
 use longhorn_remote::RemoteServer;
 use longhorn_core::{Name, Transform, Sprite, Enabled, AssetId, Script};
 use glam::Vec2;
@@ -55,6 +55,18 @@ impl EditorApp {
         } else {
             log::info!("Auto-loaded game from: {:?}", test_project);
         }
+
+        // Spawn MainCamera entity (centered on 800x600 viewport)
+        let mut main_camera = Camera::new(800.0, 600.0);
+        main_camera.position = Vec2::new(400.0, 300.0); // Center camera on viewport
+
+        engine.world_mut()
+            .spawn()
+            .with(Name::new("MainCamera"))
+            .with(Transform::from_position(Vec2::new(400.0, 300.0)))
+            .with(main_camera)
+            .with(MainCamera)
+            .build();
 
         // Spawn test entities
         engine.world_mut()
