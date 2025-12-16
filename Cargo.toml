@@ -48,6 +48,7 @@ rquickjs = { version = "0.10", features = ["classes", "properties", "parallel", 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+ron = "0.8"
 
 # Error handling
 thiserror = "1.0"

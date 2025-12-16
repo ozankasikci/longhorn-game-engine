@@ -229,16 +229,27 @@ impl Scene {
         Ok(())
     }
 
-    /// Load a scene from a JSON file
+    /// Load a scene from a file (supports JSON and RON formats)
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
 
         // Read file contents
         let contents = fs::read_to_string(path)?;
 
-        // Deserialize from JSON
-        let scene: Scene = serde_json::from_str(&contents)
-            .map_err(|e| LonghornError::Serialization(e.to_string()))?;
+        // Determine format from file extension
+        let filename = path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+
+        let scene: Scene = if filename.ends_with(".scn.ron") || filename.ends_with(".ron") {
+            // Deserialize from RON
+            ron::from_str(&contents)
+                .map_err(|e| LonghornError::Serialization(e.to_string()))?
+        } else {
+            // Deserialize from JSON (default)
+            serde_json::from_str(&contents)
+                .map_err(|e| LonghornError::Serialization(e.to_string()))?
+        };
 
         Ok(scene)
     }
