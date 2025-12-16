@@ -1,5 +1,6 @@
 use egui::{Context, Ui};
 use egui_dock::DockState;
+use longhorn_core::Scene;
 use longhorn_engine::Engine;
 use longhorn_scripting::set_console_callback;
 use std::sync::Arc;
@@ -490,6 +491,7 @@ impl Editor {
                                 Ok(project) => {
                                     self.project = Some(project);
                                     self.dirty_state.clear();
+                                    self.state.selected_entity = None;
                                     if let Err(e) = engine.load_game(&path) {
                                         log::error!("Failed to load project: {}", e);
                                     } else {
@@ -519,6 +521,7 @@ impl Editor {
                                 Ok(project) => {
                                     self.project = Some(project);
                                     self.dirty_state.clear();
+                                    self.state.selected_entity = None;
                                     if let Err(e) = engine.load_game(&path) {
                                         log::error!("Failed to load project: {}", e);
                                     } else {
@@ -609,6 +612,7 @@ impl Editor {
                                     Ok(project) => {
                                         self.project = Some(project);
                                         self.dirty_state.clear();
+                                        self.state.selected_entity = None;
                                         if let Err(e) = engine.load_game(&path) {
                                             log::error!("Failed to load project: {}", e);
                                         } else {
@@ -999,6 +1003,33 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                                 log::error!("  No game_path set - cannot open script!");
                             }
                         }
+                        ProjectPanelAction::OpenScene(path) => {
+                            log::info!("Opening scene: {:?}", path);
+                            match Scene::load(&path) {
+                                Ok(scene) => {
+                                    // Clear the current world before loading new scene
+                                    let (world, assets) = self.engine.world_and_assets_mut();
+                                    world.clear();
+
+                                    // Spawn scene entities into the world
+                                    match scene.spawn_into(world, assets) {
+                                        Ok(entity_map) => {
+                                            log::info!("Scene loaded: {} entities spawned", entity_map.len());
+                                            // Clear selection since entity IDs changed
+                                            self.editor.state.selected_entity = None;
+                                            // Mark scene as dirty (it's been loaded/modified)
+                                            self.editor.dirty_state.scene = false;
+                                        }
+                                        Err(e) => {
+                                            log::error!("Failed to spawn scene entities: {}", e);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to load scene: {}", e);
+                                }
+                            }
+                        }
                         ProjectPanelAction::OpenImage(path) => {
                             log::info!("TODO: Open image preview: {:?}", path);
                         }
@@ -1080,6 +1111,9 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                 if let Some(path) = self.editor.script_editor_state.open_file.clone() {
                     if self.editor.script_editor_state.is_dirty() {
                         self.editor.dirty_state.scripts.insert(path, true);
+                    } else {
+                        // Also remove when script becomes clean (e.g., undo to original)
+                        self.editor.dirty_state.scripts.remove(&path);
                     }
                 }
             }
