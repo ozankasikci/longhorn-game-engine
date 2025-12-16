@@ -31,6 +31,6 @@ pub use texture_picker::*;
 pub use camera::{EditorCamera, CameraInput};
 pub use gizmo::{GizmoMode, GizmoState, GizmoConfig};
 pub use project::{Project, DirtyState};
-pub use dialogs::{NewProjectDialog, NewProjectResult};
+pub use dialogs::{NewProjectDialog, NewProjectResult, UnsavedChangesDialog, UnsavedChangesResult};
 pub use styling::apply_theme;
 pub use docking::*;
