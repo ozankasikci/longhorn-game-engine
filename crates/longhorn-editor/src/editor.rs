@@ -11,6 +11,7 @@ use crate::{ProjectPanelState, ProjectPanel, ProjectPanelAction, DirectoryNode, 
 use crate::texture_picker::{TexturePickerState, TexturePickerAction};
 use crate::EditorCamera;
 use crate::{GizmoState, GizmoConfig, GizmoMode};
+use crate::{Project, DirtyState, StartupPanel, NewProjectDialog, UnsavedChangesDialog};
 
 pub struct Editor {
     editor_camera: EditorCamera,
@@ -39,6 +40,26 @@ pub struct Editor {
     gizmo_state: GizmoState,
     /// Gizmo visual configuration
     gizmo_config: GizmoConfig,
+    /// Currently loaded project (None = startup screen)
+    project: Option<Project>,
+    /// Dirty state tracking
+    dirty_state: DirtyState,
+    /// Startup screen panel
+    startup_panel: StartupPanel,
+    /// New project dialog
+    new_project_dialog: NewProjectDialog,
+    /// Unsaved changes dialog
+    unsaved_changes_dialog: UnsavedChangesDialog,
+    /// Pending action after unsaved changes dialog
+    pending_close_action: Option<CloseAction>,
+}
+
+/// Actions that can be pending after unsaved changes dialog
+#[derive(Debug, Clone)]
+enum CloseAction {
+    CloseProject,
+    OpenProject(std::path::PathBuf),
+    Quit,
 }
 
 impl Editor {
@@ -77,6 +98,12 @@ impl Editor {
             pending_screenshot: None,
             gizmo_state: GizmoState::new(GizmoMode::Move),
             gizmo_config: GizmoConfig::default(),
+            project: None,
+            dirty_state: DirtyState::new(),
+            startup_panel: StartupPanel::new(),
+            new_project_dialog: NewProjectDialog::new(),
+            unsaved_changes_dialog: UnsavedChangesDialog::new(),
+            pending_close_action: None,
         }
     }
 
@@ -180,6 +207,26 @@ impl Editor {
     /// Get a reference to the gizmo state
     pub fn gizmo_state(&self) -> &GizmoState {
         &self.gizmo_state
+    }
+
+    /// Check if a project is loaded
+    pub fn has_project(&self) -> bool {
+        self.project.is_some()
+    }
+
+    /// Get the current project
+    pub fn project(&self) -> Option<&Project> {
+        self.project.as_ref()
+    }
+
+    /// Get the dirty state
+    pub fn dirty_state(&self) -> &DirtyState {
+        &self.dirty_state
+    }
+
+    /// Get mutable dirty state
+    pub fn dirty_state_mut(&mut self) -> &mut DirtyState {
+        &mut self.dirty_state
     }
 
     /// Get and clear any pending editor action
