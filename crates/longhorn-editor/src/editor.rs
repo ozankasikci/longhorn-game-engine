@@ -11,7 +11,7 @@ use crate::{ProjectPanelState, ProjectPanel, ProjectPanelAction, DirectoryNode, 
 use crate::texture_picker::{TexturePickerState, TexturePickerAction};
 use crate::EditorCamera;
 use crate::{GizmoState, GizmoConfig, GizmoMode};
-use crate::{Project, DirtyState, StartupPanel, NewProjectDialog, UnsavedChangesDialog};
+use crate::{Project, DirtyState, StartupPanel, StartupAction, NewProjectDialog, NewProjectResult, UnsavedChangesDialog, UnsavedChangesResult};
 
 pub struct Editor {
     editor_camera: EditorCamera,
@@ -376,6 +376,56 @@ impl Editor {
     pub fn show(&mut self, ctx: &Context, engine: &mut Engine, viewport_texture: Option<egui::TextureId>, viewport_texture_size: glam::Vec2, game_texture: Option<egui::TextureId>) -> bool {
         // Reset UI state tracking for this frame
         self.ui_state.begin_frame();
+
+        // If no project is loaded, show startup screen
+        if self.project.is_none() {
+            // Show any open dialogs first
+            match self.new_project_dialog.show(ctx) {
+                NewProjectResult::Create { path, name } => {
+                    match Project::create(&path, &name) {
+                        Ok(project) => {
+                            self.project = Some(project.clone());
+                            if let Err(e) = engine.load_game(&path) {
+                                log::error!("Failed to load created project: {}", e);
+                            } else {
+                                self.refresh_project_tree(engine);
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Failed to create project: {}", e);
+                        }
+                    }
+                }
+                NewProjectResult::Cancel | NewProjectResult::None => {}
+            }
+
+            let action = self.startup_panel.show(ctx);
+            match action {
+                StartupAction::NewProject => {
+                    self.new_project_dialog.open();
+                }
+                StartupAction::OpenProject => {
+                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                        match Project::load(&path) {
+                            Ok(project) => {
+                                self.project = Some(project);
+                                if let Err(e) = engine.load_game(&path) {
+                                    log::error!("Failed to load project: {}", e);
+                                } else {
+                                    self.refresh_project_tree(engine);
+                                }
+                            }
+                            Err(e) => {
+                                log::error!("Not a valid Longhorn project: {}", e);
+                            }
+                        }
+                    }
+                }
+                StartupAction::None => {}
+            }
+
+            return false;
+        }
 
         // Check for pending import from file picker
         let pending_import: Option<(std::path::PathBuf, std::path::PathBuf, String)> = ctx.data_mut(|d| {
