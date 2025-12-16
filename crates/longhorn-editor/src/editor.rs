@@ -229,6 +229,17 @@ impl Editor {
         &mut self.dirty_state
     }
 
+    /// Get the window title based on project state
+    pub fn window_title(&self) -> String {
+        match &self.project {
+            Some(project) => {
+                let dirty = if self.dirty_state.any_dirty() { " *" } else { "" };
+                format!("{}{} - Longhorn Editor", project.manifest.name, dirty)
+            }
+            None => "Longhorn Editor".to_string(),
+        }
+    }
+
     /// Save the currently focused file
     fn save_current(&mut self, engine: &Engine) {
         // Save scene if dirty
