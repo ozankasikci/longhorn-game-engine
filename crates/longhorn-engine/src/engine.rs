@@ -101,6 +101,11 @@ impl Engine {
     pub fn load_game(&mut self, path: impl AsRef<Path>) -> Result<(), EngineError> {
         let path = path.as_ref();
 
+        // Clear existing state before loading new project
+        // This ensures entities from previous projects don't persist
+        self.world.clear();
+        self.scripting.reset();
+
         // Load manifest
         let manifest = GameManifest::load(path)?;
 
