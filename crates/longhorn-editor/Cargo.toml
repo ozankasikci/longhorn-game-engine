@@ -26,6 +26,7 @@ image = { workspace = true }
 open = "5"
 rfd = "0.15"
 pollster = "0.4"
+dirs = "5"
 
 [dev-dependencies]
 tempfile = "3"
