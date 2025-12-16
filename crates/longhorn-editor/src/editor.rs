@@ -1068,8 +1068,18 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                         log::error!("Failed to save script: {}", e);
                     } else {
                         log::info!("Script saved");
-                        // Re-check for errors after save
+                        // Clear dirty flag for this script
+                        if let Some(path) = self.editor.script_editor_state.open_file.clone() {
+                            self.editor.dirty_state.scripts.remove(&path);
+                        }
                         self.editor.recheck_script_errors();
+                    }
+                }
+
+                // Sync dirty state from script editor
+                if let Some(path) = self.editor.script_editor_state.open_file.clone() {
+                    if self.editor.script_editor_state.is_dirty() {
+                        self.editor.dirty_state.scripts.insert(path, true);
                     }
                 }
             }
