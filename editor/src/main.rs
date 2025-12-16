@@ -5,7 +5,7 @@ use winit::{
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
-use longhorn_editor::{Editor, EditorMode, EditorViewportRenderer, apply_theme};
+use longhorn_editor::{Editor, PlayMode, EditorViewportRenderer, apply_theme};
 use longhorn_engine::{Engine, Camera, MainCamera};
 use longhorn_remote::RemoteServer;
 use longhorn_core::{Name, Transform, Sprite, Enabled, AssetId, Script};
@@ -232,7 +232,7 @@ impl EditorApp {
 
         // Update game if in play mode and not paused
         let editor_state = self.editor.state();
-        if editor_state.mode == EditorMode::Play && !editor_state.paused {
+        if editor_state.mode == PlayMode::Play && !editor_state.paused {
             let _ = self.engine.update();
         }
 
@@ -251,7 +251,7 @@ impl EditorApp {
             );
 
             // Conditionally render game view in Play mode
-            if self.editor.state().mode == EditorMode::Play {
+            if self.editor.state().mode == PlayMode::Play {
                 viewport_renderer.render_game_view(
                     &gpu.device,
                     &gpu.queue,

@@ -2,9 +2,9 @@ use hecs::Entity;
 use longhorn_core::{Scene, World};
 use std::error::Error;
 
-/// Editor operating mode
+/// Play state mode (Scene editing vs Play running)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum EditorMode {
+pub enum PlayMode {
     #[default]
     Scene,  // Editing - no game logic runs
     Play,   // Running - game loop active
@@ -14,7 +14,7 @@ pub enum EditorMode {
 #[derive(Debug, Default)]
 pub struct EditorState {
     /// Current operating mode
-    pub mode: EditorMode,
+    pub mode: PlayMode,
     /// Currently selected entity
     pub selected_entity: Option<Entity>,
     /// Whether game is paused (only relevant in Play mode)
@@ -39,11 +39,11 @@ impl EditorState {
     }
 
     pub fn is_playing(&self) -> bool {
-        self.mode == EditorMode::Play
+        self.mode == PlayMode::Play
     }
 
     pub fn is_scene_mode(&self) -> bool {
-        self.mode == EditorMode::Scene
+        self.mode == PlayMode::Scene
     }
 
     /// Enter play mode by saving a snapshot of the current world state
@@ -55,7 +55,7 @@ impl EditorState {
         // Serialize world to snapshot
         let snapshot = Scene::from_world(world, registry);
         self.play_mode_snapshot = Some(snapshot);
-        self.mode = EditorMode::Play;
+        self.mode = PlayMode::Play;
         Ok(())
     }
 
@@ -71,7 +71,7 @@ impl EditorState {
             snapshot.restore_into(world, asset_loader)?;
         }
 
-        self.mode = EditorMode::Scene;
+        self.mode = PlayMode::Scene;
         self.play_mode_snapshot = None;
         Ok(())
     }
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn test_default_mode_is_scene() {
         let state = EditorState::new();
-        assert_eq!(state.mode, EditorMode::Scene);
+        assert_eq!(state.mode, PlayMode::Scene);
         assert!(state.is_scene_mode());
         assert!(!state.is_playing());
     }
@@ -131,11 +131,11 @@ mod tests {
     fn test_mode_transitions() {
         let mut state = EditorState::new();
 
-        state.mode = EditorMode::Play;
+        state.mode = PlayMode::Play;
         assert!(state.is_playing());
         assert!(!state.is_scene_mode());
 
-        state.mode = EditorMode::Scene;
+        state.mode = PlayMode::Scene;
         assert!(state.is_scene_mode());
     }
 
@@ -145,11 +145,11 @@ mod tests {
         let world = World::new();
         let registry = MockRegistry::new();
 
-        assert_eq!(state.mode, EditorMode::Scene);
+        assert_eq!(state.mode, PlayMode::Scene);
 
         state.enter_play_mode(&world, &registry).unwrap();
 
-        assert_eq!(state.mode, EditorMode::Play);
+        assert_eq!(state.mode, PlayMode::Play);
         assert!(state.play_mode_snapshot.is_some());
     }
 
@@ -163,7 +163,7 @@ mod tests {
         state.enter_play_mode(&world, &registry).unwrap();
         state.exit_play_mode(&mut world, &mut asset_loader).unwrap();
 
-        assert_eq!(state.mode, EditorMode::Scene);
+        assert_eq!(state.mode, PlayMode::Scene);
         assert!(state.play_mode_snapshot.is_none());
     }
 }

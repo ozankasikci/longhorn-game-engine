@@ -1,5 +1,5 @@
 use egui::Ui;
-use crate::state::{EditorMode, EditorState};
+use crate::state::{PlayMode, EditorState};
 
 /// Actions that can be triggered from the toolbar
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,42 +29,42 @@ impl Toolbar {
 
             // Play/Resume button
             match state.mode {
-                EditorMode::Scene => {
+                PlayMode::Scene => {
                     if ui.button("▶ Play").clicked() {
                         action = ToolbarAction::Play;
                     }
                 }
-                EditorMode::Play if state.paused => {
+                PlayMode::Play if state.paused => {
                     if ui.button("▶ Resume").clicked() {
                         action = ToolbarAction::Resume;
                     }
                 }
-                EditorMode::Play => {
+                PlayMode::Play => {
                     ui.add_enabled(false, egui::Button::new("▶ Play"));
                 }
             }
 
             // Pause button
             match state.mode {
-                EditorMode::Scene => {
+                PlayMode::Scene => {
                     ui.add_enabled(false, egui::Button::new("⏸ Pause"));
                 }
-                EditorMode::Play if !state.paused => {
+                PlayMode::Play if !state.paused => {
                     if ui.button("⏸ Pause").clicked() {
                         action = ToolbarAction::Pause;
                     }
                 }
-                EditorMode::Play => {
+                PlayMode::Play => {
                     ui.add_enabled(false, egui::Button::new("⏸ Pause"));
                 }
             }
 
             // Stop button
             match state.mode {
-                EditorMode::Scene => {
+                PlayMode::Scene => {
                     ui.add_enabled(false, egui::Button::new("⏹ Stop"));
                 }
-                EditorMode::Play => {
+                PlayMode::Play => {
                     if ui.button("⏹ Stop").clicked() {
                         action = ToolbarAction::Stop;
                     }
@@ -75,9 +75,9 @@ impl Toolbar {
 
             // Mode indicator
             let mode_text = match (state.mode, state.paused) {
-                (EditorMode::Scene, _) => "Scene Mode",
-                (EditorMode::Play, false) => "Playing",
-                (EditorMode::Play, true) => "Paused",
+                (PlayMode::Scene, _) => "Scene Mode",
+                (PlayMode::Play, false) => "Playing",
+                (PlayMode::Play, true) => "Paused",
             };
             ui.label(mode_text);
 
