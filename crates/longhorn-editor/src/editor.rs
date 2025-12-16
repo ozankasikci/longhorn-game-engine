@@ -229,6 +229,43 @@ impl Editor {
         &mut self.dirty_state
     }
 
+    /// Save the currently focused file
+    fn save_current(&mut self, engine: &Engine) {
+        // Save scene if dirty
+        if self.dirty_state.scene {
+            // TODO: Implement scene save
+            log::info!("TODO: Save scene");
+            self.dirty_state.scene = false;
+        }
+
+        // Save current script if dirty
+        if self.script_editor_state.is_dirty() {
+            if let Err(e) = self.script_editor_state.save() {
+                log::error!("Failed to save script: {}", e);
+            } else {
+                if let Some(path) = self.script_editor_state.open_file.clone() {
+                    self.dirty_state.scripts.remove(&path);
+                }
+            }
+        }
+
+        // Save project settings if dirty
+        if self.dirty_state.project_settings {
+            if let Some(project) = &self.project {
+                if let Err(e) = project.save_manifest() {
+                    log::error!("Failed to save project settings: {}", e);
+                } else {
+                    self.dirty_state.project_settings = false;
+                }
+            }
+        }
+    }
+
+    /// Save all dirty files
+    fn save_all(&mut self, engine: &Engine) {
+        self.save_current(engine);
+    }
+
     /// Get and clear any pending editor action
     pub fn take_pending_action(&mut self) -> EditorAction {
         let action = self.pending_action.clone();
@@ -472,27 +509,75 @@ impl Editor {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
-                    if ui.button("Open Game").clicked() {
-                        // For now, load examples/test-project from workspace root
-                        let test_project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                            .parent()
-                            .unwrap()
-                            .parent()
-                            .unwrap()
-                            .join("examples")
-                            .join("test-project");
-
-                        if let Err(e) = engine.load_game(&test_project) {
-                            log::error!("Failed to load game: {}", e);
+                    if ui.button("New Project...").clicked() {
+                        if self.dirty_state.any_dirty() {
+                            self.unsaved_changes_dialog.open(self.dirty_state.dirty_files());
+                            self.pending_close_action = Some(CloseAction::CloseProject);
                         } else {
-                            log::info!("Loaded game from: {:?}", test_project);
-                            self.refresh_project_tree(engine);
-                            self.setup_event_subscriptions(engine);
+                            self.project = None;
+                            self.dirty_state.clear();
+                        }
+                        self.new_project_dialog.open();
+                        ui.close_menu();
+                    }
+
+                    if ui.button("Open Project...").clicked() {
+                        if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                            if self.dirty_state.any_dirty() {
+                                self.unsaved_changes_dialog.open(self.dirty_state.dirty_files());
+                                self.pending_close_action = Some(CloseAction::OpenProject(path));
+                            } else {
+                                match Project::load(&path) {
+                                    Ok(project) => {
+                                        self.project = Some(project);
+                                        self.dirty_state.clear();
+                                        if let Err(e) = engine.load_game(&path) {
+                                            log::error!("Failed to load project: {}", e);
+                                        } else {
+                                            self.refresh_project_tree(engine);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        log::error!("Not a valid Longhorn project: {}", e);
+                                    }
+                                }
+                            }
                         }
                         ui.close_menu();
                     }
+
+                    if ui.add_enabled(self.project.is_some(), egui::Button::new("Close Project")).clicked() {
+                        if self.dirty_state.any_dirty() {
+                            self.unsaved_changes_dialog.open(self.dirty_state.dirty_files());
+                            self.pending_close_action = Some(CloseAction::CloseProject);
+                        } else {
+                            self.project = None;
+                            self.dirty_state.clear();
+                        }
+                        ui.close_menu();
+                    }
+
+                    ui.separator();
+
+                    if ui.add_enabled(self.dirty_state.any_dirty(), egui::Button::new("Save")).clicked() {
+                        self.save_current(engine);
+                        ui.close_menu();
+                    }
+
+                    if ui.add_enabled(self.dirty_state.any_dirty(), egui::Button::new("Save All")).clicked() {
+                        self.save_all(engine);
+                        ui.close_menu();
+                    }
+
+                    ui.separator();
+
                     if ui.button("Exit").clicked() {
-                        should_exit = true;
+                        if self.dirty_state.any_dirty() {
+                            self.unsaved_changes_dialog.open(self.dirty_state.dirty_files());
+                            self.pending_close_action = Some(CloseAction::Quit);
+                        } else {
+                            should_exit = true;
+                        }
                         ui.close_menu();
                     }
                 });
