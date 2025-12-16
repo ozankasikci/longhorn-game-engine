@@ -15,6 +15,19 @@ pub enum FileType {
 }
 
 impl FileType {
+    /// Determine file type from filename, checking compound extensions first
+    pub fn from_filename(filename: &str, ext: Option<&str>) -> Self {
+        let filename_lower = filename.to_lowercase();
+
+        // Check compound extensions first
+        if filename_lower.ends_with(".scn.ron") || filename_lower.ends_with(".scn.json") {
+            return FileType::Scene;
+        }
+
+        // Fall back to simple extension matching
+        Self::from_extension(ext)
+    }
+
     pub fn from_extension(ext: Option<&str>) -> Self {
         match ext {
             Some("ts") | Some("js") => FileType::Script,
@@ -199,7 +212,8 @@ impl FileEntry {
             .extension()
             .and_then(|e| e.to_str())
             .map(|s| s.to_lowercase());
-        let file_type = FileType::from_extension(extension.as_deref());
+        // Check for compound extensions like .scn.ron
+        let file_type = FileType::from_filename(&name, extension.as_deref());
 
         // Get file metadata
         let metadata = std::fs::metadata(&path).ok();
