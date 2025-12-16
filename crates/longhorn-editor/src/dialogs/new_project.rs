@@ -107,10 +107,18 @@ impl NewProjectDialog {
                 ui.separator();
                 ui.add_space(10.0);
 
+                // Compute validation state FIRST
+                let can_create = !self.name.trim().is_empty() && !self.final_path().exists();
+                if self.name.trim().is_empty() {
+                    self.error = Some("Project name is required".to_string());
+                } else if self.final_path().exists() {
+                    self.error = Some("Folder already exists".to_string());
+                } else {
+                    self.error = None;
+                }
+
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let can_create = !self.name.trim().is_empty() && !self.final_path().exists();
-
                         if ui.add_enabled(can_create, egui::Button::new("Create")).clicked() {
                             result = NewProjectResult::Create {
                                 path: self.final_path(),
@@ -122,15 +130,6 @@ impl NewProjectDialog {
                         if ui.button("Cancel").clicked() {
                             result = NewProjectResult::Cancel;
                             self.is_open = false;
-                        }
-
-                        // Show why create is disabled
-                        if self.name.trim().is_empty() {
-                            self.error = Some("Project name is required".to_string());
-                        } else if self.final_path().exists() {
-                            self.error = Some("Folder already exists".to_string());
-                        } else {
-                            self.error = None;
                         }
                     });
                 });
