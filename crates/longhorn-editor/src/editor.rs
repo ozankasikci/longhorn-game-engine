@@ -464,6 +464,73 @@ impl Editor {
             return false;
         }
 
+        // Handle unsaved changes dialog
+        match self.unsaved_changes_dialog.show(ctx) {
+            UnsavedChangesResult::Save => {
+                self.save_all(engine);
+                if let Some(action) = self.pending_close_action.take() {
+                    match action {
+                        CloseAction::CloseProject => {
+                            self.project = None;
+                            self.dirty_state.clear();
+                        }
+                        CloseAction::OpenProject(path) => {
+                            match Project::load(&path) {
+                                Ok(project) => {
+                                    self.project = Some(project);
+                                    self.dirty_state.clear();
+                                    if let Err(e) = engine.load_game(&path) {
+                                        log::error!("Failed to load project: {}", e);
+                                    } else {
+                                        self.refresh_project_tree(engine);
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!("Not a valid Longhorn project: {}", e);
+                                }
+                            }
+                        }
+                        CloseAction::Quit => {
+                            return true; // Signal exit
+                        }
+                    }
+                }
+            }
+            UnsavedChangesResult::DontSave => {
+                if let Some(action) = self.pending_close_action.take() {
+                    match action {
+                        CloseAction::CloseProject => {
+                            self.project = None;
+                            self.dirty_state.clear();
+                        }
+                        CloseAction::OpenProject(path) => {
+                            match Project::load(&path) {
+                                Ok(project) => {
+                                    self.project = Some(project);
+                                    self.dirty_state.clear();
+                                    if let Err(e) = engine.load_game(&path) {
+                                        log::error!("Failed to load project: {}", e);
+                                    } else {
+                                        self.refresh_project_tree(engine);
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!("Not a valid Longhorn project: {}", e);
+                                }
+                            }
+                        }
+                        CloseAction::Quit => {
+                            return true; // Signal exit
+                        }
+                    }
+                }
+            }
+            UnsavedChangesResult::Cancel => {
+                self.pending_close_action = None;
+            }
+            UnsavedChangesResult::None => {}
+        }
+
         // Check for pending import from file picker
         let pending_import: Option<(std::path::PathBuf, std::path::PathBuf, String)> = ctx.data_mut(|d| {
             d.remove_temp(egui::Id::new("pending_import"))
