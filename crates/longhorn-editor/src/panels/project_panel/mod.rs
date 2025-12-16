@@ -138,6 +138,7 @@ pub enum ContextAction {
 #[derive(Debug, Clone)]
 pub enum ProjectPanelAction {
     OpenScript(std::path::PathBuf),
+    OpenScene(std::path::PathBuf),
     OpenImage(std::path::PathBuf),
     OpenExternal(std::path::PathBuf),
     Context(ContextAction),

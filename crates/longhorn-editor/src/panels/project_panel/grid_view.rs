@@ -215,7 +215,10 @@ pub fn show_grid_view(
                 log::info!("  File: {:?}", file.path);
                 log::info!("  file_type: {:?}", file.file_type);
                 log::info!("  is_text_editable: {}", file.file_type.is_text_editable());
-                let new_action = if file.file_type.is_text_editable() {
+                let new_action = if file.file_type == FileType::Scene {
+                    log::info!("  -> Creating OpenScene action");
+                    ProjectPanelAction::OpenScene(file.path.clone())
+                } else if file.file_type.is_text_editable() {
                     log::info!("  -> Creating OpenScript action");
                     ProjectPanelAction::OpenScript(file.path.clone())
                 } else if file.file_type == FileType::Image {
@@ -241,7 +244,9 @@ pub fn show_grid_view(
         if is_remote_double_click {
             log::info!("REMOTE: Double-click on {:?}, file_type={:?}, is_text_editable={}",
                 file.path, file.file_type, file.file_type.is_text_editable());
-            action = Some(if file.file_type.is_text_editable() {
+            action = Some(if file.file_type == FileType::Scene {
+                ProjectPanelAction::OpenScene(file.path.clone())
+            } else if file.file_type.is_text_editable() {
                 ProjectPanelAction::OpenScript(file.path.clone())
             } else if file.file_type == FileType::Image {
                 ProjectPanelAction::OpenImage(file.path.clone())
