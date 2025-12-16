@@ -88,6 +88,7 @@ fn propagate_to_child(world: &mut World, parent_global: &GlobalTransform, child_
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Name;
     use glam::Vec2;
 
     #[test]
@@ -105,8 +106,7 @@ mod tests {
         propagate_transforms(&mut world);
 
         // Check GlobalTransform was created and matches Transform
-        let entity_handle = crate::ecs::EntityHandle::new(entity);
-        let global = world.get::<GlobalTransform>(entity_handle).unwrap();
+        let global = world.get::<GlobalTransform>(entity).unwrap();
 
         assert_eq!(global.position, Vec2::new(10.0, 20.0));
         assert_eq!(global.rotation, 0.0);
@@ -130,26 +130,24 @@ mod tests {
             .spawn()
             .with(Name::new("Child"))
             .with(Transform::from_position(Vec2::new(10.0, 10.0)))
-            .with(Parent::new(parent))
+            .with(Parent::new(parent.id))
             .build();
 
         // Add child to parent's Children component
-        let parent_handle = crate::ecs::EntityHandle::new(parent);
-        let mut children = world.get::<Children>(parent_handle).unwrap();
-        children.add(child);
-        let _ = world.set(parent_handle, children);
+        {
+            let mut children = (*world.get::<Children>(parent).unwrap()).clone();
+            children.add(child.id);
+            let _ = world.set(parent, children);
+        }
 
         // Run propagation
         propagate_transforms(&mut world);
 
         // Check parent's GlobalTransform
-        let parent_global = world.get::<GlobalTransform>(parent_handle).unwrap();
-        assert_eq!(parent_global.position, Vec2::new(100.0, 100.0));
+        assert_eq!(world.get::<GlobalTransform>(parent).unwrap().position, Vec2::new(100.0, 100.0));
 
         // Check child's GlobalTransform (should be 100 + 10 = 110)
-        let child_handle = crate::ecs::EntityHandle::new(child);
-        let child_global = world.get::<GlobalTransform>(child_handle).unwrap();
-        assert_eq!(child_global.position, Vec2::new(110.0, 110.0));
+        assert_eq!(world.get::<GlobalTransform>(child).unwrap().position, Vec2::new(110.0, 110.0));
     }
 
     #[test]
@@ -169,7 +167,7 @@ mod tests {
             .spawn()
             .with(Name::new("Parent"))
             .with(Transform::from_position(Vec2::new(10.0, 10.0)))
-            .with(Parent::new(grandparent))
+            .with(Parent::new(grandparent.id))
             .with(Children::new())
             .build();
 
@@ -178,26 +176,26 @@ mod tests {
             .spawn()
             .with(Name::new("Child"))
             .with(Transform::from_position(Vec2::new(1.0, 1.0)))
-            .with(Parent::new(parent))
+            .with(Parent::new(parent.id))
             .build();
 
         // Set up hierarchy
-        let grandparent_handle = crate::ecs::EntityHandle::new(grandparent);
-        let mut gp_children = world.get::<Children>(grandparent_handle).unwrap();
-        gp_children.add(parent);
-        let _ = world.set(grandparent_handle, gp_children);
+        {
+            let mut gp_children = (*world.get::<Children>(grandparent).unwrap()).clone();
+            gp_children.add(parent.id);
+            let _ = world.set(grandparent, gp_children);
+        }
 
-        let parent_handle = crate::ecs::EntityHandle::new(parent);
-        let mut p_children = world.get::<Children>(parent_handle).unwrap();
-        p_children.add(child);
-        let _ = world.set(parent_handle, p_children);
+        {
+            let mut p_children = (*world.get::<Children>(parent).unwrap()).clone();
+            p_children.add(child.id);
+            let _ = world.set(parent, p_children);
+        }
 
         // Run propagation
         propagate_transforms(&mut world);
 
         // Check child's GlobalTransform (should be 100 + 10 + 1 = 111)
-        let child_handle = crate::ecs::EntityHandle::new(child);
-        let child_global = world.get::<GlobalTransform>(child_handle).unwrap();
-        assert_eq!(child_global.position, Vec2::new(111.0, 111.0));
+        assert_eq!(world.get::<GlobalTransform>(child).unwrap().position, Vec2::new(111.0, 111.0));
     }
 }
