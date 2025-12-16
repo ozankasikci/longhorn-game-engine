@@ -1,0 +1,45 @@
+{
+  "name": "Main Scene",
+  "entities": [
+    {
+      "id": 1,
+      "components": {
+        "name": "Player",
+        "transform": {
+          "position": [100.0, 200.0],
+          "rotation": 0.0,
+          "scale": [1.0, 1.0]
+        },
+        "sprite": {
+          "texture_path": "assets/player.png",
+          "texture_id": 1,
+          "size": [32.0, 32.0],
+          "color": [1.0, 1.0, 1.0, 1.0],
+          "flip_x": false,
+          "flip_y": false
+        }
+      },
+      "children": []
+    },
+    {
+      "id": 2,
+      "components": {
+        "name": "Enemy",
+        "transform": {
+          "position": [300.0, 150.0],
+          "rotation": 0.0,
+          "scale": [1.0, 1.0]
+        },
+        "sprite": {
+          "texture_path": "assets/enemy.png",
+          "texture_id": 2,
+          "size": [64.0, 64.0],
+          "color": [1.0, 1.0, 1.0, 1.0],
+          "flip_x": false,
+          "flip_y": false
+        }
+      },
+      "children": []
+    }
+  ]
+}
