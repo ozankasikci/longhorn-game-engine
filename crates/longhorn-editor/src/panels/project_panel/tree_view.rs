@@ -1,8 +1,13 @@
-use egui::Ui;
+use egui::{Ui, Vec2};
 use crate::project_panel_state::{ProjectPanelState, DirectoryNode};
-use crate::styling::{Spacing, Icons, IconSize};
+use crate::styling::{Icons, IconSize};
 use crate::ui::context_menus::show_folder_context_menu;
 use super::ProjectPanelAction;
+
+/// Consistent tree item height
+const TREE_ITEM_HEIGHT: f32 = 20.0;
+/// Indentation per level
+const TREE_INDENT: f32 = 16.0;
 
 /// Render the folder tree view
 pub fn show_tree_view(
@@ -10,6 +15,9 @@ pub fn show_tree_view(
     state: &mut ProjectPanelState,
     root: &DirectoryNode,
 ) -> Option<ProjectPanelAction> {
+    // Set consistent spacing for tree
+    ui.spacing_mut().item_spacing = Vec2::new(4.0, 0.0);
+
     show_tree_node(ui, state, root, 0)
 }
 
@@ -25,29 +33,30 @@ fn show_tree_node(
     let is_selected = state.selected_folder == node.path;
     let has_children = !node.children.is_empty();
 
-    // Indent based on depth
-    let indent = depth as f32 * Spacing::TREE_INDENT;
+    let indent = depth as f32 * TREE_INDENT;
 
-    // Render as selectable label with icon
     let response = ui.horizontal(|ui| {
-        ui.add_space(indent);
-        ui.add_space(Spacing::LIST_ITEM_PADDING_H);
+        ui.set_min_height(TREE_ITEM_HEIGHT);
+        ui.add_space(4.0 + indent);
 
-        // Expand/collapse icon or spacer
+        // Expand/collapse icon
         if has_children {
-            let arrow_icon = if is_expanded { Icons::CARET_DOWN } else { Icons::CARET_RIGHT };
-            ui.label(Icons::icon_sized(arrow_icon, IconSize::SM));
+            let arrow = if is_expanded { Icons::CARET_DOWN } else { Icons::CARET_RIGHT };
+            if ui.add(egui::Button::new(Icons::icon_sized(arrow, IconSize::SM)).frame(false)).clicked() {
+                if is_expanded {
+                    state.expanded_folders.remove(&node.path);
+                } else {
+                    state.expanded_folders.insert(node.path.clone());
+                }
+            }
         } else {
-            ui.add_space(IconSize::SM);
+            ui.add_space(IconSize::SM + 4.0);
         }
-
-        ui.add_space(Spacing::ITEM_GAP);
 
         // Folder icon
         let folder_icon = if is_expanded { Icons::FOLDER_OPEN } else { Icons::FOLDER };
         ui.label(Icons::icon_sized(folder_icon, IconSize::SM));
-
-        ui.add_space(Spacing::ICON_TEXT_GAP);
+        ui.add_space(4.0);
 
         // Folder name
         let label_response = ui.selectable_label(is_selected, &node.name);
@@ -64,14 +73,12 @@ fn show_tree_node(
         label_response
     }).inner;
 
-    // Context menu for tree folders
+    // Context menu
     response.context_menu(|ui| {
         if let Some(ctx_action) = show_folder_context_menu(ui, &node.path) {
             action = Some(ProjectPanelAction::Context(ctx_action));
         }
     });
-
-    ui.add_space(Spacing::ITEM_GAP);
 
     // Render children if expanded
     if is_expanded {
