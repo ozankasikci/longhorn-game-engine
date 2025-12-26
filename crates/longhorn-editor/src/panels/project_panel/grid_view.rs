@@ -2,6 +2,7 @@ use egui::{Ui, RichText};
 use crate::project_panel_state::{ProjectPanelState, DirectoryNode, FileType};
 use crate::styling::{Colors, Spacing};
 use crate::ui_state::{UiStateTracker, TriggerAction};
+use crate::ui::context_menus::{show_create_submenu, show_folder_context_menu};
 use super::{ProjectPanelAction, ContextAction};
 
 /// Render the grid view of the selected folder's contents
@@ -108,9 +109,8 @@ pub fn show_grid_view(
 
             // Context menu for folders
             response.context_menu(|ui| {
-                if ui.button("Import Asset...").clicked() {
-                    action = Some(ProjectPanelAction::Context(ContextAction::ImportAsset(child.path.clone())));
-                    ui.close_menu();
+                if let Some(ctx_action) = show_folder_context_menu(ui, &child.path) {
+                    action = Some(ProjectPanelAction::Context(ctx_action));
                 }
             });
         }
@@ -265,6 +265,11 @@ pub fn show_grid_view(
 
         // Context menu (right-click) - for manual interaction only
         response.context_menu(|ui| {
+            // Create submenu - creates in the current folder
+            if let Some(ctx_action) = show_create_submenu(ui, &folder.path) {
+                action = Some(ProjectPanelAction::Context(ctx_action));
+            }
+            ui.separator();
             // Show "Open in Editor" for text-editable files
             if file.file_type.is_text_editable() {
                 if ui.button("Open in Editor").clicked() {
@@ -292,6 +297,22 @@ pub fn show_grid_view(
         // Consume the trigger if it was for this element
         if pending_action.is_some() {
             ui_state.take_pending_trigger_action();
+        }
+    }
+
+    // Add context menu for empty space in the grid
+    // Allocate remaining space to capture right-clicks on empty area
+    let remaining = ui.available_size();
+    if remaining.y > 0.0 {
+        let (rect, response) = ui.allocate_exact_size(remaining, egui::Sense::click());
+
+        // Make sure we're not overlapping with other content
+        if rect.height() > 0.0 {
+            response.context_menu(|ui| {
+                if let Some(ctx_action) = show_folder_context_menu(ui, &folder.path) {
+                    action = Some(ProjectPanelAction::Context(ctx_action));
+                }
+            });
         }
     }
 

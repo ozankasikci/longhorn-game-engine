@@ -2,10 +2,12 @@ use egui::Ui;
 use longhorn_core::{World, Name, EntityHandle, Parent, Children, Transform, GlobalTransform};
 use longhorn_assets::{AssetManager, FilesystemSource};
 use crate::{EditorState, UiStateTracker};
+use crate::ui::context_menus::show_scene_tree_create_menu;
+pub use crate::ui::context_menus::SceneTreeAction;
 use std::collections::HashSet;
 
 pub struct SceneTreePanel {
-    expanded_entities: HashSet<u64>, // Track which entities are expanded (using entity bits)
+    pub expanded_entities: HashSet<u64>, // Track which entities are expanded (using entity bits)
 }
 
 /// Represents an entity node in the hierarchy tree
@@ -61,6 +63,7 @@ impl SceneTreePanel {
         game_path: Option<&std::path::Path>,
         asset_manager: &mut AssetManager<FilesystemSource>,
         depth: usize,
+        action: &mut Option<SceneTreeAction>,
     ) {
         let entity = node.entity;
         let entity_bits = entity.to_bits().get();
@@ -192,6 +195,13 @@ impl SceneTreePanel {
             }
         }
 
+        // Context menu for this entity
+        horizontal_response.response.context_menu(|ui| {
+            if let Some(ctx_action) = show_scene_tree_create_menu(ui) {
+                *action = Some(ctx_action);
+            }
+        });
+
         // Recursively show children if expanded
         if is_expanded {
             for child in &node.children {
@@ -204,6 +214,7 @@ impl SceneTreePanel {
                     game_path,
                     asset_manager,
                     depth + 1,
+                    action,
                 );
             }
         }
@@ -217,7 +228,9 @@ impl SceneTreePanel {
         ui_state: &mut UiStateTracker,
         game_path: Option<&std::path::Path>,
         asset_manager: &mut AssetManager<FilesystemSource>,
-    ) {
+    ) -> Option<SceneTreeAction> {
+        let mut action: Option<SceneTreeAction> = None;
+
         ui.heading("Scene Tree");
         ui.separator();
 
@@ -240,7 +253,7 @@ impl SceneTreePanel {
 
         if all_entities.is_empty() {
             ui.label("(No entities)");
-            return;
+            return None;
         }
 
         // Find root entities (entities without Parent component)
@@ -264,6 +277,7 @@ impl SceneTreePanel {
                 game_path,
                 asset_manager,
                 0, // depth = 0 for root
+                &mut action,
             );
         }
 
@@ -339,6 +353,22 @@ impl SceneTreePanel {
                 log::warn!("SceneTree DND: Entity not found for bits: {}", dropped_entity_bits);
             }
         }
+
+        // Context menu for the entire panel (right-click anywhere)
+        // Allocate remaining space to capture right-clicks
+        let remaining = ui.available_size();
+        if remaining.y > 0.0 {
+            let (rect, response) = ui.allocate_exact_size(remaining, egui::Sense::click());
+            if rect.height() > 0.0 {
+                response.context_menu(|ui| {
+                    if let Some(ctx_action) = show_scene_tree_create_menu(ui) {
+                        action = Some(ctx_action);
+                    }
+                });
+            }
+        }
+
+        action
     }
 }
 

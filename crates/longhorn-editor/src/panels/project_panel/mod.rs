@@ -127,7 +127,9 @@ impl Default for ProjectPanel {
 /// Context menu actions
 #[derive(Debug, Clone)]
 pub enum ContextAction {
-    CreateFolder,
+    CreateFolder(std::path::PathBuf),
+    CreateScene(std::path::PathBuf),
+    CreateScript(std::path::PathBuf),
     Rename(std::path::PathBuf),
     Delete(std::path::PathBuf),
     Refresh,

@@ -852,7 +852,7 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                 let game_path = self.engine.game_path().map(|p| p.to_path_buf());
                 // Split borrows: we need both world and assets mutably
                 let (world, assets) = self.engine.world_and_assets_mut();
-                self.editor.scene_tree.show(
+                let scene_action = self.editor.scene_tree.show(
                     ui,
                     world,
                     &mut self.editor.state,
@@ -860,6 +860,34 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                     game_path.as_deref(),
                     assets,
                 );
+
+                // Handle scene tree actions
+                if let Some(action) = scene_action {
+                    match action {
+                        crate::SceneTreeAction::CreateEntity => {
+                            // Create new entity with Name and Transform
+                            let new_entity = world.spawn()
+                                .with(longhorn_core::Name::new("New Entity"))
+                                .with(longhorn_core::Transform::new())
+                                .build();
+
+                            // If an entity is selected, make the new entity a child
+                            if let Some(parent_entity) = self.editor.state.selected_entity {
+                                let parent_handle = longhorn_core::EntityHandle::new(parent_entity);
+                                if let Err(e) = longhorn_core::ecs::hierarchy::add_child(world, parent_handle, new_entity) {
+                                    log::error!("Failed to add child entity: {:?}", e);
+                                } else {
+                                    // Expand parent to show new child
+                                    self.editor.scene_tree.expanded_entities.insert(parent_entity.to_bits().get());
+                                }
+                            }
+
+                            // Select the new entity
+                            self.editor.state.select(Some(new_entity.id()));
+                            log::info!("Created new entity: {:?}", new_entity.id());
+                        }
+                    }
+                }
             }
             PanelType::Inspector => {
                 // In play mode, show read-only indicator
@@ -1040,9 +1068,38 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                         }
                         ProjectPanelAction::Context(context_action) => {
                             match context_action {
-                                ContextAction::CreateFolder => {
-                                    // TODO: Show dialog for folder name
-                                    log::info!("TODO: Create folder dialog");
+                                ContextAction::CreateFolder(target_folder) => {
+                                    match crate::create_new_folder(&target_folder) {
+                                        Ok(new_path) => {
+                                            log::info!("Created folder: {:?}", new_path);
+                                            self.editor.project_panel_state.selected_file = Some(new_path.clone());
+                                            self.editor.project_panel_state.renaming = Some(new_path);
+                                            self.editor.refresh_project_tree(self.engine);
+                                        }
+                                        Err(e) => log::error!("Failed to create folder: {}", e),
+                                    }
+                                }
+                                ContextAction::CreateScene(target_folder) => {
+                                    match crate::create_scene(&target_folder) {
+                                        Ok(new_path) => {
+                                            log::info!("Created scene: {:?}", new_path);
+                                            self.editor.project_panel_state.selected_file = Some(new_path.clone());
+                                            self.editor.project_panel_state.renaming = Some(new_path);
+                                            self.editor.refresh_project_tree(self.engine);
+                                        }
+                                        Err(e) => log::error!("Failed to create scene: {}", e),
+                                    }
+                                }
+                                ContextAction::CreateScript(target_folder) => {
+                                    match crate::create_script(&target_folder) {
+                                        Ok(new_path) => {
+                                            log::info!("Created script: {:?}", new_path);
+                                            self.editor.project_panel_state.selected_file = Some(new_path.clone());
+                                            self.editor.project_panel_state.renaming = Some(new_path);
+                                            self.editor.refresh_project_tree(self.engine);
+                                        }
+                                        Err(e) => log::error!("Failed to create script: {}", e),
+                                    }
                                 }
                                 ContextAction::Rename(path) => {
                                     self.editor.project_panel_state.renaming = Some(path);

@@ -1,6 +1,7 @@
 use egui::Ui;
 use crate::project_panel_state::{ProjectPanelState, DirectoryNode};
 use crate::styling::Spacing;
+use crate::ui::context_menus::show_folder_context_menu;
 use super::ProjectPanelAction;
 
 /// Render the folder tree view - follows scene_tree.rs pattern
@@ -36,9 +37,10 @@ fn show_tree_node(
     let display_text = format!("{}{}", arrow, node.name);
 
     // Render as selectable label (same pattern as scene_tree.rs)
-    ui.horizontal(|ui| {
+    let response = ui.horizontal(|ui| {
         ui.add_space(indent);
-        if ui.selectable_label(is_selected, &display_text).clicked() {
+        let label_response = ui.selectable_label(is_selected, &display_text);
+        if label_response.clicked() {
             state.selected_folder = node.path.clone();
             if has_children {
                 if is_expanded {
@@ -47,6 +49,14 @@ fn show_tree_node(
                     state.expanded_folders.insert(node.path.clone());
                 }
             }
+        }
+        label_response
+    }).inner;
+
+    // Context menu for tree folders
+    response.context_menu(|ui| {
+        if let Some(ctx_action) = show_folder_context_menu(ui, &node.path) {
+            action = Some(ProjectPanelAction::Context(ctx_action));
         }
     });
 

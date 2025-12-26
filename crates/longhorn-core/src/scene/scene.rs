@@ -210,7 +210,7 @@ impl Scene {
         }
     }
 
-    /// Save the scene to a JSON file
+    /// Save the scene to a file (supports JSON and RON formats based on extension)
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref();
 
@@ -219,12 +219,23 @@ impl Scene {
             fs::create_dir_all(parent)?;
         }
 
-        // Serialize to JSON
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| LonghornError::Serialization(e.to_string()))?;
+        // Determine format from file extension
+        let filename = path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+
+        let contents = if filename.ends_with(".scn.ron") || filename.ends_with(".ron") {
+            // Serialize to RON
+            ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default())
+                .map_err(|e| LonghornError::Serialization(e.to_string()))?
+        } else {
+            // Serialize to JSON (default)
+            serde_json::to_string_pretty(self)
+                .map_err(|e| LonghornError::Serialization(e.to_string()))?
+        };
 
         // Write to file
-        fs::write(path, json)?;
+        fs::write(path, contents)?;
 
         Ok(())
     }
@@ -1187,5 +1198,58 @@ mod tests {
         let p_children = world2.get::<crate::ecs::Children>(p).unwrap();
         assert_eq!(p_children.len(), 1);
         assert!(p_children.iter().any(|&e| e == c.id()));
+    }
+
+    #[test]
+    fn test_save_and_load_scene_ron_format() {
+        let path = temp_path("save_load_ron").with_extension("scn.ron");
+
+        // Create a scene
+        let mut scene = Scene::new("RON Test Scene");
+
+        let entity = SerializedEntity {
+            id: 1,
+            components: SerializedComponents {
+                name: Some("TestEntity".to_string()),
+                transform: Some(SerializedTransform {
+                    position: [50.0, 100.0],
+                    rotation: 1.5,
+                    scale: [2.0, 2.0],
+                }),
+                sprite: None,
+                script: None,
+                enabled: Some(true),
+            },
+            children: Vec::new(),
+        };
+
+        scene.add_entity(entity);
+
+        // Save the scene as RON
+        scene.save(&path).unwrap();
+        assert!(path.exists());
+
+        // Verify file contains RON format (not JSON)
+        let contents = fs::read_to_string(&path).unwrap();
+        assert!(contents.contains("name:"), "RON format should use 'name:' syntax");
+        assert!(!contents.contains("\"name\":"), "Should not contain JSON-style keys");
+
+        // Load the scene
+        let loaded = Scene::load(&path).unwrap();
+
+        // Verify data
+        assert_eq!(loaded.name, "RON Test Scene");
+        assert_eq!(loaded.entity_count(), 1);
+
+        let entity = &loaded.entities[0];
+        assert_eq!(entity.components.name, Some("TestEntity".to_string()));
+
+        let transform = entity.components.transform.as_ref().unwrap();
+        assert_eq!(transform.position, [50.0, 100.0]);
+        assert!((transform.rotation - 1.5).abs() < 0.001);
+        assert_eq!(transform.scale, [2.0, 2.0]);
+
+        // Clean up
+        fs::remove_file(&path).unwrap();
     }
 }

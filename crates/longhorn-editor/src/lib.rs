@@ -16,6 +16,7 @@ mod project;
 mod dialogs;
 pub mod styling;
 pub mod docking;
+pub mod ui;
 
 pub use state::*;
 pub use toolbar::*;
