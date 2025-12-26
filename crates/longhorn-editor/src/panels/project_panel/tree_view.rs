@@ -1,10 +1,10 @@
 use egui::Ui;
 use crate::project_panel_state::{ProjectPanelState, DirectoryNode};
-use crate::styling::Spacing;
+use crate::styling::{Spacing, Icons, IconSize};
 use crate::ui::context_menus::show_folder_context_menu;
 use super::ProjectPanelAction;
 
-/// Render the folder tree view - follows scene_tree.rs pattern
+/// Render the folder tree view
 pub fn show_tree_view(
     ui: &mut Ui,
     state: &mut ProjectPanelState,
@@ -26,20 +26,31 @@ fn show_tree_node(
     let has_children = !node.children.is_empty();
 
     // Indent based on depth
-    let indent = depth as f32 * Spacing::INDENT;
+    let indent = depth as f32 * Spacing::TREE_INDENT;
 
-    // Build display text with arrow
-    let arrow = if has_children {
-        if is_expanded { "v " } else { "> " }
-    } else {
-        "  "
-    };
-    let display_text = format!("{}{}", arrow, node.name);
-
-    // Render as selectable label (same pattern as scene_tree.rs)
+    // Render as selectable label with icon
     let response = ui.horizontal(|ui| {
         ui.add_space(indent);
-        let label_response = ui.selectable_label(is_selected, &display_text);
+        ui.add_space(Spacing::LIST_ITEM_PADDING_H);
+
+        // Expand/collapse icon or spacer
+        if has_children {
+            let arrow_icon = if is_expanded { Icons::CARET_DOWN } else { Icons::CARET_RIGHT };
+            ui.label(Icons::icon_sized(arrow_icon, IconSize::SM));
+        } else {
+            ui.add_space(IconSize::SM);
+        }
+
+        ui.add_space(Spacing::ITEM_GAP);
+
+        // Folder icon
+        let folder_icon = if is_expanded { Icons::FOLDER_OPEN } else { Icons::FOLDER };
+        ui.label(Icons::icon_sized(folder_icon, IconSize::SM));
+
+        ui.add_space(Spacing::ICON_TEXT_GAP);
+
+        // Folder name
+        let label_response = ui.selectable_label(is_selected, &node.name);
         if label_response.clicked() {
             state.selected_folder = node.path.clone();
             if has_children {
@@ -59,6 +70,8 @@ fn show_tree_node(
             action = Some(ProjectPanelAction::Context(ctx_action));
         }
     });
+
+    ui.add_space(Spacing::ITEM_GAP);
 
     // Render children if expanded
     if is_expanded {

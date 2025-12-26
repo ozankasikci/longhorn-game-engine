@@ -1,6 +1,7 @@
 use egui::Context;
 use super::colors::Colors;
 use super::fonts::apply_font_styles;
+use super::icons::setup_icon_font;
 use super::spacing::apply_spacing;
 use super::widgets::apply_widget_styles;
 
@@ -28,6 +29,9 @@ pub fn apply_theme(ctx: &Context) {
     style.visuals.popup_shadow = egui::epaint::Shadow::NONE;
 
     ctx.set_style(style);
+
+    // Set up icon fonts (Phosphor icons)
+    setup_icon_font(ctx);
 }
 
 fn apply_colors(style: &mut egui::Style) {

@@ -1,6 +1,6 @@
 use egui::{Ui, RichText};
 use crate::project_panel_state::{ProjectPanelState, DirectoryNode, FileType};
-use crate::styling::{Colors, Spacing};
+use crate::styling::{Colors, Spacing, Typography, Icons, IconSize};
 use crate::ui_state::{UiStateTracker, TriggerAction};
 use crate::ui::context_menus::{show_create_submenu, show_folder_context_menu};
 use super::{ProjectPanelAction, ContextAction};
@@ -17,19 +17,21 @@ pub fn show_grid_view(
         folder.name, folder.files.len(), folder.children.len());
     let mut action = None;
 
-    // Breadcrumb navigation - modern design with better spacing
+    // Breadcrumb navigation
     ui.horizontal(|ui| {
-        ui.add_space(4.0);
+        ui.add_space(Spacing::LIST_ITEM_PADDING_H);
 
-        // Home icon with better styling - always shows project root
-        let home_btn = egui::Button::new("🏠").frame(false);
-        if ui.add(home_btn).on_hover_text("Project root").clicked() {
+        // Home icon
+        if ui.add(egui::Button::new(Icons::icon(Icons::HOME)).frame(false))
+            .on_hover_text("Project root")
+            .clicked()
+        {
             state.selected_folder = root.path.clone();
         }
 
         // Only show breadcrumb if we're in a subfolder
         if folder.path != root.path {
-            ui.add_space(2.0);
+            ui.add_space(Spacing::ITEM_GAP);
 
             // Get path relative to project root
             let relative_path = folder.path.strip_prefix(&root.path).unwrap_or(&folder.path);
@@ -37,8 +39,8 @@ pub fn show_grid_view(
 
             for (i, component) in components.iter().enumerate() {
                 // Separator
-                ui.label(RichText::new("›").color(Colors::TEXT_MUTED));
-                ui.add_space(2.0);
+                ui.label(Icons::icon_colored(Icons::CHEVRON_RIGHT, Colors::TEXT_MUTED));
+                ui.add_space(Spacing::ITEM_GAP);
 
                 let component_name = component.as_os_str().to_string_lossy();
                 let is_last = i == components.len() - 1;
@@ -60,39 +62,41 @@ pub fn show_grid_view(
                     state.selected_folder = path.clone();
                     state.current_folder = path;
                 }
-                ui.add_space(2.0);
+                ui.add_space(Spacing::ITEM_GAP);
             }
         }
     });
-    ui.add_space(Spacing::MARGIN_SMALL);
+    ui.add_space(Spacing::SECTION_HEADER_BOTTOM);
     ui.separator();
-    ui.add_space(Spacing::MARGIN_SMALL);
+    ui.add_space(Spacing::SECTION_HEADER_BOTTOM);
 
-    // Check if folder is empty
-    if folder.children.is_empty() && folder.files.is_empty() {
-        ui.label(RichText::new("Empty folder").color(Colors::TEXT_MUTED));
-        return action;
+    // Check if folder is empty - but don't return early, allow context menu
+    let is_empty = folder.children.is_empty() && folder.files.is_empty();
+    if is_empty {
+        ui.label(Typography::empty_state("Empty folder"));
+        ui.add_space(Spacing::SECTION_GAP);
     }
 
-    // Folders section with better visual design
+    // Folders section
     if !folder.children.is_empty() {
-        ui.label(RichText::new("FOLDERS").size(11.0).color(Colors::TEXT_MUTED).strong());
-        ui.add_space(4.0);
+        ui.add_space(Spacing::SECTION_HEADER_TOP);
+        ui.label(Typography::section_header("FOLDERS"));
+        ui.add_space(Spacing::SECTION_HEADER_BOTTOM);
 
         for child in &folder.children {
             let is_selected = state.selected_folder == child.path;
 
-            // Better folder item design
+            // Folder item
             let response = ui.horizontal(|ui| {
-                ui.add_space(4.0);
+                ui.add_space(Spacing::LIST_ITEM_PADDING_H);
 
                 // Folder icon
-                let folder_icon = if is_selected { "📂" } else { "📁" };
-                ui.label(RichText::new(folder_icon).size(14.0));
+                let icon = if is_selected { Icons::FOLDER_OPEN } else { Icons::FOLDER };
+                ui.label(Icons::icon_sized(icon, IconSize::MD));
 
-                ui.add_space(4.0);
+                ui.add_space(Spacing::ICON_TEXT_GAP);
 
-                // Folder name with better styling
+                // Folder name
                 let text = if is_selected {
                     RichText::new(&child.name).strong()
                 } else {
@@ -113,15 +117,18 @@ pub fn show_grid_view(
                     action = Some(ProjectPanelAction::Context(ctx_action));
                 }
             });
+
+            ui.add_space(Spacing::ITEM_GAP);
         }
 
-        ui.add_space(8.0);
+        ui.add_space(Spacing::SECTION_GAP);
     }
 
-    // Files section with better visual design
+    // Files section
     if !folder.files.is_empty() {
-        ui.label(RichText::new("FILES").size(11.0).color(Colors::TEXT_MUTED).strong());
-        ui.add_space(4.0);
+        ui.add_space(Spacing::SECTION_HEADER_TOP);
+        ui.label(Typography::section_header("FILES"));
+        ui.add_space(Spacing::SECTION_HEADER_BOTTOM);
     }
 
     for file in &folder.files {
@@ -141,16 +148,16 @@ pub fn show_grid_view(
         // Check for pending remote trigger
         let pending_action = ui_state.has_pending_trigger_for(&element_id).cloned();
 
-        // Better file item design with improved layout
+        // File item layout
         let mut response = ui.horizontal(|ui| {
-            ui.add_space(4.0);
+            ui.add_space(Spacing::LIST_ITEM_PADDING_H);
 
-            // Icon with better size
-            ui.label(RichText::new(icon_char).size(14.0).color(icon_color));
+            // Icon
+            ui.label(RichText::new(icon_char).size(IconSize::MD).color(icon_color));
 
-            ui.add_space(6.0);
+            ui.add_space(Spacing::ICON_TEXT_GAP);
 
-            // File name with better styling - this is the clickable part
+            // File name - this is the clickable part
             let text = if is_selected {
                 RichText::new(&file.name).strong()
             } else {
@@ -173,7 +180,7 @@ pub fn show_grid_view(
             // Show file size hint on the right
             if let Some(_size) = file.size {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(RichText::new(file.format_size()).size(10.0).color(Colors::TEXT_MUTED));
+                    ui.label(Typography::muted(file.format_size()));
                 });
             }
 
@@ -298,15 +305,15 @@ pub fn show_grid_view(
         if pending_action.is_some() {
             ui_state.take_pending_trigger_action();
         }
+
+        ui.add_space(Spacing::ITEM_GAP);
     }
 
-    // Add context menu for empty space in the grid
     // Allocate remaining space to capture right-clicks on empty area
     let remaining = ui.available_size();
     if remaining.y > 0.0 {
         let (rect, response) = ui.allocate_exact_size(remaining, egui::Sense::click());
 
-        // Make sure we're not overlapping with other content
         if rect.height() > 0.0 {
             response.context_menu(|ui| {
                 if let Some(ctx_action) = show_folder_context_menu(ui, &folder.path) {

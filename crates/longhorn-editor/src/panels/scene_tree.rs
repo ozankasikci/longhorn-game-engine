@@ -2,6 +2,7 @@ use egui::Ui;
 use longhorn_core::{World, Name, EntityHandle, Parent, Children, Transform, GlobalTransform};
 use longhorn_assets::{AssetManager, FilesystemSource};
 use crate::{EditorState, UiStateTracker};
+use crate::styling::{Spacing, Typography, Icons, IconSize, Colors, Radius};
 use crate::ui::context_menus::show_scene_tree_create_menu;
 pub use crate::ui::context_menus::SceneTreeAction;
 use std::collections::HashSet;
@@ -75,12 +76,13 @@ impl SceneTreePanel {
 
         let horizontal_response = ui.horizontal(|ui| {
             // Indent based on depth
-            ui.add_space(depth as f32 * 16.0);
+            ui.add_space(depth as f32 * Spacing::TREE_INDENT);
+            ui.add_space(Spacing::LIST_ITEM_PADDING_H);
 
             // Expand/collapse button if has children
             if has_children {
-                let arrow = if is_expanded { "▼" } else { "▶" };
-                if ui.small_button(arrow).clicked() {
+                let arrow_icon = if is_expanded { Icons::CARET_DOWN } else { Icons::CARET_RIGHT };
+                if ui.add(egui::Button::new(Icons::icon_sized(arrow_icon, IconSize::SM)).frame(false)).clicked() {
                     if is_expanded {
                         self.expanded_entities.remove(&entity_bits);
                     } else {
@@ -89,8 +91,15 @@ impl SceneTreePanel {
                 }
             } else {
                 // Add spacing to align childless entities
-                ui.add_space(20.0);
+                ui.add_space(IconSize::SM + Spacing::ITEM_GAP);
             }
+
+            ui.add_space(Spacing::ITEM_GAP);
+
+            // Entity icon
+            ui.label(Icons::icon_sized(Icons::ENTITY, IconSize::SM));
+
+            ui.add_space(Spacing::ICON_TEXT_GAP);
 
             // Register as clickable for remote control
             let element_id = format!("entity_{}", entity.id());
@@ -146,8 +155,8 @@ impl SceneTreePanel {
         if can_accept_payload {
             ui.painter().rect_stroke(
                 response.rect,
-                2.0,
-                egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 180, 255)),
+                Radius::SMALL,
+                egui::Stroke::new(2.0, Colors::ACCENT),
             );
         }
 
@@ -202,6 +211,8 @@ impl SceneTreePanel {
             }
         });
 
+        ui.add_space(Spacing::ITEM_GAP);
+
         // Recursively show children if expanded
         if is_expanded {
             for child in &node.children {
@@ -231,8 +242,10 @@ impl SceneTreePanel {
     ) -> Option<SceneTreeAction> {
         let mut action: Option<SceneTreeAction> = None;
 
-        ui.heading("Scene Tree");
+        ui.label(Typography::heading("Scene Tree"));
+        ui.add_space(Spacing::SECTION_HEADER_BOTTOM);
         ui.separator();
+        ui.add_space(Spacing::SECTION_HEADER_BOTTOM);
 
         // Collect all entities
         let all_entities: Vec<_> = world.inner().iter().map(|e| e.entity()).collect();
@@ -252,7 +265,7 @@ impl SceneTreePanel {
         }
 
         if all_entities.is_empty() {
-            ui.label("(No entities)");
+            ui.label(Typography::empty_state("(No entities)"));
             return None;
         }
 
@@ -282,9 +295,10 @@ impl SceneTreePanel {
         }
 
         // Add drop zone at bottom to make entities root-level
-        ui.add_space(10.0);
+        ui.add_space(Spacing::SECTION_GAP);
+        let drop_zone_height = Spacing::ROW_HEIGHT + Spacing::LIST_ITEM_PADDING_V * 2.0;
         let (rect, response) = ui.allocate_exact_size(
-            egui::vec2(ui.available_width(), 30.0),
+            egui::vec2(ui.available_width(), drop_zone_height),
             egui::Sense::hover(),
         );
 
@@ -292,28 +306,28 @@ impl SceneTreePanel {
         if response.hovered() && ui.input(|i| i.pointer.any_down()) {
             ui.painter().rect_filled(
                 rect,
-                2.0,
-                egui::Color32::from_rgba_premultiplied(100, 180, 255, 30),
+                Radius::SMALL,
+                Colors::ACCENT.gamma_multiply(0.15),
             );
             ui.painter().text(
                 rect.center(),
                 egui::Align2::CENTER_CENTER,
                 "Drop here to make root entity",
                 egui::FontId::default(),
-                egui::Color32::from_rgb(100, 180, 255),
+                Colors::ACCENT,
             );
         } else {
             ui.painter().rect_stroke(
                 rect,
-                2.0,
-                egui::Stroke::new(1.0, ui.style().visuals.widgets.noninteractive.bg_stroke.color),
+                Radius::SMALL,
+                egui::Stroke::new(1.0, Colors::STROKE_DEFAULT),
             );
             ui.painter().text(
                 rect.center(),
                 egui::Align2::CENTER_CENTER,
                 "Drop here to make root entity",
                 egui::FontId::default(),
-                ui.style().visuals.text_color(),
+                Colors::TEXT_MUTED,
             );
         }
 
