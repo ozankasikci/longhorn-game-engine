@@ -168,6 +168,28 @@ impl Children {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+
+    /// Insert entity at specific index (clamped to valid range)
+    pub fn insert_at(&mut self, entity: Entity, index: usize) {
+        if !self.0.contains(&entity) {
+            let index = index.min(self.0.len());
+            self.0.insert(index, entity);
+        }
+    }
+
+    /// Get index of entity in children list
+    pub fn index_of(&self, entity: Entity) -> Option<usize> {
+        self.0.iter().position(|&e| e == entity)
+    }
+
+    /// Move entity to new index within the same children list
+    pub fn move_to(&mut self, entity: Entity, new_index: usize) {
+        if let Some(current_index) = self.index_of(entity) {
+            self.0.remove(current_index);
+            let new_index = new_index.min(self.0.len());
+            self.0.insert(new_index, entity);
+        }
+    }
 }
 
 #[cfg(test)]

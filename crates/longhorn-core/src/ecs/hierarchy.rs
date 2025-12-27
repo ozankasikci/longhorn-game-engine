@@ -154,6 +154,100 @@ pub fn set_parent(world: &mut World, child: EntityHandle, new_parent: EntityHand
     Ok(())
 }
 
+/// Set parent and insert child at specific index in parent's children list
+///
+/// Similar to `set_parent` but allows controlling where in the sibling order
+/// the child appears.
+///
+/// # Errors
+/// - `EntityNotFound` if parent or child doesn't exist
+/// - `SelfParenting` if parent == child
+/// - `CycleDetected` if new_parent is a descendant of child
+pub fn set_parent_at_index(
+    world: &mut World,
+    child: EntityHandle,
+    new_parent: EntityHandle,
+    index: usize,
+) -> Result<(), HierarchyError> {
+    if !world.exists(child) {
+        return Err(HierarchyError::EntityNotFound(child.id()));
+    }
+    if !world.exists(new_parent) {
+        return Err(HierarchyError::EntityNotFound(new_parent.id()));
+    }
+
+    // Prevent self-parenting
+    if child == new_parent {
+        return Err(HierarchyError::SelfParenting(child.id()));
+    }
+
+    // Prevent cycles: new_parent cannot be a descendant of child
+    if is_ancestor(world, new_parent, child) {
+        return Err(HierarchyError::CycleDetected { child: child.id() });
+    }
+
+    // Remove from old parent if exists
+    clear_parent(world, child)?;
+
+    // Add Parent component to child
+    world.set(child, Parent::new(new_parent.id())).ok();
+
+    // Add child to parent's Children component at specific index
+    let has_children = world.has::<Children>(new_parent);
+    if has_children {
+        if let Ok(mut children) = world.get_mut::<Children>(new_parent) {
+            children.insert_at(child.id(), index);
+        }
+    } else {
+        // Parent doesn't have Children component, create it
+        world.set(new_parent, Children::with_children(vec![child.id()])).ok();
+    }
+
+    Ok(())
+}
+
+/// Reorder a child within its parent's children list
+///
+/// Moves the entity to a new index among its siblings.
+/// If the entity has no parent, this is a no-op.
+///
+/// # Errors
+/// - `EntityNotFound` if entity doesn't exist
+pub fn reorder_sibling(
+    world: &mut World,
+    entity: EntityHandle,
+    new_index: usize,
+) -> Result<(), HierarchyError> {
+    if !world.exists(entity) {
+        return Err(HierarchyError::EntityNotFound(entity.id()));
+    }
+
+    // Get parent
+    if let Ok(parent_comp) = world.get::<Parent>(entity) {
+        let parent = EntityHandle::new(parent_comp.get());
+
+        if let Ok(mut children) = world.get_mut::<Children>(parent) {
+            children.move_to(entity.id(), new_index);
+        }
+    }
+
+    Ok(())
+}
+
+/// Get the index of an entity within its parent's children list
+///
+/// Returns None if the entity has no parent or is not in the parent's children list.
+pub fn get_sibling_index(world: &World, entity: EntityHandle) -> Option<usize> {
+    if let Ok(parent_comp) = world.get::<Parent>(entity) {
+        let parent = EntityHandle::new(parent_comp.get());
+
+        if let Ok(children) = world.get::<Children>(parent) {
+            return children.index_of(entity.id());
+        }
+    }
+    None
+}
+
 /// Recursively collect all descendants of an entity
 ///
 /// Returns a Vec of all descendants in depth-first order.
