@@ -1,6 +1,6 @@
 use egui::{Ui, RichText, Vec2};
 use crate::project_panel_state::{ProjectPanelState, DirectoryNode, FileType};
-use crate::styling::{Colors, Typography, Icons, IconSize};
+use crate::styling::{Colors, Typography, Icons, IconSize, Radius};
 use crate::ui_state::{UiStateTracker, TriggerAction};
 use crate::ui::context_menus::{show_create_submenu, show_folder_context_menu};
 use super::{ProjectPanelAction, ContextAction};
@@ -19,6 +19,9 @@ pub fn show_grid_view(
     log::debug!("Grid view: folder={}, files={}, children={}",
         folder.name, folder.files.len(), folder.children.len());
     let mut action = None;
+
+    // Detect if external files are being dragged over the window
+    let files_hovering = ui.ctx().input(|i| !i.raw.hovered_files.is_empty());
 
     // Apply consistent spacing for this panel
     ui.spacing_mut().item_spacing = Vec2::new(4.0, 1.0);
@@ -103,6 +106,16 @@ pub fn show_grid_view(
                 };
                 ui.selectable_label(is_selected, text)
             });
+
+            // Highlight folder when external files hover over it
+            if files_hovering && response.hovered() {
+                ui.painter().rect_stroke(
+                    response.rect,
+                    Radius::SMALL,
+                    egui::Stroke::new(2.0, Colors::ACCENT),
+                );
+                state.drop_target = Some(child.path.clone());
+            }
 
             if response.double_clicked() {
                 state.selected_folder = child.path.clone();
@@ -254,11 +267,34 @@ pub fn show_grid_view(
         }
     }
 
-    // Empty space context menu
+    // Empty space - drop zone and context menu
     let remaining = ui.available_size();
     if remaining.y > 0.0 {
         let (rect, response) = ui.allocate_exact_size(remaining, egui::Sense::click());
         if rect.height() > 0.0 {
+            // Show drop zone indicator when files are hovering
+            if files_hovering && response.hovered() {
+                ui.painter().rect_filled(
+                    rect,
+                    Radius::SMALL,
+                    Colors::ACCENT.gamma_multiply(0.15),
+                );
+                ui.painter().rect_stroke(
+                    rect,
+                    Radius::SMALL,
+                    egui::Stroke::new(2.0, Colors::ACCENT),
+                );
+                ui.painter().text(
+                    rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "Drop files here to import",
+                    egui::FontId::default(),
+                    Colors::ACCENT,
+                );
+                // Use current folder as drop target
+                state.drop_target = Some(folder.path.clone());
+            }
+
             response.context_menu(|ui| {
                 if let Some(ctx_action) = show_folder_context_menu(ui, &folder.path) {
                     action = Some(ProjectPanelAction::Context(ctx_action));

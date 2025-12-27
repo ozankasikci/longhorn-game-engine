@@ -1,6 +1,6 @@
 use egui::{Ui, Vec2};
 use crate::project_panel_state::{ProjectPanelState, DirectoryNode};
-use crate::styling::{Icons, IconSize};
+use crate::styling::{Colors, Icons, IconSize, Radius};
 use crate::ui::context_menus::show_folder_context_menu;
 use super::ProjectPanelAction;
 
@@ -18,7 +18,10 @@ pub fn show_tree_view(
     // Set consistent spacing for tree
     ui.spacing_mut().item_spacing = Vec2::new(4.0, 0.0);
 
-    show_tree_node(ui, state, root, 0)
+    // Detect if external files are being dragged over the window
+    let files_hovering = ui.ctx().input(|i| !i.raw.hovered_files.is_empty());
+
+    show_tree_node(ui, state, root, 0, files_hovering)
 }
 
 fn show_tree_node(
@@ -26,6 +29,7 @@ fn show_tree_node(
     state: &mut ProjectPanelState,
     node: &DirectoryNode,
     depth: usize,
+    files_hovering: bool,
 ) -> Option<ProjectPanelAction> {
     let mut action = None;
 
@@ -35,7 +39,7 @@ fn show_tree_node(
 
     let indent = depth as f32 * TREE_INDENT;
 
-    let response = ui.horizontal(|ui| {
+    let row_response = ui.horizontal(|ui| {
         ui.set_min_height(TREE_ITEM_HEIGHT);
         ui.add_space(4.0 + indent);
 
@@ -71,7 +75,19 @@ fn show_tree_node(
             }
         }
         label_response
-    }).inner;
+    });
+
+    let response = row_response.inner;
+
+    // Highlight folder when external files hover over it
+    if files_hovering && row_response.response.hovered() {
+        ui.painter().rect_stroke(
+            row_response.response.rect,
+            Radius::SMALL,
+            egui::Stroke::new(2.0, Colors::ACCENT),
+        );
+        state.drop_target = Some(node.path.clone());
+    }
 
     // Context menu
     response.context_menu(|ui| {
@@ -83,7 +99,7 @@ fn show_tree_node(
     // Render children if expanded
     if is_expanded {
         for child in &node.children {
-            if let Some(child_action) = show_tree_node(ui, state, child, depth + 1) {
+            if let Some(child_action) = show_tree_node(ui, state, child, depth + 1, files_hovering) {
                 action = Some(child_action);
             }
         }

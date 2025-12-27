@@ -95,6 +95,8 @@ pub struct ProjectPanelState {
     pub tree_width: f32,
     /// Last click time and path for manual double-click detection
     last_click: Option<(Instant, PathBuf)>,
+    /// Drop target folder for external file drag-drop
+    pub drop_target: Option<PathBuf>,
 }
 
 impl std::fmt::Debug for ProjectPanelState {
@@ -106,6 +108,7 @@ impl std::fmt::Debug for ProjectPanelState {
             .field("selected_file", &self.selected_file)
             .field("renaming", &self.renaming)
             .field("tree_width", &self.tree_width)
+            .field("drop_target", &self.drop_target)
             .finish()
     }
 }
@@ -120,6 +123,7 @@ impl ProjectPanelState {
             renaming: None,
             tree_width: DEFAULT_TREE_WIDTH,
             last_click: None,
+            drop_target: None,
         }
     }
 

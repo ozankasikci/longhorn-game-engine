@@ -70,6 +70,81 @@ pub fn delete(path: &Path) -> io::Result<()> {
     }
 }
 
+/// Supported file extensions for import
+const SUPPORTED_EXTENSIONS: &[&str] = &[
+    // Images
+    "png", "jpg", "jpeg", "gif", "bmp", "webp",
+    // Audio
+    "wav", "mp3", "ogg",
+    // Fonts
+    "ttf", "otf",
+    // Data
+    "json", "toml", "ron",
+];
+
+/// Check if a file extension is supported for import
+fn is_supported_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| SUPPORTED_EXTENSIONS.contains(&ext.to_lowercase().as_str()))
+        .unwrap_or(false)
+}
+
+/// Generate a unique path for imported file (preserves original filename structure)
+fn unique_import_path(target_folder: &Path, filename: &str) -> PathBuf {
+    let path = target_folder.join(filename);
+    if !path.exists() {
+        return path;
+    }
+
+    let stem = Path::new(filename)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(filename);
+    let ext = Path::new(filename)
+        .extension()
+        .and_then(|e| e.to_str());
+
+    for i in 1..1000 {
+        let new_name = match ext {
+            Some(e) => format!("{} ({}).{}", stem, i, e),
+            None => format!("{} ({})", stem, i),
+        };
+        let new_path = target_folder.join(new_name);
+        if !new_path.exists() {
+            return new_path;
+        }
+    }
+    path // fallback (unlikely)
+}
+
+/// Import external files to the target folder
+/// Returns the list of successfully imported file paths
+pub fn import_files(files: &[PathBuf], target_folder: &Path) -> Vec<PathBuf> {
+    let mut imported = Vec::new();
+
+    for file in files {
+        if !is_supported_extension(file) {
+            continue;
+        }
+
+        let filename = match file.file_name().and_then(|n| n.to_str()) {
+            Some(name) => name,
+            None => continue,
+        };
+
+        let dest = unique_import_path(target_folder, filename);
+        if fs::copy(file, &dest).is_ok() {
+            log::info!("Imported file: {:?} -> {:?}", file, dest);
+            imported.push(dest);
+        } else {
+            log::warn!("Failed to import file: {:?}", file);
+        }
+    }
+
+    imported
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,5 +252,58 @@ mod tests {
         assert!(path2.is_dir());
         assert!(path1.file_name().unwrap().to_string_lossy().contains("New Folder"));
         assert!(path2.file_name().unwrap().to_string_lossy().contains("New Folder 1"));
+    }
+
+    #[test]
+    fn test_import_files_supported() {
+        let temp = tempdir().unwrap();
+        let source = tempdir().unwrap();
+
+        // Create a test PNG file
+        let png_path = source.path().join("test.png");
+        fs::write(&png_path, b"fake png data").unwrap();
+
+        let imported = import_files(&[png_path.clone()], temp.path());
+
+        assert_eq!(imported.len(), 1);
+        assert!(imported[0].exists());
+        assert_eq!(imported[0].file_name().unwrap(), "test.png");
+    }
+
+    #[test]
+    fn test_import_files_unsupported() {
+        let temp = tempdir().unwrap();
+        let source = tempdir().unwrap();
+
+        // Create a file with unsupported extension
+        let exe_path = source.path().join("test.exe");
+        fs::write(&exe_path, b"fake exe data").unwrap();
+
+        let imported = import_files(&[exe_path], temp.path());
+
+        assert!(imported.is_empty());
+    }
+
+    #[test]
+    fn test_import_files_auto_rename() {
+        let temp = tempdir().unwrap();
+        let source = tempdir().unwrap();
+
+        // Create source files
+        let png1 = source.path().join("image.png");
+        let png2 = source.path().join("image2.png");
+        fs::write(&png1, b"data1").unwrap();
+        fs::write(&png2, b"data2").unwrap();
+
+        // Import first file
+        let imported1 = import_files(&[png1.clone()], temp.path());
+        assert_eq!(imported1.len(), 1);
+        assert_eq!(imported1[0].file_name().unwrap(), "image.png");
+
+        // Import same filename again - should auto-rename
+        fs::write(&png1, b"data1 again").unwrap();
+        let imported2 = import_files(&[png1], temp.path());
+        assert_eq!(imported2.len(), 1);
+        assert_eq!(imported2[0].file_name().unwrap(), "image (1).png");
     }
 }

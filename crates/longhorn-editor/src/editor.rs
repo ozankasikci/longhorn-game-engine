@@ -583,6 +583,26 @@ impl Editor {
             }
         }
 
+        // Handle external file drag-drop
+        let dropped_files: Vec<std::path::PathBuf> = ctx.input(|i| {
+            i.raw.dropped_files.iter()
+                .filter_map(|f| f.path.clone())
+                .collect()
+        });
+
+        if !dropped_files.is_empty() {
+            let target = self.project_panel_state.drop_target.take()
+                .unwrap_or_else(|| self.project_panel_state.selected_folder.clone());
+
+            if target.exists() {
+                let imported = crate::import_files(&dropped_files, &target);
+                if !imported.is_empty() {
+                    log::info!("Imported {} files to {:?}", imported.len(), target);
+                    self.refresh_project_tree(engine);
+                }
+            }
+        }
+
         let mut should_exit = false;
         let mut toolbar_action = ToolbarAction::None;
 
