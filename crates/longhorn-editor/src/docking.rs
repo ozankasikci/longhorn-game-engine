@@ -113,6 +113,9 @@ pub fn create_dock_style(ui: &Ui) -> Style {
     style.separator.color_hovered = Colors::ACCENT;
     style.separator.color_dragged = Colors::ACCENT;
 
+    // Remove dock area padding for tight layout
+    style.dock_area_padding = Some(egui::Margin::ZERO);
+
     style
 }
 

@@ -43,10 +43,10 @@ fn show_tree_node(
         ui.set_min_height(TREE_ITEM_HEIGHT);
         ui.add_space(4.0 + indent);
 
-        // Expand/collapse icon
+        // Expand/collapse icon (extra-small for compact layout)
         if has_children {
             let arrow = if is_expanded { Icons::CARET_DOWN } else { Icons::CARET_RIGHT };
-            if ui.add(egui::Button::new(Icons::icon_sized(arrow, IconSize::SM)).frame(false)).clicked() {
+            if ui.add(egui::Button::new(Icons::icon_sized(arrow, IconSize::XS)).frame(false)).clicked() {
                 if is_expanded {
                     state.expanded_folders.remove(&node.path);
                 } else {
@@ -54,7 +54,7 @@ fn show_tree_node(
                 }
             }
         } else {
-            ui.add_space(IconSize::SM + 4.0);
+            ui.add_space(IconSize::XS + 4.0);
         }
 
         // Folder icon

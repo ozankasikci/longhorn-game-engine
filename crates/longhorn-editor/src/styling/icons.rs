@@ -5,6 +5,8 @@ pub use egui_phosphor::regular;
 pub struct IconSize;
 
 impl IconSize {
+    /// Extra-small icons for compact UI (arrows, indicators)
+    pub const XS: f32 = 10.0;
     /// Small icons inline with text
     pub const SM: f32 = 14.0;
     /// Standard icons for list items

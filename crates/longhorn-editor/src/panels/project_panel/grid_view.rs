@@ -94,7 +94,7 @@ pub fn show_grid_view(
         for child in &folder.children {
             let is_selected = state.selected_folder == child.path;
 
-            let response = show_list_item(ui, |ui| {
+            let (row_response, label_response) = show_list_item(ui, |ui| {
                 let icon = if is_selected { Icons::FOLDER_OPEN } else { Icons::FOLDER };
                 ui.label(Icons::icon_sized(icon, IconSize::MD));
                 ui.add_space(6.0);
@@ -108,21 +108,24 @@ pub fn show_grid_view(
             });
 
             // Highlight folder when external files hover over it
-            if files_hovering && response.hovered() {
+            if files_hovering && row_response.hovered() {
                 ui.painter().rect_stroke(
-                    response.rect,
+                    row_response.rect,
                     Radius::SMALL,
                     egui::Stroke::new(2.0, Colors::ACCENT),
                 );
                 state.drop_target = Some(child.path.clone());
             }
 
-            if response.double_clicked() {
+            // Double-click to navigate into folder
+            if label_response.double_clicked() {
                 state.selected_folder = child.path.clone();
                 state.expanded_folders.insert(child.path.clone());
+            } else if label_response.clicked() {
+                state.selected_folder = child.path.clone();
             }
 
-            response.context_menu(|ui| {
+            row_response.context_menu(|ui| {
                 if let Some(ctx_action) = show_folder_context_menu(ui, &child.path) {
                     action = Some(ProjectPanelAction::Context(ctx_action));
                 }
@@ -153,7 +156,7 @@ pub fn show_grid_view(
             ui_state.register_clickable(&element_id, &file.name, "file");
             let pending_action = ui_state.has_pending_trigger_for(&element_id).cloned();
 
-            let mut response = show_list_item(ui, |ui| {
+            let (row_response, label_response) = show_list_item(ui, |ui| {
                 ui.label(RichText::new(icon_char).size(IconSize::MD).color(icon_color));
                 ui.add_space(6.0);
 
@@ -185,39 +188,19 @@ pub fn show_grid_view(
             });
 
             // Tooltip
-            if let Some(_size) = file.size {
+            let row_response = if let Some(_size) = file.size {
                 let ext = file.extension.as_ref().map(|e| e.as_str()).unwrap_or("unknown");
-                response = response.on_hover_text(format!(
+                row_response.on_hover_text(format!(
                     "{}\nSize: {}\nType: {}",
                     file.name, file.format_size(), ext
-                ));
-            }
+                ))
+            } else {
+                row_response
+            };
 
-            // Click handling
-            let is_clicked = response.clicked() || pending_action == Some(TriggerAction::Click);
-            if is_clicked {
-                let is_manual_double_click = state.check_double_click(&file.path);
-
-                if is_manual_double_click {
-                    log::info!("=== DOUBLE-CLICK DETECTED === File: {:?}", file.path);
-                    let new_action = if file.file_type == FileType::Scene {
-                        ProjectPanelAction::OpenScene(file.path.clone())
-                    } else if file.file_type.is_text_editable() {
-                        ProjectPanelAction::OpenScript(file.path.clone())
-                    } else if file.file_type == FileType::Image {
-                        ProjectPanelAction::OpenImage(file.path.clone())
-                    } else {
-                        ProjectPanelAction::OpenExternal(file.path.clone())
-                    };
-                    action = Some(new_action);
-                } else {
-                    state.selected_file = Some(file.path.clone());
-                }
-            }
-
-            // Remote double-click
-            if pending_action == Some(TriggerAction::DoubleClick) {
-                action = Some(if file.file_type == FileType::Scene {
+            // Double-click to open file
+            if label_response.double_clicked() || pending_action == Some(TriggerAction::DoubleClick) {
+                let new_action = if file.file_type == FileType::Scene {
                     ProjectPanelAction::OpenScene(file.path.clone())
                 } else if file.file_type.is_text_editable() {
                     ProjectPanelAction::OpenScript(file.path.clone())
@@ -225,7 +208,11 @@ pub fn show_grid_view(
                     ProjectPanelAction::OpenImage(file.path.clone())
                 } else {
                     ProjectPanelAction::OpenExternal(file.path.clone())
-                });
+                };
+                action = Some(new_action);
+            } else if label_response.clicked() || pending_action == Some(TriggerAction::Click) {
+                // Single click to select
+                state.selected_file = Some(file.path.clone());
             }
 
             // Remote right-click
@@ -234,7 +221,7 @@ pub fn show_grid_view(
             }
 
             // Context menu
-            response.context_menu(|ui| {
+            row_response.context_menu(|ui| {
                 if let Some(ctx_action) = show_create_submenu(ui, &folder.path) {
                     action = Some(ProjectPanelAction::Context(ctx_action));
                 }
@@ -310,13 +297,14 @@ pub fn show_grid_view(
 }
 
 /// Renders a consistent list item with proper padding and height
-fn show_list_item<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> egui::Response {
+/// Returns (row_response, inner_value) so callers can use the inner response for click handling
+fn show_list_item<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> (egui::Response, R) {
     let response = ui.horizontal(|ui| {
         ui.set_min_height(LIST_ITEM_MIN_HEIGHT);
         ui.add_space(8.0);
         add_contents(ui)
     });
-    response.response
+    (response.response, response.inner)
 }
 
 fn find_folder<'a>(root: &'a DirectoryNode, path: &std::path::Path) -> Option<&'a DirectoryNode> {
