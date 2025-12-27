@@ -57,7 +57,7 @@ pub fn show_import_asset_button(ui: &mut Ui, target_folder: &Path) -> Option<Con
     None
 }
 
-/// Renders the standard context menu for folders (Create submenu + Import Asset).
+/// Renders the standard context menu for folders (Create submenu + Import Asset + Rename/Delete).
 ///
 /// # Arguments
 /// * `ui` - The egui UI context
@@ -72,6 +72,22 @@ pub fn show_folder_context_menu(ui: &mut Ui, target_folder: &Path) -> Option<Con
 
     if action.is_none() {
         action = show_import_asset_button(ui, target_folder);
+    }
+
+    ui.separator();
+
+    if action.is_none() {
+        if ui.button("Rename").clicked() {
+            action = Some(ContextAction::Rename(target_folder.to_path_buf()));
+            ui.close_menu();
+        }
+    }
+
+    if action.is_none() {
+        if ui.button("Delete").clicked() {
+            action = Some(ContextAction::Delete(target_folder.to_path_buf()));
+            ui.close_menu();
+        }
     }
 
     action

@@ -125,7 +125,8 @@ pub fn show_grid_view(
                 state.selected_folder = child.path.clone();
             }
 
-            row_response.context_menu(|ui| {
+            // Context menu on the label (the interactive element)
+            label_response.context_menu(|ui| {
                 if let Some(ctx_action) = show_folder_context_menu(ui, &child.path) {
                     action = Some(ProjectPanelAction::Context(ctx_action));
                 }
@@ -220,8 +221,8 @@ pub fn show_grid_view(
                 action = Some(ProjectPanelAction::OpenScript(file.path.clone()));
             }
 
-            // Context menu
-            row_response.context_menu(|ui| {
+            // Context menu on the label (the interactive element)
+            label_response.context_menu(|ui| {
                 if let Some(ctx_action) = show_create_submenu(ui, &folder.path) {
                     action = Some(ProjectPanelAction::Context(ctx_action));
                 }
@@ -256,39 +257,42 @@ pub fn show_grid_view(
 
     // Empty space - drop zone and context menu
     let remaining = ui.available_size();
-    if remaining.y > 0.0 {
-        let (rect, response) = ui.allocate_exact_size(remaining, egui::Sense::click());
-        if rect.height() > 0.0 {
-            // Show drop zone indicator when files are hovering
-            if files_hovering && response.hovered() {
-                ui.painter().rect_filled(
-                    rect,
-                    Radius::SMALL,
-                    Colors::ACCENT.gamma_multiply(0.15),
-                );
-                ui.painter().rect_stroke(
-                    rect,
-                    Radius::SMALL,
-                    egui::Stroke::new(2.0, Colors::ACCENT),
-                );
-                ui.painter().text(
-                    rect.center(),
-                    egui::Align2::CENTER_CENTER,
-                    "Drop files here to import",
-                    egui::FontId::default(),
-                    Colors::ACCENT,
-                );
-                // Use current folder as drop target
-                state.drop_target = Some(folder.path.clone());
-            }
+    let min_height = 50.0;
+    let alloc_height = remaining.y.max(min_height);
 
-            response.context_menu(|ui| {
-                if let Some(ctx_action) = show_folder_context_menu(ui, &folder.path) {
-                    action = Some(ProjectPanelAction::Context(ctx_action));
-                }
-            });
-        }
+    let (rect, response) = ui.allocate_exact_size(
+        Vec2::new(remaining.x.max(100.0), alloc_height),
+        egui::Sense::click()
+    );
+
+    // Show drop zone indicator when files are hovering
+    if files_hovering && response.hovered() {
+        ui.painter().rect_filled(
+            rect,
+            Radius::SMALL,
+            Colors::ACCENT.gamma_multiply(0.15),
+        );
+        ui.painter().rect_stroke(
+            rect,
+            Radius::SMALL,
+            egui::Stroke::new(2.0, Colors::ACCENT),
+        );
+        ui.painter().text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            "Drop files here to import",
+            egui::FontId::default(),
+            Colors::ACCENT,
+        );
+        state.drop_target = Some(folder.path.clone());
     }
+
+    // Use native context_menu for consistent styling
+    response.context_menu(|ui| {
+        if let Some(ctx_action) = show_folder_context_menu(ui, &folder.path) {
+            action = Some(ProjectPanelAction::Context(ctx_action));
+        }
+    });
 
     if action.is_some() {
         log::info!("=== show_grid_view returning action: {:?} ===", action);

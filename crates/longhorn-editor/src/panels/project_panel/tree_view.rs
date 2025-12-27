@@ -77,20 +77,21 @@ fn show_tree_node(
         label_response
     });
 
-    let response = row_response.inner;
+    let row_rect = row_response.response.rect;
+    let label_response = row_response.inner;
 
     // Highlight folder when external files hover over it
     if files_hovering && row_response.response.hovered() {
         ui.painter().rect_stroke(
-            row_response.response.rect,
+            row_rect,
             Radius::SMALL,
             egui::Stroke::new(2.0, Colors::ACCENT),
         );
         state.drop_target = Some(node.path.clone());
     }
 
-    // Context menu
-    response.context_menu(|ui| {
+    // Context menu on the selectable_label - it's interactive so it should detect right-clicks
+    label_response.context_menu(|ui| {
         if let Some(ctx_action) = show_folder_context_menu(ui, &node.path) {
             action = Some(ProjectPanelAction::Context(ctx_action));
         }
