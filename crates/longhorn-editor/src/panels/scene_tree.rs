@@ -3,7 +3,7 @@ use longhorn_core::{World, Name, EntityHandle, Parent, Children, Transform, Glob
 use longhorn_assets::{AssetManager, FilesystemSource};
 use crate::{EditorState, UiStateTracker};
 use crate::styling::{Typography, Icons, IconSize, Colors, Radius};
-use crate::ui::context_menus::show_scene_tree_create_menu;
+use crate::ui::context_menus::{show_entity_context_menu, show_scene_tree_empty_context_menu};
 pub use crate::ui::context_menus::SceneTreeAction;
 use std::collections::HashSet;
 
@@ -67,9 +67,16 @@ impl SceneTreePanel {
         let is_selected = state.is_selected(entity);
         let has_children = !node.children.is_empty();
         let is_expanded = self.expanded_entities.contains(&entity_bits);
+        let is_renaming = state.renaming_entity == Some(entity);
 
         let mut reparent_target = None;
         let indent = depth as f32 * TREE_INDENT;
+
+        // Get rename buffer for this entity
+        let rename_id = egui::Id::new(("entity_rename", entity_bits));
+        let mut rename_text = ui.ctx().data_mut(|d| {
+            d.get_temp::<String>(rename_id).unwrap_or_else(|| node.name.clone())
+        });
 
         let horizontal_response = ui.horizontal(|ui| {
             ui.set_min_height(TREE_ITEM_HEIGHT);
@@ -101,20 +108,73 @@ impl SceneTreePanel {
                 .map(|id| id == element_id)
                 .unwrap_or(false);
 
-            // Selectable label with drag support
-            let mut label_resp = ui.selectable_label(is_selected, &node.name);
-            label_resp = label_resp.interact(egui::Sense::click_and_drag());
+            if is_renaming {
+                // Show text edit for renaming
+                let text_edit = egui::TextEdit::singleline(&mut rename_text)
+                    .desired_width(100.0);
+                let response = ui.add(text_edit);
 
-            if label_resp.clicked() || should_trigger {
-                log::info!("SceneTree - selecting entity '{}': ID {}", node.name, entity.id());
-                state.select(Some(entity));
+                // Check for key presses BEFORE focus handling
+                let enter_pressed = ui.input(|i| i.key_pressed(egui::Key::Enter));
+                let escape_pressed = ui.input(|i| i.key_pressed(egui::Key::Escape));
+                let focus_lost = response.lost_focus();
+
+                // Handle Escape to cancel (don't commit)
+                if escape_pressed {
+                    state.renaming_entity = None;
+                    ui.ctx().data_mut(|d| d.remove::<String>(rename_id));
+                    response.surrender_focus();
+                }
+                // Handle Enter to confirm OR focus lost (click outside)
+                else if enter_pressed || focus_lost {
+                    // Commit the rename
+                    let handle = EntityHandle::new(entity);
+                    log::info!("=== RENAME COMMIT: enter={}, lost_focus={}, text='{}' ===",
+                        enter_pressed, focus_lost, rename_text);
+                    if let Err(e) = world.set(handle, Name::new(&rename_text)) {
+                        log::error!("Failed to rename entity: {:?}", e);
+                    } else {
+                        log::info!("Renamed entity to: {} - setting EntityRenamed action", rename_text);
+                        // Signal that entity was renamed (for dirty tracking)
+                        *action = Some(SceneTreeAction::EntityRenamed(entity));
+                    }
+                    state.renaming_entity = None;
+                    ui.ctx().data_mut(|d| d.remove::<String>(rename_id));
+                    response.surrender_focus();
+                }
+                // Continue renaming - store text and ensure focus
+                else {
+                    ui.ctx().data_mut(|d| d.insert_temp(rename_id, rename_text.clone()));
+                    // Auto-focus on first frame
+                    if !response.has_focus() {
+                        response.request_focus();
+                    }
+                }
+
+                response
+            } else {
+                // Selectable label with drag support
+                let mut label_resp = ui.selectable_label(is_selected, &node.name);
+                label_resp = label_resp.interact(egui::Sense::click_and_drag());
+
+                if label_resp.clicked() || should_trigger {
+                    log::info!("SceneTree - selecting entity '{}': ID {}", node.name, entity.id());
+                    state.select(Some(entity));
+                }
+
+                // Enter key on selected entity starts rename (like Finder on Mac)
+                if is_selected && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    state.renaming_entity = Some(entity);
+                    // Initialize rename buffer with current name
+                    ui.ctx().data_mut(|d| d.insert_temp(rename_id, node.name.clone()));
+                }
+
+                if label_resp.drag_started() || label_resp.dragged() {
+                    label_resp.dnd_set_drag_payload(entity_bits);
+                }
+
+                label_resp
             }
-
-            if label_resp.drag_started() || label_resp.dragged() {
-                label_resp.dnd_set_drag_payload(entity_bits);
-            }
-
-            label_resp
         });
 
         let response = horizontal_response.inner;
@@ -158,9 +218,9 @@ impl SceneTreePanel {
             }
         }
 
-        // Context menu
-        horizontal_response.response.context_menu(|ui| {
-            if let Some(ctx_action) = show_scene_tree_create_menu(ui) {
+        // Context menu - attach to the inner label/text response for proper right-click detection
+        response.context_menu(|ui| {
+            if let Some(ctx_action) = show_entity_context_menu(ui, entity) {
                 *action = Some(ctx_action);
             }
         });
@@ -244,15 +304,15 @@ impl SceneTreePanel {
             );
         }
 
-        // Drop zone for making entities root-level
+        // Drop zone for making entities root-level (also serves as context menu area)
         ui.add_space(8.0);
         let drop_zone_height = 28.0;
-        let (rect, response) = ui.allocate_exact_size(
+        let (rect, drop_response) = ui.allocate_exact_size(
             egui::vec2(ui.available_width(), drop_zone_height),
-            egui::Sense::hover(),
+            egui::Sense::click(),  // Changed to click to support context menu
         );
 
-        if response.hovered() && ui.input(|i| i.pointer.any_down()) {
+        if drop_response.hovered() && ui.input(|i| i.pointer.any_down()) {
             ui.painter().rect_filled(rect, Radius::SMALL, Colors::ACCENT.gamma_multiply(0.15));
             ui.painter().text(
                 rect.center(), egui::Align2::CENTER_CENTER,
@@ -269,7 +329,7 @@ impl SceneTreePanel {
         }
 
         // Handle drop on root zone
-        if let Some(dropped_entity_bits) = response.dnd_release_payload::<u64>() {
+        if let Some(dropped_entity_bits) = drop_response.dnd_release_payload::<u64>() {
             if let Some(dropped_entity) = world.inner().iter()
                 .find(|e| e.entity().to_bits().get() == *dropped_entity_bits)
                 .map(|e| e.entity())
@@ -288,13 +348,20 @@ impl SceneTreePanel {
             }
         }
 
-        // Context menu for empty space
+        // Context menu on drop zone
+        drop_response.context_menu(|ui| {
+            if let Some(ctx_action) = show_scene_tree_empty_context_menu(ui) {
+                action = Some(ctx_action);
+            }
+        });
+
+        // Context menu for remaining empty space
         let remaining = ui.available_size();
         if remaining.y > 0.0 {
             let (rect, response) = ui.allocate_exact_size(remaining, egui::Sense::click());
             if rect.height() > 0.0 {
                 response.context_menu(|ui| {
-                    if let Some(ctx_action) = show_scene_tree_create_menu(ui) {
+                    if let Some(ctx_action) = show_scene_tree_empty_context_menu(ui) {
                         action = Some(ctx_action);
                     }
                 });

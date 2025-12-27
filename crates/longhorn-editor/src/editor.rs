@@ -35,6 +35,8 @@ pub struct Editor {
     pending_show_script_editor: bool,
     /// Texture picker state
     texture_picker_state: TexturePickerState,
+    /// Path to the currently open scene file
+    current_scene_path: Option<std::path::PathBuf>,
     /// Pending screenshot request (path to save)
     pending_screenshot: Option<String>,
     /// Gizmo state for transform manipulation
@@ -96,6 +98,7 @@ impl Editor {
             project_tree: None,
             pending_show_script_editor: false,
             texture_picker_state: TexturePickerState::new(),
+            current_scene_path: None,
             pending_screenshot: None,
             gizmo_state: GizmoState::new(GizmoMode::Move),
             gizmo_config: GizmoConfig::default(),
@@ -243,11 +246,26 @@ impl Editor {
 
     /// Save the currently focused file
     fn save_current(&mut self, engine: &Engine) {
+        log::info!("=== SAVE_CURRENT called: dirty_state.scene={}, current_scene_path={:?} ===",
+            self.dirty_state.scene, self.current_scene_path);
+
         // Save scene if dirty
         if self.dirty_state.scene {
-            // TODO: Implement scene save
-            log::info!("TODO: Save scene");
-            self.dirty_state.scene = false;
+            if let Some(scene_path) = &self.current_scene_path {
+                // Create scene from current world state
+                let scene = longhorn_core::Scene::from_world(engine.world(), engine.assets());
+                match scene.save(scene_path) {
+                    Ok(()) => {
+                        log::info!("Scene saved: {:?}", scene_path);
+                        self.dirty_state.scene = false;
+                    }
+                    Err(e) => {
+                        log::error!("Failed to save scene: {}", e);
+                    }
+                }
+            } else {
+                log::warn!("No scene path set - cannot save scene");
+            }
         }
 
         // Save current script if dirty
@@ -425,6 +443,13 @@ impl Editor {
     pub fn show(&mut self, ctx: &Context, engine: &mut Engine, viewport_texture: Option<egui::TextureId>, viewport_texture_size: glam::Vec2, game_texture: Option<egui::TextureId>) -> bool {
         // Reset UI state tracking for this frame
         self.ui_state.begin_frame();
+
+        // Global keyboard shortcuts (Cmd+S to save)
+        let save_shortcut = ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S));
+        if save_shortcut {
+            log::info!("=== CMD+S PRESSED - calling save_current ===");
+            self.save_current(engine);
+        }
 
         // If no project is loaded, show startup screen
         if self.project.is_none() {
@@ -882,17 +907,20 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                 );
 
                 // Handle scene tree actions
+                if let Some(action) = &scene_action {
+                    log::info!("=== SCENE TREE ACTION RECEIVED: {:?} ===", action);
+                }
                 if let Some(action) = scene_action {
                     match action {
-                        crate::SceneTreeAction::CreateEntity => {
+                        crate::SceneTreeAction::CreateEntity(parent) => {
                             // Create new entity with Name and Transform
                             let new_entity = world.spawn()
                                 .with(longhorn_core::Name::new("New Entity"))
                                 .with(longhorn_core::Transform::new())
                                 .build();
 
-                            // If an entity is selected, make the new entity a child
-                            if let Some(parent_entity) = self.editor.state.selected_entity {
+                            // If a parent is specified, make the new entity a child
+                            if let Some(parent_entity) = parent {
                                 let parent_handle = longhorn_core::EntityHandle::new(parent_entity);
                                 if let Err(e) = longhorn_core::ecs::hierarchy::add_child(world, parent_handle, new_entity) {
                                     log::error!("Failed to add child entity: {:?}", e);
@@ -904,7 +932,70 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
 
                             // Select the new entity
                             self.editor.state.select(Some(new_entity.id()));
+                            self.editor.dirty_state.scene = true;
                             log::info!("Created new entity: {:?}", new_entity.id());
+                        }
+                        crate::SceneTreeAction::DeleteEntity(entity) => {
+                            // Clear selection if deleting selected entity
+                            if self.editor.state.selected_entity == Some(entity) {
+                                self.editor.state.select(None);
+                            }
+                            // Remove from expanded set
+                            self.editor.scene_tree.expanded_entities.remove(&entity.to_bits().get());
+                            // Despawn the entity and all its children
+                            let handle = longhorn_core::EntityHandle::new(entity);
+                            if let Err(e) = world.despawn(handle) {
+                                log::error!("Failed to delete entity: {:?}", e);
+                            } else {
+                                self.editor.dirty_state.scene = true;
+                                log::info!("Deleted entity: {:?}", entity.id());
+                            }
+                        }
+                        crate::SceneTreeAction::RenameEntity(entity) => {
+                            // Set the entity for rename mode in editor state
+                            // Note: actual rename happens in scene_tree.rs when committed
+                            self.editor.state.renaming_entity = Some(entity);
+                            log::info!("Starting rename for entity: {:?}", entity.id());
+                        }
+                        crate::SceneTreeAction::EntityRenamed(entity) => {
+                            // Entity was renamed, mark scene as dirty
+                            log::info!("=== ENTITY RENAMED ACTION: entity {:?}, setting dirty_state.scene = true ===", entity.id());
+                            self.editor.dirty_state.scene = true;
+                            log::info!("=== dirty_state.scene is now: {} ===", self.editor.dirty_state.scene);
+                        }
+                        crate::SceneTreeAction::DuplicateEntity(entity) => {
+                            // Duplicate the entity with all its components
+                            let handle = longhorn_core::EntityHandle::new(entity);
+
+                            // Get the name, transform, and parent (copy values before mutating)
+                            let name = world.get::<longhorn_core::Name>(handle)
+                                .ok()
+                                .map(|n| format!("{} (Copy)", n.0))
+                                .unwrap_or_else(|| "Entity (Copy)".to_string());
+                            let transform = world.get::<longhorn_core::Transform>(handle)
+                                .ok()
+                                .map(|t| *t)
+                                .unwrap_or_default();
+                            let parent_entity = world.get::<longhorn_core::Parent>(handle)
+                                .ok()
+                                .map(|p| p.0);
+
+                            // Create the duplicate
+                            let new_entity = world.spawn()
+                                .with(longhorn_core::Name::new(&name))
+                                .with(transform)
+                                .build();
+
+                            // If original has a parent, add duplicate as sibling
+                            if let Some(parent_id) = parent_entity {
+                                let parent_handle = longhorn_core::EntityHandle::new(parent_id);
+                                let _ = longhorn_core::ecs::hierarchy::add_child(world, parent_handle, new_entity);
+                            }
+
+                            // Select the duplicate
+                            self.editor.state.select(Some(new_entity.id()));
+                            self.editor.dirty_state.scene = true;
+                            log::info!("Duplicated entity {:?} -> {:?}", entity.id(), new_entity.id());
                         }
                     }
                 }
@@ -1065,7 +1156,9 @@ impl<'a> PanelRenderer for EditorPanelWrapper<'a> {
                                             log::info!("Scene loaded: {} entities spawned", entity_map.len());
                                             // Clear selection since entity IDs changed
                                             self.editor.state.selected_entity = None;
-                                            // Mark scene as dirty (it's been loaded/modified)
+                                            // Store the scene path for saving
+                                            self.editor.current_scene_path = Some(path.clone());
+                                            // Scene just loaded, not dirty
                                             self.editor.dirty_state.scene = false;
                                         }
                                         Err(e) => {

@@ -17,6 +17,8 @@ pub struct EditorState {
     pub mode: PlayMode,
     /// Currently selected entity
     pub selected_entity: Option<Entity>,
+    /// Entity currently being renamed (for inline rename UI)
+    pub renaming_entity: Option<Entity>,
     /// Whether game is paused (only relevant in Play mode)
     pub paused: bool,
     /// Path to loaded game

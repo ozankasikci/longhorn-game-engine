@@ -320,6 +320,9 @@ impl EditorApp {
             std::process::exit(0);
         }
 
+        // Update window title (shows dirty indicator)
+        window.set_title(&self.editor.window_title());
+
         // Handle platform output
         egui_state.winit_state.handle_platform_output(window, full_output.platform_output);
 

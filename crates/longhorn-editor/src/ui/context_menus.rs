@@ -6,7 +6,15 @@ use crate::ContextAction;
 #[derive(Debug, Clone, PartialEq)]
 pub enum SceneTreeAction {
     /// Create a new entity (as child of selected, or root if nothing selected)
-    CreateEntity,
+    CreateEntity(Option<hecs::Entity>),
+    /// Delete the specified entity
+    DeleteEntity(hecs::Entity),
+    /// Start rename mode for the specified entity
+    RenameEntity(hecs::Entity),
+    /// Duplicate the specified entity
+    DuplicateEntity(hecs::Entity),
+    /// Entity was renamed (for marking scene dirty)
+    EntityRenamed(hecs::Entity),
 }
 
 /// Renders a "Create" submenu for creating scenes, scripts, and folders.
@@ -97,18 +105,69 @@ pub fn show_folder_context_menu(ui: &mut Ui, target_folder: &Path) -> Option<Con
 ///
 /// # Arguments
 /// * `ui` - The egui UI context
+/// * `parent` - Optional parent entity for the new entity
 ///
 /// # Returns
 /// * `Option<SceneTreeAction>` - The action to perform if user clicked an option
-pub fn show_scene_tree_create_menu(ui: &mut Ui) -> Option<SceneTreeAction> {
+pub fn show_scene_tree_create_menu(ui: &mut Ui, parent: Option<hecs::Entity>) -> Option<SceneTreeAction> {
     let mut action = None;
 
     ui.menu_button("Create", |ui| {
         if ui.button("Entity").clicked() {
-            action = Some(SceneTreeAction::CreateEntity);
+            action = Some(SceneTreeAction::CreateEntity(parent));
             ui.close_menu();
         }
     });
 
     action
+}
+
+/// Renders the full context menu for an entity in the scene tree.
+///
+/// # Arguments
+/// * `ui` - The egui UI context
+/// * `entity` - The entity to show the context menu for
+///
+/// # Returns
+/// * `Option<SceneTreeAction>` - The action to perform if user clicked an option
+pub fn show_entity_context_menu(ui: &mut Ui, entity: hecs::Entity) -> Option<SceneTreeAction> {
+    let mut action = show_scene_tree_create_menu(ui, Some(entity));
+
+    ui.separator();
+
+    if action.is_none() {
+        if ui.button("Duplicate").clicked() {
+            action = Some(SceneTreeAction::DuplicateEntity(entity));
+            ui.close_menu();
+        }
+    }
+
+    if action.is_none() {
+        if ui.button("Rename").clicked() {
+            action = Some(SceneTreeAction::RenameEntity(entity));
+            ui.close_menu();
+        }
+    }
+
+    ui.separator();
+
+    if action.is_none() {
+        if ui.button("Delete").clicked() {
+            action = Some(SceneTreeAction::DeleteEntity(entity));
+            ui.close_menu();
+        }
+    }
+
+    action
+}
+
+/// Renders the context menu for empty space in the scene tree (no entity selected).
+///
+/// # Arguments
+/// * `ui` - The egui UI context
+///
+/// # Returns
+/// * `Option<SceneTreeAction>` - The action to perform if user clicked an option
+pub fn show_scene_tree_empty_context_menu(ui: &mut Ui) -> Option<SceneTreeAction> {
+    show_scene_tree_create_menu(ui, None)
 }

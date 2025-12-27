@@ -1252,4 +1252,175 @@ mod tests {
         // Clean up
         fs::remove_file(&path).unwrap();
     }
+
+    #[test]
+    fn test_rename_entity_persists_after_save_and_reload() {
+        // This tests the scenario:
+        // 1. Create entity with initial name
+        // 2. Rename the entity (modify Name component)
+        // 3. Save the scene
+        // 4. Reload the scene
+        // 5. Verify the renamed name persists
+
+        let path = temp_path("rename_persist");
+
+        // Create world with an entity
+        let mut world = World::new();
+        let entity = world.spawn()
+            .with(Name::new("Original Name"))
+            .with(Transform::new())
+            .build();
+
+        // Verify initial name
+        {
+            let name = world.get::<Name>(entity).unwrap();
+            assert_eq!(name.as_str(), "Original Name");
+        }
+
+        // Rename the entity (simulating what the editor does)
+        world.set(entity, Name::new("Renamed Entity")).unwrap();
+
+        // Verify rename worked in world
+        {
+            let name = world.get::<Name>(entity).unwrap();
+            assert_eq!(name.as_str(), "Renamed Entity");
+        }
+
+        // Create scene from world and save
+        let registry = MockRegistry::new();
+        let scene = Scene::from_world(&world, &registry);
+        scene.save(&path).unwrap();
+
+        // Verify the scene captured the renamed name
+        assert_eq!(scene.entities.len(), 1);
+        assert_eq!(scene.entities[0].components.name, Some("Renamed Entity".to_string()));
+
+        // Load the scene back
+        let loaded_scene = Scene::load(&path).unwrap();
+
+        // Verify the loaded scene has the renamed name
+        assert_eq!(loaded_scene.entities.len(), 1);
+        assert_eq!(loaded_scene.entities[0].components.name, Some("Renamed Entity".to_string()));
+
+        // Clean up
+        fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn test_multiple_renames_last_one_persists() {
+        // Verify that multiple renames result in the final name being saved
+        let path = temp_path("multi_rename");
+
+        let mut world = World::new();
+        let entity = world.spawn()
+            .with(Name::new("Name 1"))
+            .with(Transform::new())
+            .build();
+
+        // Rename multiple times
+        world.set(entity, Name::new("Name 2")).unwrap();
+        world.set(entity, Name::new("Name 3")).unwrap();
+        world.set(entity, Name::new("Final Name")).unwrap();
+
+        // Verify final name in world
+        {
+            let name = world.get::<Name>(entity).unwrap();
+            assert_eq!(name.as_str(), "Final Name");
+        }
+
+        // Save and reload
+        let registry = MockRegistry::new();
+        let scene = Scene::from_world(&world, &registry);
+        scene.save(&path).unwrap();
+
+        let loaded_scene = Scene::load(&path).unwrap();
+        assert_eq!(loaded_scene.entities[0].components.name, Some("Final Name".to_string()));
+
+        // Clean up
+        fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn test_rename_child_entity_persists() {
+        // Test that renaming a child entity also persists correctly
+        let path = temp_path("rename_child");
+
+        let mut world = World::new();
+
+        // Create parent
+        let parent = world.spawn()
+            .with(Name::new("Parent"))
+            .with(Transform::new())
+            .build();
+
+        // Create child
+        let child = world.spawn()
+            .with(Name::new("Original Child"))
+            .with(Transform::new())
+            .build();
+
+        // Set up hierarchy
+        crate::ecs::hierarchy::add_child(&mut world, parent, child).unwrap();
+
+        // Rename the child
+        world.set(child, Name::new("Renamed Child")).unwrap();
+
+        // Verify rename worked
+        {
+            let name = world.get::<Name>(child).unwrap();
+            assert_eq!(name.as_str(), "Renamed Child");
+        }
+
+        // Save and reload
+        let registry = MockRegistry::new();
+        let scene = Scene::from_world(&world, &registry);
+        scene.save(&path).unwrap();
+
+        let loaded_scene = Scene::load(&path).unwrap();
+
+        // Find the child in the loaded scene (it should be nested under parent)
+        assert_eq!(loaded_scene.entities.len(), 1); // Only root entities at top level
+        let parent_entity = &loaded_scene.entities[0];
+        assert_eq!(parent_entity.components.name, Some("Parent".to_string()));
+        assert_eq!(parent_entity.children.len(), 1);
+
+        let child_entity = &parent_entity.children[0];
+        assert_eq!(child_entity.components.name, Some("Renamed Child".to_string()));
+
+        // Clean up
+        fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn test_restore_renamed_entity_into_existing_world() {
+        // Test the restore_into flow that the editor uses
+        // This simulates: save scene, reload it into existing world
+        let path = temp_path("restore_rename");
+
+        let mut world = World::new();
+        let entity = world.spawn()
+            .with(Name::new("Original"))
+            .with(Transform::new())
+            .build();
+
+        // Rename
+        world.set(entity, Name::new("Renamed")).unwrap();
+
+        // Save
+        let registry = MockRegistry::new();
+        let scene = Scene::from_world(&world, &registry);
+        scene.save(&path).unwrap();
+
+        // Load and restore into the same world (simulating scene reload)
+        let loaded_scene = Scene::load(&path).unwrap();
+        let mut loader = MockAssetLoader::new();
+        loaded_scene.restore_into(&mut world, &mut loader).unwrap();
+
+        // Verify the name is still "Renamed" after restore
+        let name = world.get::<Name>(entity).unwrap();
+        assert_eq!(name.as_str(), "Renamed");
+
+        // Clean up
+        fs::remove_file(&path).unwrap();
+    }
 }
