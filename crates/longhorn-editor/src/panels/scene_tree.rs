@@ -96,11 +96,22 @@ impl SceneTreePanel {
 
     /// Insert a root entity at a specific index
     fn insert_root_at(&mut self, entity_bits: u64, index: usize) {
+        // Find current position before removing
+        let old_index = self.root_order.iter().position(|&b| b == entity_bits);
+
         // Remove if already present
         self.root_order.retain(|&b| b != entity_bits);
-        // Insert at new position
-        let index = index.min(self.root_order.len());
-        self.root_order.insert(index, entity_bits);
+
+        // Adjust index if the entity was before the target position
+        // (because removing it shifted everything down)
+        let adjusted_index = match old_index {
+            Some(old) if old < index => index.saturating_sub(1),
+            _ => index,
+        };
+
+        // Insert at adjusted position
+        let final_index = adjusted_index.min(self.root_order.len());
+        self.root_order.insert(final_index, entity_bits);
     }
 
     fn show_entity_node(

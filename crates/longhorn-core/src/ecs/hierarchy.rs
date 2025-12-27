@@ -186,17 +186,37 @@ pub fn set_parent_at_index(
         return Err(HierarchyError::CycleDetected { child: child.id() });
     }
 
+    // Check if moving within same parent - need to adjust index
+    let old_index_in_new_parent = if let Ok(parent_comp) = world.get::<Parent>(child) {
+        if parent_comp.get() == new_parent.id() {
+            // Same parent - get current index for adjustment
+            world.get::<Children>(new_parent)
+                .ok()
+                .and_then(|children| children.index_of(child.id()))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     // Remove from old parent if exists
     clear_parent(world, child)?;
+
+    // Adjust index if child was before target position in the same parent
+    let adjusted_index = match old_index_in_new_parent {
+        Some(old_idx) if old_idx < index => index.saturating_sub(1),
+        _ => index,
+    };
 
     // Add Parent component to child
     world.set(child, Parent::new(new_parent.id())).ok();
 
-    // Add child to parent's Children component at specific index
+    // Add child to parent's Children component at adjusted index
     let has_children = world.has::<Children>(new_parent);
     if has_children {
         if let Ok(mut children) = world.get_mut::<Children>(new_parent) {
-            children.insert_at(child.id(), index);
+            children.insert_at(child.id(), adjusted_index);
         }
     } else {
         // Parent doesn't have Children component, create it
